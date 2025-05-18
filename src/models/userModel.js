@@ -12,6 +12,7 @@ const User = connection.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  
   email: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -42,14 +43,10 @@ const User = connection.define('User', {
   },
   phone: {
     type: DataTypes.STRING,
-    allowNull: true, // Có thể true hoặc false tuỳ logic, nhưng để true nếu dùng nhiều loại đăng ký
+    allowNull: true, 
     unique: true
   },
   
-  isVerified: {
-   type: DataTypes.TINYINT,
-   defaultValue: 0
- },
  
 }, {
   tableName: 'users',
