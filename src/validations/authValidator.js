@@ -30,7 +30,7 @@ const validateRegister = (req, res, next) => {
   next();
 };
 
-// ✅ Validate nhập OTP
+
 const validateOtp = (req, res, next) => {
   const { otp } = req.body;
 
@@ -44,7 +44,7 @@ const validateOtp = (req, res, next) => {
 
   next();
 };
-// ✅ Validate đăng nhập
+
 const validateLogin = (req, res, next) => {
   const { email, password } = req.body;
 
@@ -62,7 +62,7 @@ const validateLogin = (req, res, next) => {
 
   next();
 };
-// ✅ Validate quên mật khẩu
+
 const validateForgotPassword = (req, res, next) => {
   const { email } = req.body;
 
@@ -76,7 +76,7 @@ const validateForgotPassword = (req, res, next) => {
 
   next();
 };
-// ✅ Validate đặt lại mật khẩu
+
 const validateResetPassword = (req, res, next) => {
   const { newPassword, confirmPassword } = req.body;
 

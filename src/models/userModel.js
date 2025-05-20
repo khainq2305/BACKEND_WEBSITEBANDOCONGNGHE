@@ -1,3 +1,4 @@
+// src/models/User.js
 const { DataTypes } = require('sequelize');
 const connection = require('../config/database');
 const bcrypt = require('bcryptjs');
@@ -12,7 +13,6 @@ const User = connection.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  
   email: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -30,8 +30,7 @@ const User = connection.define('User', {
   providerId: {
     type: DataTypes.STRING,
     allowNull: true
-  }
-,  
+  },
   roleId: {
     type: DataTypes.INTEGER,
     allowNull: false
@@ -46,12 +45,24 @@ const User = connection.define('User', {
     allowNull: true, 
     unique: true
   },
-  
- 
+  dateOfBirth: {
+    type: DataTypes.DATEONLY, 
+    allowNull: true
+  },
+  gender: {
+    type: DataTypes.ENUM('male', 'female', 'other'),
+    defaultValue: 'other',
+    allowNull: false
+  },
+  avatarUrl: {  
+    type: DataTypes.STRING,
+    allowNull: true, 
+  }
 }, {
   tableName: 'users',
   timestamps: true
 });
+
 
 User.beforeCreate(async (user, options) => {
   if (user.password) {
@@ -59,6 +70,15 @@ User.beforeCreate(async (user, options) => {
     user.password = await bcrypt.hash(user.password, salt);
   }
 });
+
+
+User.beforeUpdate(async (user, options) => {
+  if (user.password) {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(user.password, salt);
+  }
+});
+
 
 User.comparePassword = async (password, hashedPassword) => {
   return await bcrypt.compare(password, hashedPassword);

@@ -1,7 +1,6 @@
 // src/models/userTokenModel.js
 const { DataTypes } = require("sequelize");
 const connection = require("../config/database");
-const User = require("./userModel");
 
 const UserToken = connection.define("UserToken", {
   id: {
@@ -11,28 +10,45 @@ const UserToken = connection.define("UserToken", {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: true, // ✅ Cho phép null, vì không phải lúc nào cũng có userId
+    allowNull: true,
     references: {
-      model: User,
+      model: "Users",
       key: "id",
     },
-    onDelete: "CASCADE", // Nếu user bị xóa, token cũng bị xóa
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: true, // ✅ Cho phép null, dùng khi xác thực email
+    allowNull: false,
   },
   token: {
-    type: DataTypes.TEXT, // ✅ Đổi thành TEXT để lưu JWT dài
+    type: DataTypes.TEXT,
     allowNull: false,
+  },
+  type: {
+    type: DataTypes.ENUM("passwordReset", "emailVerification"),
+    allowNull: false,
+  },
+  lockedUntil: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  usedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
   },
   sendCount: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 0, // ✅ Đặt mặc định là 0
+    defaultValue: 0,
   },
-  type: {
-    type: DataTypes.ENUM("passwordReset", "emailVerification"),
+  lastSentAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  expiresAt: {
+    type: DataTypes.DATE,
     allowNull: false,
   },
   createdAt: {
@@ -40,21 +56,13 @@ const UserToken = connection.define("UserToken", {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   },
-  lockUntil: {
-    type: DataTypes.DATE,
-    allowNull: true, // ✅ Thời gian khóa nếu gửi quá nhiều
-  },
-  resendCooldown: {
-    type: DataTypes.DATE,
-    allowNull: true, // ✅ Thời gian cooldown gửi lại
+  ipAddress: {
+    type: DataTypes.STRING,
+    allowNull: false,
   },
 }, {
-  tableName: 'userTokens',
-  timestamps: false, // Không cần updatedAt
+  tableName: "userTokens",
+  timestamps: false,
 });
-
-// ✅ Đảm bảo khóa ngoại userId kết nối với bảng users
-UserToken.belongsTo(User, { foreignKey: "userId", onDelete: "CASCADE" });
-User.hasMany(UserToken, { foreignKey: "userId", onDelete: "CASCADE" });
 
 module.exports = UserToken;
