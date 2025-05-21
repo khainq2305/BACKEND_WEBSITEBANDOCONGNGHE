@@ -4,6 +4,7 @@ const app = express();
 const cors = require('cors');
 const { logErrorToFile } = require('./utils/logger');
 const clientRoutes = require('./routes/client/index'); 
+const adminRoutes = require('./routes/admin/index'); // ✅ Thêm dòng này
 
 const sequelize = require('./config/database'); 
 
@@ -28,6 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 app.use('/', clientRoutes);
+app.use('/admin', adminRoutes); // ✅ Thêm dòng này
 
 app.use((err, req, res, next) => {
   logErrorToFile(err.message, req); 
