@@ -1,7 +1,7 @@
 const validator = require("validator");
 
-const path = require("path"); // ✅ BỔ SUNG DÒNG NÀY
-// Validate đăng ký
+const path = require("path");
+
 const validateRegister = (req, res, next) => {
   const { fullName, email, password } = req.body;
 
@@ -107,7 +107,7 @@ const validateUpdateProfile = (req, res, next) => {
   const { fullName, dateOfBirth } = req.body;
   const errors = {};
 
-  // ✅ Kiểm tra họ tên
+
   if (!fullName || fullName.trim() === "") {
     errors.fullName = "Họ tên không được để trống!";
   } else {
@@ -117,7 +117,7 @@ const validateUpdateProfile = (req, res, next) => {
     }
   }
 
-  // ✅ Kiểm tra ngày sinh
+
   if (dateOfBirth) {
     const birthDate = new Date(dateOfBirth);
     const now = new Date();
@@ -130,7 +130,7 @@ const validateUpdateProfile = (req, res, next) => {
     }
   }
 
-  // ✅ Kiểm tra ảnh đại diện
+  
   const file = req.file;
   if (file) {
     const allowedExt = [".jpg", ".jpeg", ".png"];
