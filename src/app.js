@@ -2,8 +2,9 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const { logErrorToFile } = require('./utils/logger');
-const clientRoutes = require('./routes/client/index'); 
+
+const clientRoutes = require('./routes/client'); 
+const adminRoutes = require('./routes/admin'); // 👈 THÊM
 
 const sequelize = require('./config/database'); 
 
@@ -28,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 app.use('/', clientRoutes);
-
+app.use('/admin', adminRoutes); 
 app.use((err, req, res, next) => {
   logErrorToFile(err.message, req); 
   res.status(500).json({ message: "Đã xảy ra lỗi server!" });

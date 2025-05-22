@@ -1,6 +1,6 @@
 const validator = require("validator");
 
-
+const path = require("path"); // ✅ BỔ SUNG DÒNG NÀY
 // Validate đăng ký
 const validateRegister = (req, res, next) => {
   const { fullName, email, password } = req.body;
@@ -100,10 +100,62 @@ const validateResetPassword = (req, res, next) => {
 
   next();
 };
+const validateUpdateProfile = (req, res, next) => {
+  console.log("body:", req.body);
+  console.log("file:", req.file);
+
+  const { fullName, dateOfBirth } = req.body;
+  const errors = {};
+
+  // ✅ Kiểm tra họ tên
+  if (!fullName || fullName.trim() === "") {
+    errors.fullName = "Họ tên không được để trống!";
+  } else {
+    const nameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơưẠ-ỹ\s]+$/;
+    if (!nameRegex.test(fullName)) {
+      errors.fullName = "Họ tên không được chứa ký tự đặc biệt!";
+    }
+  }
+
+  // ✅ Kiểm tra ngày sinh
+  if (dateOfBirth) {
+    const birthDate = new Date(dateOfBirth);
+    const now = new Date();
+    const maxDate = new Date(now.getFullYear() - 100, now.getMonth(), now.getDate());
+
+    if (birthDate > now) {
+      errors.dateOfBirth = "Ngày sinh không được lớn hơn ngày hiện tại!";
+    } else if (birthDate < maxDate) {
+      errors.dateOfBirth = "Tuổi không được vượt quá 100!";
+    }
+  }
+
+  // ✅ Kiểm tra ảnh đại diện
+  const file = req.file;
+  if (file) {
+    const allowedExt = [".jpg", ".jpeg", ".png"];
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (!allowedExt.includes(ext)) {
+      errors.avatarImage = "Ảnh đại diện chỉ chấp nhận .jpg, .jpeg, .png!";
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      errors.avatarImage = "Ảnh đại diện không được vượt quá 5MB!";
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  next();
+};
 module.exports = {
   validateRegister,
   validateLogin,
   validateForgotPassword,
   validateOtp,
-  validateResetPassword
+  validateResetPassword,
+  validateUpdateProfile
 };
