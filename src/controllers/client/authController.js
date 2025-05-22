@@ -10,11 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_secret";
 const BASE_URL = process.env.BASE_URL || "http://localhost:9999";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const { Op } = require("sequelize");
-const cloudinary = require('../../config/cloudinary'); // Import cloudinary config
-const { uploadImage } = require('../../services/common/upload.service'); // Hoặc đường dẫn đúng
+const cloudinary = require('../../config/cloudinary'); 
+const { uploadImage } = require('../../services/common/upload.service'); 
 const Sequelize = require('sequelize');
 
-const fs = require('fs'); // Module 'fs' để xóa file
+const fs = require('fs'); 
 class AuthController {
  
   static async register(req, res) {
@@ -518,32 +518,15 @@ static async forgotPassword(req, res) {
         const nowUtc = new Date();
         const tokenExpiry = 30 * 60 * 1000; // 30 phút
         const cooldownDuration = 10 * 1000; // 10 giây
+        const lock1Minute = 1 * 60 * 1000; // 1 phút
+        const lock2Minutes = 2 * 60 * 1000; // 2 phút
         const ipAddress = req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress || "0.0.0.0";
 
         // ✅ Lấy token hiện tại nếu có
-        const existingToken = await UserToken.findOne({
+        let existingToken = await UserToken.findOne({
             where: { email, type: "passwordReset" },
             order: [["createdAt", "DESC"]],
         });
-// ✅ Nếu token đã được sử dụng (đã đặt lại mật khẩu), không cho gửi lại
-// ✅ Nếu token đã được sử dụng nhưng người dùng muốn gửi lại liên kết
-if (existingToken && existingToken.usedAt) {
-    await UserToken.destroy({
-        where: { email, type: "passwordReset" }
-    });
-}
-
-// ✅ Chỉ xóa token cũ nếu nó chưa được sử dụng hoặc đã hết hạn
-await UserToken.destroy({
-    where: {
-        email,
-        type: "passwordReset",
-        [Op.or]: [
-            { usedAt: null },
-            { expiresAt: { [Op.lt]: nowUtc } }
-        ]
-    },
-});
 
         // ✅ Nếu token đang bị khóa, không cho gửi lại
         if (existingToken && existingToken.lockedUntil && existingToken.lockedUntil > nowUtc) {
@@ -553,7 +536,23 @@ await UserToken.destroy({
             });
         }
 
-        // ✅ Xóa tất cả token cũ (bao gồm đã sử dụng)
+        // ✅ Kiểm tra cooldown
+        if (existingToken && existingToken.lastSentAt) {
+            const timeSinceLastSend = nowUtc - new Date(existingToken.lastSentAt);
+            if (timeSinceLastSend < cooldownDuration) {
+                return res.status(429).json({
+                    message: `Vui lòng chờ ${Math.ceil((cooldownDuration - timeSinceLastSend) / 1000)} giây để gửi lại.`,
+                    resendCooldown: cooldownDuration - timeSinceLastSend,
+                });
+            }
+        }
+
+        // ✅ Nếu token đã được sử dụng, tạo lại token mới
+        if (existingToken && existingToken.usedAt) {
+            await existingToken.destroy();
+        }
+
+        // ✅ Xóa tất cả token cũ
         await UserToken.destroy({
             where: { email, type: "passwordReset" },
         });
@@ -561,17 +560,29 @@ await UserToken.destroy({
         // ✅ Tạo token mới
         const token = jwt.sign({ id: user.id, email }, JWT_SECRET, { expiresIn: "30m" });
 
+        // ✅ Tính số lần gửi và xác định khóa
+        let sendCount = existingToken ? existingToken.sendCount + 1 : 1;
+        let lockedUntil = null;
+
+        // ✅ Quy tắc khóa tự động
+        if (sendCount >= 5 && sendCount < 7) {
+            lockedUntil = new Date(nowUtc.getTime() + lock1Minute); // Khóa 1 phút
+        } else if (sendCount >= 7) {
+            lockedUntil = new Date(nowUtc.getTime() + lock2Minutes); // Khóa 2 phút
+        }
+
+        // ✅ Lưu token mới vào database
         await UserToken.create({
             userId: user.id,
             email,
             token,
             type: "passwordReset",
-            sendCount: existingToken ? existingToken.sendCount + 1 : 1,
-            lastSentAt: nowUtc,
+            sendCount: sendCount,
+            lastSentAt: nowUtc, // ✅ Lưu lại thời gian gửi cuối
             expiresAt: new Date(nowUtc.getTime() + tokenExpiry),
             ipAddress,
-            lockedUntil: null, // Mới tạo nên không bị khóa
-            usedAt: null,       // Đảm bảo token này là mới và chưa sử dụng
+            lockedUntil,
+            usedAt: null,
         });
 
         const resetLink = `${BASE_URL}/dat-lai-mat-khau?token=${token}`;
@@ -588,12 +599,19 @@ await UserToken.destroy({
             `
         );
 
-        res.status(200).json({ message: "Đã gửi liên kết đặt lại mật khẩu qua email!" });
+        res.status(200).json({ 
+            message: "Đã gửi liên kết đặt lại mật khẩu qua email!",
+            resendCooldown: cooldownDuration
+        });
     } catch (err) {
         console.error("Lỗi đặt lại mật khẩu:", err);
         res.status(500).json({ message: "Lỗi server!" });
     }
 }
+
+
+
+
 
 
 
@@ -609,6 +627,8 @@ static async getResetCooldown(req, res) {
     }
 
     const now = new Date();
+    const cooldownDuration = 10 * 1000; // 10 giây cooldown
+
     const userToken = await UserToken.findOne({
       where: { email, type: "passwordReset" },
       order: [["createdAt", "DESC"]],
@@ -618,13 +638,12 @@ static async getResetCooldown(req, res) {
       return res.status(200).json({ lockTime: 0, resendCooldown: 0 });
     }
 
-
+    // ✅ Kiểm tra lockedUntil (nếu tồn tại)
     const lockTime = userToken.lockedUntil && userToken.lockedUntil > now 
       ? userToken.lockedUntil - now 
       : 0;
 
-   
-    const cooldownDuration = 10 * 1000; 
+    // ✅ Kiểm tra cooldown dựa trên lastSentAt
     const timeSinceLastSend = now - new Date(userToken.lastSentAt || userToken.createdAt);
     const resendCooldown = timeSinceLastSend < cooldownDuration 
       ? cooldownDuration - timeSinceLastSend 
@@ -650,6 +669,7 @@ static async checkResetStatus(req, res) {
             return res.status(400).json({ message: "Thiếu email." });
         }
 
+        const now = new Date();
         const userToken = await UserToken.findOne({
             where: { email, type: "passwordReset" },
             order: [["createdAt", "DESC"]],
@@ -659,6 +679,8 @@ static async checkResetStatus(req, res) {
         if (!userToken) {
             return res.status(200).json({
                 verified: false,
+                lockTime: 0,
+                resendCooldown: 0,
                 message: "Không có yêu cầu đặt lại mật khẩu đang chờ xử lý.",
             });
         }
@@ -667,13 +689,27 @@ static async checkResetStatus(req, res) {
         if (userToken.usedAt) {
             return res.status(200).json({
                 verified: true,
+                lockTime: 0,
+                resendCooldown: 0,
                 message: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập.",
             });
         }
 
-        // ✅ Token vẫn hợp lệ (chưa sử dụng)
-        return res.status(200).json({
+        // ✅ Tính thời gian khóa và cooldown
+        const lockTime = userToken.lockedUntil && userToken.lockedUntil > now
+            ? userToken.lockedUntil - now
+            : 0;
+
+        const cooldownDuration = 10 * 1000; // 10 giây cooldown
+        const timeSinceLastSend = now - new Date(userToken.lastSentAt || userToken.createdAt);
+        const resendCooldown = timeSinceLastSend < cooldownDuration
+            ? cooldownDuration - timeSinceLastSend
+            : 0;
+
+        res.status(200).json({
             verified: false,
+            lockTime,
+            resendCooldown,
             message: "Yêu cầu đặt lại mật khẩu đang chờ xử lý.",
         });
     } catch (err) {
@@ -744,8 +780,8 @@ static async resendForgotPassword(req, res) {
         }
 
         const now = new Date();
-        const cooldownDuration = 10 * 1000; 
-        const tokenExpiry = 30 * 60 * 1000; 
+        const cooldownDuration = 10 * 1000; // 10 giây
+        const tokenExpiry = 30 * 60 * 1000; // 30 phút
         const lock1Minute = 1 * 60 * 1000;
         const lock2Minutes = 2 * 60 * 1000;
 
@@ -753,6 +789,13 @@ static async resendForgotPassword(req, res) {
             where: { email, type: "passwordReset" },
             order: [["createdAt", "DESC"]],
         });
+
+        // ✅ Nếu token đã được sử dụng (người dùng đã đặt lại mật khẩu)
+        if (userToken && userToken.usedAt) {
+            return res.status(400).json({
+                message: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập.",
+            });
+        }
 
         // ✅ Nếu không có token hoặc token đã hết hạn
         if (!userToken || (userToken.expiresAt && userToken.expiresAt < now)) {
@@ -767,9 +810,9 @@ static async resendForgotPassword(req, res) {
                 usedAt: null,
                 lockedUntil: null,
             });
-            userToken = await UserToken.findOne({
-                where: { email, type: "passwordReset" },
-                order: [["createdAt", "DESC"]],
+
+            return res.status(200).json({
+                message: "Đã gửi lại liên kết đặt lại mật khẩu qua email!",
             });
         }
 
@@ -827,7 +870,6 @@ static async resendForgotPassword(req, res) {
     }
 }
 
-
 static async resetPassword(req, res) {
     try {
         const { token, newPassword } = req.body;
@@ -872,9 +914,18 @@ static async resetPassword(req, res) {
         user.password = newPassword; // 🚀 Đặt trực tiếp, Model sẽ tự hash
         await user.save();
 
-        // ✅ Đánh dấu token đã sử dụng (không xóa lockedUntil)
+        // ✅ Đánh dấu token đã sử dụng
         await userToken.update({
             usedAt: now,
+        });
+
+        // ✅ Xóa tất cả token cũ khác để tránh sử dụng lại
+        await UserToken.destroy({
+            where: {
+                userId: user.id,
+                type: "passwordReset",
+                usedAt: null, // ✅ Xóa các token chưa được sử dụng
+            }
         });
 
         res.status(200).json({ message: "Đặt lại mật khẩu thành công! Vui lòng đăng nhập." });
@@ -883,7 +934,6 @@ static async resetPassword(req, res) {
         res.status(500).json({ message: "Lỗi server!" });
     }
 }
-
 
 
 
@@ -1029,21 +1079,27 @@ static async resetPassword(req, res) {
             if (phone !== undefined) user.phone = (phone === '' ? null : phone);
             if (gender !== undefined) user.gender = gender;
 
-            if (birthDateString !== undefined) { // Xử lý dateOfBirth (giữ nguyên logic này)
-                if (birthDateString === null || birthDateString === '') { user.dateOfBirth = null; }
-                else { /* ... logic parse JSON và gán YYYY-MM-DD ... */ 
-                    try {
-                        const parsedBirthDate = JSON.parse(birthDateString);
-                        if (parsedBirthDate.year && parsedBirthDate.month && parsedBirthDate.day) {
-                            const monthPadded = String(parsedBirthDate.month).padStart(2, '0');
-                            const dayPadded = String(parsedBirthDate.day).padStart(2, '0');
-                            user.dateOfBirth = `<span class="math-inline">\{parsedBirthDate\.year\}\-</span>{monthPadded}-${dayPadded}`;
-                        } else if (Object.keys(parsedBirthDate).length === 0 || (parsedBirthDate.day === '' && parsedBirthDate.month === '' && parsedBirthDate.year === '')) {
-                            user.dateOfBirth = null;
-                        }
-                    } catch (e) { console.warn("Lỗi parse birthDate JSON:", e.message); }
-                }
-            }
+         if (birthDateString !== undefined) {
+  try {
+    // Nếu là chuỗi JSON như: {"day":"19","month":"11","year":"2009"}
+    const parsed = typeof birthDateString === 'string' ? JSON.parse(birthDateString) : birthDateString;
+
+    if (parsed.year && parsed.month && parsed.day) {
+      const monthPadded = String(parsed.month).padStart(2, '0');
+      const dayPadded = String(parsed.day).padStart(2, '0');
+      user.dateOfBirth = `${parsed.year}-${monthPadded}-${dayPadded}`;
+    } else {
+      user.dateOfBirth = null;
+    }
+  } catch (e) {
+    // Nếu không phải JSON => thử gán trực tiếp
+    if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateString)) {
+      user.dateOfBirth = birthDateString;
+    } else {
+      console.warn("Ngày sinh không hợp lệ, không được cập nhật.");
+    }
+  }
+}
 
             if (newAvatarUrl) {
                 user.avatarUrl = newAvatarUrl; // URL từ Cloudinary

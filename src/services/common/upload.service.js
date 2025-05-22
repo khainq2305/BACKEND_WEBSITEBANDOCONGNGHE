@@ -1,8 +1,8 @@
-// services/common/upload.service.js
-const { cloudinary } = require('../../config/cloudinary'); // <<<--- SỬA Ở ĐÂY
-const fs = require('fs'); // Để xóa file tạm
 
-const uploadImage = async (filePath, folder = 'uploads_on_cloudinary') => { // folder là thư mục trên Cloudinary
+const { cloudinary } = require('../../config/cloudinary'); 
+const fs = require('fs'); 
+
+const uploadImage = async (filePath, folder = 'uploads_on_cloudinary') => { 
   try {
     if (!fs.existsSync(filePath)) {
       throw new Error(`File không tồn tại tại đường dẫn: ${filePath}`);
@@ -10,24 +10,23 @@ const uploadImage = async (filePath, folder = 'uploads_on_cloudinary') => { // f
 
     const result = await cloudinary.uploader.upload(filePath, {
       folder: folder,
-      // resource_type: "auto" // Cloudinary tự động nhận diện loại file
+
     });
 
-    // Xóa file tạm sau khi upload thành công lên Cloudinary
+
     try {
       fs.unlinkSync(filePath);
     } catch (unlinkErr) {
-      console.warn(`Lỗi xóa file tạm ${filePath}:`, unlinkErr.message);
-      // Không throw lỗi ở đây để không ảnh hưởng đến việc trả về URL
+     
     }
 
     return {
-      url: result.secure_url, // URL an toàn (HTTPS) của ảnh
-      public_id: result.public_id, // ID công khai để quản lý (ví dụ: xóa)
+      url: result.secure_url, 
+      public_id: result.public_id, 
     };
   } catch (error) {
     console.error(`Lỗi Cloudinary upload cho file ${filePath}:`, error);
-    // Thử xóa file tạm nếu có lỗi upload
+
     if (fs.existsSync(filePath)) {
       try {
         fs.unlinkSync(filePath);

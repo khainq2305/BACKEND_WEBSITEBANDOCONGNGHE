@@ -16,6 +16,7 @@ Thumbs.db
 
 # Uploads or public assets (nếu muốn)
 public/uploads/
-
+package-lock.json
+package.json
 # VSCode settings (nếu không muốn share workspace)
 .vscode/
