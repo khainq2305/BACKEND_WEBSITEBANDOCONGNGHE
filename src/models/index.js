@@ -10,6 +10,9 @@ const UserAddress = require('./UserAddress'); // ✅ thêm dòng này
 const Sku = require('./skuModel');
 const ProductMedia = require('./productMediaModel');
 const Product = require('./product');
+// 
+const Post = require("./post"); // ✅ THÊM DÒNG NÀY
+const Category = require("./categoryPostModel")
 Product.hasMany(Sku, { foreignKey: 'productId' });
 Sku.belongsTo(Product, { foreignKey: 'productId' });
 
@@ -27,6 +30,15 @@ VariantValue.belongsTo(Variant, { foreignKey: 'variantId' });
 const Province = require('./province');
 const District = require('./district');
 const Ward = require('./ward');
+// 
+// Danh mục bài viết
+Category.hasMany(Post, { foreignKey: 'categoryId' });
+Post.belongsTo(Category, { foreignKey: 'categoryId' });
+
+// Tác giả bài viết
+User.hasMany(Post, { foreignKey: 'authorId' });
+Post.belongsTo(User, { foreignKey: 'authorId' });
+
 // 
 
 Role.hasMany(User, { foreignKey: "roleId" });
@@ -69,6 +81,8 @@ module.exports = {
   Ward,
     Variant,
   VariantValue,
+  Post, // ✅ THÊM DÒNG NÀY
+  Category,
   Product,
   UserToken,
   sequelize: connection,
