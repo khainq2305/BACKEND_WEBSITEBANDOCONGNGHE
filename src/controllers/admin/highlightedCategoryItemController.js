@@ -38,14 +38,14 @@ static async create(req, res) {
       { where: { sortOrder: { [Op.gte]: sortOrder } }, transaction: t }
     );
 
-    const imageUrl = req.file?.filename; // 👈 fix nằm ở đây
+    const imageUrl = req.file?.filename;
 
     const item = await HighlightedCategoryItem.create({
       ...req.body,
       slug,
       sortOrder,
-      imageUrl,                           // 👈 cần thêm
-      isActive: req.body.isActive === 'true'  // 👈 ép kiểu nếu đang ở dạng string
+      imageUrl,                         
+      isActive: req.body.isActive === 'true'  
     }, { transaction: t });
 
     await t.commit();

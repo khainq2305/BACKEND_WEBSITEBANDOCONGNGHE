@@ -21,11 +21,11 @@ const VariantValue = sequelize.define("VariantValue", {
     defaultValue: true,
   },
   imageUrl: {
-    type: DataTypes.STRING, // đường dẫn ảnh minh họa
+    type: DataTypes.STRING, 
     allowNull: true,
   },
   colorCode: {
-    type: DataTypes.STRING, // ví dụ: #000000, red, rgba(255,255,255,1)
+    type: DataTypes.STRING,
     allowNull: true,
   },
   deletedAt: {

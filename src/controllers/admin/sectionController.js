@@ -17,7 +17,7 @@ class SectionController {
       limit = 10,
       search = '',
       type,
-      isActive,           // lọc theo trạng thái hoạt động
+      isActive,          
       sortBy = 'orderIndex',
       sortOrder = 'ASC'
     } = req.query;
@@ -72,13 +72,13 @@ class SectionController {
       filters = [],
     } = req.body;
 
-    // 1. Tạo section
+
     const section = await HomeSection.create(
       { title, type, orderIndex, isActive },
       { transaction: t }
     );
 
-    // 2. Gán sản phẩm (nếu có)
+   
     if (Array.isArray(skuIds) && skuIds.length > 0) {
       const productEntries = skuIds.map((skuId, idx) => ({
         homeSectionId: section.id,
@@ -88,7 +88,7 @@ class SectionController {
       await ProductHomeSection.bulkCreate(productEntries, { transaction: t });
     }
 
-    // 3. Gán banner (nếu có)
+
     if (Array.isArray(banners) && banners.length > 0) {
       const bannerEntries = banners.map((banner, idx) => ({
         homeSectionId: section.id,
@@ -100,7 +100,7 @@ class SectionController {
       await HomeSectionBanner.bulkCreate(bannerEntries, { transaction: t });
     }
 
-    // 4. Gán filter (nếu có)
+   
     if (Array.isArray(filters) && filters.length > 0) {
       const filterEntries = filters.map((filter, idx) => ({
         homeSectionId: section.id,

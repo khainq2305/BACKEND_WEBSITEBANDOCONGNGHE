@@ -5,7 +5,7 @@ const { getProductsByCategory } = require('../../controllers/client/productContr
 
 router.get('/', getProductsByCategory);
 
-// ✅ Route đúng kiểu: /product/:slug
+
 router.get('/product/:slug', ProductController.getProductDetailBySlug);
 
 module.exports = router;

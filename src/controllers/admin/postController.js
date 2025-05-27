@@ -1,12 +1,12 @@
 const { Op } = require('sequelize');
-const { Post, Category, User } = require('../../models'); // ✅ GIỜ mới đúng 100%
+const { Post, Category, User } = require('../../models');
 
 class PostController {
-  // [CREATE] Thêm bài viết
+ư
   static async create(req, res) {
     
   try {
-    console.log('📦 Dữ liệu nhận:', req.body);
+  
     const {
       title,
       content,
@@ -42,7 +42,7 @@ class PostController {
 
 
 
-  // [READ] Lấy danh sách bài viết
+
   static async getAll(req, res) {
 
     try {
@@ -52,7 +52,7 @@ class PostController {
     { model: Category, attributes: ['id', 'name'] },
     { model: User, attributes: ['id', 'fullName'] }
   ],
-  paranoid: false // ✅ Bắt buộc để thấy bài bị xóa mềm
+  paranoid: false 
 });
 
 
@@ -63,7 +63,7 @@ class PostController {
     }
   }
 
-  // [READ] Lấy 1 bài viết theo id
+  
   static async getById(req, res) {
     try {
       const { id } = req.params;
@@ -128,20 +128,19 @@ console.log('Body:', req.body);
 }
 
 
-  // [DELETE] Xoá bài viết
+  
   static async forceDelete(req, res) {
   try {
-    console.log('===> BODY:', req.body);
+  
     const { ids } = req.body;
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
     }
 
-    // Xóa cứng bằng `paranoid: false` + `force: true`
     const deletedCount = await Post.destroy({
       where: { id: ids },
-      force: true // 👈 Đây là xóa VĨNH VIỄN
+      force: true 
     });
 
     return res.json({
@@ -162,7 +161,7 @@ console.log('Body:', req.body);
       return res.status(400).json({ message: 'Vui lòng truyền danh sách ID hợp lệ' });
     }
 
-    // Lấy tất cả bài viết, bao gồm cả đã bị xóa mềm
+    
     const posts = await Post.findAll({
       where: { id: ids },
       paranoid: false
@@ -171,11 +170,11 @@ console.log('Body:', req.body);
     const existingIds = posts.map(p => p.id);
     const notFound = ids.filter(id => !existingIds.includes(id));
 
-    // Chỉ lấy các bài viết đã bị xóa mềm (có deletedAt khác null)
+ 
     const toRestore = posts.filter(p => p.deletedAt !== null).map(p => p.id);
     const notTrashed = posts.filter(p => p.deletedAt === null).map(p => p.id);
 
-    // Khôi phục bằng Sequelize's restore
+
     await Post.restore({
       where: { id: toRestore }
     });

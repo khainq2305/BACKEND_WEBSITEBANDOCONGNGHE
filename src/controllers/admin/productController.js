@@ -7,7 +7,7 @@ const { Op } = require('sequelize');
 
 
 class ProductController {
-  // ✅ Thêm sản phẩm
+
 static async create(req, res) {
     const t = await Product.sequelize.transaction();
     try {
@@ -15,10 +15,10 @@ static async create(req, res) {
   name, description, shortDescription, thumbnail, hasVariants,
   orderIndex, isActive, categoryId, brandId,
   variants = [], skus = []
-} = req.product; // ✅ Đã được middleware parse sẵn
+} = req.product; 
 
 
-      // 1. Generate unique slug
+     
       const baseSlug = slugify(name, { lower: true, strict: true });
       let slug = baseSlug;
       let suffix = 1;
@@ -30,7 +30,7 @@ static async create(req, res) {
   await Product.increment('orderIndex', {
     by: 1,
     where: {
-      categoryId, // 👈 chỉ trong cùng danh mục
+      categoryId,
       orderIndex: { [Op.gte]: orderIndex },
       deletedAt: null
     },
@@ -56,7 +56,7 @@ const product = await Product.create({
   brandId
 }, { transaction: t });
 
-      // 4. Hàm phụ
+      
       const generateSkuCode = async (prefix = 'SKU') => {
         let code;
         let isExist = true;
@@ -73,9 +73,7 @@ const product = await Product.create({
         return ['mp4', 'mov', 'avi', 'webm'].includes(ext) ? 'video' : 'image';
       };
 
-      // ================================
-      // ✅ TRƯỜNG HỢP KHÔNG CÓ BIẾN THỂ
-      // ================================
+
       if (!hasVariants && skus?.length > 0) {
         const sku = skus[0];
         const newSKU = await Sku.create({
@@ -101,11 +99,9 @@ mediaUrl: url,
 
       }}
 
-      // =============================
-      // ✅ TRƯỜNG HỢP CÓ BIẾN THỂ
-      // =============================
+ 
       if (hasVariants) {
-        // 5. Gắn product với các biến thể (productvariants)
+   
         for (const variant of variants) {
           await ProductVariant.findOrCreate({
             where: {
@@ -120,7 +116,7 @@ mediaUrl: url,
           });
         }
 
-        // 6. Tạo từng SKU
+
         for (const sku of skus) {
           const createdSku = await Sku.create({
             productId: product.id,
@@ -135,7 +131,7 @@ mediaUrl: url,
             isActive: true
           }, { transaction: t });
 
-          // 6.1 Gắn media
+
           for (const url of sku.mediaUrls || []) {
             await ProductMedia.create({
               skuId: createdSku.id,
@@ -144,7 +140,7 @@ mediaUrl: url,
             }, { transaction: t });
           }
 
-          // 6.2 Gắn variantValueIds
+   
           for (const valueId of sku.variantValueIds || []) {
             await SkuVariantValue.create({
               skuId: createdSku.id,
@@ -155,12 +151,12 @@ mediaUrl: url,
       }
 
       await t.commit();
-      return res.status(201).json({ message: '✅ Thêm sản phẩm thành công', data: product });
+      return res.status(201).json({ message: 'Thêm sản phẩm thành công', data: product });
 
     } catch (error) {
       await t.rollback();
-      console.error("❌ Lỗi tạo sản phẩm:", error);
-      return res.status(500).json({ message: '❌ Lỗi server', error: error.message });
+      console.error("Lỗi tạo sản phẩm:", error);
+      return res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
   }
 
@@ -176,7 +172,7 @@ static async getAll(req, res) {
 
     const offset = (page - 1) * limit;
     const whereClause = {};
-    let queryOptions = { // Define base query options
+    let queryOptions = {
       where: whereClause,
       include: [
         {
@@ -184,46 +180,39 @@ static async getAll(req, res) {
           as: 'category',
           attributes: ['id', 'name']
         }
-        // Add other includes if necessary, like Brand
-        // {
-        //   model: Brand,
-        //   as: 'brand',
-        //   attributes: ['id', 'name']
-        // }
+
       ],
       order: [['orderIndex', 'ASC']],
       offset: parseInt(offset),
       limit: parseInt(limit)
     };
 
-    // ⚡ Trạng thái
+
     if (filter === 'active') {
       whereClause.isActive = true;
-      // `deletedAt: null` will be handled by default paranoid behavior
+
     } else if (filter === 'inactive') {
       whereClause.isActive = false;
-      // `deletedAt: null` will be handled by default paranoid behavior
+
     } else if (filter === 'deleted') {
       whereClause.deletedAt = { [Op.ne]: null };
-      queryOptions.paranoid = false; // ✅ Explicitly include soft-deleted for 'deleted' filter
-    } else { // 'all' and any other unspecified filter
-      // `deletedAt: null` will be handled by default paranoid behavior for 'all' (non-deleted items)
-      // No need to set whereClause.deletedAt = null if Product model is paranoid
-      // and queryOptions.paranoid is not set to false.
+      queryOptions.paranoid = false; 
+    } else { 
+ 
     }
 
-    // 🔍 Tìm kiếm
+  
     if (search) {
       const searchCondition = { [Op.like]: `%${search}%` };
       whereClause[Op.or] = [
         { name: searchCondition },
         { slug: searchCondition },
-        // Consider searching in Category name if needed, requires careful include/subquery
-        // { '$category.name$': searchCondition } // Example, might need adjustment
+      
+       
       ];
     }
 
-    // 📂 Lọc theo danh mục
+   
     if (categoryId) {
       whereClause.categoryId = categoryId;
     }
@@ -243,7 +232,7 @@ static async getAll(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ Lỗi lấy danh sách sản phẩm:', error);
+    console.error('Lỗi lấy danh sách sản phẩm:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }

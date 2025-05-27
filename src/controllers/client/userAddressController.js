@@ -120,7 +120,7 @@ class UserAddressController {
       await UserAddress.destroy({ where: { id, userId } });
       res.json({ message: "Xóa địa chỉ thành công" });
     } catch (error) {
-      console.error("❌ Lỗi xóa địa chỉ:", error);
+      console.error("Lỗi xóa địa chỉ:", error);
       res.status(500).json({ message: "Lỗi xóa địa chỉ" });
     }
   }
@@ -133,13 +133,13 @@ static async getDefault(req, res) {
     let address;
 
     const provinceAttributes = ["id", "name"];
-    const districtAttributes = ["id", "name", "ghnCode"]; // Giữ nguyên vì bảng districts có ghnCode
-    const wardAttributes = ["id", "name", "code"];      // << SỬA Ở ĐÂY: Đổi "ghnCode" thành "code"
+    const districtAttributes = ["id", "name", "ghnCode"]; 
+    const wardAttributes = ["id", "name", "code"];     
 
     const includeOptions = [
       { model: Province, as: "province", attributes: provinceAttributes },
       { model: District, as: "district", attributes: districtAttributes },
-      { model: Ward, as: "ward", attributes: wardAttributes }, // wardAttributes giờ sẽ lấy cột 'code'
+      { model: Ward, as: "ward", attributes: wardAttributes }, 
     ];
 
     if (addressId) {
@@ -156,7 +156,7 @@ static async getDefault(req, res) {
 
     res.json({ data: address || null });
   } catch (error) {
-    console.error("❌ Lỗi lấy địa chỉ mặc định:", error.name, error.message, error.parent?.sqlMessage);
+    console.error("Lỗi lấy địa chỉ mặc định:", error.name, error.message, error.parent?.sqlMessage);
     console.error("SQL Query (nếu có):", error.parent?.sql);
     res.status(500).json({ message: "Lỗi lấy địa chỉ", errorDetails: error.message });
   }

@@ -11,9 +11,7 @@ router.post('/coupon/create', validateCreateCoupon, CouponController.create);
 // Danh sách + tìm kiếm + phân trang
 router.get('/coupon/list', CouponController.list);
 
-// Cập nhật
-// src/routes/admin/coupon.js
-// sau dòng router.put(...)
+
 router.patch('/coupon/update/:id', CouponController.update);
 
 // Xoá mềm

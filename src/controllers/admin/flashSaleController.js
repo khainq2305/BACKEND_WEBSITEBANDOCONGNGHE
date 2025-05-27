@@ -1,7 +1,7 @@
 const { FlashSale, FlashSaleItem, FlashSaleCategory, Sku, Category,Product } = require('../../models');
 const { sequelize } = require('../../models');
 const { Op } = require('sequelize');
-// Hàm phụ tạo cây danh mục cha-con
+
 function buildCategoryTree(flatList, parentId = null) {
   return flatList
     .filter(cat => cat.parentId === parentId)
@@ -11,7 +11,7 @@ function buildCategoryTree(flatList, parentId = null) {
     }));
 }
 class FlashSaleController {
-  // Danh sách
+
  static async list(req, res) {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -33,7 +33,7 @@ class FlashSaleController {
 }
 
 
-  // Lấy 1 flash sale theo ID
+
   static async getById(req, res) {
     try {
       const flashSale = await FlashSale.findByPk(req.params.id, {
@@ -60,7 +60,7 @@ class FlashSaleController {
     }
   }
 
-  // Tạo mới
+
   static async create(req, res) {
     const t = await sequelize.transaction();
     try {
@@ -114,7 +114,7 @@ class FlashSaleController {
     }
   }
 
-  // Cập nhật
+
   static async update(req, res) {
     const t = await sequelize.transaction();
     try {
@@ -163,7 +163,7 @@ class FlashSaleController {
     }
   }
 
-  // Xoá
+
   static async delete(req, res) {
     try {
       const flashSale = await FlashSale.findByPk(req.params.id);
@@ -176,7 +176,7 @@ class FlashSaleController {
       res.status(500).json({ message: 'Lỗi server' });
     }
   }
-  // Lấy danh sách SKU dùng được cho flash sale
+
 static async getAvailableSkus(req, res) {
   try {
     const skus = await Sku.findAll({
@@ -188,7 +188,7 @@ static async getAvailableSkus(req, res) {
         {
           model: Product,
           as: 'product',
-          attributes: ['name'] // ✅ lấy name từ product
+          attributes: ['name'] 
         }
       ],
       order: [['createdAt', 'DESC']]
@@ -204,13 +204,13 @@ static async getAvailableSkus(req, res) {
 
     res.json(result);
   } catch (err) {
-    console.error('❌ Lỗi lấy SKU:', err);
+    console.error('Lỗi lấy SKU:', err);
     res.status(500).json({ message: 'Lỗi server khi lấy danh sách SKU' });
   }
 }
 
 
-// Lấy danh sách danh mục có cấu trúc cây
+
 static async getAvailableCategoriesWithTree(req, res) {
   try {
     const allCategories = await Category.findAll({
@@ -227,7 +227,7 @@ static async getAvailableCategoriesWithTree(req, res) {
     const tree = buildCategoryTree(allCategories);
     return res.json(tree);
   } catch (err) {
-    console.error('❌ Lỗi lấy danh mục:', err);
+    console.error('Lỗi lấy danh mục:', err);
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }

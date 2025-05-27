@@ -22,7 +22,7 @@ const SearchHistory = sequelize.define('SearchHistory', {
   }
 }, {
   tableName: 'searchhistories',
-  updatedAt: false // Không cần updatedAt cho log tìm kiếm
+  updatedAt: false 
 });
 
 module.exports = SearchHistory;

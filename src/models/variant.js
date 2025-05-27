@@ -15,9 +15,9 @@ const Variant = sequelize.define("Variant", {
   },
   slug: {
     type: DataTypes.STRING,
-    allowNull: true, // hoặc false nếu bạn muốn bắt buộc
+    allowNull: true,
   },
-   type: {                                // ✅ Thêm dòng này
+   type: {                              
     type: DataTypes.STRING(50),
     defaultValue: 'text',
   },

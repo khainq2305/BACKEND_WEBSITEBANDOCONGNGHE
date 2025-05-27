@@ -11,7 +11,7 @@ static async getByVariant(req, res) {
       const isTrash = deleted === 'true';
       const offset = (page - 1) * limit;
 
-      // ✅ Truy vấn tên biến thể
+      
       const variant = await Variant.findByPk(id);
       if (!variant) {
         return res.status(404).json({ message: 'Không tìm thấy biến thể' });
@@ -34,14 +34,14 @@ static async getByVariant(req, res) {
     res.json({
   data: rows,
   variantName: variant.name,
-  variantType: variant.type, // 🟢 THÊM DÒNG NÀY
+  variantType: variant.type, 
   total: count,
   currentPage: +page,
   totalPages: Math.ceil(count / limit)
 });
 
     } catch (err) {
-      console.error('❌ Lỗi lấy giá trị theo variant:', err);
+      console.error('Lỗi lấy giá trị theo variant:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -77,7 +77,7 @@ await VariantValue.increment('sortOrder', {
 
     res.status(201).json({ message: 'Tạo giá trị thành công', data: newValue });
   } catch (err) {
-    console.error('❌ Lỗi tạo giá trị:', err);
+    console.error('Lỗi tạo giá trị:', err);
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
@@ -137,7 +137,7 @@ const updateData = {
 
     res.json({ message: 'Cập nhật thành công' });
   } catch (err) {
-    console.error('❌ Lỗi cập nhật:', err);
+    console.error('Lỗi cập nhật:', err);
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
@@ -151,7 +151,7 @@ const updateData = {
       await VariantValue.destroy({ where: { id: req.params.id } });
       res.json({ message: 'Đã chuyển vào thùng rác' });
     } catch (err) {
-      console.error('❌ Lỗi soft delete:', err);
+      console.error('Lỗi soft delete:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -161,7 +161,7 @@ const updateData = {
       await VariantValue.destroy({ where: { id: req.params.id }, force: true });
       res.json({ message: 'Đã xoá vĩnh viễn' });
     } catch (err) {
-      console.error('❌ Lỗi force delete:', err);
+      console.error('Lỗi force delete:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -171,7 +171,7 @@ const updateData = {
       await VariantValue.restore({ where: { id: req.params.id } });
       res.json({ message: 'Khôi phục thành công' });
     } catch (err) {
-      console.error('❌ Lỗi khôi phục:', err);
+      console.error('Lỗi khôi phục:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -182,7 +182,7 @@ const updateData = {
       await VariantValue.destroy({ where: { id: ids } });
       res.json({ message: 'Đã chuyển nhiều vào thùng rác' });
     } catch (err) {
-      console.error('❌ Lỗi deleteMany:', err);
+      console.error('Lỗi deleteMany:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -193,7 +193,7 @@ const updateData = {
       await VariantValue.destroy({ where: { id: ids }, force: true });
       res.json({ message: 'Đã xoá vĩnh viễn nhiều giá trị' });
     } catch (err) {
-      console.error('❌ Lỗi forceDeleteMany:', err);
+      console.error('Lỗi forceDeleteMany:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
@@ -204,14 +204,14 @@ const updateData = {
       await VariantValue.restore({ where: { id: ids } });
       res.json({ message: 'Đã khôi phục nhiều giá trị' });
     } catch (err) {
-      console.error('❌ Lỗi restoreMany:', err);
+      console.error('Lỗi restoreMany:', err);
       res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
   }
   // POST /admin/variant-values/reorder
 static async reorder(req, res) {
   try {
-    const updates = req.body; // [{ id: 1, sortOrder: 1 }, ...]
+    const updates = req.body;
 
     const promises = updates.map(item =>
       VariantValue.update({ sortOrder: item.sortOrder }, { where: { id: item.id } })
@@ -220,11 +220,11 @@ static async reorder(req, res) {
     await Promise.all(promises);
     res.json({ message: 'Cập nhật thứ tự thành công' });
   } catch (err) {
-    console.error('❌ Lỗi cập nhật sortOrder:', err);
+    console.error('Lỗi cập nhật sortOrder:', err);
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
-// Trong VariantValueController.js
+
 
 static async createQuick(req, res) {
   try {
@@ -250,7 +250,7 @@ static async createQuick(req, res) {
 
     res.status(201).json({ message: 'Tạo giá trị thành công', data: newValue });
   } catch (err) {
-    console.error('❌ Lỗi tạo giá trị nhanh:', err);
+    console.error('Lỗi tạo giá trị nhanh:', err);
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }

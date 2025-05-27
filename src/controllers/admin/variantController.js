@@ -10,12 +10,12 @@ static async getAll(req, res) {
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
 
-      const fetchDeletedOnly = req.query.deleted === 'true'; // Đổi tên biến cho rõ ràng
+      const fetchDeletedOnly = req.query.deleted === 'true'; 
       const keyword = req.query.keyword?.trim();
       const status = req.query.status?.trim();
 
       const whereClause = {};
-      let queryOptions = { // Tạo object options cho query
+      let queryOptions = { 
         limit,
         offset,
         order: [['createdAt', 'DESC']],
@@ -24,15 +24,15 @@ static async getAll(req, res) {
           as: 'values',
           attributes: ['id', 'value']
         }],
-        // paranoid: true mặc định nếu model có paranoid: true và không có gì ghi đè ở đây
+   
       };
 
       if (status === 'true') {
         whereClause.isActive = true;
-        // Mặc định paranoid: true sẽ chỉ lấy active và chưa bị xóa
+    
       } else if (status === 'false') {
         whereClause.isActive = false;
-        // Mặc định paranoid: true sẽ chỉ lấy inactive và chưa bị xóa
+       
       }
 
       if (keyword) {
@@ -40,18 +40,12 @@ static async getAll(req, res) {
       }
 
       if (fetchDeletedOnly) {
-        // Khi muốn lấy danh sách trong thùng rác:
-        // 1. Cần bỏ qua paranoid mặc định để có thể thấy các record đã soft-delete
+
         queryOptions.paranoid = false;
-        // 2. Thêm điều kiện tường minh để chỉ lấy những record có deletedAt KHÁC NULL
+
         whereClause.deletedAt = { [Op.ne]: null };
       }
-      // Nếu không phải fetchDeletedOnly (ví dụ tab 'all', 'active', 'inactive'), 
-      // thì paranoid: true (mặc định của Sequelize nếu model được định nghĩa paranoid)
-      // sẽ tự động lọc ra những bản ghi chưa bị xóa.
-      // Nếu model Variant của bạn không có `paranoid: true` trong định nghĩa,
-      // bạn cần đảm bảo `whereClause.deletedAt = null;` cho các trường hợp không phải thùng rác.
-      // Giả sử model Variant đã có `paranoid: true`.
+ 
 
       queryOptions.where = whereClause;
 
@@ -64,7 +58,7 @@ static async getAll(req, res) {
         totalPages: Math.ceil(result.count / limit)
       });
     } catch (error) {
-      console.error('❌ Lỗi lấy variant:', error);
+      console.error('Lỗi lấy variant:', error);
       res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
   }
@@ -84,7 +78,7 @@ if (!['image', 'color', 'text'].includes(type)) {
 
       res.status(201).json({ message: 'Tạo thuộc tính thành công', data: newVariant });
     } catch (error) {
-      console.error("❌ Lỗi tạo variant:", error);
+      console.error("Lỗi tạo variant:", error);
       res.status(500).json({ message: "Lỗi khi tạo variant", error: error.message });
     }
   }
@@ -94,7 +88,7 @@ if (!['image', 'color', 'text'].includes(type)) {
       await Variant.destroy({ where: { id } });
       res.json({ message: 'Đã chuyển vào thùng rác' });
     } catch (error) {
-      console.error("❌ Lỗi chuyển vào thùng rác:", error);
+      console.error("Lỗi chuyển vào thùng rác:", error);
       res.status(500).json({ message: "Lỗi khi xóa mềm", error: error.message });
     }
   }
@@ -105,7 +99,7 @@ if (!['image', 'color', 'text'].includes(type)) {
       await Variant.destroy({ where: { id }, force: true });
       res.json({ message: 'Đã xoá vĩnh viễn' });
     } catch (error) {
-      console.error("❌ Lỗi xóa vĩnh viễn:", error);
+      console.error("Lỗi xóa vĩnh viễn:", error);
       res.status(500).json({ message: "Lỗi khi xóa vĩnh viễn", error: error.message });
     }
   }
@@ -116,7 +110,7 @@ if (!['image', 'color', 'text'].includes(type)) {
       await Variant.restore({ where: { id } });
       res.json({ message: 'Khôi phục thành công' });
     } catch (error) {
-      console.error("❌ Lỗi khôi phục:", error);
+      console.error("Lỗi khôi phục:", error);
       res.status(500).json({ message: "Lỗi khi khôi phục", error: error.message });
     }
   }
@@ -126,10 +120,10 @@ if (!['image', 'color', 'text'].includes(type)) {
       if (!Array.isArray(ids) || ids.length === 0)
         return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
 
-      await Variant.destroy({ where: { id: ids } }); // soft delete
+      await Variant.destroy({ where: { id: ids } });
       res.json({ message: `Đã chuyển ${ids.length} thuộc tính vào thùng rác` });
     } catch (error) {
-      console.error("❌ Lỗi softDeleteMany:", error);
+      console.error("Lỗi softDeleteMany:", error);
       res.status(500).json({ message: "Lỗi khi chuyển nhiều vào thùng rác", error: error.message });
     }
   }
@@ -140,15 +134,15 @@ static async forceDeleteMany(req, res) {
     if (!Array.isArray(ids) || ids.length === 0)
       return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
 
-    // ✅ Xoá hết value liên quan trước
+    
     await VariantValue.destroy({ where: { variantId: ids }, force: true });
 
-    // ✅ Rồi xoá variant
+  
     await Variant.destroy({ where: { id: ids }, force: true });
 
     res.json({ message: `Đã xoá vĩnh viễn ${ids.length} thuộc tính` });
   } catch (error) {
-    console.error("❌ Lỗi forceDeleteMany:", error);
+    console.error("Lỗi forceDeleteMany:", error);
     res.status(500).json({ message: "Lỗi khi xoá nhiều vĩnh viễn", error: error.message });
   }
 }
@@ -163,7 +157,7 @@ static async forceDeleteMany(req, res) {
       await Variant.restore({ where: { id: ids } });
       res.json({ message: `Đã khôi phục ${ids.length} thuộc tính` });
     } catch (error) {
-      console.error("❌ Lỗi restoreMany:", error);
+      console.error("Lỗi restoreMany:", error);
       res.status(500).json({ message: "Lỗi khi khôi phục nhiều", error: error.message });
     }
   }
@@ -188,7 +182,7 @@ static async getById(req, res) {
 
     res.json(variant);
   } catch (error) {
-    console.error('❌ Lỗi khi lấy chi tiết variant:', error);
+    console.error('Lỗi khi lấy chi tiết variant:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
@@ -213,12 +207,12 @@ if (!['image', 'color', 'text'].includes(type)) {
 
     res.json({ message: 'Cập nhật thành công' });
   } catch (error) {
-    console.error("❌ Lỗi cập nhật variant:", error);
+    console.error("Lỗi cập nhật variant:", error);
     res.status(500).json({ message: "Lỗi khi cập nhật", error: error.message });
   }
 }
 
-// Lấy toàn bộ variant có sẵn kèm value để dùng khi tạo sản phẩm
+
 static async getAllActiveWithValues(req, res) {
   try {
     const variants = await Variant.findAll({
@@ -238,7 +232,7 @@ static async getAllActiveWithValues(req, res) {
 
     res.json({ data: variants });
   } catch (error) {
-    console.error("❌ Lỗi lấy variant có giá trị:", error);
+    console.error("Lỗi lấy variant có giá trị:", error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
@@ -253,13 +247,13 @@ static async createTypeOnly(req, res) {
     const newVariant = await Variant.create({
       name,
       slug,
-      type: 'text',         // gán mặc định
-      isActive: true        // gán mặc định
+      type: 'text',         
+      isActive: true       
     });
 
     res.status(201).json({ message: 'Tạo loại thuộc tính thành công.', data: newVariant });
   } catch (error) {
-    console.error("❌ Lỗi tạo loại thuộc tính đơn giản:", error);
+    console.error("Lỗi tạo loại thuộc tính đơn giản:", error);
     res.status(500).json({ message: "Lỗi server khi tạo loại thuộc tính.", error: error.message });
   }
 }

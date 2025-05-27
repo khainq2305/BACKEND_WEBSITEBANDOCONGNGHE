@@ -46,7 +46,7 @@ const ProductQuestionController = {
                 order: [['createdAt', 'DESC']],
                 limit: parseInt(limit),
                 offset,
-                subQuery: false // BẮT BUỘC nếu dùng $user.xxx$
+                subQuery: false 
             });
 
             const data = rows.map((q) => ({
@@ -75,13 +75,13 @@ const ProductQuestionController = {
                 totalPages: Math.ceil(count / limit)
             });
         } catch (err) {
-            console.error('❌ Lỗi khi lấy danh sách câu hỏi:', err);
+            console.error('Lỗi khi lấy danh sách câu hỏi:', err);
             return res.status(500).json({ success: false, message: 'Lỗi server' });
         }
     },
 
 
-    // [POST] /admin/product-questions/reply
+  
     async reply(req, res) {
         const t = await sequelize.transaction();
         try {
@@ -118,7 +118,7 @@ const ProductQuestionController = {
             });
         } catch (err) {
             await t.rollback();
-            console.error('❌ Lỗi khi phản hồi:', err);
+            console.error('Lỗi khi phản hồi:', err);
             return res.status(500).json({ success: false, message: 'Lỗi server' });
         }
     }

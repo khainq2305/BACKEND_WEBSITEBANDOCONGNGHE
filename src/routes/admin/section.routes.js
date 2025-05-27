@@ -8,5 +8,5 @@ router.post('/sections', SectionController.createSection);
 router.put('/sections/:id', SectionController.updateSection);
 router.delete('/sections/:id', SectionController.deleteSection);
 
-router.get('/sections/skus', SectionController.getAllSkus); // 🆕
+router.get('/sections/skus', SectionController.getAllSkus); 
 module.exports = router;

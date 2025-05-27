@@ -2,7 +2,7 @@ const { Notification } = require("../../models");
 const { Op } = require("sequelize");
 
 const NotificationController = {
-  // [POST] /admin/notifications
+
   async create(req, res) {
     try {
       const {
@@ -40,17 +40,17 @@ const NotificationController = {
     }
   },
 
-  // [GET] /admin/notifications
+
   async getAll(req, res) {
     try {
-      console.log("📥 QUERY:", req.query); // ✅ thêm dòng này
+      console.log("📥 QUERY:", req.query); 
 
       const { page = 1, limit = 10, search = "", isActive, type } = req.query;
       const offset = (page - 1) * limit;
 
       const whereClause = {};
 
-      // 🔍 Lọc theo từ khoá tiêu đề hoặc nội dung
+      
       if (search) {
         whereClause[Op.or] = [
           { title: { [Op.like]: `%${search}%` } },
@@ -58,17 +58,16 @@ const NotificationController = {
         ];
       }
 
-      // ✅ Lọc theo trạng thái (boolean)
       if (isActive === "true") whereClause.isActive = true;
       else if (isActive === "false") whereClause.isActive = false;
 
-      // ✅ Lọc theo loại (ENUM) — an toàn
+
       const allowedTypes = ["system", "promotion", "order", "news"];
       if (type && allowedTypes.includes(type)) {
         whereClause.type = type;
       }
 
-      // 🔄 Truy vấn với phân trang
+
       const { rows, count } = await Notification.findAndCountAll({
         where: whereClause,
         limit: parseInt(limit),
@@ -87,12 +86,12 @@ const NotificationController = {
         currentPage: parseInt(page),
       });
     } catch (error) {
-      console.error("❌ Lỗi khi lấy danh sách thông báo:", error);
+      console.error("Lỗi khi lấy danh sách thông báo:", error);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
 
-  // [PUT] /admin/notifications/:id
+
   async update(req, res) {
     try {
       const { id } = req.params;
@@ -123,7 +122,7 @@ const NotificationController = {
     }
   },
 
-  // [DELETE] /admin/notifications/:id
+
   async delete(req, res) {
     try {
       const { id } = req.params;
@@ -133,7 +132,7 @@ const NotificationController = {
         return res.status(404).json({ message: "Không tìm thấy thông báo" });
       }
 
-      await notification.destroy(); // soft delete
+      await notification.destroy();
 
       return res.json({ message: "Đã xoá thông báo thành công" });
     } catch (err) {
@@ -161,7 +160,7 @@ const NotificationController = {
 
       await Notification.destroy({
         where: { id: ids },
-        force: true, // ✅ xoá cứng
+        force: true, 
       });
 
       return res.json({ message: "Đã xoá thành công" });
@@ -171,10 +170,10 @@ const NotificationController = {
     }
   },
 
-// [POST] /admin/notifications/update-order
+
 async updateOrderIndex(req, res) {
   try {
-    const updates = req.body; // [{ id, orderIndex }, ...]
+    const updates = req.body; 
     if (!Array.isArray(updates)) {
       return res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
     }
@@ -187,7 +186,7 @@ async updateOrderIndex(req, res) {
 
     return res.json({ message: 'Cập nhật thứ tự thành công' });
   } catch (error) {
-    console.error('❌ Lỗi updateOrderIndex:', error);
+    console.error('Lỗi updateOrderIndex:', error);
     return res.status(500).json({ message: 'Lỗi server khi cập nhật thứ tự' });
   }
 }

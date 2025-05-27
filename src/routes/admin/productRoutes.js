@@ -7,7 +7,7 @@ const upload = require('../../middlewares/upload');
 
 router.post(
   '/product/create',
-  upload.any(), // THAY ĐỔI Ở ĐÂY: Chấp nhận tất cả các file từ mọi trường
+  upload.any(),
   validateSimpleProduct,
   ProductController.create
 );
@@ -27,11 +27,11 @@ router.post('/product/restore-many', ProductController.restoreMany);
 router.delete('/product/force/:id', ProductController.forceDelete);
 
 router.get('/brands/list', ProductController.getBrandList);
-// ✅ Route TẠO SẢN PHẨM đúng yêu cầu
+
 router.post('/product/update-order', ProductController.updateOrderIndexBulk);
 
 // (Nếu cần)
-router.get('/product/list', ProductController.getAll);    // 👉 GET danh sách
+router.get('/product/list', ProductController.getAll);    
 router.get('/categories/tree', ProductController.getCategoryTree);
 
 module.exports = router;
