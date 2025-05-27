@@ -17,13 +17,15 @@ const importData = async () => {
     host: 'localhost',
     user: 'root',
     password: 'mysql',
-    database: 'duantotnghiep',
+    database: 'duantotnghiepupdate',
   });
 
   // Clear tables (nếu muốn reset lại)
-  await connection.query('DELETE FROM wards');
-  await connection.query('DELETE FROM districts');
-  await connection.query('DELETE FROM provinces');
+await connection.query('SET FOREIGN_KEY_CHECKS = 0'); // Tắt ràng buộc
+await connection.query('DELETE FROM wards');
+await connection.query('DELETE FROM districts');
+await connection.query('DELETE FROM provinces');
+await connection.query('SET FOREIGN_KEY_CHECKS = 1'); // Bật lại ràng buộc
 
   // Step 1: Provinces
   const provincesRes = await api.get('/master-data/province');
@@ -36,7 +38,11 @@ const importData = async () => {
     const districts = districtsRes.data.data;
 
     for (const d of districts) {
-      await connection.query('INSERT INTO districts (id, name, provinceId) VALUES (?, ?, ?)', [d.DistrictID, d.DistrictName, p.ProvinceID]);
+     await connection.query(
+  'INSERT INTO districts (id, name, provinceId, ghnCode) VALUES (?, ?, ?, ?)',
+  [d.DistrictID, d.DistrictName, p.ProvinceID, d.DistrictID] // DistrictID là mã GHN
+);
+
 
       // Step 3: Wards in each district
     const wardsRes = await api.post('/master-data/ward', { district_id: d.DistrictID });

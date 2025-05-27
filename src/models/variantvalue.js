@@ -20,6 +20,14 @@ const VariantValue = sequelize.define("VariantValue", {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  imageUrl: {
+    type: DataTypes.STRING, // đường dẫn ảnh minh họa
+    allowNull: true,
+  },
+  colorCode: {
+    type: DataTypes.STRING, // ví dụ: #000000, red, rgba(255,255,255,1)
+    allowNull: true,
+  },
   deletedAt: {
     type: DataTypes.DATE,
   },

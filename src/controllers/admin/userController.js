@@ -38,6 +38,7 @@ const getAllUsers = async (req, res) => {
 
     const { rows: users, count } = await User.findAndCountAll({
       where: whereClause,
+       deletedAt: null,
       attributes: { exclude: ["password"] },
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -100,39 +101,44 @@ const getAllRoles = async (req, res) => {
 const updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const status = parseInt(req.body.status, 10); 
+    const reason = req.body.reason || '';
+
+    if (![0, 1].includes(status)) {
+      return res.status(400).json({ message: "Trạng thái không hợp lệ" });
+    }
 
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: "Người dùng không tồn tại" });
     }
 
-    if (status === 0) {
-      const blockTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      await user.update({ scheduledBlockAt: blockTime });
-      await sendAccountStatusEmail(user.email, user.fullName, 0, reason);
-      return res.json({
-        message: `Đã lên lịch khóa tài khoản ${user.fullName} sau 24 giờ.`,
-      });
+    if (user.id === req.user.id && status === 0) {
+      return res.status(400).json({ message: "Bạn không thể ngưng hoạt động chính tài khoản của mình." });
     }
 
-    if (status === -1) {
-      await user.update({ status: -1, scheduledBlockAt: null });
-      return res.json({
-        message: `Đã khóa vĩnh viễn tài khoản ${user.fullName}`,
-      });
-    }
+    await user.update({ status });
 
-    await user.update({ status: 1, scheduledBlockAt: null });
-    await sendAccountStatusEmail(user.email, user.fullName, 1);
-    return res.json({ message: `Đã mở khóa tài khoản ${user.fullName}` });
+    await sendAccountStatusEmail(user.email, user.fullName, status, reason);
+
+    return res.json({
+      message:
+        status === 1
+          ? `Đã chuyển tài khoản ${user.fullName} sang trạng thái HOẠT ĐỘNG`
+          : `Đã chuyển tài khoản ${user.fullName} sang trạng thái NGỪNG HOẠT ĐỘNG`,
+    });
   } catch (error) {
     console.error("❌ Lỗi cập nhật trạng thái:", error);
-    return res
-      .status(500)
-      .json({ message: "Không thể cập nhật trạng thái tài khoản", error });
+    return res.status(500).json({
+      message: "Không thể cập nhật trạng thái tài khoản",
+      error,
+    });
   }
 };
+
+
+
+
 
 const resetUserPassword = async (req, res) => {
   try {
@@ -157,11 +163,9 @@ const resetUserPassword = async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi reset mật khẩu:", error);
     if (error.code === "EAUTH") {
-      return res
-        .status(500)
-        .json({
-          message: "Gửi email thất bại. Vui lòng kiểm tra cấu hình email.",
-        });
+      return res.status(500).json({
+        message: "Gửi email thất bại. Vui lòng kiểm tra cấu hình email.",
+      });
     }
     return res
       .status(500)
@@ -169,23 +173,95 @@ const resetUserPassword = async (req, res) => {
   }
 };
 
-const cancelUserScheduledBlock = async (req, res) => {
+
+
+const deleteInactiveUsers = async (req, res) => {
   try {
-    const { id } = req.params;
-    const user = await User.findByPk(id);
-    if (!user)
-      return res.status(404).json({ message: "Người dùng không tồn tại" });
-    if (!user.scheduledBlockAt)
-      return res
-        .status(400)
-        .json({ message: "Tài khoản này không có lịch khóa" });
-    await user.update({ scheduledBlockAt: null });
-    return res.json({ message: `Đã huỷ lịch khóa tài khoản ${user.fullName}` });
+    const threshold = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000); // 3 năm
+
+    const usersToDelete = await User.findAll({
+      where: {
+        lastLoginAt: { [Op.lt]: threshold }
+      }
+    });
+
+    const count = await User.destroy({
+      where: {
+        lastLoginAt: { [Op.lt]: threshold }
+      }
+    });
+
+    return res.json({ message: `Đã xóa ${count} tài khoản không hoạt động trên 3 năm.` });
   } catch (error) {
-    console.error("❌ Lỗi huỷ lịch khóa:", error);
-    return res.status(500).json({ message: "Không thể huỷ lịch khóa", error });
+    return res.status(500).json({ message: "Lỗi khi xóa người dùng", error });
   }
 };
+// userController.js
+const getDeletedUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const offset = (page - 1) * limit;
+const whereClause = {
+  [Op.or]: [
+    { fullName: { [Op.like]: `%${search}%` } },
+    { email: { [Op.like]: `%${search}%` } }
+  ],
+  deletedAt: { [Op.ne]: null }
+};
+
+
+    const { rows, count } = await User.findAndCountAll({
+      where: whereClause,
+      paranoid: false,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [["id", "ASC"]]
+    });
+
+    return res.json({
+      data: rows,
+      total: count,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(count / limit)
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Lỗi khi lấy danh sách tài khoản đã xoá", error: err });
+  }
+};
+
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id, {
+      attributes: { exclude: ['password'] }
+    });
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server', error: err });
+  }
+};
+
+const forceDeleteManyUsers = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+    }
+
+    const deleted = await User.destroy({
+      where: {
+        id: { [Op.in]: ids }
+      },
+      force: true
+    });
+
+    return res.json({ message: `Đã xoá ${deleted} tài khoản vĩnh viễn.` });
+  } catch (err) {
+    return res.status(500).json({ message: 'Lỗi xoá vĩnh viễn', error: err });
+  }
+};
+
 
 module.exports = {
   getAllUsers,
@@ -193,5 +269,8 @@ module.exports = {
   getAllRoles,
   updateUserStatus,
   resetUserPassword,
-  cancelUserScheduledBlock,
+  deleteInactiveUsers,
+  getDeletedUsers,
+  getUserById,
+  forceDeleteManyUsers
 };

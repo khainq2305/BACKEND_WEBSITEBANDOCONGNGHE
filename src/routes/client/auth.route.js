@@ -11,7 +11,7 @@ const upload = require("../../middlewares/upload");
 const { validateRegister, validateLogin, validateForgotPassword, validateResetPassword, validateUpdateProfile } = require("../../validations/authValidator");
 router.get("/verify-reset-token", AuthController.verifyResetToken);
 
-router.post("/reset-password", AuthController.resetPassword);
+router.post("/reset-password",validateResetPassword, AuthController.resetPassword);
 router.post("/register",validateRegister, AuthController.register);
 router.get("/verify-email", AuthController.verifyEmail);
 router.post("/resend-verification-link", AuthController.resendVerificationLink);

@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const UserAddressController = require('../../controllers/client/userAddressController');
+const { validateUserAddress } = require('../../validations/userAddressValidator');
 const {checkJWT} = require("../../middlewares/checkJWT");
-router.post('/', checkJWT, UserAddressController.create);
+router.post('/', checkJWT, validateUserAddress, UserAddressController.create);
 router.get('/', checkJWT, UserAddressController.getByUser);
 router.put('/set-default/:id', checkJWT, UserAddressController.setDefault);
-router.put('/:id', checkJWT, UserAddressController.update); // ✅
-router.delete('/:id', checkJWT, UserAddressController.remove); // ✅
+router.put('/:id', checkJWT, validateUserAddress, UserAddressController.update); 
+router.delete('/:id', checkJWT, UserAddressController.remove); 
+router.get('/default', checkJWT, UserAddressController.getDefault);
 module.exports = router;

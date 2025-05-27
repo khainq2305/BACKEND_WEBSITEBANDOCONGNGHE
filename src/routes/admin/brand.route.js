@@ -1,33 +1,22 @@
 const express = require('express');
 const router = express.Router();
-
-const {
-  getAllBrands,
-  getBrandById,
-  createBrand,
-  updateBrand,
-  deleteBrand,
-  restoreBrand,
-  forceDeleteBrand
-} = require('../../controllers/admin/brandController');
-
-
+const BrandController = require('../../controllers/admin/brandController');
 const { validateBrand } = require('../../validations/brandValidator');
-// const checkJWT = require('../../middlewares/checkJWT');
+const { upload } = require('../../config/cloudinary');
+// Tạo & cập nhật (có hỗ trợ upload logoUrl)
+router.post('/create', upload.single('logoUrl'), validateBrand, BrandController.create);
+router.put('/update/:id', upload.single('logoUrl'), validateBrand, BrandController.update);
 
-// router.use(checkJWT); // Bật nếu cần
+// Danh sách thương hiệu
+router.get('/', BrandController.getAll);
+router.get('/detail/:id', BrandController.getById);
 
-// Lấy danh sách & tạo mới brand
-router.get('/', getAllBrands);
-router.post('/', validateBrand, createBrand);
+// Thao tác trạng thái
+router.delete('/soft-delete', BrandController.softDelete);
+router.patch('/restore', BrandController.restore);
+router.delete('/force-delete', BrandController.forceDelete);
 
-// Lấy chi tiết, cập nhật, xoá mềm brand
-router.get('/:id', getBrandById);
-router.put('/:id', validateBrand, updateBrand);
-router.delete('/:id', deleteBrand);
-
-// Khôi phục & xoá vĩnh viễn
-router.patch('/:id/restore', restoreBrand);
-router.delete('/:id/force', forceDeleteBrand);
+// Cập nhật thứ tự
+router.post('/update-order', BrandController.updateOrderIndex);
 
 module.exports = router;

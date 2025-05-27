@@ -1,4 +1,3 @@
-// src/models/post.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -9,46 +8,55 @@ const Post = sequelize.define('Post', {
     autoIncrement: true
   },
   title: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: DataTypes.STRING(255),
+    allowNull: true
   },
   content: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
   },
-  thumbnail: {
-    type: DataTypes.STRING,
+  status: {
+    type: DataTypes.TINYINT,
+    allowNull: false,
+    defaultValue: 1
+  },
+  orderIndex: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
+  },
+  slug: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  authorId: {
+    type: DataTypes.INTEGER,
     allowNull: true
   },
   categoryId: {
     type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  authorId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  status: {
-      type: DataTypes.ENUM('draft', 'published', 'scheduled'),
-      defaultValue: 'draft'
-    },
-  orderIndex: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
+    allowNull: true
   },
   publishAt: {
-  type: DataTypes.DATE,
-  allowNull: true
-},
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  isFeature: {
+    type: DataTypes.BOOLEAN, // ✅ Sửa lại ở đây
+    allowNull: false,
+    defaultValue: false
+  },
   deletedAt: {
     type: DataTypes.DATE,
     allowNull: true
   }
 }, {
   tableName: 'posts',
-  deletedAt: 'deletedAt', // tên field đúng
   timestamps: true,
-  paranoid: true
+  paranoid: true,
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
 });
 
-module.exports = Post; // ✅ đây là quan trọng nhất
+module.exports = Post;
