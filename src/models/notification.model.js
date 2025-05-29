@@ -32,13 +32,14 @@ module.exports = (sequelize, DataTypes) => {
       type: {
         type: DataTypes.ENUM("order", "promotion", "news", "system"),
       },
-      orderIndex: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-      },
       createdAt: {
         type: DataTypes.DATE,
       },
+      startAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
       deletedAt: {
         type: DataTypes.DATE,
       },

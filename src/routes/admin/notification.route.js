@@ -6,7 +6,6 @@ const { createNotificationValidator, updateNotificationValidator } = require('..
 
 // Các route đứng trước :id
 router.get('/', NotificationController.getAll);
-router.post('/update-order', NotificationController.updateOrderIndex);
 router.post('/delete-many', NotificationController.deleteMany);
 
 router.get('/:id', NotificationController.getById);
