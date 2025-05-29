@@ -13,7 +13,7 @@ sequelize.authenticate().then(() => {
  
 
 
-  require("./services/common/cron");
+  require("./cron/inactiveUserCleanup");
 
 }).catch(err => {
   console.error("Lỗi kết nối MySQL:", err);
