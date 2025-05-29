@@ -16,6 +16,7 @@ class BrandController {
         whereClause.name = { [Op.like]: `%${search}%` };
       }
 
+      // Bộ lọc theo status
       switch (status) {
         case 'published':
           whereClause = { ...whereClause, isActive: 1 };
@@ -33,6 +34,7 @@ class BrandController {
           return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
       }
 
+      // Lấy danh sách dữ liệu phân trang
       const { rows, count } = await Brand.findAndCountAll({
         where: whereClause,
         limit: parseInt(limit),
@@ -41,19 +43,32 @@ class BrandController {
         paranoid
       });
 
+      // Lấy số lượng theo từng trạng thái (không phân trang)
+      const [totalAll, totalPublished, totalDraft, totalTrash] = await Promise.all([
+        Brand.count({}),
+        Brand.count({ where: { isActive: 1 } }),
+        Brand.count({ where: { isActive: 0 } }),
+        Brand.count({ where: { deletedAt: { [Op.not]: null } }, paranoid: false })
+      ]);
+
       return res.json({
         success: true,
         data: rows,
         total: count,
         currentPage: parseInt(page),
-        totalPages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limit),
+        counts: {
+          all: totalAll,
+          published: totalPublished,
+          draft: totalDraft,
+          trash: totalTrash
+        }
       });
     } catch (error) {
       console.error('GET BRANDS ERROR:', error);
       return res.status(500).json({ message: 'Lỗi server khi lấy danh sách brand', error });
     }
   }
-
 
   static async getById(req, res) {
     try {
@@ -271,7 +286,7 @@ class BrandController {
         notFound
       });
     } catch (error) {
-      console.error('❌ Lỗi xoá vĩnh viễn:', error);
+      console.error('Lỗi xoá vĩnh viễn:', error);
       return res.status(500).json({ message: 'Lỗi server khi xoá vĩnh viễn', error: error.message });
     }
   }
