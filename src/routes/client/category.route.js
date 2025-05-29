@@ -3,7 +3,7 @@ const router = express.Router();
 
 const CategoryController = require('../../controllers/client/categoryController');
 
-// Gọi đúng method static trong class
 router.get('/', CategoryController.getNestedCategories);
+router.get('/:slug', CategoryController.getBySlug);
 
 module.exports = router;
