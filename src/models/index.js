@@ -32,8 +32,9 @@ const District = require('./district');
 const Ward = require('./ward');
 // 
 // Danh mục bài viết
-Category.hasMany(Post, { foreignKey: 'categoryId' });
-Post.belongsTo(Category, { foreignKey: 'categoryId' });
+Category.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
+Post.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+
 
 // Tác giả bài viết
 User.hasMany(Post, { foreignKey: 'authorId' });

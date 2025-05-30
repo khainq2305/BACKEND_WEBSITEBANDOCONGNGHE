@@ -18,7 +18,7 @@ const Post = sequelize.define('Post', {
   status: {
     type: DataTypes.TINYINT,
     allowNull: false,
-    defaultValue: 1 // 0: draft, 1: published, 2: scheduled
+    defaultValue: 1
   },
   orderIndex: {
     type: DataTypes.INTEGER,
@@ -40,6 +40,11 @@ const Post = sequelize.define('Post', {
   publishAt: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  isFeature: {
+    type: DataTypes.BOOLEAN, // ✅ Sửa lại ở đây
+    allowNull: false,
+    defaultValue: false
   },
   deletedAt: {
     type: DataTypes.DATE,

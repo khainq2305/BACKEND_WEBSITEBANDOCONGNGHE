@@ -15,7 +15,8 @@ class PostController {
         status = 0,
         orderIndex = 0,
         publishAt,
-        slug
+        slug,
+        isFeature
       } = req.body;
 
       if (!title || !content || !category || !authorId) {
@@ -30,7 +31,8 @@ class PostController {
         orderIndex,
         publishAt: publishAt ? new Date(publishAt) : null,
         status: parseInt(status, 10),
-        slug
+        slug,
+        isFeature
       });
 
       return res.status(201).json({ message: 'Tạo bài viết thành công', data: newPost });
@@ -55,24 +57,38 @@ class PostController {
     if (categoryId) {
       whereClause.categoryId = parseInt(categoryId, 10);
     }
-
+    console.log(status)
     if (status === 'trash') {
-      whereClause.deletedAt = { [Op.not]: null };
-    } else {
-      whereClause.deletedAt = null;
-    }
+  whereClause.deletedAt = { [Op.not]: null };
+} else {
+  whereClause.deletedAt = null;
+
+  if (status === 'published') {
+    whereClause.status = 1;
+  } else if (status === 'draft') {
+    whereClause.status = 0;
+  }
+}
 
     const { count, rows } = await Post.findAndCountAll({
-      where: whereClause,
-      limit,
-      offset,
-      include: [
-        { model: Category, attributes: ['id', 'name'] },
-        { model: User, attributes: ['id', 'fullName'] }
-      ],
-      paranoid: false,
-      order: [['createdAt', 'DESC']]
-    });
+  where: whereClause,
+  limit,
+  offset,
+  include: [
+    {
+      model: Category,
+      as: 'category', // 👈 đúng alias
+      attributes: ['id', 'name']
+    },
+    {
+      model: User,
+      attributes: ['id', 'fullName']
+    }
+  ],
+  paranoid: false,
+  order: [['createdAt', 'DESC']]
+});
+
 
     // 👇 Tính số lượng từng loại bài viết (toàn bộ, kể cả xóa mềm)
     const allPosts = await Post.findAll({ paranoid: false });
@@ -124,7 +140,7 @@ const counts = {
         return res.status(404).json({ message: 'Không tìm thấy bài viết' });
       }
 
-      const { title, content, categoryId, authorId, status, orderIndex, publishAt } = req.body;
+      const { title, content, categoryId, authorId, status, orderIndex, publishAt, isFeature } = req.body;
 
       await post.update({
         title,
@@ -133,7 +149,8 @@ const counts = {
         authorId,
         status,
         orderIndex,
-        publishAt: publishAt ? new Date(publishAt) : null
+        publishAt: publishAt ? new Date(publishAt) : null,
+        isFeature
       });
 
       return res.json({ message: 'Cập nhật thành công', data: post });
