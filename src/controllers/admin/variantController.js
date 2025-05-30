@@ -5,63 +5,59 @@ const { Op } = require('sequelize');
 class VariantController {
 
 static async getAll(req, res) {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = (page - 1) * limit;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-      const fetchDeletedOnly = req.query.deleted === 'true'; 
-      const keyword = req.query.keyword?.trim();
-      const status = req.query.status?.trim();
+    const fetchDeletedOnly = req.query.deleted === 'true';
+    const keyword = req.query.keyword?.trim();
+    const status = req.query.status?.trim();
 
-      const whereClause = {};
-      let queryOptions = { 
-        limit,
-        offset,
-        order: [['createdAt', 'DESC']],
-        include: [{
-          model: VariantValue,
-          as: 'values',
-          attributes: ['id', 'value']
-        }],
-   
-      };
+    const whereClause = {};
+    if (status === 'true') whereClause.isActive = true;
+    else if (status === 'false') whereClause.isActive = false;
+    if (keyword) whereClause.name = { [Op.like]: `%${keyword}%` };
+    if (fetchDeletedOnly) whereClause.deletedAt = { [Op.ne]: null };
 
-      if (status === 'true') {
-        whereClause.isActive = true;
-    
-      } else if (status === 'false') {
-        whereClause.isActive = false;
-       
-      }
+    // Đếm tổng theo từng loại
+    const [total, totalActive, totalInactive, totalTrash] = await Promise.all([
+      Variant.count({ paranoid: true }), // tất cả (chưa xoá)
+      Variant.count({ where: { isActive: true }, paranoid: true }),
+      Variant.count({ where: { isActive: false }, paranoid: true }),
+      Variant.count({ where: { deletedAt: { [Op.ne]: null } }, paranoid: false }) // đã xoá
+    ]);
 
-      if (keyword) {
-        whereClause.name = { [Op.like]: `%${keyword}%` };
-      }
+    // Lấy danh sách theo filter
+    const data = await Variant.findAll({
+      where: whereClause,
+      include: [{
+        model: VariantValue,
+        as: 'values',
+        attributes: ['id', 'value']
+      }],
+      limit,
+      offset,
+      order: [['createdAt', 'DESC']],
+      paranoid: !fetchDeletedOnly
+    });
 
-      if (fetchDeletedOnly) {
-
-        queryOptions.paranoid = false;
-
-        whereClause.deletedAt = { [Op.ne]: null };
-      }
- 
-
-      queryOptions.where = whereClause;
-
-      const result = await Variant.findAndCountAll(queryOptions);
-
-      res.json({
-        data: result.rows,
-        total: result.count,
-        currentPage: page,
-        totalPages: Math.ceil(result.count / limit)
-      });
-    } catch (error) {
-      console.error('Lỗi lấy variant:', error);
-      res.status(500).json({ message: 'Lỗi server', error: error.message });
-    }
+    res.json({
+      data,
+      total,
+      totalActive,
+      totalInactive,
+      totalTrash,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('❌ Lỗi lấy variant:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
+}
+
+
 
 
 

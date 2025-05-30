@@ -12,9 +12,15 @@ const HomeSection = connection.define('HomeSection', {
     allowNull: false
   },
   type: {
-    type: DataTypes.ENUM('banner', 'productList', 'categoryList', 'customLink'),
-    allowNull: false
-  },
+  type: DataTypes.ENUM(
+    'productOnly',
+    'productWithBanner',
+    'productWithFilters',
+    'fullBlock'
+  ),
+  allowNull: false
+}
+,
    isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true

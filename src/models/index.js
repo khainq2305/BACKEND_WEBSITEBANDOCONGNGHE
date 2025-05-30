@@ -11,6 +11,10 @@ const HighlightedCategoryItem = require("./HighlightedCategoryItem");
 const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
+//
+
+const ProductInfo = require("./productinfo.model");
+const ProductSpec = require("./productspec.model");
 
 //
 const HomeSection = require("./homeSection");
@@ -54,7 +58,7 @@ const VariantValue = require("./variantvalue");
 //
 const SkuVariantValue = require("./skuvariantvalueModel");
 
-
+// Liên kết bảng trung gian Sku <-> VariantValue
 Sku.hasMany(SkuVariantValue, { foreignKey: "skuId", as: "variantValues" });
 SkuVariantValue.belongsTo(Sku, { foreignKey: "skuId" });
 
@@ -84,9 +88,38 @@ const PostCategory = require("./categoryPostModel");
 Product.hasMany(Sku, { foreignKey: "productId", as: "skus" });
 Sku.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
-Sku.hasMany(ProductMedia, { foreignKey: "skuId" });
-Sku.hasMany(ProductMedia, { foreignKey: "skuId", as: "media" });
+// THÊM DÒNG NÀY
+Sku.hasMany(ProductMedia, { foreignKey: "skuId", as: "ProductMedia" }); // Đặt bí danh là "ProductMedia"
 ProductMedia.belongsTo(Sku, { foreignKey: "skuId" });
+Product.hasOne(ProductInfo, {
+  foreignKey: "productId",
+  as: "productInfo",
+});
+ProductInfo.belongsTo(Product, {
+  foreignKey: "productId",
+  as: "product",
+});
+Sku.hasMany(ProductSpec, { foreignKey: "skuId", as: "specs" });
+ProductSpec.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
+Product.hasMany(ProductVariant, {
+  foreignKey: "productId",
+  as: "productVariants",
+});
+ProductVariant.belongsTo(Product, {
+  foreignKey: "productId",
+  as: "product",
+});
+// ✅ Bổ sung quan hệ giữa ProductVariant và Variant
+ProductVariant.belongsTo(Variant, {
+  foreignKey: "variantId",
+  as: "variant", // 👈 alias phải đúng như trong include
+});
+
+Variant.hasMany(ProductVariant, {
+  foreignKey: "variantId",
+  as: "productVariants",
+});
+
 //
 HomeSection.hasMany(HomeSectionBanner, {
   foreignKey: "homeSectionId",
@@ -96,7 +129,7 @@ HomeSectionBanner.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
 
 HomeSection.hasMany(ProductHomeSection, {
   foreignKey: "homeSectionId",
-  as: "products",
+  as: "productHomeSections", // ✅ dùng đúng alias
 });
 ProductHomeSection.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
 
@@ -156,10 +189,23 @@ FlashSaleCategory.belongsTo(Category, {
 });
 
 // Quan hệ
-Variant.hasMany(VariantValue, { foreignKey: "variantId" });
+
 Variant.hasMany(VariantValue, { foreignKey: "variantId", as: "values" });
 
 VariantValue.belongsTo(Variant, { foreignKey: "variantId", as: "variant" });
+Product.belongsToMany(Variant, {
+  through: ProductVariant,
+  foreignKey: 'productId',
+  otherKey: 'variantId',
+  as: 'variants' // alias này chỉ cần nếu bạn muốn dùng product.variants sau này
+});
+
+Variant.belongsToMany(Product, {
+  through: ProductVariant,
+  foreignKey: 'variantId',
+  otherKey: 'productId',
+  as: 'products'
+});
 
 //
 Coupon.hasMany(CouponUser, { foreignKey: "couponId", as: "users" });
@@ -319,6 +365,9 @@ module.exports = {
   ProductHomeSection,
   HomeSectionFilter,
   Category,
+
+  ProductInfo,
+  ProductSpec,
   Post,
   PostCategory,
   ProductVariant,

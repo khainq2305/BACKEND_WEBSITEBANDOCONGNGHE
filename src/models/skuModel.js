@@ -7,6 +7,11 @@ const Sku = sequelize.define('Sku', {
   skuCode: { type: DataTypes.STRING, allowNull: false },
   originalPrice: { type: DataTypes.INTEGER, allowNull: false },
   price: { type: DataTypes.INTEGER, allowNull: false },
+  description: {
+  type: DataTypes.TEXT,
+  allowNull: true,
+}
+,
   stock: { type: DataTypes.INTEGER, allowNull: false },
   height: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   width:  { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
