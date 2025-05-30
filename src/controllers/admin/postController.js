@@ -112,11 +112,12 @@ class PostController {
 
       const posts = await Post.findAll({
   include: [
-    { model: Category, attributes: ['id', 'name'] },
+    { model: Category, as: 'category', attributes: ['id', 'name'] }, // ✅ thêm `as`
     { model: User, attributes: ['id', 'fullName'] }
   ],
   paranoid: false 
 });
+
 
 
       return res.json({ data: posts });
