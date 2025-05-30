@@ -11,7 +11,7 @@ const orderRoutes = require('./order.routes');
 const categoryRoutes = require('./category.route'); 
 const searchRoutes = require('./search.routes');
 const brandRoutes = require('./brand.route');
-
+const wishlistRoutes = require('./wishlist.routes');
 
 router.use('/', searchRoutes);
 router.use('/api/client/categories', categoryRoutes); 
@@ -26,5 +26,6 @@ router.use('/cart', cartRoutes);
 router.use('/api/client/categories', categoryRoutes); 
 router.use('/api/client/products', productRoutes);
 router.use('/api/client/brands', brandRoutes);
+router.use('/wishlist', wishlistRoutes); 
 
 module.exports = router;

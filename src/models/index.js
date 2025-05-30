@@ -21,6 +21,9 @@ const HomeSectionFilter = require("./homeSectionFilter");
 const Banner = require("./Banner");
 const Placement = require("./Placement");
 const BannerPlacementAssignment = require("./BannerPlacementAssignment");
+const WishlistItem = require('./wishlistitemModel');
+const Wishlist = require('./wishlistModel');
+
 
 //
 
@@ -67,8 +70,6 @@ SkuVariantValue.belongsTo(VariantValue, {
   as: "variantValue",
 });
 
-//
-// Liên kết với Category
 HighlightedCategoryItem.belongsTo(Category, {
   foreignKey: "categoryId",
   as: "category",
@@ -284,6 +285,23 @@ UserAddress.belongsTo(Ward, {
   targetKey: "code",
   as: "ward",
 });
+User.hasMany(Wishlist, { foreignKey: 'userId' });
+Wishlist.belongsTo(User, { foreignKey: 'userId' });
+
+Wishlist.hasMany(WishlistItem, { foreignKey: 'wishlistId', as: 'items' });
+WishlistItem.belongsTo(Wishlist, { foreignKey: 'wishlistId' });
+
+WishlistItem.belongsTo(Product, {
+  foreignKey: 'productId',
+  as: 'product', // ✅ Đặt alias để join chính xác
+});
+Product.hasMany(WishlistItem, {
+  foreignKey: 'productId',
+  as: 'wishlistItems',
+});
+
+
+
 
 module.exports = {
   User,
@@ -329,5 +347,7 @@ module.exports = {
   Coupon,
   Product,
   UserToken,
+  WishlistItem,
+  Wishlist,
   sequelize: connection,
 };
