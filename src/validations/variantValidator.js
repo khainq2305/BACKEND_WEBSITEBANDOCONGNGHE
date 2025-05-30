@@ -1,10 +1,10 @@
-const { Variant } = require('../models'); // hoặc đúng path model của bạn
+const { Variant } = require('../models');
 
 const allowedTypes = ['text', 'image', 'color', 'dropdown', 'size'];
 
 const validateVariant = async (req, res, next) => {
   const { name, type, isActive } = req.body;
-  const { id } = req.params; // lấy id nếu là update
+  const { id } = req.params; 
   const errors = [];
 
   if (!name || name.trim() === '') {

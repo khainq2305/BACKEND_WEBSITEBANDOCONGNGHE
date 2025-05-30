@@ -36,9 +36,12 @@ const validateVariantValue = async (req, res, next) => {
     errors.push({ field: 'imageFile', message: 'Ảnh phải nhỏ hơn 5MB!' });
   }
 
-  if (req.body.sortOrder && isNaN(Number(sortOrder))) {
-    errors.push({ field: 'sortOrder', message: 'Thứ tự phải là số!' });
-  }
+if (sortOrder === undefined || sortOrder === null || isNaN(Number(sortOrder))) {
+  errors.push({ field: 'sortOrder', message: 'Thứ tự phải là số!' });
+} else if (Number(sortOrder) < 0) {
+  errors.push({ field: 'sortOrder', message: 'Thứ tự phải phải hơn hoặc bằng 0' });
+}
+
 
   if (req.body.variantType === 'image' && !req.file && !id) {
     errors.push({ field: 'imageFile', message: 'Ảnh không được để trống!' });

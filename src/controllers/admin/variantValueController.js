@@ -4,57 +4,90 @@ const slugify = require('slugify');
 
 class VariantValueController {
 static async getByVariant(req, res) {
-    try {
-      const { id } = req.params;
-      const { deleted, search = '', page = 1, limit = 10 } = req.query;
+  try {
+    const { id } = req.params;
+    const { deleted, search = '', page = 1, limit = 10 } = req.query;
 
-      const isTrash = deleted === 'true';
-      const offset = (page - 1) * limit;
+    const isTrash = deleted === 'true';
+    const offset = (page - 1) * limit;
 
-      
-      const variant = await Variant.findByPk(id);
-      if (!variant) {
-        return res.status(404).json({ message: 'Không tìm thấy biến thể' });
-      }
+    const variant = await Variant.findByPk(id);
+    if (!variant) {
+      return res.status(404).json({ message: 'Không tìm thấy biến thể' });
+    }
 
-      const whereClause = {
-        variantId: id,
-        ...(isTrash ? { deletedAt: { [Op.ne]: null } } : {}),
-        ...(search ? { value: { [Op.like]: `%${search}%` } } : {})
-      };
+    const whereClause = {
+      variantId: id,
+      ...(isTrash ? { deletedAt: { [Op.ne]: null } } : {}),
+      ...(search ? { value: { [Op.like]: `%${search}%` } } : {})
+    };
 
-      const { rows, count } = await VariantValue.findAndCountAll({
-        where: whereClause,
-        order: [['sortOrder', 'ASC']],
-        limit: +limit,
-        offset: +offset,
-        paranoid: !isTrash
-      });
+    const { rows, count } = await VariantValue.findAndCountAll({
+      where: whereClause,
+      order: [['sortOrder', 'ASC']],
+      limit: +limit,
+      offset: +offset,
+      paranoid: !isTrash
+    });
+
+    // 🔢 Tổng số lượng cho từng tab
+    const [totalAll, totalActive, totalInactive, totalTrash] = await Promise.all([
+      VariantValue.count({
+        where: { variantId: id },
+        paranoid: true
+      }),
+      VariantValue.count({
+        where: { variantId: id, isActive: true },
+        paranoid: true
+      }),
+      VariantValue.count({
+        where: { variantId: id, isActive: false },
+        paranoid: true
+      }),
+      VariantValue.count({
+        where: { variantId: id, deletedAt: { [Op.ne]: null } },
+        paranoid: false
+      })
+    ]);
 
     res.json({
-  data: rows,
-  variantName: variant.name,
-  variantType: variant.type, 
-  total: count,
-  currentPage: +page,
-  totalPages: Math.ceil(count / limit)
-});
-
-    } catch (err) {
-      console.error('Lỗi lấy giá trị theo variant:', err);
-      res.status(500).json({ message: 'Lỗi server', error: err.message });
-    }
+      data: rows,
+      variantName: variant.name,
+      variantType: variant.type,
+      total: count,
+      totalAll,
+      totalActive,
+      totalInactive,
+      totalTrash,
+      currentPage: +page,
+      totalPages: Math.ceil(count / limit)
+    });
+  } catch (err) {
+    console.error('Lỗi lấy giá trị theo variant:', err);
+    res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
+}
+
 static async create(req, res) {
   try {
-    const { variantId, value, sortOrder, isActive, colorCode } = req.body;
+    const { variantId, value, sortOrder = 0, isActive, colorCode } = req.body;
     let imageUrl = null;
 
     if (req.file) {
       imageUrl = `/uploads/${req.file.filename}`;
     }
 
-    const slug = slugify(value, { lower: true, strict: true }); // ✅ tạo slug tự động
+    const slug = slugify(value, { lower: true, strict: true });
+
+    
+    await VariantValue.increment('sortOrder', {
+      where: {
+        variantId,
+        sortOrder: {
+          [Op.gte]: sortOrder
+        }
+      }
+    });
 
     const newValue = await VariantValue.create({
       variantId,
@@ -65,15 +98,6 @@ static async create(req, res) {
       colorCode,
       imageUrl
     });
-// Gọi trước khi tạo mới
-await VariantValue.increment('sortOrder', {
-  where: {
-    variantId,
-    sortOrder: {
-      [Op.gte]: sortOrder // dịch lên nếu đã >=
-    }
-  }
-});
 
     res.status(201).json({ message: 'Tạo giá trị thành công', data: newValue });
   } catch (err) {
@@ -81,6 +105,7 @@ await VariantValue.increment('sortOrder', {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
+
 
 
 
@@ -228,7 +253,8 @@ static async reorder(req, res) {
 
 static async createQuick(req, res) {
   try {
-    const { variantId, value } = req.body;
+    const variantId = req.body.variantId || req.params.id; // 👈 lấy từ body hoặc param
+    const { value } = req.body;
 
     if (!variantId || !value || !value.trim()) {
       return res.status(400).json({ message: 'Thiếu variantId hoặc value' });
@@ -254,6 +280,7 @@ static async createQuick(req, res) {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
+
 
 }
 

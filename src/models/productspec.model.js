@@ -1,35 +1,31 @@
 const { DataTypes } = require('sequelize');
 const connection = require('../config/database');
 
-const HomeSectionFilter = connection.define('HomeSectionFilter', {
+const ProductSpec = connection.define('ProductSpec', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  homeSectionId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  label: {
+  specKey: {
     type: DataTypes.STRING,
     allowNull: false
   },
-  type: {
-    type: DataTypes.ENUM('brand', 'category', 'url'),
-    allowNull: false
-  },
-  value: {
+  specValue: {
     type: DataTypes.STRING,
     allowNull: false
   },
   sortOrder: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  skuId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 }, {
-  tableName: 'homesectionfilters',
+  tableName: 'productspec',
   timestamps: true
 });
 
-module.exports = HomeSectionFilter;
+module.exports = ProductSpec;

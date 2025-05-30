@@ -62,13 +62,7 @@ console.log('✅ req.body:', req.body);
     });
   }
 
-  // ✅ customLink: nếu có thì phải đúng định dạng URL
-  if (customLink && !urlRegex.test(customLink)) {
-    errors.push({
-      field: 'customLink',
-      message: 'Link tùy chỉnh không hợp lệ!',
-    });
-  }
+  
 
   // ✅ sortOrder: nếu có phải là số nguyên ≥ 0
   if (
