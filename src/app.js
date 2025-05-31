@@ -3,14 +3,14 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 
-const clientRoutes = require('./routes/client'); 
+const clientRoutes = require('./routes/client');
 const adminRoutes = require('./routes/admin'); // 👈 THÊM
 
-const sequelize = require('./config/database'); 
+const sequelize = require('./config/database');
 
 
 sequelize.authenticate().then(() => {
- 
+
 
 
   require("./services/common/cron");
@@ -29,9 +29,9 @@ app.use(express.urlencoded({ extended: true }));
 
 
 app.use('/', clientRoutes);
-app.use('/admin', adminRoutes); 
+app.use('/admin', adminRoutes);
 app.use((err, req, res, next) => {
-  logErrorToFile(err.message, req); 
+  logErrorToFile(err.message, req);
   res.status(500).json({ message: "Đã xảy ra lỗi server!" });
 });
 
