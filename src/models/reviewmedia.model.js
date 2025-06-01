@@ -21,12 +21,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  ReviewMedia.associate = (models) => {
-    ReviewMedia.belongsTo(models.Review, {
-      foreignKey: 'reviewId',
-      as: 'review'
-    });
-  };
+  
 
   return ReviewMedia;
 };

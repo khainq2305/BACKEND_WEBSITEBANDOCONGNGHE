@@ -29,6 +29,11 @@ module.exports = (sequelize, DataTypes) => {
       reportCount: {
         type: DataTypes.INTEGER,
         defaultValue: 0
+      },
+      slug: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
       }
     },
     {
@@ -37,14 +42,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  Review.associate = (models) => {
-    Review.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
-    Review.belongsTo(models.User, { foreignKey: 'responderId', as: 'responder' });
-    Review.belongsTo(models.Sku, { foreignKey: 'skuId', as: 'sku' });
-    // Liên kết với reviewmedias
-    Review.hasMany(models.ReviewMedia, {foreignKey: 'reviewId',as: 'medias'
-    });
-  };
+
 
   return Review;
 };
