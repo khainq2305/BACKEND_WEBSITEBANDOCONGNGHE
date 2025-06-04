@@ -9,9 +9,6 @@ router.get('/', ReviewController.getGroupedByProduct);
 
 router.get('/all', ReviewController.getAll);
 
-// Lấy 1 review chi tiết theo Slug (cho trang ReviewAllDetail)
-router.get('/detail/slug/:slug', ReviewController.getOneBySlug);
-
 // Lấy danh sách chi tiết review theo SKU
 router.get('/:skuId', ReviewController.getBySku);
 
