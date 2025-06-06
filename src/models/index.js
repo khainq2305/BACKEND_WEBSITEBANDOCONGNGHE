@@ -62,7 +62,7 @@ const NotificationUser = require("./notificationUser.model")(
   connection,
   Sequelize.DataTypes
 );
-
+//
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
 NotificationUser.belongsTo(User, { foreignKey: "userId" });
 
@@ -71,6 +71,7 @@ Notification.hasMany(NotificationUser, {
   as: "notificationUsers",
 });
 User.hasMany(NotificationUser, { foreignKey: "userId" });
+
 Sku.hasMany(SkuVariantValue, { foreignKey: "skuId", as: "variantValues" });
 SkuVariantValue.belongsTo(Sku, { foreignKey: "skuId" });
 

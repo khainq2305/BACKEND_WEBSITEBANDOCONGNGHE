@@ -20,6 +20,6 @@ router.use('/shipping', shippingRoutes);
 router.use('/user-address', userAddressRoutes); // ✅ mount đúng prefix
 router.use('/', productRoutes);
 router.use('/cart', cartRoutes); // ✅ mount prefix /cart
-router.use('/notifications', require('./notificationClient.route')); // ✅ thêm dòng này
+router.use('/notifications', require('./notificationClient.route'));
 
 module.exports = router;

@@ -11,8 +11,8 @@ const NotificationClientController = {
     try {
       const notifications = await Notification.findAll({
         where: {
-          isActive: true, // ✅ Chỉ lấy thông báo đang hoạt động
-          startAt: { [Op.lte]: new Date() }, // ✅ Không lấy thông báo tương lai
+          isActive: true, // Chỉ lấy thông báo đang hoạt động
+          startAt: { [Op.lte]: new Date() }, // Không lấy thông báo tương lai
           [Op.or]: [
             { isGlobal: true },
             { "$notificationUsers.userId$": userId },
@@ -22,7 +22,7 @@ const NotificationClientController = {
         include: [
           {
             model: NotificationUser,
-            as: "notificationUsers", // ✅ dùng đúng alias
+            as: "notificationUsers", 
             required: false,
             where: { userId },
             attributes: ["isRead", "readAt"],
@@ -44,7 +44,7 @@ const NotificationClientController = {
 
       return res.json(formatted);
     } catch (err) {
-      console.error("❌ Lỗi lấy thông báo client:", err);
+      console.error("Lỗi lấy thông báo client:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
@@ -70,13 +70,12 @@ const NotificationClientController = {
 
       return res.json({ success: true });
     } catch (err) {
-      console.error("❌ Lỗi đánh dấu đã đọc:", err);
+      console.error("Lỗi đánh dấu đã đọc:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
 
-  // ✅ Đánh dấu tất cả là đã đọc
-  // controller markAllAsRead
+  //Đánh dấu tất cả là đã đọc
   async markAllAsRead(req, res) {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
@@ -85,7 +84,7 @@ const NotificationClientController = {
       const notifications = await Notification.findAll({
         where: {
           isActive: true,
-          startAt: { [Op.lte]: new Date() }, // ✅ BẮT BUỘC PHẢI CÓ DÒNG NÀY
+          startAt: { [Op.lte]: new Date() },
           [Op.or]: [
             { isGlobal: true },
             { "$notificationUsers.userId$": userId },
@@ -94,7 +93,7 @@ const NotificationClientController = {
         include: [
           {
             model: NotificationUser,
-            as: "notificationUsers", // 🔥 phải có 'as' trùng với model association
+            as: "notificationUsers",
             required: false,
             where: { userId },
             attributes: ["isRead", "readAt"],
@@ -135,7 +134,7 @@ const NotificationClientController = {
 
       return res.json({ message: "Đã đánh dấu đã đọc tất cả" });
     } catch (err) {
-      console.error("❌ Lỗi markAllAsRead:", err);
+      console.error("Lỗi markAllAsRead:", err);
       return res.status(500).json({ message: "Lỗi server" });
     }
   },

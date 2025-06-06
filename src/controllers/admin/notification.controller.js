@@ -1,7 +1,7 @@
 const { Notification } = require("../../models");
 const { NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
-
+//
 const NotificationController = {
   async create(req, res) {
     try {

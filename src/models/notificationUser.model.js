@@ -1,4 +1,4 @@
-// src/models/notificationUser.model.js
+
 module.exports = (sequelize, DataTypes) => {
   const NotificationUser = sequelize.define('NotificationUser', {
     id: {

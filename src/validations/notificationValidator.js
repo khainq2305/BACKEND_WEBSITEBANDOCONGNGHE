@@ -54,7 +54,6 @@ const validateCommonFields = (body, file, isCreate = true) => {
     errors.push({ field: 'isActive', message: 'Trường isActive không hợp lệ!' });
   }
 
-  // ✅ Validate ngày bắt đầu hiển thị
   if (body.startAt) {
     const startDate = new Date(body.startAt);
     if (isNaN(startDate.getTime())) {
@@ -64,7 +63,6 @@ const validateCommonFields = (body, file, isCreate = true) => {
     }
   }
 
-  // ✅ Validate targetId và link bắt buộc theo type
   switch (body.type) {
     case 'order':
     case 'news':
@@ -82,7 +80,6 @@ const validateCommonFields = (body, file, isCreate = true) => {
       break;
   }
 
-  // ✅ Validate userIds khi isGlobal = false
   if (isGlobalParsed === false) {
     try {
       const parsedUserIds = JSON.parse(body.userIds);

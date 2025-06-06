@@ -52,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: "notifications",
       paranoid: true,
-      timestamps: false, // Bạn có thể để true nếu muốn Sequelize tự sinh createdAt/updatedAt
+      timestamps: false,
     }
   );
 

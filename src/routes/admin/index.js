@@ -12,8 +12,9 @@ const couponRoutes = require('./coupon.routes'); // ⬅ thêm dòng này
 const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'); // ⬅ thêm dòng này
 const sectionRoutes = require('./section.routes'); // ✅ thêm dòng này
 const flashSaleRoutes = require('./flashSale.routes'); // ✅ thêm dòng này
-const notificationRoutes = require('./notification.route'); // notification
-const notificationUserRoutes = require('./notificationUser.route'); // ✅ đã sửa lại đường dẫn
+
+const notificationRoutes = require('./notification.route');
+const notificationUserRoutes = require('./notificationUser.route');
 
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
