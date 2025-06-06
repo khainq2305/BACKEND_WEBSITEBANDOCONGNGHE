@@ -61,6 +61,14 @@ const VariantValue = require("./variantvalue");
 //
 const SkuVariantValue = require("./skuvariantvalueModel");
 
+//
+const Post = require("./post");
+const categoryPostModel = require("./categoryPostModel");
+
+
+//
+const Tags = require('./TagModel')
+const PostTag = require('./PostTag')
 // Liên kết bảng trung gian Sku <-> VariantValue
 Sku.hasMany(SkuVariantValue, { foreignKey: "skuId", as: "variantValues" });
 SkuVariantValue.belongsTo(Sku, { foreignKey: "skuId" });
@@ -84,8 +92,7 @@ Category.hasMany(HighlightedCategoryItem, {
 });
 
 //
-const Post = require("./post");
-const PostCategory = require("./categoryPostModel");
+
 Product.hasMany(Sku, { foreignKey: "productId", as: "skus" });
 Sku.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
@@ -234,15 +241,29 @@ Category.hasMany(Placement, {
 const Province = require("./province");
 const District = require("./district");
 const Ward = require("./ward");
+const { request } = require("express");
 //
 // Danh mục bài viết
-Category.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
-Post.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+categoryPostModel.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
+Post.belongsTo(categoryPostModel, { foreignKey: 'categoryId', as: 'category' });
 
+Post.belongsToMany(Tags, {
+  through: PostTag,
+  foreignKey: 'postId',
+  otherKey: 'tagId',
+  as: 'tags',
+});
+
+Tags.belongsToMany(Post, {
+  through: PostTag,
+  foreignKey: 'tagId',
+  otherKey: 'postId',
+  as: 'posts',
+});
 
 // Tác giả bài viết
-User.hasMany(Post, { foreignKey: "authorId" });
-Post.belongsTo(User, { foreignKey: "authorId" });
+User.hasMany(Post, { foreignKey: "authorId", as: 'posts' });
+Post.belongsTo(User, { foreignKey: "authorId", as: 'author' });
 
 //
 // Người dùng có một giỏ hàng
@@ -386,7 +407,7 @@ module.exports = {
   ProductInfo,
   ProductSpec,
   Post,
-  PostCategory,
+  categoryPostModel,
   ProductVariant,
   Order,
   OrderItem,
@@ -397,5 +418,7 @@ module.exports = {
   UserToken,
   WishlistItem,
   Wishlist,
+  Tags,
+  PostTag,
   sequelize: connection,
 };

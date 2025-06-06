@@ -15,6 +15,7 @@ const flashSaleRoutes = require('./flashSale.routes'); // ✅ thêm dòng này
 const notificationRoutes = require('./notification.route'); // notification
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
+const tagsRoute = require('./tags.route')
 const bannerRoutes = require('./banner.routes'); // ✅ thêm dòng này
 router.use('/', bannerRoutes); // ✅ mount router banner
 router.use('/notifications', notificationRoutes);
@@ -29,8 +30,8 @@ router.use('/', highlightedCategoryItemRoutes); // ⬅ mount vào router
 router.use('/', sectionRoutes); // ✅ mount các API: /sections, /sections/:id/banners,...
 router.use('/', flashSaleRoutes); // ✅ mount router Flash Sale
 router.use('/categories', categoryRoutes); // ✅ chuẩn URL: /admin/categories
-
 router.use('/quan-ly-bai-viet', postRoutes);
+router.use('/tags', tagsRoute)
 router.use('/brands', brandRoutes);
 
 module.exports = router;

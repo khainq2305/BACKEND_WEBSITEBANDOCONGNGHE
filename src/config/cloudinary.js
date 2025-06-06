@@ -10,6 +10,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+console.log("✅ Cloudinary config loaded");
 // ✅ Sử dụng multer-storage-cloudinary để upload trực tiếp lên Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,

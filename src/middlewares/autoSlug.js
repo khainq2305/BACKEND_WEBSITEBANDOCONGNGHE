@@ -5,6 +5,7 @@ const autoSlug = (Model) => {
   return async (req, res, next) => {
     try {
       const name = req.body.name || req.body.title;
+
       if (!name) return res.status(400).json({ message: 'Thiếu tên hoặc tiêu đề để tạo slug' });
 
       const id = req.params.id; 

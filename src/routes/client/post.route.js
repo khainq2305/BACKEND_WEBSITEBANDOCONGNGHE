@@ -5,5 +5,6 @@ const PostController = require('../../controllers/client/postController');
 
 router.get('/', PostController.getFeaturePost);
 router.get('/theo-danh-muc/:slug', PostController.getByCategorySlug)
-
+router.get('/:slug', PostController.getBySlug)
+router.get('/bai-viet-lien-quan/:slug', PostController.getRelatedPosts)
 module.exports = router;

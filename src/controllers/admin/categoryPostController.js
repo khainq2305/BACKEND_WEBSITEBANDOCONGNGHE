@@ -1,4 +1,4 @@
-const { Post, Category, User } = require('../../models'); // ✅ GIỜ mới đúng 100%
+const { Post, categoryPostModel, User } = require('../../models'); // ✅ GIỜ mới đúng 100%
 const { Sequelize } = require('sequelize');
 const { Op } = require('sequelize');
 
@@ -21,7 +21,7 @@ class CategoryController {
         return res.status(400).json({ message: 'Tên danh mục là bắt buộc' });
       }
 
-      const newCategory = await Category.create({
+      const newCategory = await categoryPostModel.create({
         name,
         slug,
         description,
@@ -51,7 +51,7 @@ class CategoryController {
     try {
       const { slug } = req.params;
 
-      const category = await Category.findOne({ where: { slug } });
+      const category = await categoryPostModel.findOne({ where: { slug } });
 
       if (!category) {
         return res.status(404).json({ message: 'Không tìm thấy danh mục' });
@@ -96,7 +96,7 @@ class CategoryController {
       }
 
       // ✅ Truy vấn chính: lấy categories (không đếm post tại đây)
-      const { count, rows } = await Category.findAndCountAll({
+      const { count, rows } = await categoryPostModel.findAndCountAll({
         where: whereClause,
         limit,
         offset,
@@ -130,7 +130,7 @@ class CategoryController {
 
 
       // 👇 Tính số lượng từng loại danh mục (bao gồm cả xóa mềm)
-      const allCategories = await Category.findAll({ paranoid: false });
+      const allCategories = await categoryPostModel.findAll({ paranoid: false });
 
       const counts = {
         all: allCategories.filter(c => !c.deletedAt).length,
@@ -172,14 +172,14 @@ class CategoryController {
         return res.status(400).json({ message: 'Slug là bắt buộc để cập nhật' });
       }
 
-      const category = await Category.findOne({ where: { slug } });
+      const category = await categoryPostModel.findOne({ where: { slug } });
 
       if (!category) {
         return res.status(404).json({ message: 'Không tìm thấy danh mục với slug này' });
       }
 
       // Cập nhật
-      await category.update({
+      await categoryPostModel.update({
         name,
         description,
         parentId,
@@ -202,7 +202,7 @@ class CategoryController {
         return res.status(400).json({ message: 'Danh sách slug không hợp lệ' });
       }
 
-      const result = await Category.update(
+      const result = await categoryPostModel.update(
         { deletedAt: new Date() },
         {
           where: {
@@ -226,7 +226,7 @@ class CategoryController {
         return res.status(400).json({ message: 'Danh sách slug không hợp lệ' });
       }
 
-      const result = await Category.update(
+      const result = await categoryPostModel.update(
         { deletedAt: null },
         {
           where: {
@@ -246,7 +246,7 @@ class CategoryController {
 
   static async getPostCountsByCategory(req, res) {
     try {
-      const result = await Category.findAll({
+      const result = await categoryPostModel.findAll({
         attributes: [
           'id',
           'name',
@@ -262,7 +262,7 @@ class CategoryController {
             required: false
           }
         ],
-        group: ['Category.id'],
+        group: ['categoryPostModel.id'],
         raw: true
       });
 
