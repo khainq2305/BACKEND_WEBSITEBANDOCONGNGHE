@@ -21,9 +21,8 @@ const HomeSectionFilter = require("./homeSectionFilter");
 const Banner = require("./Banner");
 const Placement = require("./Placement");
 const BannerPlacementAssignment = require("./BannerPlacementAssignment");
-const WishlistItem = require('./wishlistitemModel');
-const Wishlist = require('./wishlistModel');
-
+const WishlistItem = require("./wishlistitemModel");
+const Wishlist = require("./wishlistModel");
 
 //
 
@@ -54,9 +53,14 @@ const Product = require("./product");
 const Variant = require("./variant");
 const VariantValue = require("./variantvalue");
 //
-//
-const SkuVariantValue = require("./skuvariantvalueModel");
 
+const Review = require("./reviewModel")(connection, Sequelize.DataTypes);
+const ReviewMedia = require("./reviewmediamodel")(
+  connection,
+  Sequelize.DataTypes
+);
+
+const SkuVariantValue = require("./skuvariantvalueModel");
 
 Sku.hasMany(SkuVariantValue, { foreignKey: "skuId", as: "variantValues" });
 SkuVariantValue.belongsTo(Sku, { foreignKey: "skuId" });
@@ -285,23 +289,36 @@ UserAddress.belongsTo(Ward, {
   targetKey: "code",
   as: "ward",
 });
-User.hasMany(Wishlist, { foreignKey: 'userId' });
-Wishlist.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(Wishlist, { foreignKey: "userId" });
+Wishlist.belongsTo(User, { foreignKey: "userId" });
 
-Wishlist.hasMany(WishlistItem, { foreignKey: 'wishlistId', as: 'items' });
-WishlistItem.belongsTo(Wishlist, { foreignKey: 'wishlistId' });
+Wishlist.hasMany(WishlistItem, { foreignKey: "wishlistId", as: "items" });
+WishlistItem.belongsTo(Wishlist, { foreignKey: "wishlistId" });
 
 WishlistItem.belongsTo(Product, {
-  foreignKey: 'productId',
-  as: 'product', // ✅ Đặt alias để join chính xác
+  foreignKey: "productId",
+  as: "product", // ✅ Đặt alias để join chính xác
 });
 Product.hasMany(WishlistItem, {
-  foreignKey: 'productId',
-  as: 'wishlistItems',
+  foreignKey: "productId",
+  as: "wishlistItems",
 });
 
+User.hasMany(Review, { foreignKey: "userId", as: "reviews" });
+Review.belongsTo(User, { foreignKey: "userId", as: "user" });
 
+Sku.hasMany(Review, { foreignKey: "skuId", as: "reviews" });
+Review.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
 
+OrderItem.hasOne(Review, { foreignKey: "orderItemId", as: "review" });
+Review.belongsTo(OrderItem, { foreignKey: "orderItemId", as: "orderItem" });
+
+Review.hasMany(ReviewMedia, { foreignKey: "reviewId", as: "media" });
+ReviewMedia.belongsTo(Review, { foreignKey: "reviewId", as: "review" });
+OrderItem.belongsTo(Order, {
+  foreignKey: 'orderId',
+  as: 'order'
+});
 
 module.exports = {
   User,
@@ -349,5 +366,7 @@ module.exports = {
   UserToken,
   WishlistItem,
   Wishlist,
+  Review, 
+  ReviewMedia,
   sequelize: connection,
 };

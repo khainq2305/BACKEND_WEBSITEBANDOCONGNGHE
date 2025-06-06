@@ -13,6 +13,7 @@ const Sku = sequelize.define('Sku', {
   length: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   weight: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
+   slug: { type: DataTypes.STRING },
   productId: { type: DataTypes.INTEGER, allowNull: false }
 }, {
   tableName: 'skus',

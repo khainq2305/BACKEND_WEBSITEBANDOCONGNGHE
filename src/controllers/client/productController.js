@@ -16,9 +16,7 @@ class ProductController {
     try {
       const { slug } = req.params;
       const { includeInactive } = req.query;
-      console.log("🟢 Slug nhận vào:", slug);
 
-      console.log("📌 [GET PRODUCT DETAIL] Slug nhận vào:", slug);
 
       const whereClause = { slug };
       if (!includeInactive || includeInactive !== "true") {

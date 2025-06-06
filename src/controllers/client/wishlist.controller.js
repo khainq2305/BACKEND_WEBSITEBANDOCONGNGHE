@@ -87,33 +87,35 @@ class WishlistController {
     }
   }
 
-  static async remove(req, res) {
-    try {
-      const userId = req.user.id;
-      const productId = parseInt(req.params.productId);
+static async remove(req, res) {
+  try {
+    const userId = req.user.id;
+    const productId = parseInt(req.params.productId);
 
-      const wishlist = await Wishlist.findOne({
-        where: { userId, isDefault: true },
-      });
-      if (!wishlist)
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy danh sách yêu thích" });
+    const wishlist = await Wishlist.findOne({
+      where: { userId, isDefault: true },
+    });
+    if (!wishlist)
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy danh sách yêu thích" });
 
-      const deleted = await WishlistItem.destroy({
-        where: { wishlistId: wishlist.id, productId },
-      });
-      if (deleted === 0)
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy mục yêu thích" });
+    const deleted = await WishlistItem.destroy({
+      where: { wishlistId: wishlist.id, productId },
+      force: true, // 👈 xóa thật luôn, không lưu deletedAt
+    });
+    if (deleted === 0)
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy mục yêu thích" });
 
-      res.json({ message: "Đã xóa khỏi yêu thích" });
-    } catch (err) {
-      console.error("❌ Lỗi xoá wishlist:", err);
-      res.status(500).json({ message: "Lỗi server" });
-    }
+    res.json({ message: "Đã xóa khỏi yêu thích" });
+  } catch (err) {
+    console.error("❌ Lỗi xoá wishlist:", err);
+    res.status(500).json({ message: "Lỗi server" });
   }
+}
+
 }
 
 module.exports = WishlistController;

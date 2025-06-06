@@ -12,9 +12,10 @@ const categoryRoutes = require('./category.route');
 const searchRoutes = require('./search.routes');
 const brandRoutes = require('./brand.route');
 const wishlistRoutes = require('./wishlist.routes');
+const reviewRoutes = require('./review.routes'); // ✅ thêm dòng này
+
 
 router.use('/', searchRoutes);
-router.use('/api/client/categories', categoryRoutes); 
 router.use('/', highlightedCategoryRoutes);
 router.use('/orders', orderRoutes);
 
@@ -24,8 +25,13 @@ router.use('/user-address', userAddressRoutes);
 // router.use('/', productRoutes);
 router.use('/cart', cartRoutes);
 router.use('/api/client/categories', categoryRoutes); 
-router.use('/api/client/products', productRoutes);
+router.use('/', productRoutes);
+
 router.use('/api/client/brands', brandRoutes);
 router.use('/wishlist', wishlistRoutes); 
+
+router.use('/review', reviewRoutes);
+
+
 
 module.exports = router;

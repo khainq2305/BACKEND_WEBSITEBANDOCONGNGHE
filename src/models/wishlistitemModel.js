@@ -18,7 +18,6 @@ const WishlistItem = sequelize.define('WishlistItem', {
 }, {
   tableName: 'wishlistitems',
   timestamps: true,
-  paranoid: true,
 });
 
 module.exports = WishlistItem;
