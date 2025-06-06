@@ -13,11 +13,15 @@ const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'
 const sectionRoutes = require('./section.routes'); // ✅ thêm dòng này
 const flashSaleRoutes = require('./flashSale.routes'); // ✅ thêm dòng này
 const notificationRoutes = require('./notification.route'); // notification
+const notificationUserRoutes = require('./notificationUser.route'); // ✅ đã sửa lại đường dẫn
+
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
 const bannerRoutes = require('./banner.routes'); // ✅ thêm dòng này
 router.use('/', bannerRoutes); // ✅ mount router banner
 router.use('/notifications', notificationRoutes);
+router.use('/notification-users', notificationUserRoutes); // ✅ mount đúng API
+
 router.use('/', productRoutes); 
 router.use('/', userRoutes); 
 router.use('/quan-ly-bai-viet', postRoutes);
