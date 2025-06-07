@@ -41,6 +41,10 @@ const Cart = require("./cart");
 const CartItem = require("./cartitem");
 
 const ProductVariant = require("./productvariant");
+require('./productQuestionModel')(connection, Sequelize.DataTypes);
+require('./productQuestionReplyModel')(connection, Sequelize.DataTypes);
+
+const { ProductQuestion, ProductQuestionReply } = connection.models;
 
 const Brand = require("./brandModel");
 const Sku = require("./skuModel");
@@ -193,6 +197,19 @@ Category.hasMany(Post, { foreignKey: "categoryId" });
 Post.belongsTo(Category, { foreignKey: "categoryId" });
 Product.belongsTo(Brand, { foreignKey: "brandId", as: "brand" });
 Brand.hasMany(Product, { foreignKey: "brandId", as: "products" });
+//
+ProductQuestion.hasMany(ProductQuestionReply, { foreignKey: 'questionId', as: 'replies' });
+ProductQuestionReply.belongsTo(ProductQuestion, { foreignKey: 'questionId' });
+
+// ✅ Quan hệ phản hồi chồng nhau
+ProductQuestionReply.belongsTo(ProductQuestionReply, {
+  foreignKey: 'replyToId',
+  as: 'replyTo'
+});
+ProductQuestionReply.hasMany(ProductQuestionReply, {
+  foreignKey: 'replyToId',
+  as: 'children'
+});
 
 // Tác giả bài viết
 User.hasMany(Post, { foreignKey: "authorId" });
@@ -241,7 +258,7 @@ PaymentTransaction.belongsTo(PaymentMethod, {
 });
 //
 Role.hasMany(User, { foreignKey: "roleId" });
-User.belongsTo(Role, { foreignKey: "roleId" });
+User.belongsTo(Role, { foreignKey: "roleId", as: "role" });
 
 Product.belongsTo(Category, { foreignKey: "categoryId", as: "category" });
 
@@ -255,6 +272,18 @@ UserToken.belongsTo(User, {
   onDelete: "CASCADE",
   onUpdate: "CASCADE",
 });
+//
+Product.hasMany(ProductQuestion, { foreignKey: 'productId', onDelete: 'CASCADE' });
+ProductQuestion.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+
+User.hasMany(ProductQuestion, { foreignKey: 'userId', onDelete: 'CASCADE' });
+ProductQuestion.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+ProductQuestionReply.belongsTo(ProductQuestion, { foreignKey: 'questionId' });
+
+User.hasMany(ProductQuestionReply, { foreignKey: 'userId', as: 'questionReplies' });
+ProductQuestionReply.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 //
 Province.hasMany(District, { foreignKey: "provinceId" });
 District.belongsTo(Province, { foreignKey: "provinceId" });
@@ -329,5 +358,7 @@ module.exports = {
   Coupon,
   Product,
   UserToken,
+  ProductQuestion,
+  ProductQuestionReply,
   sequelize: connection,
 };

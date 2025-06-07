@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const ProductQuestion = sequelize.define('ProductQuestion', {
+  return sequelize.define('ProductQuestion', {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes) => {
     isAnswered: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     tableName: 'productquestions',
@@ -27,6 +31,4 @@ module.exports = (sequelize, DataTypes) => {
     createdAt: 'createdAt',
     updatedAt: false
   });
-
-  return ProductQuestion;
 };

@@ -4,10 +4,10 @@ const router = express.Router();
 const productRoutes = require('./productRoutes');
 const variantRoutes = require('./variantRoutes');
 const variantValueRoutes = require('./variantValue.routes'); // ⬅ thêm dòng này
-const brandRoutes = require('./brand.route'); 
+const brandRoutes = require('./brand.route');
 const categoryRoutes = require('./category.route'); // ✅ hoặc 'categoryProduct.routes' nếu đúng tên
 
-const userRoutes = require('./user.route'); 
+const userRoutes = require('./user.route');
 const couponRoutes = require('./coupon.routes'); // ⬅ thêm dòng này
 const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'); // ⬅ thêm dòng này
 const sectionRoutes = require('./section.routes'); // ✅ thêm dòng này
@@ -16,10 +16,12 @@ const notificationRoutes = require('./notification.route'); // notification
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
 const bannerRoutes = require('./banner.routes'); // ✅ thêm dòng này
+const productQuestionRoutes = require('./productQuestion.route');
+
 router.use('/', bannerRoutes); // ✅ mount router banner
 router.use('/notifications', notificationRoutes);
-router.use('/', productRoutes); 
-router.use('/', userRoutes); 
+router.use('/', productRoutes);
+router.use('/', userRoutes);
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/quan-ly-danh-muc', postCategoryRoutes);
 router.use('/', variantRoutes);
@@ -32,5 +34,6 @@ router.use('/categories', categoryRoutes); // ✅ chuẩn URL: /admin/categories
 
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/brands', brandRoutes);
+router.use('/product-questions', productQuestionRoutes);
 
 module.exports = router;
