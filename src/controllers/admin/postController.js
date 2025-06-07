@@ -1,196 +1,354 @@
-const { Op } = require('sequelize');
-const { Post, Category, User } = require('../../models');
+const { Op } = require("sequelize");
+const slugify = require("slugify");
+const { Post, Category, User, Tags, PostTag, categoryPostModel } = require('../../models/index');
 
 class PostController {
-ư
+  // [CREATE] Thêm bài viết
   static async create(req, res) {
-    
-  try {
-  
-    const {
-      title,
-      content,
-      thumbnail,
-      categoryId = 1,
-      authorId = 39,
-      status = 'draft',
-      orderIndex = 0,
-      publishAt
-    } = req.body;
+    try {
+      const {
+        title,
+        content,
+        category,
+        authorId = 1,
+        status = 0,
+        orderIndex = 0,
+        publishAt,
+        slug,
+        isFeature,
+      } = req.body;
+      const file = req.file;
+      const tags = JSON.parse(req.body.tags || "[]");
+      const newPost = await Post.create({
+        title,
+        content,
+        categoryId: category,
+        authorId,
+        orderIndex,
+        publishAt: publishAt ? new Date(publishAt) : null,
+        status: parseInt(status, 10),
+        slug,
+        isFeature,
+        thumbnail: file ? file.filename : null,
+      });
 
-    if (!title || !content || !categoryId || !authorId) {
-      return res.status(400).json({ message: 'Thiếu trường bắt buộc' });
+      // Xử lý tag
+      const tagInstances = [];
+      for (const tagItem of tags) {
+        const tagName = typeof tagItem === "string" ? tagItem : tagItem?.name;
+        const tagSlug =
+          typeof tagItem === "string"
+            ? tagItem.toLowerCase().trim().replace(/\s+/g, "-")
+            : tagItem?.slug ||
+              tagName?.toLowerCase().trim().replace(/\s+/g, "-");
+
+        if (!tagName || !tagSlug) {
+          console.warn("⚠️ Tag không hợp lệ, bỏ qua:", tagItem);
+          continue;
+        }
+
+        let tag = await Tags.findOne({ where: { slug: tagSlug } });
+        if (!tag) {
+          tag = await Tags.create({ name: tagName, slug: tagSlug });
+        }
+
+        tagInstances.push(tag);
+      }
+
+      await newPost.addTags(tagInstances);
+
+      console.log("bai viet", newPost);
+      return res
+        .status(201)
+        .json({ message: "Tạo bài viết thành công", data: newPost });
+    } catch (error) {
+      console.error("CREATE POST ERROR:", error);
+      return res.status(500).json({ message: "Lỗi server khi tạo bài viết" });
     }
-
-    const newPost = await Post.create({
-      title,
-      content,
-      thumbnail,
-      categoryId,
-      authorId,
-      orderIndex,
-      publishAt: publishAt ? new Date(publishAt) : null,
-      status: publishAt ? 'scheduled' : status
-    });
-
-    return res.status(201).json({ message: 'Tạo bài viết thành công', data: newPost });
-  } catch (error) {
-    console.error('CREATE POST ERROR:', error);
-    return res.status(500).json({ message: 'Lỗi server khi tạo bài viết' });
   }
-}
-
-
-
 
   static async getAll(req, res) {
-
     try {
+      const { search = "", categoryId, status } = req.query;
+      const { page, limit, offset } = req.pagination;
 
-      const posts = await Post.findAll({
-  include: [
-    { model: Category, attributes: ['id', 'name'] },
-    { model: User, attributes: ['id', 'fullName'] }
-  ],
-  paranoid: false 
-});
+      const whereClause = {};
 
+      if (search) {
+        whereClause.title = { [Op.like]: `%${search}%` };
+      }
 
-      return res.json({ data: posts });
+      if (categoryId) {
+        whereClause.categoryId = parseInt(categoryId, 10);
+      }
+      if (status === "trash") {
+        whereClause.deletedAt = { [Op.not]: null };
+      } else {
+        whereClause.deletedAt = null;
+
+        if (status === "published") {
+          whereClause.status = 1;
+        } else if (status === "draft") {
+          whereClause.status = 0;
+        }
+      }
+      const { count, rows } = await Post.findAndCountAll({
+        where: whereClause,
+        limit,
+        offset,
+        include: [
+          {
+            model: categoryPostModel,
+            as: "category",
+            attributes: ["id", "name"],
+          },
+          {
+            model: User,
+            as: "author",
+            attributes: ["id", "fullName"],
+          },
+          {
+            model: Tags,
+            as: "tags",
+            attributes: ["id", "name", "slug"],
+            through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
+          },
+        ],
+        paranoid: false,
+        order: [["createdAt", "DESC"]],
+      });
+
+      // 👇 Tính số lượng từng loại bài viết (toàn bộ, kể cả xóa mềm)
+      const allPosts = await Post.findAll({ paranoid: false });
+
+      const counts = {
+        all: allPosts.filter((p) => !p.deletedAt).length,
+        published: allPosts.filter((p) => p.status === 1 && !p.deletedAt)
+          .length,
+        draft: allPosts.filter((p) => p.status === 0 && !p.deletedAt).length,
+        trash: allPosts.filter((p) => p.deletedAt).length,
+      };
+
+      return res.json({
+        data: rows,
+        total: count,
+        page,
+        totalPages: Math.ceil(count / limit),
+        counts, // 👈 Trả thêm counts cho FE
+      });
     } catch (error) {
-      console.error('GET POSTS ERROR:', error);
-      return res.status(500).json({ message: 'Lỗi server khi lấy danh sách bài viết' });
+      console.error("GET POSTS ERROR:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi lấy danh sách bài viết" });
     }
   }
 
-  
-  static async getById(req, res) {
+  // [READ] Lấy 1 bài viết theo slug
+  static async getBySlug(req, res) {
     try {
-      const { id } = req.params;
-      const post = await Post.findByPk(id);
-      if (!post) return res.status(404).json({ message: 'Không tìm thấy bài viết' });
+      const { slug } = req.params;
+      const post = await Post.findOne({
+        where: { slug },
+        include: [
+          {
+            model: categoryPostModel,
+            as: "category",
+            attributes: ["id", "name"],
+          },
+          {
+            model: User,
+            as: "author",
+            attributes: ["id", "fullName"],
+          },
+          {
+            model: Tags,
+            as: "tags",
+            attributes: ["id", "name", "slug"],
+            through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
+          },
+        ],
+      });
+
+      if (!post)
+        return res.status(404).json({ message: "Không tìm thấy bài viết" });
+
       return res.json({ data: post });
     } catch (error) {
-      console.error('GET POST BY ID ERROR:', error);
-      return res.status(500).json({ message: 'Lỗi server khi lấy bài viết' });
+      console.error("GET POST BY SLUG ERROR:", error);
+      return res.status(500).json({ message: "Lỗi server khi lấy bài viết" });
     }
   }
 
   // [UPDATE] Cập nhật bài viết
   static async update(req, res) {
     try {
-      const { id } = req.params;
-      const post = await Post.findByPk(id);
-      if (!post) return res.status(404).json({ message: 'Không tìm thấy bài viết' });
+      const { slug } = req.params;
+      const file = req.file;
 
-      const { title, content, thumbnail, categoryId, authorId, status, orderIndex } = req.body;
-      await post.update({ title, content, thumbnail, categoryId, authorId, status, orderIndex });
+      const post = await Post.findOne({ where: { slug } });
 
-      return res.json({ message: 'Cập nhật thành công', data: post });
+      if (!post) {
+        return res.status(404).json({ message: "Không tìm thấy bài viết" });
+      }
+      const tags = JSON.parse(req.body.tags || "[]");
+      const {
+        title,
+        content,
+        categoryId,
+        authorId,
+        status,
+        orderIndex,
+        publishAt,
+        isFeature,
+        thumbnail,
+      } = req.body;
+
+      await post.update({
+        title,
+        content,
+        categoryId,
+        authorId,
+        status,
+        orderIndex,
+        publishAt: publishAt ? new Date(publishAt) : null,
+        isFeature,
+        thumbnail: file ? file.filename : null, // ✅ tên file ảnh
+      });
+
+      // Xử lý tag
+      const tagInstances = [];
+      for (const tagItem of tags) {
+        const tagName = typeof tagItem === "string" ? tagItem : tagItem?.name;
+        const tagSlug =
+          typeof tagItem === "string"
+            ? tagItem.toLowerCase().trim().replace(/\s+/g, "-")
+            : tagItem?.slug ||
+              tagName?.toLowerCase().trim().replace(/\s+/g, "-");
+
+        if (!tagName || !tagSlug) {
+          console.warn("⚠️ Tag không hợp lệ, bỏ qua:", tagItem);
+          continue;
+        }
+
+        let tag = await Tags.findOne({ where: { slug: tagSlug } });
+        if (!tag) {
+          tag = await Tags.create({ name: tagName, slug: tagSlug });
+        }
+
+        tagInstances.push(tag);
+      }
+
+      await newPost.addTags(tagInstances);
+      return res.json({ message: "Cập nhật thành công", data: post });
     } catch (error) {
-      console.error('UPDATE POST ERROR:', error);
-      return res.status(500).json({ message: 'Lỗi server khi cập nhật bài viết' });
+      console.error("UPDATE POST ERROR:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi cập nhật bài viết" });
     }
   }
-  // [SOFT DELETE] Xoá mềm bài viết
-static async softDelete(req, res) {
-  try {
-    console.log('=== Đã vào BE softDelete ===');
-console.log('Body:', req.body);
 
-    const { ids } = req.body;
+  // [SOFT DELETE] Xoá mềm bài viết theo slug
+  static async softDelete(req, res) {
+    try {
+      console.log("=== Đã vào BE softDelete ===");
+      console.log("Body:", req.body);
 
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+      const { slugs } = req.body;
+
+      if (!Array.isArray(slugs) || slugs.length === 0) {
+        return res.status(400).json({ message: "Danh sách slug không hợp lệ" });
+      }
+
+      const posts = await Post.findAll({ where: { slug: slugs } });
+      const existingSlugs = posts.map((p) => p.slug);
+      const notFound = slugs.filter((slug) => !existingSlugs.includes(slug));
+
+      await Post.destroy({
+        where: { slug: existingSlugs },
+      });
+
+      return res.json({
+        message: `Đã đưa ${existingSlugs.length} bài viết vào thùng rác`,
+        trashed: existingSlugs,
+        notFound,
+      });
+    } catch (error) {
+      console.error("SOFT DELETE ERROR:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi xóa mềm bài viết" });
     }
-
-    const posts = await Post.findAll({
-      where: { id: ids }
-    });
-
-    const existingIds = posts.map(p => p.id);
-    const notFound = ids.filter(id => !existingIds.includes(id));
-
-    // Xoá mềm các bài viết tìm được
-    await Post.destroy({
-      where: { id: existingIds }
-    });
-
-    return res.json({
-      message: `Đã đưa ${existingIds.length} bài viết vào thùng rác`,
-      trashed: existingIds,
-      notFound
-    });
-  } catch (error) {
-    console.error('SOFT DELETE ERROR:', error);
-    return res.status(500).json({ message: 'Lỗi server khi xóa mềm bài viết' });
   }
-}
 
-
-  
-  static async forceDelete(req, res) {
-  try {
-  
-    const { ids } = req.body;
-
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
-    }
-
-    const deletedCount = await Post.destroy({
-      where: { id: ids },
-      force: true 
-    });
-
-    return res.json({
-      message: `Đã xóa vĩnh viễn ${deletedCount} bài viết`,
-      deleted: ids
-    });
-  } catch (error) {
-    console.error('FORCE DELETE ERROR:', error);
-    return res.status(500).json({ message: 'Lỗi server khi xóa vĩnh viễn' });
-  }
-}
-
+  // [RESTORE] Khôi phục bài viết theo id
   static async restore(req, res) {
-  try {
-    const { ids } = req.body;
+    try {
+      const { slugs } = req.body;
+      console.log(req.body);
+      if (!Array.isArray(slugs) || slugs.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Vui lòng truyền danh sách slug hợp lệ" });
+      }
 
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'Vui lòng truyền danh sách ID hợp lệ' });
+      // Lấy tất cả bài viết, bao gồm cả đã bị xóa mềm
+      const posts = await Post.findAll({
+        where: { slug: slugs },
+        paranoid: false,
+      });
+
+      const existingSlugs = posts.map((p) => p.slug);
+      const notFound = slugs.filter((slug) => !existingSlugs.includes(slug));
+
+      const toRestore = posts
+        .filter((p) => p.deletedAt !== null)
+        .map((p) => p.slug);
+      const notTrashed = posts
+        .filter((p) => p.deletedAt === null)
+        .map((p) => p.slug);
+
+      await Post.restore({
+        where: { slug: toRestore },
+      });
+
+      return res.json({
+        message: `Đã khôi phục ${toRestore.length} bài viết`,
+        restored: toRestore,
+        notTrashed,
+        notFound,
+      });
+    } catch (err) {
+      console.error("Lỗi khi khôi phục:", err);
+      return res.status(500).json({ message: "Lỗi server" });
     }
-
-    
-    const posts = await Post.findAll({
-      where: { id: ids },
-      paranoid: false
-    });
-
-    const existingIds = posts.map(p => p.id);
-    const notFound = ids.filter(id => !existingIds.includes(id));
-
- 
-    const toRestore = posts.filter(p => p.deletedAt !== null).map(p => p.id);
-    const notTrashed = posts.filter(p => p.deletedAt === null).map(p => p.id);
-
-
-    await Post.restore({
-      where: { id: toRestore }
-    });
-
-    return res.json({
-      message: `Đã khôi phục ${toRestore.length} bài viết`,
-      restored: toRestore,
-      notTrashed,
-      notFound
-    });
-  } catch (err) {
-    console.error('Lỗi khi khôi phục:', err);
-    return res.status(500).json({ message: 'Lỗi server' });
   }
-}
 
+  // [FORCE DELETE] Xoá vĩnh viễn bài viết theo slug
+  static async forceDelete(req, res) {
+    try {
+      console.log("===> BODY:", req.body);
+      const { slugs } = req.body;
+
+      if (!Array.isArray(slugs) || slugs.length === 0) {
+        return res.status(400).json({ message: "Danh sách slug không hợp lệ" });
+      }
+
+      const deletedCount = await Post.destroy({
+        where: { slug: slugs },
+        force: true,
+      });
+
+      return res.json({
+        message: `Đã xóa vĩnh viễn ${deletedCount} bài viết`,
+        deleted: slugs,
+      });
+    } catch (error) {
+      console.error("FORCE DELETE ERROR:", error);
+      return res.status(500).json({ message: "Lỗi server khi xóa vĩnh viễn" });
+    }
+  }
 }
 
 module.exports = PostController;

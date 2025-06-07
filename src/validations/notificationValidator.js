@@ -1,7 +1,9 @@
 const validator = require('validator');
 
+// Các loại hợp lệ cho type và targetType
 const allowedTypes = ['system', 'promotion', 'order', 'news'];
 
+// Chuyển đổi boolean từ string về boolean thực
 const parseBoolean = (value) => {
   if (typeof value === 'boolean') return value;
   if (value === 'true' || value === '1') return true;
@@ -9,11 +11,18 @@ const parseBoolean = (value) => {
   return undefined;
 };
 
+const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
 const validateCommonFields = (body, file, isCreate = true) => {
   const errors = [];
 
   if (!body.title || body.title.trim() === '') {
     errors.push({ field: 'title', message: 'Tiêu đề không được để trống!' });
+  }
+
+  if (body.message && body.message.trim() === '') {
+    errors.push({ field: 'message', message: 'Nội dung không được để trống!' });
   }
 
   if (body.link && !validator.isURL(body.link)) {
@@ -34,7 +43,6 @@ const validateCommonFields = (body, file, isCreate = true) => {
     errors.push({ field: 'targetType', message: 'TargetType không hợp lệ!' });
   }
 
-  // Validate boolean fields
   const isGlobalParsed = parseBoolean(body.isGlobal);
   const isActiveParsed = parseBoolean(body.isActive);
 
@@ -46,16 +54,24 @@ const validateCommonFields = (body, file, isCreate = true) => {
     errors.push({ field: 'isActive', message: 'Trường isActive không hợp lệ!' });
   }
 
-  // Validate theo type
+  if (body.startAt) {
+    const startDate = new Date(body.startAt);
+    if (isNaN(startDate.getTime())) {
+      errors.push({ field: 'startAt', message: 'Ngày bắt đầu không hợp lệ!' });
+    } else if (startDate < new Date()) {
+      errors.push({ field: 'startAt', message: 'Ngày bắt đầu phải là thời gian tương lai!' });
+    }
+  }
+
   switch (body.type) {
     case 'order':
     case 'news':
-      if (!body.targetId || isNaN(body.targetId)) {
+      if (body.targetId === undefined || body.targetId === null || body.targetId === '' || isNaN(body.targetId)) {
         errors.push({ field: 'targetId', message: 'targetId là bắt buộc cho loại order/news!' });
       }
       break;
     case 'promotion':
-      if (!body.targetId || isNaN(body.targetId)) {
+      if (body.targetId === undefined || body.targetId === null || body.targetId === '' || isNaN(body.targetId)) {
         errors.push({ field: 'targetId', message: 'targetId là bắt buộc cho loại promotion!' });
       }
       if (!body.link || !validator.isURL(body.link)) {
@@ -64,9 +80,28 @@ const validateCommonFields = (body, file, isCreate = true) => {
       break;
   }
 
-  // Validate ảnh khi tạo mới
-  if (isCreate && !file) {
-    errors.push({ field: 'image', message: 'Ảnh là bắt buộc!' });
+  if (isGlobalParsed === false) {
+    try {
+      const parsedUserIds = JSON.parse(body.userIds);
+      if (!Array.isArray(parsedUserIds) || parsedUserIds.length === 0) {
+        errors.push({ field: 'userIds', message: 'Phải chọn ít nhất 1 người dùng khi không gửi toàn bộ!' });
+      }
+    } catch {
+      errors.push({ field: 'userIds', message: 'Dữ liệu userIds không hợp lệ!' });
+    }
+  }
+
+  if (isCreate) {
+    if (!file) {
+      errors.push({ field: 'image', message: 'Ảnh là bắt buộc!' });
+    } else {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        errors.push({ field: 'image', message: 'Chỉ chấp nhận ảnh PNG, JPG, JPEG!' });
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        errors.push({ field: 'image', message: 'Ảnh tối đa 5MB!' });
+      }
+    }
   }
 
   return errors;

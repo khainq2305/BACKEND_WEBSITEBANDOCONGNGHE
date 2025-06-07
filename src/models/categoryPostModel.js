@@ -2,7 +2,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Category = sequelize.define('Category', {
+const categoryPostModel = sequelize.define('Category', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -42,4 +42,4 @@ const Category = sequelize.define('Category', {
   paranoid: true
 });
 
-module.exports = Category;
+module.exports = categoryPostModel;

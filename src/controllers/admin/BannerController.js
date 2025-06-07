@@ -253,9 +253,8 @@ class BannerController {
     try {
       const products = await Product.findAll({
         attributes: ['id', 'name'],
-        where: { isActive: true },          // chỉ lấy products đang active
-        order: [['name', 'ASC']]            // sắp xếp theo tên
-        // deletedAt != null sẽ tự động bị loại nhờ paranoid = true
+        where: { isActive: true },         
+        order: [['name', 'ASC']]   
       });
       return res.json({ data: products });
     } catch (error) {

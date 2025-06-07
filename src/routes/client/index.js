@@ -15,10 +15,11 @@ const brandRoutes = require('./brand.route');
 const wishlistRoutes = require('./wishlist.routes');
 const couponRoutes = require('./coupon.route');
 const sliderRoutes = require('./banner.routes');  
-
+const reviewRoutes = require('./review.routes'); 
 const flashSaleRoutes = require('./flashSale.routes');
+const postRoutes = require('./post.route')
 router.use('/', sliderRoutes);             
-
+router.use('/tin-noi-bat', postRoutes);
 router.use('/', flashSaleRoutes);  
 router.use('/', searchRoutes);
 router.use('/api/client/categories', categoryRoutes); 
@@ -32,5 +33,7 @@ router.use('/shipping', shippingRoutes);
 router.use('/user-address', userAddressRoutes); 
 router.use('/', productRoutes);
 router.use('/cart', cartRoutes); 
+router.use('/review', reviewRoutes);
 router.use('/', couponRoutes);
+router.use('/notifications', require('./notificationClient.route'));
 module.exports = router;

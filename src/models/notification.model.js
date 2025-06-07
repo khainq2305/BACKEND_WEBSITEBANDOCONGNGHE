@@ -16,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
       },
       targetType: {
-        type: DataTypes.ENUM("order", "promotion", "news", "system"),
+        type: DataTypes.ENUM("order", "system"),
       },
       targetId: {
         type: DataTypes.INTEGER,
@@ -30,23 +30,29 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: true,
       },
       type: {
-        type: DataTypes.ENUM("order", "promotion", "news", "system"),
-      },
-      orderIndex: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
+        type: DataTypes.ENUM("order", "system"),
       },
       createdAt: {
         type: DataTypes.DATE,
       },
+      startAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+
       deletedAt: {
         type: DataTypes.DATE,
+      },
+      slug: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
       },
     },
     {
       tableName: "notifications",
       paranoid: true,
-      timestamps: false, // Bạn có thể để true nếu muốn Sequelize tự sinh createdAt/updatedAt
+      timestamps: false,
     }
   );
 

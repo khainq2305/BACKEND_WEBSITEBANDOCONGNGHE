@@ -49,7 +49,8 @@ const Post = sequelize.define('Post', {
   deletedAt: {
     type: DataTypes.DATE,
     allowNull: true
-  }
+  },
+  thumbnail: DataTypes.STRING
 }, {
   tableName: 'posts',
   timestamps: true,

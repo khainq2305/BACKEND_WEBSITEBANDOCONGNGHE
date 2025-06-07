@@ -12,18 +12,22 @@ const couponRoutes = require('./coupon.routes');
 const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'); 
 const sectionRoutes = require('./section.routes'); 
 const flashSaleRoutes = require('./flashSale.routes'); 
-const notificationRoutes = require('./notification.route'); 
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
 const orderRoutes = require('./order.routes');
 const uploadRoutes = require("./upload.routes"); 
 const bannerRoutes = require('./banner.routes'); 
-//      
+const tagsRoute = require('./tags.route')
+const notificationRoutes = require('./notification.route');
+const notificationUserRoutes = require('./notificationUser.route');
+
 router.use('/', orderRoutes);  
 
-
+router.use('/tags', tagsRoute)
 router.use('/', bannerRoutes); 
 router.use('/notifications', notificationRoutes);
+router.use('/notification-users', notificationUserRoutes);
+
 router.use('/', productRoutes); 
 router.use('/', userRoutes); 
 router.use('/quan-ly-bai-viet', postRoutes);

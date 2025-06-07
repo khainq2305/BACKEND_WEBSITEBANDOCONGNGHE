@@ -19,7 +19,10 @@ const ProductSpec = require("./productspec.model");
 //
 const HomeSection = require("./homeSection");
 const HomeSectionBanner = require("./homeSectionBanner");
-
+const Post = require("./post");
+const categoryPostModel = require("./categoryPostModel");
+const Tags = require('./TagModel')
+const PostTag = require('./PostTag')
 
 //
 const Banner = require("./Banner");
@@ -28,6 +31,16 @@ const Wishlist = require('./wishlistModel');
 
 //
 
+const Review = require("./reviewModel")(connection, Sequelize.DataTypes);
+const ReviewMedia = require("./reviewmediamodel")(connection, Sequelize.DataTypes);
+const Notification = require("./notification.model")(
+  connection,
+  Sequelize.DataTypes
+);
+const NotificationUser = require("./notificationUser.model")(
+  connection,
+  Sequelize.DataTypes
+);
 const Order = require("./order");
 const OrderItem = require("./orderItem");
 const PaymentMethod = require("./paymentMethod");
@@ -51,6 +64,14 @@ const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
 const Product = require("./product");
 //
+NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
+NotificationUser.belongsTo(User, { foreignKey: "userId" });
+
+Notification.hasMany(NotificationUser, {
+  foreignKey: "notificationId",
+  as: "notificationUsers",
+});
+User.hasMany(NotificationUser, { foreignKey: "userId" });
 //
 const Variant = require("./variant");
 const VariantValue = require("./variantvalue");
@@ -70,8 +91,42 @@ SkuVariantValue.belongsTo(VariantValue, {
   foreignKey: "variantValueId",
   as: "variantValue",
 });
+// 
+categoryPostModel.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
+Post.belongsTo(categoryPostModel, { foreignKey: 'categoryId', as: 'category' });
+Post.belongsToMany(Tags, {
+  through: PostTag,
+  foreignKey: 'postId',
+  otherKey: 'tagId',
+  as: 'tags',
+});
 
+Tags.belongsToMany(Post, {
+  through: PostTag,
+  foreignKey: 'tagId',
+  otherKey: 'postId',
+  as: 'posts',
+});
+
+// Tác giả bài viết
+User.hasMany(Post, { foreignKey: "authorId", as: 'posts' });
+Post.belongsTo(User, { foreignKey: "authorId", as: 'author' });
 //
+User.hasMany(Review, { foreignKey: "userId", as: "reviews" });
+Review.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+Sku.hasMany(Review, { foreignKey: "skuId", as: "reviews" });
+Review.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
+
+OrderItem.hasOne(Review, { foreignKey: "orderItemId", as: "review" });
+Review.belongsTo(OrderItem, { foreignKey: "orderItemId", as: "orderItem" });
+
+Review.hasMany(ReviewMedia, { foreignKey: "reviewId", as: "media" });
+ReviewMedia.belongsTo(Review, { foreignKey: "reviewId", as: "review" });
+OrderItem.belongsTo(Order, {
+  foreignKey: 'orderId',
+  as: 'order'
+});
 // Liên kết với Category
 HighlightedCategoryItem.belongsTo(Category, {
   foreignKey: "categoryId",
@@ -81,10 +136,12 @@ Category.hasMany(HighlightedCategoryItem, {
   foreignKey: "categoryId",
   as: "highlightedItems",
 });
+// 
+
+
 
 //
-const Post = require("./post");
-const PostCategory = require("./categoryPostModel");
+
 Product.hasMany(Sku, { foreignKey: "productId", as: "skus" });
 Sku.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
@@ -358,7 +415,7 @@ module.exports = {
   
    WishlistItem,
   Wishlist,
-
+  categoryPostModel,
   Cart,
   CartItem,
   ProductMedia,
@@ -367,7 +424,8 @@ module.exports = {
   CouponUser,
   CouponCategory,
   SearchHistory,
-
+ Notification,
+  NotificationUser,
   CouponItem,
   FlashSale,
   FlashSaleItem,
@@ -387,10 +445,13 @@ ProductHomeSection,
   ProductInfo,
   ProductSpec,
   Post,
-  PostCategory,
   ProductVariant,
   Order,
+  Tags,
+  PostTag,
   OrderItem,
+    Review, 
+  ReviewMedia,
   PaymentMethod,
   PaymentTransaction,
   Coupon,

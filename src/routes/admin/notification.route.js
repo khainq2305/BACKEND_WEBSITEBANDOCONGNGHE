@@ -1,19 +1,33 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const NotificationController = require('../../controllers/admin/notification.controller');
-const { upload } = require('../../config/cloudinary');
-const { createNotificationValidator, updateNotificationValidator } = require('../../validations/notificationValidator');
+const NotificationController = require("../../controllers/admin/notification.controller");
+const { upload } = require("../../config/cloudinary");
+const autoSlug = require("../../middlewares/autoSlug");
+const { Notification } = require("../../models");
 
-// Các route đứng trước :id
-router.get('/', NotificationController.getAll);
-router.post('/update-order', NotificationController.updateOrderIndex);
-router.post('/delete-many', NotificationController.deleteMany);
+const {
+  createNotificationValidator,
+  updateNotificationValidator,
+} = require("../../validations/notificationValidator");
 
-router.get('/:id', NotificationController.getById);
+router.get("/", NotificationController.getAll);
+router.post("/delete-many", NotificationController.deleteMany);
 
-// Áp dụng middleware validator
-router.post('/', upload.single('image'), createNotificationValidator, NotificationController.create);
-router.put('/:id', upload.single('image'), updateNotificationValidator, NotificationController.update);
-router.delete('/:id', NotificationController.delete);
+router.get("/:id", NotificationController.getById);
+
+router.post(
+  "/",
+  upload.single("image"),
+  autoSlug(Notification),
+  NotificationController.create
+);
+
+router.put(
+  "/:id",
+  upload.single("image"),
+  autoSlug(Notification),
+  NotificationController.update
+);
+router.delete("/:id", NotificationController.delete);
 
 module.exports = router;
