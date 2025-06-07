@@ -6,7 +6,7 @@ const Sku = sequelize.define('Sku', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   skuCode: { type: DataTypes.STRING, allowNull: false },
   originalPrice: { type: DataTypes.INTEGER, allowNull: false },
-  price: { type: DataTypes.INTEGER, allowNull: false },
+  price: { type: DataTypes.INTEGER, allowNull: true },
   description: {
   type: DataTypes.TEXT,
   allowNull: true,

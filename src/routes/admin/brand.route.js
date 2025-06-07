@@ -3,13 +3,14 @@ const router = express.Router();
 const BrandController = require('../../controllers/admin/brandController');
 const { validateBrand } = require('../../validations/brandValidator');
 const { upload } = require('../../config/cloudinary');
-
+const {checkJWT} = require('../../middlewares/checkJWT')
+router.use(checkJWT);
 router.post('/create', upload.single('logoUrl'), validateBrand, BrandController.create);
-router.put('/update/:id', upload.single('logoUrl'), validateBrand, BrandController.update);
 
 
 router.get('/', BrandController.getAll);
-router.get('/detail/:id', BrandController.getById);
+router.get('/detail/:slug', BrandController.getById);
+router.put('/update/:slug', upload.single('logoUrl'), validateBrand, BrandController.update);
 
 
 router.delete('/soft-delete', BrandController.softDelete);

@@ -4,7 +4,7 @@ class CategoryController {
   static async getNestedCategories(req, res) {
     try {
 const all = await Category.findAll({
-  attributes: ['id', 'name', 'slug', 'parentId', 'thumbnail', 'isActive', 'sortOrder'], // ✅ Thêm 'slug'
+  attributes: ['id', 'name', 'slug', 'parentId', 'thumbnail', 'isActive', 'sortOrder'], 
   where: {
     isActive: 1,
     deletedAt: null

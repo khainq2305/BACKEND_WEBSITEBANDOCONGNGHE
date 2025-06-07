@@ -3,9 +3,16 @@ const router = express.Router();
 const ProductController = require('../../controllers/admin/productController');
 const { validateSimpleProduct } = require('../../validations/validateSimpleProduct');
 
-const upload = require('../../middlewares/upload');
+const { upload } = require('../../config/cloudinary');
+
 router.get('/product/list', ProductController.getAll);  
-router.get('/product/:id', ProductController.getById);
+router.get(
+  '/product/:slug',
+  ProductController.getById    
+);
+
+
+
 const parseProductBody = (req, res, next) => {
   try {
     if (req.body.product) {
@@ -30,38 +37,39 @@ const parseProductBody = (req, res, next) => {
 router.post(
   '/product/create',
  upload.any(),
-parseProductBody, // ✅ THÊM VÔ ĐÂY
+parseProductBody, 
 validateSimpleProduct,
 
   ProductController.create
 );
-// Xoá mềm 1 sản phẩm
-router.delete('/product/soft/:id', ProductController.softDelete);
-
-// (Nếu cần)
-  
-router.get('/categories/tree', ProductController.getCategoryTree);
-
-// Xoá mềm nhiều sản phẩm
-router.post('/product/soft-delete-many', ProductController.softDeleteMany);
-
-// Khôi phục 1 sản phẩm
-router.patch('/product/restore/:id', ProductController.restore);
-
-// Khôi phục nhiều sản phẩm
-router.post('/product/restore-many', ProductController.restoreMany);
-
-// Xoá vĩnh viễn 1 sản phẩm
-router.delete('/product/force/:id', ProductController.forceDelete);
-router.put('/product/update/:id',
+router.put(
+  '/product/update/:slug',
   upload.any(),
   parseProductBody,
   validateSimpleProduct,
-  ProductController.update
+  ProductController.update  
 );
+router.delete('/product/soft/:id', ProductController.softDelete);
+
+
+  
+router.get('/categories/tree', ProductController.getCategoryTree);
+router.post  ('/product/force-delete-many',  ProductController.forceDeleteMany); 
+
+router.post('/product/soft-delete-many', ProductController.softDeleteMany);
+
+
+router.patch('/product/restore/:id', ProductController.restore);
+
+
+router.post('/product/restore-many', ProductController.restoreMany);
+
+
+router.delete('/product/force/:id', ProductController.forceDelete);
+
 
 router.get('/brands/list', ProductController.getBrandList);
-// Thêm dòng này vào trước `module.exports = router;`
+
 
 router.post('/product/update-order', ProductController.updateOrderIndexBulk);
 

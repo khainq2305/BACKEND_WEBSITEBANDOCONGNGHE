@@ -12,22 +12,19 @@ const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
-
+const ProductHomeSection = require('./productHomeSection');
 const ProductInfo = require("./productinfo.model");
 const ProductSpec = require("./productspec.model");
 
 //
 const HomeSection = require("./homeSection");
 const HomeSectionBanner = require("./homeSectionBanner");
-const ProductHomeSection = require("./productHomeSection");
-const HomeSectionFilter = require("./homeSectionFilter");
+
+
 //
 const Banner = require("./Banner");
-const Placement = require("./Placement");
-const BannerPlacementAssignment = require("./BannerPlacementAssignment");
 const WishlistItem = require('./wishlistitemModel');
 const Wishlist = require('./wishlistModel');
-
 
 //
 
@@ -74,6 +71,8 @@ SkuVariantValue.belongsTo(VariantValue, {
   as: "variantValue",
 });
 
+//
+// Liên kết với Category
 HighlightedCategoryItem.belongsTo(Category, {
   foreignKey: "categoryId",
   as: "category",
@@ -100,8 +99,11 @@ ProductInfo.belongsTo(Product, {
   foreignKey: "productId",
   as: "product",
 });
-Sku.hasMany(ProductSpec, { foreignKey: "skuId", as: "specs" });
-ProductSpec.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
+Product.hasMany(ProductSpec, { foreignKey: "productId", as: "specs" });
+ProductSpec.belongsTo(Product, { foreignKey: "productId", as: "product" });
+// liên kết ngược để Sequelize sinh ra countProducts
+Category.hasMany(Product, { foreignKey: 'categoryId', as: 'products' });
+
 Product.hasMany(ProductVariant, {
   foreignKey: "productId",
   as: "productVariants",
@@ -128,35 +130,28 @@ HomeSection.hasMany(HomeSectionBanner, {
 });
 HomeSectionBanner.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
 
-HomeSection.hasMany(ProductHomeSection, {
-  foreignKey: "homeSectionId",
-  as: "productHomeSections", // ✅ dùng đúng alias
-});
-ProductHomeSection.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
-
-HomeSection.hasMany(HomeSectionFilter, {
-  foreignKey: "homeSectionId",
-  as: "filters",
-});
-HomeSectionFilter.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
 //
-Banner.belongsToMany(Placement, {
-  through: BannerPlacementAssignment,
-  foreignKey: "bannerId",
-  otherKey: "placementId",
-  as: "placements",
+
+HomeSection.belongsToMany(Product, {
+  through: ProductHomeSection,
+  foreignKey: 'homeSectionId',
+  otherKey: 'productId',
+  as: 'products'
 });
 
-Placement.belongsToMany(Banner, {
-  through: BannerPlacementAssignment,
-  foreignKey: "placementId",
-  otherKey: "bannerId",
-  as: "banners",
+Product.belongsToMany(HomeSection, {
+  through: ProductHomeSection,
+  foreignKey: 'productId',
+  otherKey: 'homeSectionId',
+  as: 'homeSections'
+});
+Product.belongsToMany(HomeSection, {
+  through: ProductHomeSection,
+  foreignKey: 'productId',
+  otherKey: 'homeSectionId',
+  as: 'sections'
 });
 
-//
-Sku.hasMany(ProductHomeSection, { foreignKey: "skuId", as: "homeSections" });
-ProductHomeSection.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
 //
 // FLASH SALE Associations
 FlashSale.hasMany(FlashSaleItem, {
@@ -219,15 +214,7 @@ Coupon.hasMany(CouponItem, { foreignKey: "couponId", as: "products" });
 CouponItem.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
 //
 
-Placement.belongsTo(Category, {
-  foreignKey: "categoryId",
-  as: "category",
-  constraints: false,
-});
-Category.hasMany(Placement, {
-  foreignKey: "categoryId",
-  as: "placements",
-});
+
 
 //
 
@@ -236,9 +223,10 @@ const District = require("./district");
 const Ward = require("./ward");
 //
 // Danh mục bài viết
-Category.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
-Post.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
-
+Category.hasMany(Post, { foreignKey: "categoryId" });
+Post.belongsTo(Category, { foreignKey: "categoryId" });
+Product.belongsTo(Brand, { foreignKey: "brandId", as: "brand" });
+Brand.hasMany(Product, { foreignKey: "brandId", as: "products" });
 
 // Tác giả bài viết
 User.hasMany(Post, { foreignKey: "authorId" });
@@ -286,6 +274,25 @@ PaymentTransaction.belongsTo(PaymentMethod, {
   as: "method",
 });
 //
+Banner.belongsTo(Category, {
+  foreignKey: "categoryId",
+  as: "category"
+});
+Category.hasMany(Banner, {
+  foreignKey: "categoryId",
+  as: "banners"
+});
+
+Banner.belongsTo(Product, {
+  foreignKey: "productId",
+  as: "product"
+});
+Product.hasMany(Banner, {
+  foreignKey: "productId",
+  as: "banners"
+});
+
+// 
 Role.hasMany(User, { foreignKey: "roleId" });
 User.belongsTo(Role, { foreignKey: "roleId" });
 
@@ -312,24 +319,6 @@ Category.belongsTo(Category, {
   foreignKey: "parentId",
   as: "parent",
 });
-BannerPlacementAssignment.belongsTo(Banner, {
-  foreignKey: "bannerId",
-  as: "banner",
-});
-
-District.hasMany(Ward, { foreignKey: "districtId" });
-Ward.belongsTo(District, { foreignKey: "districtId" });
-//
-User.hasMany(UserAddress, { foreignKey: "userId", onDelete: "CASCADE" });
-UserAddress.belongsTo(User, { foreignKey: "userId" });
-
-UserAddress.belongsTo(Province, { foreignKey: "provinceId", as: "province" });
-UserAddress.belongsTo(District, { foreignKey: "districtId", as: "district" });
-UserAddress.belongsTo(Ward, {
-  foreignKey: "wardCode",
-  targetKey: "code",
-  as: "ward",
-});
 User.hasMany(Wishlist, { foreignKey: 'userId' });
 Wishlist.belongsTo(User, { foreignKey: 'userId' });
 
@@ -345,8 +334,19 @@ Product.hasMany(WishlistItem, {
   as: 'wishlistItems',
 });
 
+District.hasMany(Ward, { foreignKey: "districtId" });
+Ward.belongsTo(District, { foreignKey: "districtId" });
+//
+User.hasMany(UserAddress, { foreignKey: "userId", onDelete: "CASCADE" });
+UserAddress.belongsTo(User, { foreignKey: "userId" });
 
-
+UserAddress.belongsTo(Province, { foreignKey: "provinceId", as: "province" });
+UserAddress.belongsTo(District, { foreignKey: "districtId", as: "district" });
+UserAddress.belongsTo(Ward, {
+  foreignKey: "wardCode",
+  targetKey: "code",
+  as: "ward",
+});
 
 module.exports = {
   User,
@@ -355,8 +355,9 @@ module.exports = {
   Sku,
 
   Banner,
-  Placement,
-  BannerPlacementAssignment,
+  
+   WishlistItem,
+  Wishlist,
 
   Cart,
   CartItem,
@@ -379,10 +380,10 @@ module.exports = {
   Brand,
   HomeSection,
   HomeSectionBanner,
-  ProductHomeSection,
-  HomeSectionFilter,
-  Category,
 
+  
+  Category,
+ProductHomeSection,
   ProductInfo,
   ProductSpec,
   Post,
@@ -395,7 +396,5 @@ module.exports = {
   Coupon,
   Product,
   UserToken,
-  WishlistItem,
-  Wishlist,
   sequelize: connection,
 };

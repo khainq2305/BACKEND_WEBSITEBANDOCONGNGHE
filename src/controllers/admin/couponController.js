@@ -3,7 +3,7 @@ const {
   Coupon, Role , CouponUser, CouponItem, CouponCategory,
   User, Sku, Category
 } = require('../../models');
-const { sequelize } = require('../../models'); // ✅ FIXED!
+const { sequelize } = require('../../models'); 
 
 class CouponController {
    static async create(req, res) {
@@ -25,12 +25,14 @@ class CouponController {
       }
 
       if (productIds.length > 0) {
-        const productRecords = productIds.map(productId => ({
-          couponId: coupon.id,
-          productId
-        }));
-        await CouponItem.bulkCreate(productRecords, { transaction: t });
-      }
+  const productRecords = productIds.map(skuId => ({
+    couponId: coupon.id,
+    skuId // ✅ Đúng tên cột trong bảng CouponItem
+  }));
+  await CouponItem.bulkCreate(productRecords, { transaction: t });
+}
+
+     
 
       if (categoryIds.length > 0) {
         const categoryRecords = categoryIds.map(categoryId => ({
@@ -49,7 +51,7 @@ class CouponController {
     }
   }
 
-  static async list(req, res) {
+static async list(req, res) {
   try {
     const { search = '', status = 'all', page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
@@ -68,16 +70,27 @@ class CouponController {
     } else if (status === 'inactive') {
       whereClause.isActive = false;
     } else if (status === 'deleted') {
-      whereClause.deletedAt = { [Op.not]: null }; // ✅ CHỈ LẤY THẰNG ĐÃ BỊ XOÁ
+      whereClause.deletedAt = { [Op.not]: null };
     }
 
-    const { rows, count } = await Coupon.findAndCountAll({
-      where: whereClause,
-      offset: parseInt(offset),
-      limit: parseInt(limit),
-      order: [['createdAt', 'DESC']],
-      paranoid: status !== 'deleted'
-    });
+    const [result, totalCount, activeCount, inactiveCount, deletedCount] = await Promise.all([
+      Coupon.findAndCountAll({
+        where: whereClause,
+        offset: parseInt(offset),
+        limit: parseInt(limit),
+        order: [['createdAt', 'DESC']],
+        paranoid: status !== 'deleted'
+      }),
+      Coupon.count(),
+      Coupon.count({ where: { isActive: true } }),
+      Coupon.count({ where: { isActive: false } }),
+      Coupon.count({
+        where: { deletedAt: { [Op.not]: null } },
+        paranoid: false
+      })
+    ]);
+
+    const { rows, count } = result;
 
     res.json({
       data: rows,
@@ -86,6 +99,12 @@ class CouponController {
         currentPage: +page,
         totalPages: Math.ceil(count / limit),
         limit: +limit
+      },
+      summary: {
+        total: totalCount,
+        active: activeCount,
+        inactive: inactiveCount,
+        deleted: deletedCount
       }
     });
   } catch (err) {
@@ -95,18 +114,102 @@ class CouponController {
 }
 
 
-  static async update(req, res) {
-    try {
-      const { id } = req.params;
-      const coupon = await Coupon.findByPk(id);
-      if (!coupon) return res.status(404).json({ message: 'Không tìm thấy mã giảm giá' });
+static async update(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
 
-      await coupon.update(req.body);
-      res.json({ message: '✅ Cập nhật thành công', data: coupon });
-    } catch (err) {
-      res.status(500).json({ message: '❌ Lỗi cập nhật', error: err.message });
+    const coupon = await Coupon.findByPk(id);
+    if (!coupon) {
+      return res.status(404).json({ message: 'Không tìm thấy mã giảm giá' });
     }
+
+    const {
+      userIds = [],
+      productIds = [],
+      categoryIds = [],
+      ...couponData
+    } = req.body;
+
+    // 1. Cập nhật dữ liệu chính
+    await coupon.update(couponData, { transaction: t });
+
+    // ======================
+    // === CouponUser sync ==
+    const currentUsers = await CouponUser.findAll({ where: { couponId: id }, transaction: t });
+    const currentUserIds = currentUsers.map(u => u.userId);
+
+    const toDeleteUser = currentUserIds.filter(uid => !userIds.includes(uid));
+    const toAddUser = userIds.filter(uid => !currentUserIds.includes(uid));
+
+    if (toDeleteUser.length > 0) {
+      await CouponUser.destroy({
+        where: { couponId: id, userId: toDeleteUser },
+        force: true,
+        transaction: t
+      });
+    }
+
+    if (toAddUser.length > 0) {
+      const newUsers = toAddUser.map(userId => ({ couponId: id, userId }));
+      await CouponUser.bulkCreate(newUsers, { transaction: t });
+    }
+
+    // ======================
+    // === CouponItem sync ===
+    const currentItems = await CouponItem.findAll({ where: { couponId: id }, transaction: t });
+    const currentItemIds = currentItems.map(i => i.skuId);
+
+    const toDeleteItem = currentItemIds.filter(pid => !productIds.includes(pid));
+    const toAddItem = productIds.filter(pid => !currentItemIds.includes(pid));
+
+    if (toDeleteItem.length > 0) {
+      await CouponItem.destroy({
+        where: { couponId: id, skuId: toDeleteItem },
+        force: true,
+        transaction: t
+      });
+    }
+
+    if (toAddItem.length > 0) {
+      const newItems = toAddItem.map(skuId => ({ couponId: id, skuId }));
+      await CouponItem.bulkCreate(newItems, { transaction: t });
+    }
+
+    // ======================
+    // === CouponCategory sync ===
+    const currentCategories = await CouponCategory.findAll({ where: { couponId: id }, transaction: t });
+    const currentCategoryIds = currentCategories.map(c => c.categoryId);
+
+    const toDeleteCategory = currentCategoryIds.filter(cid => !categoryIds.includes(cid));
+    const toAddCategory = categoryIds.filter(cid => !currentCategoryIds.includes(cid));
+
+    if (toDeleteCategory.length > 0) {
+      await CouponCategory.destroy({
+        where: { couponId: id, categoryId: toDeleteCategory },
+        force: true,
+        transaction: t
+      });
+    }
+
+    if (toAddCategory.length > 0) {
+      const newCategories = toAddCategory.map(categoryId => ({ couponId: id, categoryId }));
+      await CouponCategory.bulkCreate(newCategories, { transaction: t });
+    }
+
+    // ✅ Commit cuối
+    await t.commit();
+    res.json({ message: '✅ Cập nhật thành công', data: coupon });
+
+  } catch (err) {
+    await t.rollback();
+    console.error('❌ Lỗi cập nhật mã giảm:', err);
+    res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
   }
+}
+
+
+
 
   static async softDelete(req, res) {
     try {
@@ -272,21 +375,38 @@ static async getById(req, res) {
     const { id } = req.params;
 
     const coupon = await Coupon.findOne({
-  where: { id },
-  include: [
-    { model: CouponUser, as: 'users', attributes: ['userId'], paranoid: false },
-    { model: CouponItem, as: 'products', attributes: ['skuid'], paranoid: false },
-    { model: CouponCategory, as: 'categories', attributes: ['categoryId'], paranoid: false }
-  ],
-  paranoid: false // optional, nếu Coupon có soft delete
-});
+      where: { id },
+      include: [
+        {
+          model: CouponUser,
+          as: 'users',
+          attributes: ['userId'],
+          paranoid: false
+        },
+        {
+          model: CouponItem,
+          as: 'products',
+          attributes: ['skuId'], // ✅ Fix đúng tên trường
+          paranoid: false
+        },
+        {
+          model: CouponCategory,
+          as: 'categories',
+          attributes: ['categoryId'],
+          paranoid: false
+        }
+      ],
+      paranoid: false // để lấy cả coupon đã bị xóa mềm
+    });
 
-    if (!coupon) return res.status(404).json({ message: 'Không tìm thấy mã giảm giá' });
+    if (!coupon) {
+      return res.status(404).json({ message: 'Không tìm thấy mã giảm giá' });
+    }
 
     res.json({
       ...coupon.toJSON(),
       userIds: coupon.users?.map(c => c.userId) || [],
-      productIds: coupon.products?.map(c => c.productId) || [],
+      productIds: coupon.products?.map(c => c.skuId) || [], // ✅ fix productId → skuId
       categoryIds: coupon.categories?.map(c => c.categoryId) || []
     });
   } catch (err) {
@@ -294,6 +414,7 @@ static async getById(req, res) {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
+
 
 
 }

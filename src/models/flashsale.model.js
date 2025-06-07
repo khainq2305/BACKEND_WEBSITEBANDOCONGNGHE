@@ -10,7 +10,9 @@ const FlashSale = sequelize.define('FlashSale', {
   endTime: { type: DataTypes.DATE, allowNull: false },
   slug: { type: DataTypes.STRING, allowNull: true },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
-  description: { type: DataTypes.TEXT, allowNull: true }
+  description: { type: DataTypes.TEXT, allowNull: true },
+  bgColor: { type: DataTypes.STRING, allowNull: true },
+
 }, {
   tableName: 'flashsales',
   timestamps: true,

@@ -15,14 +15,19 @@ const ProductSpec = connection.define('ProductSpec', {
     type: DataTypes.STRING,
     allowNull: false
   },
+    specGroup: { 
+    type: DataTypes.STRING(100), 
+    allowNull: true 
+  },
   sortOrder: {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
-  skuId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  }
+  productId: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+},
+
 }, {
   tableName: 'productspec',
   timestamps: true

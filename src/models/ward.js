@@ -10,6 +10,11 @@ const Ward = sequelize.define('Ward', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+   ghnCode: {             // ✅ THÊM TRƯỜNG NÀY
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: 'code',        // ánh xạ với cột 'code' trong DB
+  },
   districtId: {
     type: DataTypes.INTEGER,
     allowNull: false,
