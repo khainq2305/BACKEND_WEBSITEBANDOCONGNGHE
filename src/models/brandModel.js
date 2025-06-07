@@ -11,17 +11,25 @@ const Brand = connection.define('Brand', {
     type: DataTypes.STRING(255),
     allowNull: false
   },
+  slug: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  logo: {
+  logoUrl: {
     type: DataTypes.STRING(255),
     allowNull: true
   },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  orderIndex: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   deletedAt: {
     type: DataTypes.DATE,
@@ -30,7 +38,7 @@ const Brand = connection.define('Brand', {
 }, {
   tableName: 'brands',
   timestamps: true,
-  paranoid: true, 
+  paranoid: true,
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 });

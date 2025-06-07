@@ -6,12 +6,20 @@ const UserAddress = sequelize.define('UserAddress', {
   userId: { type: DataTypes.INTEGER, allowNull: false },
   fullName: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING, allowNull: false },
-  street: { type: DataTypes.STRING, allowNull: false },
+streetAddress: {
+  type: DataTypes.STRING,
+  allowNull: false,
+  field: 'streetAddress' 
+}
+,
   provinceId: { type: DataTypes.INTEGER, allowNull: false },
   districtId: { type: DataTypes.INTEGER, allowNull: false },
   wardCode: { type: DataTypes.STRING, allowNull: false },
   isDefault: { type: DataTypes.BOOLEAN, defaultValue: false },
-  addressType: { type: DataTypes.STRING, defaultValue: 'Nhà Riêng' }
+  label: {
+  type: DataTypes.STRING,
+  allowNull: true, // ✅ Cho phép null nếu người dùng không nhập
+},
 }, {
   tableName: 'useraddresses',
   timestamps: true,

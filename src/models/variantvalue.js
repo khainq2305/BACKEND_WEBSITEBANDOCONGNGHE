@@ -11,6 +11,11 @@ const VariantValue = sequelize.define("VariantValue", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+   slug: {
+    type: DataTypes.STRING,
+    allowNull: true, 
+   
+  },
   description: DataTypes.TEXT,
   sortOrder: {
     type: DataTypes.INTEGER,
@@ -19,6 +24,14 @@ const VariantValue = sequelize.define("VariantValue", {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
+  },
+  imageUrl: {
+    type: DataTypes.STRING, 
+    allowNull: true,
+  },
+  colorCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   deletedAt: {
     type: DataTypes.DATE,

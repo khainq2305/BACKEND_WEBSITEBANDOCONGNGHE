@@ -2,7 +2,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Category = sequelize.define('Category', {
+const categoryPostModel = sequelize.define('Category', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -12,16 +12,14 @@ const Category = sequelize.define('Category', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  slug: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
+    
   description: {
     type: DataTypes.TEXT,
-    allowNull: true
-  },
-  thumbnail: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  type: {
-    type: DataTypes.STRING,
     allowNull: true
   },
   parentId: {
@@ -33,18 +31,15 @@ const Category = sequelize.define('Category', {
     allowNull: false,
     defaultValue: true
   },
-  orderIndex: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
   deletedAt: {
     type: DataTypes.DATE,
     allowNull: true
   }
+  
 }, {
-  tableName: 'categories',
+  tableName: 'postcategories',
   timestamps: true,
   paranoid: true
 });
 
-module.exports = Category;
+module.exports = categoryPostModel;

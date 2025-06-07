@@ -8,13 +8,18 @@ const Variant = sequelize.define("Variant", {
     allowNull: false,
   },
   description: DataTypes.TEXT,
-  sortOrder: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-  },
+
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
+  },
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+   type: {                              
+    type: DataTypes.STRING(50),
+    defaultValue: 'text',
   },
   deletedAt: {
     type: DataTypes.DATE,
