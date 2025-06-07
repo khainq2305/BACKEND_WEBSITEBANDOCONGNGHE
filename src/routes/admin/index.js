@@ -19,8 +19,10 @@ router.use('/', variantRoutes);
 router.use('/reviews', reviewRoutes);
 
 // Gắn route con vào prefix
+const OrderRoutes = require('./orders.routes'); //order
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/brands', brandRoutes);
+router.use('/orders', OrderRoutes);
 
 // Mount route vào path gốc
 router.use('/', productRoutes); // 👉 /api/admin/products
