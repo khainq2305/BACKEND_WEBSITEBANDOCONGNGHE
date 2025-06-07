@@ -1,15 +1,7 @@
 const { Placement } = require('../../models');
 
 class PlacementController {
-  static async create(req, res) {
-    try {
-      const placement = await Placement.create(req.body);
-      res.status(201).json({ message: 'Tạo khối thành công', data: placement });
-    } catch (err) {
-      console.error('CREATE PLACEMENT ERROR:', err);
-      res.status(500).json({ message: 'Lỗi tạo khối hiển thị' });
-    }
-  }
+
 
   static async getAll(req, res) {
     try {
@@ -20,28 +12,25 @@ class PlacementController {
       res.status(500).json({ message: 'Lỗi lấy danh sách khối' });
     }
   }
-
-  static async update(req, res) {
+ static async toggleVisibility(req, res) {
     try {
-      const placement = await Placement.findByPk(req.params.id);
-      if (!placement) return res.status(404).json({ message: 'Không tìm thấy khối' });
-      await placement.update(req.body);
-      res.json({ message: 'Cập nhật thành công', data: placement });
-    } catch (err) {
-      console.error('UPDATE PLACEMENT ERROR:', err);
-      res.status(500).json({ message: 'Lỗi cập nhật khối' });
-    }
-  }
+      const { id } = req.params;
+      const placement = await Placement.findByPk(id);
+      if (!placement) {
+        return res.status(404).json({ message: 'Không tìm thấy khối hiển thị' });
+      }
 
-  static async delete(req, res) {
-    try {
-      const placement = await Placement.findByPk(req.params.id);
-      if (!placement) return res.status(404).json({ message: 'Không tìm thấy khối' });
-      await placement.destroy();
-      res.json({ message: 'Xoá khối thành công' });
+      // Lật giá trị isActive
+      placement.isActive = !placement.isActive;
+      await placement.save();
+
+      return res.json({
+        message: placement.isActive ? 'Đã bật khối hiển thị' : 'Đã ẩn khối',
+        data: { id: placement.id, isActive: placement.isActive }
+      });
     } catch (err) {
-      console.error('DELETE PLACEMENT ERROR:', err);
-      res.status(500).json({ message: 'Lỗi xoá khối' });
+      console.error('TOGGLE PLACEMENT VISIBILITY ERROR:', err);
+      return res.status(500).json({ message: 'Lỗi cập nhật trạng thái hiển thị' });
     }
   }
 }

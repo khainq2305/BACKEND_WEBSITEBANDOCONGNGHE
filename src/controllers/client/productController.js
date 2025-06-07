@@ -1,5 +1,3 @@
-const { Op } = require("sequelize");
-
 const {
   Product,
   Category,
@@ -9,72 +7,86 @@ const {
   SkuVariantValue,
   VariantValue,
   Variant,
-} = require("../../models");
+  ProductInfo,
+  ProductSpec // ✅ 1. THÊM MODEL PRODUCTSPEC
+} = require('../../models');
+const { Op } = require('sequelize');
 
 class ProductController {
   static async getProductDetailBySlug(req, res) {
     try {
       const { slug } = req.params;
       const { includeInactive } = req.query;
-      console.log("🟢 Slug nhận vào:", slug);
 
       console.log("📌 [GET PRODUCT DETAIL] Slug nhận vào:", slug);
 
       const whereClause = { slug };
-      if (!includeInactive || includeInactive !== "true") {
+      if (!includeInactive || includeInactive !== 'true') {
         whereClause.isActive = 1;
       }
 
       const product = await Product.findOne({
         where: whereClause,
         include: [
-          { model: Category, as: "category" },
-          { model: Brand, as: "brand" },
+          { model: Category, as: 'category' },
+          { model: Brand, as: 'brand' },
           {
             model: Sku,
-            as: "skus",
+            as: 'skus',
             include: [
               {
                 model: ProductMedia,
-                as: "media",
-                attributes: ["type", "mediaUrl", "sortOrder"],
+                as: "ProductMedia",
+                attributes: ['type', 'mediaUrl', 'sortOrder']
               },
               {
                 model: SkuVariantValue,
-                as: "variantValues",
+                as: 'variantValues',
                 include: [
                   {
                     model: VariantValue,
-                    as: "variantValue",
+                    as: 'variantValue',
+                    attributes: ['id', 'value', 'imageUrl', 'colorCode'],
                     include: [
                       {
                         model: Variant,
-                        as: "variant",
-                        attributes: ["id", "name", "type"],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
+                        as: 'variant',
+                        attributes: ['id', 'name', 'type']
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           },
-        ],
+          {
+            model: ProductInfo,
+            as: 'productInfo',
+            attributes: ['content']
+          },
+          // ✅ 2. THÊM KHỐI INCLUDE CHO PRODUCTSPEC
+          {
+            model: ProductSpec,
+            as: 'specs', // Tên association bạn đã định nghĩa trong model
+            attributes: ['specKey', 'specValue', 'specGroup'],
+            order: [
+              ['sortOrder', 'ASC']
+            ]
+          }
+        ]
       });
 
       if (!product) {
-        return res
-          .status(404)
-          .json({ message: "❌ Không tìm thấy sản phẩm theo slug này!" });
+        return res.status(404).json({ message: '❌ Không tìm thấy sản phẩm theo slug này!' });
       }
 
       return res.status(200).json({ product });
     } catch (err) {
-      console.error("🔥 Lỗi khi lấy chi tiết sản phẩm:", err);
-      return res
-        .status(500)
-        .json({ message: "⚠️ Lỗi server khi lấy chi tiết sản phẩm" });
+      console.error('🔥 Lỗi khi lấy chi tiết sản phẩm:', err);
+      return res.status(500).json({ message: '⚠️ Lỗi server khi lấy chi tiết sản phẩm' });
     }
   }
+
   static async getProductsByCategory(req, res) {
     try {
       const {
@@ -168,7 +180,7 @@ class ProductController {
           },
         ],
         distinct: true,
-        col: "id", // ✅ CHỈ GHI 'id' (không cần prefix model hay alias)
+        col: "id",
       });
 
       const shouldPaginate = totalItems > limit;
@@ -176,26 +188,18 @@ class ProductController {
       const products = await Product.findAll({
         where: whereClause,
         order: orderClause,
+        attributes: ["id", "name", "slug", "thumbnail"],
         include: [
           {
             model: Sku,
             as: "skus",
             attributes: ["id", "price", "originalPrice", "stock"],
-            include: [
-              {
-                model: ProductMedia,
-                as: "media",
-                attributes: ["mediaUrl", "sortOrder"],
-                where: { sortOrder: 0 },
-                required: false,
-              },
-            ],
             required: true,
           },
           { model: Category, as: "category", attributes: ["id", "name"] },
           { model: Brand, as: "brand", attributes: ["id", "name"] },
         ],
-        subQuery: false, // 🟢 CẦN THÊM DÒNG NÀY
+        subQuery: false,
         ...(shouldPaginate && { limit: parseInt(limit), offset }),
       });
 

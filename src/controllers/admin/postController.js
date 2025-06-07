@@ -4,45 +4,7 @@ const { Post, Category, User } = require('../../models');
 class PostController {
 ư
   static async create(req, res) {
-    try {
-      console.log('📦 Dữ liệu nhận:', req.body);
-      const {
-        title,
-        content,
-        category,
-        authorId = 1,
-        status = 0,
-        orderIndex = 0,
-        publishAt,
-        slug,
-        isFeature
-      } = req.body;
-
-      if (!title || !content || !category || !authorId) {
-        return res.status(400).json({ message: 'Thiếu trường bắt buộc' });
-      }
-
-      const newPost = await Post.create({
-        title,
-        content,
-        categoryId: category,
-        authorId,
-        orderIndex,
-        publishAt: publishAt ? new Date(publishAt) : null,
-        status: parseInt(status, 10),
-        slug,
-        isFeature
-      });
-
-      return res.status(201).json({ message: 'Tạo bài viết thành công', data: newPost });
-    } catch (error) {
-      console.error('CREATE POST ERROR:', error);
-      return res.status(500).json({ message: 'Lỗi server khi tạo bài viết' });
-    }
-  }
-
-  // [READ] Lấy danh sách bài viết
-  static async getAll(req, res) {
+    
   try {
   
     const {
@@ -60,41 +22,16 @@ class PostController {
       return res.status(400).json({ message: 'Thiếu trường bắt buộc' });
     }
 
-    if (categoryId) {
-      whereClause.categoryId = parseInt(categoryId, 10);
-    }
-    console.log(status)
-    if (status === 'trash') {
-  whereClause.deletedAt = { [Op.not]: null };
-} else {
-  whereClause.deletedAt = null;
-
-  if (status === 'published') {
-    whereClause.status = 1;
-  } else if (status === 'draft') {
-    whereClause.status = 0;
-  }
-}
-
-    const { count, rows } = await Post.findAndCountAll({
-  where: whereClause,
-  limit,
-  offset,
-  include: [
-    {
-      model: Category,
-      as: 'category', // 👈 đúng alias
-      attributes: ['id', 'name']
-    },
-    {
-      model: User,
-      attributes: ['id', 'fullName']
-    }
-  ],
-  paranoid: false,
-  order: [['createdAt', 'DESC']]
-});
-
+    const newPost = await Post.create({
+      title,
+      content,
+      thumbnail,
+      categoryId,
+      authorId,
+      orderIndex,
+      publishAt: publishAt ? new Date(publishAt) : null,
+      status: publishAt ? 'scheduled' : status
+    });
 
     return res.status(201).json({ message: 'Tạo bài viết thành công', data: newPost });
   } catch (error) {
@@ -112,12 +49,11 @@ class PostController {
 
       const posts = await Post.findAll({
   include: [
-    { model: Category, as: 'category', attributes: ['id', 'name'] }, // ✅ thêm `as`
+    { model: Category, attributes: ['id', 'name'] },
     { model: User, attributes: ['id', 'fullName'] }
   ],
   paranoid: false 
 });
-
 
 
       return res.json({ data: posts });
@@ -147,22 +83,8 @@ class PostController {
       const post = await Post.findByPk(id);
       if (!post) return res.status(404).json({ message: 'Không tìm thấy bài viết' });
 
-      if (!post) {
-        return res.status(404).json({ message: 'Không tìm thấy bài viết' });
-      }
-
-      const { title, content, categoryId, authorId, status, orderIndex, publishAt, isFeature } = req.body;
-
-      await post.update({
-        title,
-        content,
-        categoryId,
-        authorId,
-        status,
-        orderIndex,
-        publishAt: publishAt ? new Date(publishAt) : null,
-        isFeature
-      });
+      const { title, content, thumbnail, categoryId, authorId, status, orderIndex } = req.body;
+      await post.update({ title, content, thumbnail, categoryId, authorId, status, orderIndex });
 
       return res.json({ message: 'Cập nhật thành công', data: post });
     } catch (error) {

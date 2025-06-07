@@ -11,7 +11,7 @@ const ProductHomeSection = connection.define('ProductHomeSection', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  skuId: {
+  productId: { // ✅ Đã thay skuId thành productId
     type: DataTypes.INTEGER,
     allowNull: false
   },

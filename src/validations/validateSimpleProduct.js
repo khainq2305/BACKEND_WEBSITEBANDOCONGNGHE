@@ -1,158 +1,335 @@
-// File: middlewares/validation/validateSimpleProduct.js (hoặc đường dẫn tương tự ở backend của bạn)
-const { Product } = require('../models'); // hoặc đường dẫn tới model của bạn
+const { Product } = require('../models');
+const { Op } = require('sequelize');
+ const slugify = require('slugify');
+const MAX_PRICE_VALUE = 2000000000;
+const MAX_STOCK_VALUE = 10000;
+const MAX_DIMENSION_VALUE = 200;
+const MIN_DIMENSION_VALUE = 10;
+const MAX_WEIGHT_VALUE = 50000;
+const MIN_WEIGHT_VALUE = 1;
+const MIN_CHARGE_WEIGHT = 200;
+const MAX_ORDER_INDEX_VALUE = 99999;
+const MAX_SKU_CODE_LENGTH = 50;
+const MAX_PRODUCT_NAME_LENGTH = 255;
 
-// Hàm helper để validate một mảng các SKU
+const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'webm'];
+const MAX_VIDEO_SIZE_BYTES = 10 * 1024 * 1024;
+
+function calculateVolumetricWeight(length, width, height) {
+  return Math.ceil((length * width * height) / 6); 
+}
+
+function calculateChargeableWeight(realWeight, length, width, height) {
+  const volWeight = calculateVolumetricWeight(length, width, height);
+  return Math.max(realWeight, volWeight, MIN_CHARGE_WEIGHT);
+}
+
 const validateProductSkus = (productData) => {
   const { skus } = productData;
   const allErrors = [];
 
   if (!Array.isArray(skus) || skus.length === 0) {
-    allErrors.push({ field: 'skus', message: 'Sản phẩm phải có ít nhất một thông tin SKU.' });
+    allErrors.push({
+      field: 'skus',
+      message: 'Sản phẩm phải có ít nhất một thông tin SKU.'
+    });
     return allErrors;
   }
 
+ 
+  const dimensionNames = {
+    width: 'Chiều rộng',
+    length: 'Chiều dài',
+    height: 'Chiều cao',
+    weight: 'Khối lượng'
+  };
+
   skus.forEach((sku, index) => {
     const skuPrefix = `skus[${index}]`;
-    const skuIdentifierForMessage = `SKU ${index + 1}${sku.skuCode ? ' (' + sku.skuCode + ')' : ''}`;
+    const skuIdentifier = `SKU ${index + 1}${sku.skuCode ? ` (${sku.skuCode})` : ''}`;
 
-    // Mã SKU (Bắt buộc)
+   
     if (!sku.skuCode || String(sku.skuCode).trim() === '') {
-      allErrors.push({ field: `${skuPrefix}.skuCode`, message: `Mã của ${skuIdentifierForMessage} không được để trống.` });
+      allErrors.push({
+        field: `${skuPrefix}.skuCode`,
+        message: `Mã của ${skuIdentifier} không được để trống.`
+      });
+    } else if (sku.skuCode.length > MAX_SKU_CODE_LENGTH) {
+      allErrors.push({
+        field: `${skuPrefix}.skuCode`,
+        message: `Mã của ${skuIdentifier} quá dài (tối đa ${MAX_SKU_CODE_LENGTH} ký tự).`
+      });
     }
+// 2) originalPrice (Giá gốc)
+const oriPrice = Number(sku.originalPrice);
+if (sku.originalPrice == null || sku.originalPrice === '') {
+  allErrors.push({
+    field: `${skuPrefix}.originalPrice`,
+    message: `Giá gốc của ${skuIdentifier} không được để trống.`
+  });
+} else if (isNaN(oriPrice)) {
+  allErrors.push({
+    field: `${skuPrefix}.originalPrice`,
+    message: `Giá gốc của ${skuIdentifier} phải là số.`
+  });
+} else if (oriPrice <= 0) {
+  allErrors.push({
+    field: `${skuPrefix}.originalPrice`,
+    message: `Giá gốc của ${skuIdentifier} phải lớn hơn 0.`
+  });
+} else if (oriPrice > MAX_PRICE_VALUE) {
+  allErrors.push({
+    field: `${skuPrefix}.originalPrice`,
+    message: `Giá gốc của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString(
+      'vi-VN'
+    )} đ).`
+  });
+}
 
-    // Giá gốc (Bắt buộc)
-    if (sku.originalPrice == null || String(sku.originalPrice).trim() === '') { // Sửa: dùng == null để bắt cả undefined và null
-      allErrors.push({ field: `${skuPrefix}.originalPrice`, message: `Giá gốc của ${skuIdentifierForMessage} không được để trống.` });
-    } else if (isNaN(Number(sku.originalPrice))) {
-      allErrors.push({ field: `${skuPrefix}.originalPrice`, message: `Giá gốc của ${skuIdentifierForMessage} phải là số.` });
-    } else if (Number(sku.originalPrice) <= 0) {
-      allErrors.push({ field: `${skuPrefix}.originalPrice`, message: `Giá gốc của ${skuIdentifierForMessage} phải lớn hơn 0.` });
-    }
+// 3) price (Giá bán)
+let price;
+if (sku.price == null || sku.price === '') {
+  price = oriPrice;
+  sku.price = price;
+} else {
+  price = Number(sku.price);
+  if (isNaN(price)) {
+    allErrors.push({
+      field: `${skuPrefix}.price`,
+      message: `Giá bán của ${skuIdentifier} phải là số.`
+    });
+  } else if (price < 0) {
+    allErrors.push({
+      field: `${skuPrefix}.price`,
+      message: `Giá bán của ${skuIdentifier} không được âm.`
+    });
+  } else if (!isNaN(oriPrice) && price > oriPrice) {
+    allErrors.push({
+      field: `${skuPrefix}.price`,
+      message: `Giá bán của ${skuIdentifier} không được lớn hơn giá gốc.`
+    });
+  } else if (price > MAX_PRICE_VALUE) {
+    allErrors.push({
+      field: `${skuPrefix}.price`,
+      message: `Giá bán của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString(
+        'vi-VN'
+      )} đ).`
+    });
+  }
+}
 
-    // Giá bán (price) - Không bắt buộc, nếu nhập thì validate
-    if (sku.price !== undefined && sku.price !== null && String(sku.price).trim() !== '') {
-      if (isNaN(Number(sku.price))) {
-        allErrors.push({ field: `${skuPrefix}.price`, message: `Giá bán của ${skuIdentifierForMessage} phải là số.` });
-      } else if (Number(sku.price) < 0) {
-         allErrors.push({ field: `${skuPrefix}.price`, message: `Giá bán của ${skuIdentifierForMessage} không được là số âm.` });
-      } else if (
-        sku.originalPrice != null && !isNaN(Number(sku.originalPrice)) && Number(sku.originalPrice) > 0 &&
-        Number(sku.price) > Number(sku.originalPrice)
-      ) {
-        allErrors.push({ field: `${skuPrefix}.price`, message: `Giá bán của ${skuIdentifierForMessage} không được lớn hơn giá gốc.` });
-      }
-    }
 
-    // Tồn kho (stock) - BẮT BUỘC NHẬP
-    if (sku.stock == null || String(sku.stock).trim() === '') { // Sửa: dùng == null để bắt cả undefined và null
-      allErrors.push({ field: `${skuPrefix}.stock`, message: `Tồn kho của ${skuIdentifierForMessage} không được để trống.` });
+    if (sku.stock == null || sku.stock === '') {
+      allErrors.push({
+        field: `${skuPrefix}.stock`,
+        message: `Tồn kho của ${skuIdentifier} không được để trống.`
+      });
     } else if (isNaN(Number(sku.stock))) {
-      allErrors.push({ field: `${skuPrefix}.stock`, message: `Tồn kho của ${skuIdentifierForMessage} phải là số.` });
+      allErrors.push({
+        field: `${skuPrefix}.stock`,
+        message: `Tồn kho của ${skuIdentifier} phải là số.`
+      });
     } else if (Number(sku.stock) < 0) {
-      allErrors.push({ field: `${skuPrefix}.stock`, message: `Tồn kho của ${skuIdentifierForMessage} không được nhỏ hơn 0.` });
+      allErrors.push({
+        field: `${skuPrefix}.stock`,
+        message: `Tồn kho của ${skuIdentifier} không được nhỏ hơn 0.`
+      });
+    } else if (Number(sku.stock) > MAX_STOCK_VALUE) {
+      allErrors.push({
+        field: `${skuPrefix}.stock`,
+        message: `Tồn kho của ${skuIdentifier} quá lớn (tối đa ${MAX_STOCK_VALUE}).`
+      });
     }
 
-    // Kích thước (height, width, length, weight) - Bắt buộc
-    const dimensions = {
-      height: 'Chiều cao',
-      width: 'Chiều rộng',
-      length: 'Chiều dài',
-      weight: 'Khối lượng'
-    };
-    for (const dimKey in dimensions) {
-      if (sku[dimKey] == null || String(sku[dimKey]).trim() === '') { // Sửa: dùng == null
-        allErrors.push({ field: `${skuPrefix}.${dimKey}`, message: `${dimensions[dimKey]} (${skuIdentifierForMessage}) không được để trống.` });
-      } else if (isNaN(Number(sku[dimKey])) || Number(sku[dimKey]) < 0) {
-        allErrors.push({ field: `${skuPrefix}.${dimKey}`, message: `${dimensions[dimKey]} (${skuIdentifierForMessage}) phải là số không âm.` });
+    
+    ['width', 'length', 'height', 'weight'].forEach((key) => {
+      const val = Number(sku[key]);
+      const name = dimensionNames[key];
+      const min = key === 'weight' ? MIN_WEIGHT_VALUE : MIN_DIMENSION_VALUE;
+      const max = key === 'weight' ? MAX_WEIGHT_VALUE : MAX_DIMENSION_VALUE;
+
+      if (sku[key] == null || sku[key] === '') {
+        allErrors.push({
+          field: `${skuPrefix}.${key}`,
+          message: `${name} của ${skuIdentifier} không được để trống.`
+        });
+      } else if (isNaN(val)) {
+        allErrors.push({
+          field: `${skuPrefix}.${key}`,
+          message: `${name} của ${skuIdentifier} phải là số.`
+        });
+      } else if (val < min || val > max) {
+        allErrors.push({
+          field: `${skuPrefix}.${key}`,
+          message: `${name} của ${skuIdentifier} phải từ ${min} đến ${max} ${key === 'weight' ? 'g' : 'cm'}.`
+        });
       }
+    });
+
+
+    const l = Number(sku.length);
+    const w = Number(sku.width);
+    const h = Number(sku.height);
+    const wt = Number(sku.weight);
+    if (
+      !isNaN(l) &&
+      !isNaN(w) &&
+      !isNaN(h) &&
+      !isNaN(wt)
+    ) {
+      sku.volumetricWeight = calculateVolumetricWeight(
+        l, w, h
+      );
+      sku.chargeWeight = calculateChargeableWeight(
+        wt, l, w, h
+      );
     }
 
-    // Validate mediaUrls cho SKU
+    
     if (Array.isArray(sku.mediaUrls)) {
       sku.mediaUrls.forEach((media) => {
-        const mediaUrl = typeof media === 'object' ? media.url : media;
-        const mediaSize = typeof media === 'object' ? media.size : null;
+        const url = typeof media === 'object' ? media.url : media;
+        const size = typeof media === 'object' ? media.size : null;
+        const ext = url?.split('?')[0].split('.').pop().toLowerCase();
 
-        if (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.trim() !== '') {
-          const ext = mediaUrl.split('.').pop().toLowerCase();
-          const fileName = mediaUrl.substring(mediaUrl.lastIndexOf('/') + 1);
-
-          if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-            if (mediaSize && mediaSize > 5 * 1024 * 1024) {
-              allErrors.push({ field: `${skuPrefix}.mediaUrls`, message: `Ảnh '${fileName}' cho ${skuIdentifierForMessage} không được vượt quá 5MB.` });
+        if (url) {
+          const fileName = url.split('/').pop();
+          if (ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+            if (size && size > MAX_IMAGE_SIZE_BYTES) {
+              allErrors.push({
+                field: `${skuPrefix}.mediaUrls`,
+                message: `Ảnh '${fileName}' vượt quá 5MB.`
+              });
             }
-          } else if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
-            if (mediaSize && mediaSize > 10 * 1024 * 1024) {
-              allErrors.push({ field: `${skuPrefix}.mediaUrls`, message: `Video '${fileName}' cho ${skuIdentifierForMessage} không được vượt quá 10MB.` });
+          } else if (ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
+            if (size && size > MAX_VIDEO_SIZE_BYTES) {
+              allErrors.push({
+                field: `${skuPrefix}.mediaUrls`,
+                message: `Video '${fileName}' vượt quá 10MB.`
+              });
             }
           } else {
-            allErrors.push({ field: `${skuPrefix}.mediaUrls`, message: `File media '${fileName}' không hợp lệ cho ${skuIdentifierForMessage}.` });
+            allErrors.push({
+              field: `${skuPrefix}.mediaUrls`,
+              message: `File '${fileName}' có định dạng không hợp lệ.`
+            });
           }
         }
       });
     }
   });
+
   return allErrors;
 };
 
-// Middleware validate chính
 const validateSimpleProduct = async (req, res, next) => {
   let product;
   try {
     product = JSON.parse(req.body.product);
   } catch (err) {
     return res.status(400).json({
-      errors: [{ field: 'product', message: 'Dữ liệu sản phẩm JSON không hợp lệ!' }]
+      errors: [{ field: 'product', message: 'Dữ liệu sản phẩm không hợp lệ!' }]
     });
   }
 
-  const {
-    name,
-    thumbnail,
-    hasVariants,
-    categoryId,
-    brandId,
-    orderIndex
-  } = product;
-
   const errors = [];
+  const { name, thumbnail, hasVariants, categoryId, brandId, orderIndex } = product;
+  const productSlug = req.params.slug || null;
 
-  if (!name || name.trim() === '') {
+
+  
+ 
+
+if (!name || name.trim() === '') {
   errors.push({ field: 'name', message: 'Tên sản phẩm không được để trống.' });
+} else if (name.length > MAX_PRODUCT_NAME_LENGTH) {
+  errors.push({
+    field: 'name',
+    message: `Tên sản phẩm quá dài (tối đa ${MAX_PRODUCT_NAME_LENGTH} ký tự).`
+  });
 } else {
-  const existingProduct = await Product.findOne({ where: { name: name.trim() } });
-  if (existingProduct) {
+  // Tạo slug từ name
+  const slug = slugify(name.trim(), { lower: true, strict: true });
+
+  // Kiểm tra slug đã tồn tại chưa (trừ chính sản phẩm đang sửa nếu có productId)
+ const existing = await Product.findOne({
+  where: {
+    slug,
+    ...(productSlug && { slug: { [Op.ne]: productSlug } })  // trừ chính nó ra
+  }
+});
+
+
+  if (existing) {
     errors.push({ field: 'name', message: 'Tên sản phẩm đã tồn tại.' });
   }
 }
 
-  if (categoryId == null || String(categoryId).trim() === '' || isNaN(Number(categoryId))) { // Sửa: check cả null/undefined
-    errors.push({ field: 'categoryId', message: 'Danh mục sản phẩm không hợp lệ hoặc không được để trống.' });
-  }
-  if (brandId == null || String(brandId).trim() === '' || isNaN(Number(brandId))) { // Sửa: check cả null/undefined
-    errors.push({ field: 'brandId', message: 'Thương hiệu không hợp lệ hoặc không được để trống.' });
-  }
-
- const mainThumbnailFile = req.files?.find(f => f.fieldname === 'thumbnail');
-
-if (!hasVariants && !mainThumbnailFile && (!thumbnail || thumbnail.trim() === '')) {
-  errors.push({ field: 'thumbnail', message: 'Ảnh đại diện sản phẩm không được để trống.' });
-}
-
-
-  const skuValidationErrors = validateProductSkus(product);
-  errors.push(...skuValidationErrors);
-
-  if (orderIndex === undefined || String(orderIndex).trim() === '') {
-    errors.push({ field: 'orderIndex', message: 'Thứ tự hiển thị không được để trống.' });
-  } else if (isNaN(Number(orderIndex))) {
-    errors.push({ field: 'orderIndex', message: 'Thứ tự hiển thị phải là số.' });
-  } else if (Number(orderIndex) < 0) {
-    errors.push({ field: 'orderIndex', message: 'Thứ tự hiển thị phải là số không âm.' });
+  
+  if (categoryId == null || categoryId === '') {
+    errors.push({ field: 'categoryId', message: 'Danh mục không được để trống.' });
+  } else if (isNaN(Number(categoryId))) {
+    errors.push({ field: 'categoryId', message: 'Danh mục không hợp lệ.' });
   }
 
-  if (errors.length > 0) {
-    return res.status(400).json({ errors });
+
+  if (brandId == null || brandId === '') {
+    errors.push({ field: 'brandId', message: 'Thương hiệu không được để trống.' });
+  } else if (isNaN(Number(brandId))) {
+    errors.push({ field: 'brandId', message: 'Thương hiệu không hợp lệ.' });
+  }
+
+ 
+  const thumbFile = req.files?.find((f) => f.fieldname === 'thumbnail');
+  if (thumbFile) {
+    const ext = thumbFile.originalname.split('.').pop().toLowerCase();
+    if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+      errors.push({
+        field: 'thumbnail',
+        message: 'Ảnh đại diện có định dạng không hợp lệ.'
+      });
+    } else if (thumbFile.size > MAX_IMAGE_SIZE_BYTES) {
+      errors.push({
+        field: 'thumbnail',
+        message: 'Ảnh đại diện vượt quá 5MB.'
+      });
+    }
+  } else if (!thumbnail || thumbnail === '') {
+    errors.push({
+      field: 'thumbnail',
+      message: 'Ảnh đại diện không được để trống.'
+    });
+  }
+
+
+  const skuErrors = validateProductSkus(product);
+  errors.push(...skuErrors);
+
+  
+  if (orderIndex == null || orderIndex === '') {
+    errors.push({
+      field: 'orderIndex',
+      message: 'Thứ tự hiển thị không được để trống.'
+    });
+  } else if (
+    isNaN(Number(orderIndex)) ||
+    Number(orderIndex) < 0 ||
+    Number(orderIndex) > MAX_ORDER_INDEX_VALUE
+  ) {
+    errors.push({
+      field: 'orderIndex',
+      message: `Thứ tự hiển thị phải từ 0 đến ${MAX_ORDER_INDEX_VALUE}.`
+    });
+  }
+
+  
+  const uniqueErrors = errors.filter(
+    (e, i, self) => i === self.findIndex((x) => x.field === e.field && x.message === e.message)
+  );
+  if (uniqueErrors.length > 0) {
+    return res.status(400).json({ errors: uniqueErrors });
   }
 
   req.product = product;

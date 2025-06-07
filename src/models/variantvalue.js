@@ -11,6 +11,11 @@ const VariantValue = sequelize.define("VariantValue", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+   slug: {
+    type: DataTypes.STRING,
+    allowNull: true, 
+   
+  },
   description: DataTypes.TEXT,
   sortOrder: {
     type: DataTypes.INTEGER,

@@ -29,16 +29,15 @@ const Category = sequelize.define('Category', {
     allowNull: true,
     defaultValue: true,
   },
-sortOrder: {
-  type: DataTypes.INTEGER,
-  allowNull: true,
-  defaultValue: 0,
-}
-,
-  isDefault: {
-    type: DataTypes.BOOLEAN,
+     slug: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,    
+    },
+  sortOrder: {
+    type: DataTypes.INTEGER,
     allowNull: true,
-    defaultValue: false,
+    defaultValue: 0,
   }
 }, {
   tableName: 'categories',

@@ -2,9 +2,12 @@ const express = require('express');
 const router = express.Router();
 const VariantValueController = require('../../controllers/admin/variantValueController');
 const { validateVariantValue } = require('../../validations/variantValueValidator');
-const upload = require('../../middlewares/upload');
+const {upload }= require('../../config/cloudinary');
+const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
 
-router.get('/variant-values/:id', VariantValueController.getByVariant); // Lấy theo variantId
+
+router.use(checkJWT);
+router.get('/variant-values/:id', VariantValueController.getByVariant);
 
 router.post(
   '/variant-values/create',

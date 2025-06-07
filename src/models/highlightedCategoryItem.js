@@ -15,6 +15,19 @@ const HighlightedCategoryItem = sequelize.define('HighlightedCategoryItem', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  isFeatured: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
+isHot: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
+isNew: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+}
+,
   customLink: {
     type: DataTypes.STRING,
     allowNull: true,

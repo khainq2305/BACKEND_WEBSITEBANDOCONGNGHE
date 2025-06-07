@@ -3,33 +3,39 @@ const router = express.Router();
 
 const productRoutes = require('./productRoutes');
 const variantRoutes = require('./variantRoutes');
-const variantValueRoutes = require('./variantValue.routes'); // ⬅ thêm dòng này
+const variantValueRoutes = require('./variantValue.routes'); 
 const brandRoutes = require('./brand.route'); 
-const categoryRoutes = require('./category.route'); // ✅ hoặc 'categoryProduct.routes' nếu đúng tên
+const categoryRoutes = require('./category.route'); 
 
 const userRoutes = require('./user.route'); 
-const couponRoutes = require('./coupon.routes'); // ⬅ thêm dòng này
-const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'); // ⬅ thêm dòng này
-const sectionRoutes = require('./section.routes'); // ✅ thêm dòng này
-const flashSaleRoutes = require('./flashSale.routes'); // ✅ thêm dòng này
-const notificationRoutes = require('./notification.route'); // notification
+const couponRoutes = require('./coupon.routes'); 
+const highlightedCategoryItemRoutes = require('./highlightedCategoryItem.routes'); 
+const sectionRoutes = require('./section.routes'); 
+const flashSaleRoutes = require('./flashSale.routes'); 
+const notificationRoutes = require('./notification.route'); 
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
-const bannerRoutes = require('./banner.routes'); // ✅ thêm dòng này
-router.use('/', bannerRoutes); // ✅ mount router banner
+const orderRoutes = require('./order.routes');
+const uploadRoutes = require("./upload.routes"); 
+const bannerRoutes = require('./banner.routes'); 
+//      
+router.use('/', orderRoutes);  
+
+
+router.use('/', bannerRoutes); 
 router.use('/notifications', notificationRoutes);
 router.use('/', productRoutes); 
 router.use('/', userRoutes); 
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/quan-ly-danh-muc', postCategoryRoutes);
 router.use('/', variantRoutes);
-router.use('/', variantValueRoutes); // ⬅ mount router
-router.use('/', couponRoutes); // ⬅ mount như các route còn lại
-router.use('/', highlightedCategoryItemRoutes); // ⬅ mount vào router
-router.use('/', sectionRoutes); // ✅ mount các API: /sections, /sections/:id/banners,...
-router.use('/', flashSaleRoutes); // ✅ mount router Flash Sale
-router.use('/categories', categoryRoutes); // ✅ chuẩn URL: /admin/categories
-
+router.use('/', variantValueRoutes); 
+router.use('/', couponRoutes);
+router.use('/', highlightedCategoryItemRoutes);
+router.use('/', sectionRoutes); 
+router.use('/', flashSaleRoutes); 
+router.use('/categories', categoryRoutes);
+router.use("/", uploadRoutes);
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/brands', brandRoutes);
 

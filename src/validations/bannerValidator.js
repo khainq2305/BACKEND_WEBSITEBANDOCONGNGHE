@@ -1,0 +1,77 @@
+const { Banner } = require('../models');
+const validator = require('validator');
+const path = require('path');
+
+const validateBanner = async (req, res, next) => {
+  const {
+    title,
+    type,
+    startDate,
+    endDate,
+    displayOrder
+  } = req.body;
+
+  const errors = [];
+  const isEdit = !!req.params?.id;
+
+  // === 1. Bắt buộc nhập ===
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    errors.push({ field: 'title', message: 'Tiêu đề không được để trống' });
+  }
+
+  if (!type || typeof type !== 'string' || !type.trim()) {
+    errors.push({ field: 'type', message: 'Loại hiển thị là bắt buộc' });
+  }
+
+  if (displayOrder !== undefined && isNaN(Number(displayOrder))) {
+    errors.push({ field: 'displayOrder', message: 'Thứ tự hiển thị phải là số' });
+  }
+
+  // === 2. Ngày (không bắt buộc, nhưng nếu có thì phải đúng định dạng ISO8601)
+  const isValidStart = startDate && validator.isISO8601(startDate);
+  const isValidEnd = endDate && validator.isISO8601(endDate);
+
+  if (startDate && !isValidStart) {
+    errors.push({ field: 'startDate', message: 'Ngày bắt đầu không hợp lệ' });
+  }
+
+  if (endDate && !isValidEnd) {
+    errors.push({ field: 'endDate', message: 'Ngày kết thúc không hợp lệ' });
+  }
+
+  if (isValidStart && isValidEnd && new Date(startDate) > new Date(endDate)) {
+    errors.push({ field: 'endDate', message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+  }
+
+  // === 3. Kiểm tra file ảnh nếu tạo mới
+  if (!isEdit && (!req.file || !req.file.path)) {
+    errors.push({ field: 'image', message: 'Vui lòng chọn ảnh banner' });
+  }
+
+  // === 4. Kiểm tra định dạng ảnh
+  if (req.file && req.file.originalname) {
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+      errors.push({
+        field: 'image',
+        message: 'Chỉ chấp nhận định dạng ảnh .jpg, .jpeg hoặc .png'
+      });
+    }
+  }
+
+  // === 5. Kiểm tra trùng tiêu đề khi tạo mới
+  if (!isEdit && title) {
+    const existing = await Banner.findOne({ where: { title: title.trim() } });
+    if (existing) {
+      errors.push({ field: 'title', message: 'Tiêu đề đã tồn tại' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  next();
+};
+
+module.exports = { validateBanner };

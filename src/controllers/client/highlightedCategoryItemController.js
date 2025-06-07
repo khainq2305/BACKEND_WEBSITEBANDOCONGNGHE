@@ -6,8 +6,7 @@ class HighlightedCategoryController {
     try {
       const items = await HighlightedCategoryItem.findAll({
         where: {
-          isActive: true,
- 
+          isActive: true, // ✅ lấy tất cả đang hoạt động, không lọc theo isHot/isNew/isFeatured
         },
         include: [
           {
@@ -23,7 +22,8 @@ class HighlightedCategoryController {
         id: item.category?.id,
         name: item.category?.name,
         slug: item.category?.slug,
-        imageUrl: item.imageUrl
+        imageUrl: item.imageUrl,
+        label: item.isHot ? 'hot' : item.isNew ? 'new' : item.isFeatured ? 'featured' : null // ✅ badge nếu có
       }));
 
       return res.json({ success: true, data: result });
@@ -32,6 +32,7 @@ class HighlightedCategoryController {
       return res.status(500).json({ success: false, message: 'Lỗi server' });
     }
   }
+
 }
 
 module.exports = HighlightedCategoryController;

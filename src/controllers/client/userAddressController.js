@@ -131,6 +131,7 @@ static async getDefault(req, res) {
     const userId = req.user.id;
     const { addressId } = req.query;
     let address;
+console.log("👉 [getDefault] req.user.id:", req.user.id);
 
     const provinceAttributes = ["id", "name"];
     const districtAttributes = ["id", "name", "ghnCode"]; 

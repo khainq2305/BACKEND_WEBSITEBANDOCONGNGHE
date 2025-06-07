@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const CouponController = require('../../controllers/admin/couponController');
-const { validateCreateCoupon } = require('../../validations/couponValidator');
-
+const { validateCoupon } = require('../../validations/couponValidator');
+const {upload} = require('.././../config/cloudinary')
 // Tạo mới
-router.post('/coupon/create', validateCreateCoupon, CouponController.create);
+router.post('/coupon/create', validateCoupon, CouponController.create);
 // Tạo mới
 
 
@@ -12,7 +12,7 @@ router.post('/coupon/create', validateCreateCoupon, CouponController.create);
 router.get('/coupon/list', CouponController.list);
 
 
-router.patch('/coupon/update/:id', CouponController.update);
+router.patch('/coupon/update/:id',validateCoupon, CouponController.update);
 
 // Xoá mềm
 router.delete('/coupon/soft/:id', CouponController.softDelete);

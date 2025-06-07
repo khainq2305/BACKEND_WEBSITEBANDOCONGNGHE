@@ -12,20 +12,46 @@ function buildCategoryTree(flatList, parentId = null) {
 }
 class FlashSaleController {
 
- static async list(req, res) {
+static async list(req, res) {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, tab = 'all' } = req.query;
     const offset = (page - 1) * limit;
 
+    const whereClause = {};
+    let paranoid = true;
+
+    if (tab === 'active') {
+      whereClause.isActive = true;
+      whereClause.deletedAt = null;
+    } else if (tab === 'inactive') {
+      whereClause.isActive = false;
+      whereClause.deletedAt = null;
+    } else if (tab === 'trash') {
+      whereClause.deletedAt = { [Op.ne]: null };
+      paranoid = false;
+    }
+
     const result = await FlashSale.findAndCountAll({
+      where: whereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      paranoid
     });
+
+    // Đếm tổng loại
+    const [totalActive, totalInactive, totalTrash] = await Promise.all([
+      FlashSale.count({ where: { isActive: true, deletedAt: null } }),
+      FlashSale.count({ where: { isActive: false, deletedAt: null } }),
+      FlashSale.count({ where: { deletedAt: { [Op.ne]: null } }, paranoid: false })
+    ]);
 
     return res.json({
       count: result.count,
-      rows: result.rows
+      rows: result.rows,
+      totalActive,
+      totalInactive,
+      totalTrash
     });
   } catch (err) {
     return res.status(500).json({ message: 'Server error', error: err.message });
@@ -176,6 +202,97 @@ class FlashSaleController {
       res.status(500).json({ message: 'Lỗi server' });
     }
   }
+static async deleteMany(req, res) {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+    }
+
+    const deletedCount = await FlashSale.destroy({
+      where: {
+        id: { [Op.in]: ids }
+      }
+    });
+
+    return res.json({ message: `Đã xoá ${deletedCount} Flash Sale` });
+  } catch (err) {
+    console.error('Lỗi xoá nhiều Flash Sale:', err);
+    return res.status(500).json({ message: 'Lỗi server' });
+  }
+}
+static async softDelete(req, res) {
+  try {
+    const flashSale = await FlashSale.findByPk(req.params.id);
+    if (!flashSale) return res.status(404).json({ message: 'Không tìm thấy' });
+
+    await flashSale.destroy(); // soft delete
+    res.json({ message: '✅ Đã chuyển vào thùng rác' });
+  } catch (err) {
+    console.error('❌ Lỗi xoá mềm Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+}
+static async softDeleteMany(req, res) {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+    }
+
+    await FlashSale.destroy({
+      where: { id: { [Op.in]: ids } }
+    });
+
+    res.json({ message: `✅ Đã xoá tạm thời ${ids.length} mục` });
+  } catch (err) {
+    console.error('❌ Lỗi xoá mềm nhiều Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+}
+static async restore(req, res) {
+  try {
+    const flashSale = await FlashSale.findOne({
+      where: { id: req.params.id },
+      paranoid: false
+    });
+
+    if (!flashSale || !flashSale.deletedAt) {
+      return res.status(404).json({ message: 'Không tìm thấy hoặc không bị xoá' });
+    }
+
+    await flashSale.restore();
+    res.json({ message: '✅ Đã khôi phục' });
+  } catch (err) {
+    console.error('❌ Lỗi khôi phục Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+}
+static async restoreMany(req, res) {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
+    }
+
+    const list = await FlashSale.findAll({
+      where: {
+        id: { [Op.in]: ids },
+        deletedAt: { [Op.not]: null }
+      },
+      paranoid: false
+    });
+
+    for (const flashSale of list) {
+      await flashSale.restore();
+    }
+
+    res.json({ message: `✅ Đã khôi phục ${list.length} mục` });
+  } catch (err) {
+    console.error('❌ Lỗi khôi phục nhiều Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+}
 
 static async getAvailableSkus(req, res) {
   try {

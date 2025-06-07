@@ -1,9 +1,9 @@
 const { Op } = require('sequelize');
-const { Brand } = require('../../models');
+const { Brand, Product } = require('../../models');
 const slugify = require('slugify');
 
 class BrandController {
-  // [GET] /brands
+
   static async getAll(req, res) {
     try {
       const { page = 1, limit = 10, search = '', status = 'all' } = req.query;
@@ -16,7 +16,7 @@ class BrandController {
         whereClause.name = { [Op.like]: `%${search}%` };
       }
 
-      // Bộ lọc theo status
+      
       switch (status) {
         case 'published':
           whereClause = { ...whereClause, isActive: 1 };
@@ -71,14 +71,73 @@ class BrandController {
   }
 
   static async getById(req, res) {
-    try {
-      const brand = await Brand.findByPk(req.params.id);
-      if (!brand) return res.status(404).json({ message: 'Không tìm thấy brand' });
-      return res.json({ data: brand });
-    } catch (error) {
-      return res.status(500).json({ message: 'Lỗi server' });
-    }
+  try {
+    const brand = await Brand.findOne({ where: { slug: req.params.slug } }); 
+    if (!brand) return res.status(404).json({ message: 'Không tìm thấy brand' });
+    return res.json({ data: brand });
+  } catch (error) {
+    return res.status(500).json({ message: 'Lỗi server' });
   }
+}
+
+static async update(req, res) {
+  try {
+    const brand = await Brand.findOne({ where: { slug: req.params.slug } }); 
+    if (!brand) {
+      return res.status(404).json({ message: 'Không tìm thấy brand' });
+    }
+
+    const { name, description, isActive, orderIndex } = req.body;
+    let logoUrl = brand.logoUrl;
+
+    if (req.file?.path) {
+      logoUrl = req.file.path;
+    }
+
+    const newSlug = slugify(name, { lower: true, strict: true });
+
+    const newOrder = Number(orderIndex);
+    const oldOrder = brand.orderIndex;
+
+    if (!isNaN(newOrder) && newOrder !== oldOrder) {
+      if (newOrder > oldOrder) {
+        await Brand.increment('orderIndex', {
+          by: -1,
+          where: {
+            orderIndex: { [Op.gt]: oldOrder, [Op.lte]: newOrder },
+            id: { [Op.not]: brand.id }
+          }
+        });
+      } else {
+        await Brand.increment('orderIndex', {
+          by: 1,
+          where: {
+            orderIndex: { [Op.gte]: newOrder, [Op.lt]: oldOrder },
+            id: { [Op.not]: brand.id }
+          }
+        });
+      }
+      brand.orderIndex = newOrder;
+    }
+
+    await brand.update({
+      name,
+      slug: newSlug,
+      description,
+      logoUrl,
+      isActive: Number(isActive) === 1 || isActive === true,
+      orderIndex: brand.orderIndex
+    });
+
+    return res.json({ message: 'Cập nhật thành công', data: brand });
+  } catch (error) {
+    console.error('Lỗi cập nhật brand:', error);
+    return res.status(500).json({
+      message: 'Lỗi server khi cập nhật brand',
+      error: error.message
+    });
+  }
+}
 
   static async create(req, res) {
     try {
@@ -140,73 +199,6 @@ class BrandController {
   }
 
 
-  static async update(req, res) {
-    try {
-      const brand = await Brand.findByPk(req.params.id);
-      if (!brand) {
-        return res.status(404).json({ message: 'Không tìm thấy brand' });
-      }
-
-      const { name, description, isActive, orderIndex } = req.body;
-      let logoUrl = brand.logoUrl;
-
-      if (req.file?.path) {
-        logoUrl = req.file.path;
-      }
-
-      const slug = slugify(name, { lower: true, strict: true });
-
-      const newOrder = Number(orderIndex);
-      const oldOrder = brand.orderIndex;
-
-      // Nếu thay đổi orderIndex và hợp lệ
-      if (!isNaN(newOrder) && newOrder !== oldOrder) {
-        if (newOrder > oldOrder) {
-          // Đẩy các brand phía sau lên
-          await Brand.increment('orderIndex', {
-            by: -1,
-            where: {
-              orderIndex: {
-                [Op.gt]: oldOrder,
-                [Op.lte]: newOrder
-              },
-              id: { [Op.not]: brand.id }
-            }
-          });
-        } else {
-          // Đẩy các brand phía trước xuống
-          await Brand.increment('orderIndex', {
-            by: 1,
-            where: {
-              orderIndex: {
-                [Op.gte]: newOrder,
-                [Op.lt]: oldOrder
-              },
-              id: { [Op.not]: brand.id }
-            }
-          });
-        }
-        brand.orderIndex = newOrder;
-      }
-
-      await brand.update({
-        name,
-        slug,
-        description,
-        logoUrl,
-        isActive: Number(isActive) === 1 || isActive === true,
-        orderIndex: brand.orderIndex // đảm bảo đã cập nhật
-      });
-
-      return res.json({ message: 'Cập nhật thành công', data: brand });
-    } catch (error) {
-      console.error('Lỗi cập nhật brand:', error);
-      return res.status(500).json({
-        message: 'Lỗi server khi cập nhật brand',
-        error: error.message
-      });
-    }
-  }
 
 
   static async softDelete(req, res) {
@@ -259,37 +251,51 @@ class BrandController {
   }
 
   static async forceDelete(req, res) {
-    try {
-      const { ids } = req.body;
+  try {
+    const { ids } = req.body;
 
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
-      }
-
-      // Kiểm tra brand có tồn tại
-      const brands = await Brand.findAll({
-        where: { id: ids },
-        paranoid: false
-      });
-
-      const foundIds = brands.map(b => b.id);
-      const notFound = ids.filter(id => !foundIds.includes(id));
-
-      const deletedCount = await Brand.destroy({
-        where: { id: foundIds },
-        force: true
-      });
-
-      return res.json({
-        message: `Đã xoá vĩnh viễn ${deletedCount} brand`,
-        deleted: foundIds,
-        notFound
-      });
-    } catch (error) {
-      console.error('Lỗi xoá vĩnh viễn:', error);
-      return res.status(500).json({ message: 'Lỗi server khi xoá vĩnh viễn', error: error.message });
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
     }
+
+    const brands = await Brand.findAll({ where: { id: ids }, paranoid: false });
+    const foundIds = brands.map(b => b.id);
+    const notFound = ids.filter(id => !foundIds.includes(id));
+
+
+    const products = await Product.findAll({
+      where: { brandId: foundIds },
+      attributes: ['brandId'],
+      group: ['brandId'],
+      raw: true
+    });
+
+    const conflictIds = products.map(p => p.brandId);
+    const allowDeleteIds = foundIds.filter(id => !conflictIds.includes(id));
+
+    if (allowDeleteIds.length === 0) {
+      return res.status(400).json({
+        message: 'Không thể xoá do còn sản phẩm liên kết',
+        conflictIds
+      });
+    }
+
+    const deletedCount = await Brand.destroy({
+      where: { id: allowDeleteIds },
+      force: true
+    });
+
+    return res.json({
+      message: `Đã xoá ${deletedCount} thương hiệu`,
+      deleted: allowDeleteIds,
+      conflictIds,
+      notFound
+    });
+  } catch (error) {
+    console.error('Lỗi xoá vĩnh viễn:', error);
+    return res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
+}
 
 
   static async updateOrderIndex(req, res) {

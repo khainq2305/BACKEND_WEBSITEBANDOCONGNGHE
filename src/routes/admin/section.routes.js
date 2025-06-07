@@ -1,24 +1,41 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const SectionController = require('../../controllers/admin/sectionController');
-const upload = require('../../middlewares/upload');
-const { validateSection } = require('../../validations/sectionValidator');
+const SectionController = require("../../controllers/admin/sectionController");
+const { upload } = require("../../config/cloudinary");
+const { validateSection } = require("../../validations/sectionValidator");
+const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
 
-// === SECTIONS ===
-router.get('/sections', SectionController.getAllSections);
-router.get('/sections/skus', SectionController.getAllSkus); 
-// routes/admin/sectionRoutes.js
+
+router.use(checkJWT);
+
+
+router.get("/sections", SectionController.getAllSections);
+
+router.get("/sections/products", SectionController.getAllProducts);
+
+
 router.post(
-  '/sections',
-  upload.array('bannerFiles'),
+  "/sections",
+  upload.array("bannerImages"),
   validateSection,
   SectionController.createSection
 );
 
 
-router.put('/sections/:id', SectionController.updateSection);
-router.delete('/sections/:id', SectionController.deleteSection);
-router.get('/sections/:id', SectionController.getSectionById); 
-router.patch('/sections/update-order', SectionController.updateOrderIndexes);
+router.put(
+  "/sections/:slug",
+  upload.array("bannerImages"),
+  validateSection,
+  SectionController.updateSection
+);
+
+
+router.get("/sections/:slug", SectionController.getSectionById);
+
+
+router.delete("/sections/:id", SectionController.deleteSection);
+
+
+router.patch("/sections/update-order", SectionController.updateOrderIndexes);
 
 module.exports = router;

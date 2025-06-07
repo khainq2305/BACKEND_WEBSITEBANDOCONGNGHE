@@ -1,5 +1,5 @@
 // src/controllers/admin/variantController.js
- const { Variant, VariantValue } = require('../../models');
+const { Variant, VariantValue, SkuVariantValue, sequelize } = require('../../models');
 const { Op } = require('sequelize');
 
 class VariantController {
@@ -20,15 +20,15 @@ static async getAll(req, res) {
     if (keyword) whereClause.name = { [Op.like]: `%${keyword}%` };
     if (fetchDeletedOnly) whereClause.deletedAt = { [Op.ne]: null };
 
-    // Đếm tổng theo từng loại
+  
     const [total, totalActive, totalInactive, totalTrash] = await Promise.all([
-      Variant.count({ paranoid: true }), // tất cả (chưa xoá)
+      Variant.count({ paranoid: true }), 
       Variant.count({ where: { isActive: true }, paranoid: true }),
       Variant.count({ where: { isActive: false }, paranoid: true }),
-      Variant.count({ where: { deletedAt: { [Op.ne]: null } }, paranoid: false }) // đã xoá
+      Variant.count({ where: { deletedAt: { [Op.ne]: null } }, paranoid: false })
     ]);
 
-    // Lấy danh sách theo filter
+   
     const data = await Variant.findAll({
       where: whereClause,
       include: [{
@@ -52,7 +52,7 @@ static async getAll(req, res) {
       totalPages: Math.ceil(total / limit)
     });
   } catch (error) {
-    console.error('❌ Lỗi lấy variant:', error);
+    console.error('Lỗi lấy variant:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
@@ -89,16 +89,7 @@ if (!['image', 'color', 'text'].includes(type)) {
     }
   }
 
-  static async forceDelete(req, res) {
-    try {
-      const { id } = req.params;
-      await Variant.destroy({ where: { id }, force: true });
-      res.json({ message: 'Đã xoá vĩnh viễn' });
-    } catch (error) {
-      console.error("Lỗi xóa vĩnh viễn:", error);
-      res.status(500).json({ message: "Lỗi khi xóa vĩnh viễn", error: error.message });
-    }
-  }
+  
 
   static async restore(req, res) {
     try {
@@ -128,18 +119,63 @@ static async forceDeleteMany(req, res) {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0)
-      return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+      return res.status(400).json({ message: 'Danh sách ID không hợp lệ' });
 
-    
+   
+    const usedVariantIds = await VariantValue.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('variantId')), 'variantId']],
+      where: { variantId: ids },
+      include: [{ model: SkuVariantValue, as: 'skuValues', attributes: [], required: true }],
+      raw: true,
+    }).then((rows) => rows.map((r) => r.variantId));
+
+    if (usedVariantIds.length) {
+      const names = await Variant.findAll({
+        where: { id: usedVariantIds },
+        attributes: ['name'],
+        raw: true,
+      }).then((r) => r.map((v) => v.name).join(', '));
+
+      return res.status(409).json({
+        message: `Không thể xoá. Các thuộc tính đang được sử dụng cho sản phẩm`,
+      });
+    }
+
+   
     await VariantValue.destroy({ where: { variantId: ids }, force: true });
-
-  
     await Variant.destroy({ where: { id: ids }, force: true });
 
     res.json({ message: `Đã xoá vĩnh viễn ${ids.length} thuộc tính` });
   } catch (error) {
-    console.error("Lỗi forceDeleteMany:", error);
-    res.status(500).json({ message: "Lỗi khi xoá nhiều vĩnh viễn", error: error.message });
+    console.error('Lỗi forceDeleteMany:', error);
+    res.status(500).json({ message: 'Lỗi khi xoá nhiều vĩnh viễn', error: error.message });
+  }
+}
+
+/* ====== XÓA VĨNH VIỄN MỘT ====== */
+static async forceDelete(req, res) {
+  try {
+    const { id } = req.params;
+
+    const inUse = await VariantValue.findOne({
+      where: { variantId: id },
+      include: [{ model: SkuVariantValue, as: 'skuValues', attributes: [], required: true }],
+    });
+
+    if (inUse) {
+      const variant = await Variant.findByPk(id, { attributes: ['name'], raw: true });
+      return res.status(409).json({
+        message: `Không thể xoá. Thuộc tính đang được sử dụng cho sản phẩm `,
+      });
+    }
+
+    await VariantValue.destroy({ where: { variantId: id }, force: true });
+    await Variant.destroy({ where: { id }, force: true });
+
+    res.json({ message: 'Đã xoá vĩnh viễn' });
+  } catch (error) {
+    console.error('Lỗi xóa vĩnh viễn:', error);
+    res.status(500).json({ message: 'Lỗi khi xóa vĩnh viễn', error: error.message });
   }
 }
 
@@ -157,19 +193,22 @@ static async forceDeleteMany(req, res) {
       res.status(500).json({ message: "Lỗi khi khôi phục nhiều", error: error.message });
     }
   }
+
+
 static async getById(req, res) {
   try {
-    const { id } = req.params;
+  
+    const { slug } = req.params;
 
     const variant = await Variant.findOne({
-      where: { id },
+      where: { slug },
       include: [
         {
           model: VariantValue,
           as: 'values',
-          attributes: ['id', 'value', 'slug', 'sortOrder', 'isActive']
-        }
-      ]
+          attributes: ['id', 'value', 'slug', 'sortOrder', 'isActive'],
+        },
+      ],
     });
 
     if (!variant) {
@@ -182,20 +221,25 @@ static async getById(req, res) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
+
+
+
 static async update(req, res) {
   try {
-    const { id } = req.params;
+
+    const { slug } = req.params;
     const { name, description, type, isActive } = req.body;
 
-    const slug = name.toLowerCase().replace(/\s+/g, '-');
+    if (!['image', 'color', 'text'].includes(type)) {
+      return res.status(400).json({ message: 'Kiểu thuộc tính không hợp lệ' });
+    }
+
+    const newSlug = name.toLowerCase().replace(/\s+/g, '-');
 
     const [updated] = await Variant.update(
-      { name, description, type, isActive, slug },
-      { where: { id } }
+      { name, description, type, isActive, slug: newSlug },
+      { where: { slug } },
     );
-if (!['image', 'color', 'text'].includes(type)) {
-  return res.status(400).json({ message: 'Kiểu thuộc tính không hợp lệ' });
-}
 
     if (updated === 0) {
       return res.status(404).json({ message: 'Không tìm thấy thuộc tính cần cập nhật' });
@@ -203,8 +247,8 @@ if (!['image', 'color', 'text'].includes(type)) {
 
     res.json({ message: 'Cập nhật thành công' });
   } catch (error) {
-    console.error("Lỗi cập nhật variant:", error);
-    res.status(500).json({ message: "Lỗi khi cập nhật", error: error.message });
+    console.error('Lỗi cập nhật variant:', error);
+    res.status(500).json({ message: 'Lỗi khi cập nhật', error: error.message });
   }
 }
 
