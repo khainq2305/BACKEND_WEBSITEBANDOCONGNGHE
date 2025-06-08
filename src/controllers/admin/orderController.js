@@ -3,7 +3,8 @@ const User = require('../../models/userModel');
 const OrderItem = require('../../models/orderItem');
 const Product = require('../../models/product');
 const { Op } = require('sequelize');
-
+const PaymentTransaction = require('../../models/paymentTransaction');
+const PaymentMethod = require('../../models/paymentMethod');
 // Lấy danh sách đơn hàng với phân trang, lọc và tìm kiếm
 exports.getAll = async (req, res) => {
     try {
@@ -15,6 +16,7 @@ exports.getAll = async (req, res) => {
         } = req.query;
         const offset = (page - 1) * limit;
         const whereConditions = {};
+
         if (status) {
             whereConditions.status = status;
         }
@@ -24,7 +26,14 @@ exports.getAll = async (req, res) => {
                 { id: { [Op.like]: `%${search}%` } },
                 //search theo tên người dùng
                 { '$User.fullName$': { [Op.like]: `%${search}%` } },
+
             ];
+            //search theo mã giao dịch thanh toán với điều kiện bắt đầu bằng 'txn'
+            if (search.toLowerCase().startsWith('txn')) {
+                whereConditions[Op.or].push({
+                    '$transaction.transactionCode$': { [Op.like]: `%${search}%` }
+                });
+            }
         }
         // Fetch các đơn hàng với điều kiện lọc, tìm kiếm và phân trang
         const { count, rows: orders } = await Order.findAndCountAll({
@@ -36,7 +45,18 @@ exports.getAll = async (req, res) => {
                 {
                     model: User,
                     attributes: ['id', 'fullName', 'email', 'phone']
+                },
+                {
+                    model: PaymentMethod,
+                    as: 'paymentMethod',
+                },
+                {
+                    model: PaymentTransaction,
+                    as: 'transaction',
                 }
+
+
+
             ]
         });
 
@@ -157,6 +177,42 @@ exports.getById = async (req, res) => {
         });
     }
 };
+//Lấy chi tiết giao dịch thanh toán bằng OrderID
+exports.getPaymentTransactionByOrderId = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+
+        // Tìm kiếm giao dịch thanh toán theo OrderID tương ứng
+        const transaction = await PaymentTransaction.findOne({
+            where: { orderId: orderId },
+            include: [
+                {
+                    model: PaymentMethod,
+                    as: 'method'
+                }
+            ]
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                message: 'No payment transaction found for this order'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: transaction
+        });
+    } catch (error) {
+        console.error('Error fetching payment transaction:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
 
 
 // Cập nhật trạng thái đơn hàng
@@ -200,7 +256,54 @@ exports.updateOrderStatus = async (req, res) => {
         });
     }
 };
+//Cập nhật trạng thái thanh toán của đơn hàng theo order
+exports.updatePaymentStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { paymentStatus } = req.body;
 
+        const validPaymentStatuses = ['pending', 'success', 'failed', 'refunded'];
+
+        if (!validPaymentStatuses.includes(paymentStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid payment status value'
+            });
+        }
+
+        const transaction = await PaymentTransaction.findOne({
+            where: { orderId: orderId }
+
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                message: 'No payment transaction found for this order'
+            });
+        }
+
+
+        //Cập nhật updatedAt
+        transaction.status = paymentStatus;
+        transaction.updatedAt = new Date().toLocaleString("vi-VN", {});
+        await transaction.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Transaction status updated successfully',
+            data: transaction
+        });
+
+    } catch (error) {
+        console.error('Error updating Transaction status:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+}
 // Hủy đơn hàng
 exports.cancelOrder = async (req, res) => {
     try {
