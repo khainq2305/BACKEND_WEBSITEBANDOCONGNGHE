@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Brand, Product } = require('../../models');
+const { Brand, Product, Sku } = require('../../models');
 const slugify = require('slugify');
 
 class BrandController {
