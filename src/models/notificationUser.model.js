@@ -25,7 +25,7 @@ const NotificationUser = sequelize.define("NotificationUser", {
     type: DataTypes.DATE,
     allowNull: true,
   },
-}, {
+},{
   tableName: "notificationUsers",
   timestamps: true,
 });

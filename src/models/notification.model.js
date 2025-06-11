@@ -59,7 +59,7 @@ const Notification = sequelize.define("Notification", {
     type: DataTypes.DATE,
     allowNull: true,
   },
-}, {
+},{
   tableName: "notifications",
   timestamps: true,
   paranoid: true,

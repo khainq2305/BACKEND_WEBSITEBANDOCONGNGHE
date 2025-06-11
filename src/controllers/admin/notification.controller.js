@@ -83,7 +83,7 @@ async create(req, res) {
       .status(201)
       .json({ message: "Tạo thông báo thành công", data: notification });
   } catch (err) {
-    console.error("🚨 Lỗi tạo thông báo:", err);
+    console.error("Lỗi tạo thông báo:", err);
     return res
       .status(500)
       .json({ message: "Lỗi máy chủ", error: err.message });
