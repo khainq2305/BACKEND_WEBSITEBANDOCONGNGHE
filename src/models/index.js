@@ -92,7 +92,7 @@ SkuVariantValue.belongsTo(VariantValue, {
   foreignKey: "variantValueId",
   as: "variantValue",
 });
-// 
+
 categoryPostModel.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
 Post.belongsTo(categoryPostModel, { foreignKey: 'categoryId', as: 'category' });
 Post.belongsToMany(Tags, {

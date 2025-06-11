@@ -1,66 +1,68 @@
-module.exports = (sequelize, DataTypes) => {
-  const Notification = sequelize.define(
-    "Notification",
-    {
-      title: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      message: {
-        type: DataTypes.TEXT,
-      },
-      imageUrl: {
-        type: DataTypes.STRING,
-      },
-      link: {
-        type: DataTypes.STRING,
-      },
-      targetType: {
-        type: DataTypes.ENUM("order", "system"),
-      },
-      targetId: {
-        type: DataTypes.INTEGER,
-      },
-      isGlobal: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
-      isActive: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
-      type: {
-        type: DataTypes.ENUM("order", "system"),
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-      },
-      startAt: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
 
-      deletedAt: {
-        type: DataTypes.DATE,
-      },
-      slug: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-      },
-    },
-    {
-      tableName: "notifications",
-      paranoid: true,
-      timestamps: false,
-    }
-  );
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-  Notification.associate = (models) => {
-    Notification.hasMany(models.NotificationUser, {
-      foreignKey: "notificationId",
-    });
-  };
+const Notification = sequelize.define("Notification", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  message: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  imageUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  link: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  targetType: {
+    type: DataTypes.ENUM("order", "system"),
+    allowNull: true,
+  },
+  targetId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  isGlobal: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+  type: {
+    type: DataTypes.ENUM("order", "system"),
+    allowNull: false,
+  },
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  startAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  deletedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+},{
+  tableName: "notifications",
+  timestamps: true,
+  paranoid: true,
+});
 
-  return Notification;
-};
+module.exports = Notification;
