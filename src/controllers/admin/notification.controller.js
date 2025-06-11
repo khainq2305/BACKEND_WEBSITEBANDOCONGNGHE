@@ -3,25 +3,30 @@ const { NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
 //
 const NotificationController = {
-  async create(req, res) {
+async create(req, res) {
+  try {
+    console.log("🔥 [CREATE] req.body:", req.body);
+    console.log("🔥 [CREATE] req.file:", req.file?.path);
+
+    const {
+      title,
+      message,
+      link,
+      targetType,
+      targetId,
+      isGlobal = true,
+      type,
+      isActive = true,
+      startAt,
+      userIds,
+      slug,
+    } = req.body;
+
+    const imageUrl = req.file?.path || "";
+
+    let notification;
     try {
-      const {
-        title,
-        message,
-        link,
-        targetType,
-        targetId,
-        isGlobal = true,
-        type,
-        isActive = true,
-        startAt,
-        userIds,
-        slug,
-      } = req.body;
-
-      const imageUrl = req.file?.path || "";
-
-      const notification = await Notification.create({
+      notification = await Notification.create({
         title,
         slug, // ✅ dùng slug đã gán bởi middleware autoSlug
         message,
@@ -34,41 +39,57 @@ const NotificationController = {
         isActive: isActive === "true" || isActive === true,
         startAt: startAt ? new Date(startAt) : null,
       });
-
-      // Nếu là thông báo cho từng user
-      if (isGlobal === "false" || isGlobal === false || isGlobal === "0") {
-        let parsed = [];
-
-        if (typeof userIds === "string") {
-          try {
-            parsed = JSON.parse(userIds);
-          } catch (err) {
-            return res.status(400).json({ message: "userIds không hợp lệ" });
-          }
-        } else if (Array.isArray(userIds)) {
-          parsed = userIds;
-        }
-
-        if (parsed.length > 0) {
-          const inserts = parsed.map((userId) => ({
-            notificationId: notification.id,
-            userId,
-            isRead: false,
-          }));
-          await NotificationUser.bulkCreate(inserts);
-        }
-      }
-
-      return res
-        .status(201)
-        .json({ message: "Tạo thông báo thành công", data: notification });
     } catch (err) {
-      console.error("🚨 Lỗi tạo thông báo:", err);
+      console.error("❌ Lỗi khi tạo Notification:", err);
       return res
         .status(500)
-        .json({ message: "Lỗi máy chủ", error: err.message });
+        .json({ message: "Tạo Notification thất bại", error: err.message });
     }
-  },
+
+    // Nếu là thông báo cho từng user
+    if (isGlobal === "false" || isGlobal === false || isGlobal === "0") {
+      let parsed = [];
+
+      if (typeof userIds === "string") {
+        try {
+          parsed = JSON.parse(userIds);
+        } catch (err) {
+          console.error("❌ userIds parse lỗi:", userIds);
+          return res.status(400).json({ message: "userIds không hợp lệ" });
+        }
+      } else if (Array.isArray(userIds)) {
+        parsed = userIds;
+      }
+
+      if (parsed.length > 0) {
+        const inserts = parsed.map((userId) => ({
+          notificationId: notification.id,
+          userId,
+          isRead: false,
+        }));
+
+        try {
+          await NotificationUser.bulkCreate(inserts);
+        } catch (err) {
+          console.error("❌ Lỗi khi tạo NotificationUser:", err);
+          return res
+            .status(500)
+            .json({ message: "Tạo user nhận thông báo thất bại" });
+        }
+      }
+    }
+
+    return res
+      .status(201)
+      .json({ message: "Tạo thông báo thành công", data: notification });
+  } catch (err) {
+    console.error("🚨 Lỗi tạo thông báo:", err);
+    return res
+      .status(500)
+      .json({ message: "Lỗi máy chủ", error: err.message });
+  }
+},
+
 
   async update(req, res) {
     try {
@@ -238,6 +259,23 @@ const NotificationController = {
       return res.json({ message: "Đã xoá thành công" });
     } catch (error) {
       console.error("Lỗi xoá nhiều:", error);
+      return res.status(500).json({ message: "Lỗi máy chủ" });
+    }
+  },
+
+  // [GET] /admin/notifications/slug/:slug
+  async getBySlug(req, res) {
+    try {
+      const { slug } = req.params;
+      const notification = await Notification.findOne({ where: { slug } });
+
+      if (!notification) {
+        return res.status(404).json({ message: "Không tìm thấy thông báo" });
+      }
+
+      return res.json(notification);
+    } catch (err) {
+      console.error("Lỗi getBySlug:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },

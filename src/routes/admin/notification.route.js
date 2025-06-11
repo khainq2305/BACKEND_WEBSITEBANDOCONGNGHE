@@ -13,7 +13,8 @@ const {
 router.get("/", NotificationController.getAll);
 router.post("/delete-many", NotificationController.deleteMany);
 
-router.get("/:id", NotificationController.getById);
+router.get('/slug/:slug', NotificationController.getBySlug);
+router.get('/:id', NotificationController.getById);
 
 router.post(
   "/",

@@ -1095,6 +1095,7 @@ static async forceDeleteMany(req, res) {
   }
   
   
+  
 }
 
 module.exports = ProductController;

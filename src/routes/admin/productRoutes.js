@@ -12,7 +12,6 @@ router.get(
 );
 
 
-
 const parseProductBody = (req, res, next) => {
   try {
     if (req.body.product) {
