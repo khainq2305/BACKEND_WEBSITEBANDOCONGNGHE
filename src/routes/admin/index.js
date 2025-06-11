@@ -20,9 +20,10 @@ const bannerRoutes = require('./banner.routes');
 const tagsRoute = require('./tags.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
+const AuthRoutes = require('./auth.route')
 
 router.use('/', orderRoutes);  
-
+router.use('/', AuthRoutes)
 router.use('/tags', tagsRoute)
 router.use('/', bannerRoutes); 
 router.use('/notifications', notificationRoutes);

@@ -64,6 +64,30 @@ const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
 const Product = require("./product");
 //
+const Permission = require('./permission')
+// phan quyen
+// User - Role
+  User.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
+  Role.hasMany(User, { foreignKey: 'roleId', as: 'users' });
+
+  // Role - Permission (many-to-many)
+  Role.belongsToMany(Permission, {
+  through: 'rolepermissions', // ✅ dùng chuỗi thôi
+  foreignKey: 'roleId',
+  otherKey: 'permissionId',
+  as: 'permissions',
+  timestamps: false            // ✅ đặt ngoài, Sequelize mới hiểu
+});
+
+Permission.belongsToMany(Role, {
+  through: 'rolepermissions',
+  foreignKey: 'permissionId',
+  otherKey: 'roleId',
+  as: 'roles',
+  timestamps: false
+});
+
+
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
 NotificationUser.belongsTo(User, { foreignKey: "userId" });
 
@@ -457,5 +481,6 @@ ProductHomeSection,
   Coupon,
   Product,
   UserToken,
+  Permission,
   sequelize: connection,
 };

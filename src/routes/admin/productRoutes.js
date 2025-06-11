@@ -2,23 +2,25 @@ const express = require('express');
 const router = express.Router();
 const ProductController = require('../../controllers/admin/productController');
 const { validateSimpleProduct } = require('../../validations/validateSimpleProduct');
-
 const { upload } = require('../../config/cloudinary');
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize'); // Import middleware phân quyền thông minh
 
-router.get('/product/list', ProductController.getAll);  
-router.get(
-  '/product/:slug',
-  ProductController.getById    
-);
+// =================================================================
+// ÁP DỤNG MIDDLEWARE CHUNG CHO TẤT CẢ CÁC ROUTE BÊN DƯỚI
+// =================================================================
+router.use(checkJWT);
+router.use(attachUserDetail);
 
-
-
+// =================================================================
+// MIDDLEWARE XỬ LÝ RIÊNG CHO PRODUCT (khi có multipart/form-data)
+// =================================================================
 const parseProductBody = (req, res, next) => {
   try {
     if (req.body.product) {
       req.product = JSON.parse(req.body.product);
-
-      // ÉP đảm bảo luôn có array
+      // Đảm bảo các trường mediaUrls luôn là array để tránh lỗi
       if (Array.isArray(req.product?.skus)) {
         req.product.skus = req.product.skus.map(sku => ({
           ...sku,
@@ -34,44 +36,44 @@ const parseProductBody = (req, res, next) => {
   }
 };
 
+// =================================================================
+// ĐỊNH NGHĨA CÁC ROUTE VỚI PHÂN QUYỀN TỰ ĐỘNG
+// =================================================================
+
+// --- Quản lý Product ---
+router.get('/product/list', authorize('Product'), ProductController.getAll);
+router.get('/product/:slug', authorize('Product'), ProductController.getById);
+
 router.post(
   '/product/create',
- upload.any(),
-parseProductBody, 
-validateSimpleProduct,
-
-  ProductController.create
-);
-router.put(
-  '/product/update/:slug',
+  authorize('Product'), // POST -> 'create'
   upload.any(),
   parseProductBody,
   validateSimpleProduct,
-  ProductController.update  
+  ProductController.create
 );
-router.delete('/product/soft/:id', ProductController.softDelete);
 
+router.put(
+  '/product/update/:slug',
+  authorize('Product'), // PUT -> 'update'
+  upload.any(),
+  parseProductBody,
+  validateSimpleProduct,
+  ProductController.update
+);
 
-  
-router.get('/categories/tree', ProductController.getCategoryTree);
-router.post  ('/product/force-delete-many',  ProductController.forceDeleteMany); 
+router.delete('/product/soft/:id', authorize('Product'), ProductController.softDelete); // DELETE -> 'delete'
+router.delete('/product/force/:id', authorize('Product'), ProductController.forceDelete); // DELETE -> 'delete'
+router.patch('/product/restore/:id', authorize('Product', 'update'), ProductController.restore); // PATCH -> Ghi đè thành 'update'
+router.post('/product/update-order', authorize('Product', 'update'), ProductController.updateOrderIndexBulk); // POST -> Ghi đè thành 'update'
 
-router.post('/product/soft-delete-many', ProductController.softDeleteMany);
+// --- Xử lý hàng loạt ---
+router.post('/product/force-delete-many', authorize('Product', 'delete'), ProductController.forceDeleteMany); // POST -> Ghi đè thành 'delete'
+router.post('/product/soft-delete-many', authorize('Product', 'delete'), ProductController.softDeleteMany); // POST -> Ghi đè thành 'delete'
+router.post('/product/restore-many', authorize('Product', 'update'), ProductController.restoreMany); // POST -> Ghi đè thành 'update'
 
-
-router.patch('/product/restore/:id', ProductController.restore);
-
-
-router.post('/product/restore-many', ProductController.restoreMany);
-
-
-router.delete('/product/force/:id', ProductController.forceDelete);
-
-
-router.get('/brands/list', ProductController.getBrandList);
-
-
-router.post('/product/update-order', ProductController.updateOrderIndexBulk);
-
+// --- Lấy dữ liệu từ các model liên quan ---
+router.get('/categories/tree', authorize('Category', 'read'), ProductController.getCategoryTree); // Cần quyền đọc Category
+router.get('/brands/list', authorize('Brand', 'read'), ProductController.getBrandList); // Cần quyền đọc Brand
 
 module.exports = router;

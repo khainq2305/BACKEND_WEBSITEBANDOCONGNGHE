@@ -4,6 +4,7 @@ const NotificationUserController = require('../../controllers/admin/notification
 const { checkJWT  } = require('../../middlewares/checkJWT');
 
 // POST /admin/notification-users
+
 router.post('/', checkJWT,  NotificationUserController.createMany);
 
 // GET /admin/notification-users/:notificationId
