@@ -10,9 +10,8 @@ router.use(checkJWT);
 
 
 router.get("/sections", SectionController.getAllSections);
-
 router.get("/sections/products", SectionController.getAllProducts);
-
+router.get("/sections/categories", SectionController.getAllCategories); 
 
 router.post(
   "/sections",

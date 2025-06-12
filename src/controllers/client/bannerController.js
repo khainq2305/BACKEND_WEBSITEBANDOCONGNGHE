@@ -59,8 +59,10 @@ class bannerController {
       const today = new Date();
 
       const banners = await Banner.findAll({
+        
         where: {
-          type: 'category-filter',
+       type: 'category-banner',
+
           categoryId: categoryId,
           isActive: true,
           [Op.or]: [
@@ -70,6 +72,7 @@ class bannerController {
             { startDate: null, endDate: { [Op.gte]: today } }
           ]
         },
+        
         order: [['displayOrder', 'ASC']]
       });
 

@@ -15,6 +15,7 @@ const FlashSaleCategory = require("./flashsalecategory.model");
 const ProductHomeSection = require('./productHomeSection');
 const ProductInfo = require("./productinfo.model");
 const ProductSpec = require("./productspec.model");
+const ProductView = require('./productView.model');
 
 //
 const HomeSection = require("./homeSection");
@@ -339,6 +340,11 @@ Category.hasMany(Banner, {
   foreignKey: "categoryId",
   as: "banners"
 });
+User.hasMany(ProductView, { foreignKey: 'userId', as: 'productViews' });
+ProductView.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+Product.hasMany(ProductView, { foreignKey: 'productId', as: 'views' });
+ProductView.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
 Banner.belongsTo(Product, {
   foreignKey: "productId",
@@ -412,7 +418,8 @@ module.exports = {
   Sku,
 
   Banner,
-  
+    ProductView,
+
    WishlistItem,
   Wishlist,
   categoryPostModel,

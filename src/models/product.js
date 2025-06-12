@@ -16,11 +16,11 @@ const Product = sequelize.define('Product', {
   allowNull: false,
   unique: true
 },
+description: {
+  type: DataTypes.TEXT('long'),
+  allowNull: true,
+},
 
-  description: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
   shortDescription: {
     type: DataTypes.TEXT,
     allowNull: true

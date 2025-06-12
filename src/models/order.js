@@ -3,10 +3,16 @@ const sequelize = require('../config/database');
 
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'shipping', 'complete', 'cancelled'),
-    defaultValue: 'pending',
-  },
+status: {
+  type: DataTypes.ENUM('pending', 'confirmed', 'shipping', 'completed', 'cancelled'),
+  defaultValue: 'pending',
+},
+orderCode: {
+  type: DataTypes.STRING,
+  unique: true,
+  allowNull: false,
+},
+
   note: DataTypes.TEXT,
   shippingFee: DataTypes.DECIMAL(10, 2),
   finalPrice: DataTypes.DECIMAL(10, 2),

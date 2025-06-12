@@ -1,13 +1,11 @@
-// src/validations/sectionValidator.js
 const { HomeSection } = require("../models");
 const { Op } = require("sequelize");
+const validator = require("validator");
 
 const validTypes = ["productOnly", "productWithBanner", "fullBlock"];
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
-const isValidInteger = (val) => {
-  const num = Number(val);
-  return Number.isInteger(num) && num >= 0;
-};
+const MAX_MB = 5;
 
 const validateSection = async (req, res, next) => {
   try {
@@ -15,108 +13,114 @@ const validateSection = async (req, res, next) => {
       title,
       type,
       orderIndex,
-      productIds = "[]", // Đổi từ skuIds thành productIds
+      productIds = "[]",
       bannersMetaJson = "[]",
     } = req.body;
 
     const errors = [];
-    const currentSectionSlugFromParams = req.params.slug;
+    const slugParam = req.params.slug;
 
-    // --- Validation cho Title ---
-    if (!title || title.trim() === "") {
-      errors.push({
-        field: "title",
-        message: "Tiêu đề khối không được để trống!",
-      });
+    // --- Title ---
+    if (validator.isEmpty(title || '')) {
+      errors.push({ field: "title", message: "Tiêu đề khối không được để trống!" });
     } else {
-      const whereClauseForTitle = {
-        title: title.trim(),
-      };
-
-      if (currentSectionSlugFromParams) {
-        const currentSection = await HomeSection.findOne({
-          where: { slug: currentSectionSlugFromParams },
-          attributes: ['id']
-        });
-        if (currentSection) {
-          whereClauseForTitle.id = { [Op.ne]: currentSection.id };
-        }
+      const where = { title: title.trim() };
+      if (slugParam) {
+        const currentSection = await HomeSection.findOne({ where: { slug: slugParam }, attributes: ['id'] });
+        if (currentSection) where.id = { [Op.ne]: currentSection.id };
       }
 
-      const existedTitle = await HomeSection.findOne({ where: whereClauseForTitle });
-      if (existedTitle) {
-        errors.push({ field: "title", message: "Tiêu đề khối đã tồn tại!" });
-      }
+      const existed = await HomeSection.findOne({ where });
+      if (existed) errors.push({ field: "title", message: "Tiêu đề khối đã tồn tại!" });
     }
 
-    // --- Validation cho Type và OrderIndex ---
-    if (!type || !validTypes.includes(type)) {
+    // --- Type ---
+    if (!validTypes.includes(type)) {
       errors.push({ field: "type", message: "Loại khối không hợp lệ hoặc bị thiếu!" });
     }
 
-    if (orderIndex === undefined || orderIndex === null || !isValidInteger(orderIndex)) {
-      errors.push({
-        field: "orderIndex",
-        message: "Thứ tự phải là số nguyên không âm và không được để trống!",
+    // --- orderIndex ---
+    if (!validator.isInt(String(orderIndex), { min: 0 })) {
+      errors.push({ field: "orderIndex", message: "Thứ tự phải là số nguyên không âm!" });
+    }
+
+    // --- Parse JSON ---
+    let parsedProductIds = [];
+    let parsedBannersMeta = [];
+
+    if (!validator.isJSON(productIds)) {
+      errors.push({ field: "productIds", message: "productIds phải là chuỗi JSON của mảng!" });
+    } else {
+      parsedProductIds = JSON.parse(productIds);
+      if (!Array.isArray(parsedProductIds)) {
+        errors.push({ field: "productIds", message: "productIds phải là mảng!" });
+      }
+    }
+
+    if (!validator.isJSON(bannersMetaJson)) {
+      errors.push({ field: "bannersMetaJson", message: "Dữ liệu banner phải là chuỗi JSON mảng!" });
+    } else {
+      parsedBannersMeta = JSON.parse(bannersMetaJson);
+      if (!Array.isArray(parsedBannersMeta)) {
+        errors.push({ field: "bannersMetaJson", message: "Banner phải là mảng!" });
+      }
+    }
+
+    if ((type === 'productOnly' || type === 'productWithBanner') && parsedProductIds.length === 0) {
+      errors.push({ field: "productIds", message: "Phải chọn ít nhất 1 sản phẩm!" });
+    }
+
+    if (type === "productWithBanner" || type === "fullBlock") {
+      const bannerFiles = req.files || [];
+      const hasContent = parsedBannersMeta.some(b => b.existingImageUrl || b.hasNewFile);
+      const newBannerCount = parsedBannersMeta.filter(b => b.hasNewFile).length;
+
+      if (!hasContent && bannerFiles.length === 0) {
+        errors.push({ field: "banners", message: "Cần ít nhất 1 banner!" });
+      }
+
+      if (newBannerCount > bannerFiles.length) {
+        errors.push({
+          field: "bannerFiles",
+          message: `Có ${newBannerCount} banner cần upload nhưng chỉ có ${bannerFiles.length} file.`,
+        });
+      }
+
+      // ✅ Validate file định dạng và dung lượng
+      bannerFiles.forEach((file, idx) => {
+        const { originalname, mimetype, size } = file;
+        const sizeMB = size / (1024 * 1024);
+
+        if (!ALLOWED_MIME_TYPES.includes(mimetype)) {
+          errors.push({
+            field: `banners.${idx}`,
+            message: `File ${originalname} không đúng định dạng! Chỉ chấp nhận: JPG, JPEG, PNG.`,
+          });
+        }
+
+        if (sizeMB > MAX_MB) {
+          errors.push({
+            field: `banners.${idx}`,
+            message: `File ${originalname} vượt quá ${MAX_MB}MB!`,
+          });
+        }
       });
     }
 
-    // --- Parse dữ liệu từ JSON string ---
-    let parsedProductIds = [];
-    let parsedBannersMeta = [];
-    try {
-      parsedProductIds = JSON.parse(productIds); // Đổi từ skuIds
-      if (!Array.isArray(parsedProductIds)) throw new Error("productIds must be an array string.");
-    } catch (e) {
-      errors.push({ field: "productIds", message: "Dữ liệu Sản phẩm không hợp lệ (phải là một chuỗi JSON của mảng)!" });
-    }
-    try {
-      parsedBannersMeta = JSON.parse(bannersMetaJson);
-      if (!Array.isArray(parsedBannersMeta)) throw new Error("bannersMetaJson must be an array string.");
-    } catch (e) {
-      errors.push({ field: "bannersMetaJson", message: "Dữ liệu Banner không hợp lệ (phải là một chuỗi JSON của mảng)!" });
-    }
-
-    // --- Validation logic dựa trên Type ---
-    if (!errors.some(e => e.field === 'productIds' || e.field === 'type')) {
-      if ((type === "productOnly" || type === "productWithBanner") && parsedProductIds.length === 0) {
-        errors.push({
-          field: "productIds", // Đổi từ skuIds
-          message: "Với loại này, phải chọn ít nhất 1 sản phẩm!",
-        });
-      }
-    }
-
-    if (!errors.some(e => e.field === 'bannersMetaJson' || e.field === 'type')) {
-      if (type === "productWithBanner" || type === "fullBlock") {
-        const hasAnyBannerContent = parsedBannersMeta.some(b => b.existingImageUrl || b.hasNewFile);
-      const bannerFiles = Array.isArray(req.files) ? req.files : [];
-
-        const newBannersCountFromMeta = parsedBannersMeta.filter(b => b.hasNewFile === true || b.hasNewFile === 'true').length;
-
-        if (!hasAnyBannerContent && bannerFiles.length === 0 && newBannersCountFromMeta === 0) {
-          errors.push({ field: "banners", message: "Với loại này, phải có ít nhất 1 banner!" });
-        } else if (newBannersCountFromMeta > bannerFiles.length) {
-          errors.push({ field: "bannerFiles", message: `Khai báo ${newBannersCountFromMeta} banner mới nhưng chỉ tải lên ${bannerFiles.length} file.` });
-        }
-      }
-    }
-
-    // --- Trả về lỗi nếu có ---
+    // --- Trả lỗi nếu có ---
     if (errors.length > 0) {
       return res.status(400).json({ success: false, errors });
     }
 
-    // --- Gắn dữ liệu đã parse vào request để controller sử dụng ---
     req.parsedBody = {
-      parsedProductIds, // Đổi từ parsedSkuIds
-      parsedBannersMeta
+      parsedProductIds,
+      parsedBannersMeta,
     };
 
     next();
   } catch (err) {
-    console.error("[validateSection Error]", err);
-    return res.status(500).json({
+    console.error("[validateSection Error]", err.stack || err);
+    res.status(500).json({
       success: false,
       message: "Lỗi server khi validate section",
       error: err.message,

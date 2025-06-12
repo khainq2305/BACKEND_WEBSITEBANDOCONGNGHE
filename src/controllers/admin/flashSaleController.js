@@ -1,6 +1,7 @@
 const { FlashSale, FlashSaleItem, FlashSaleCategory, Sku, Category,Product } = require('../../models');
 const { sequelize } = require('../../models');
 const { Op } = require('sequelize');
+const slugify = require('slugify');
 
 function buildCategoryTree(flatList, parentId = null) {
   return flatList
@@ -14,7 +15,7 @@ class FlashSaleController {
 
 static async list(req, res) {
   try {
-    const { page = 1, limit = 10, tab = 'all' } = req.query;
+    const { page = 1, limit = 10, tab = 'all', search = '' } = req.query;
     const offset = (page - 1) * limit;
 
     const whereClause = {};
@@ -31,6 +32,11 @@ static async list(req, res) {
       paranoid = false;
     }
 
+    // 👇 Thêm điều kiện tìm kiếm theo title
+    if (search) {
+      whereClause.title = { [Op.like]: `%${search.trim()}%` };
+    }
+
     const result = await FlashSale.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
@@ -39,7 +45,6 @@ static async list(req, res) {
       paranoid
     });
 
-    // Đếm tổng loại
     const [totalActive, totalInactive, totalTrash] = await Promise.all([
       FlashSale.count({ where: { isActive: true, deletedAt: null } }),
       FlashSale.count({ where: { isActive: false, deletedAt: null } }),
@@ -60,95 +65,158 @@ static async list(req, res) {
 
 
 
-  static async getById(req, res) {
-    try {
-      const flashSale = await FlashSale.findByPk(req.params.id, {
-        include: [
-          {
-            model: FlashSaleItem,
-            as: 'items',
-            include: [{ model: Sku, as: 'sku' }],
-          },
-          {
-            model: FlashSaleCategory,
-            as: 'categories',
-            include: [{ model: Category, as: 'category' }],
-          },
-        ],
-      });
 
-      if (!flashSale) return res.status(404).json({ message: 'Không tìm thấy' });
+// File: FlashSaleController.js
 
-      res.json(flashSale);
-    } catch (err) {
-      console.error('❌ Lỗi getById Flash Sale:', err);
-      res.status(500).json({ message: 'Lỗi server' });
-    }
-  }
+static async getById(req, res) {
+  try {
+    const { slug } = req.params;
 
-
-  static async create(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const {
-        title,
-        bannerUrl,
-        startTime,
-        endTime,
-        slug,
-        description,
-        isActive,
-        items = [],
-        categories = [],
-      } = req.body;
-
-      const flashSale = await FlashSale.create(
+    const flashSale = await FlashSale.findOne({
+      where: { slug },
+      include: [
         {
-          title,
-          bannerUrl,
-          startTime,
-          endTime,
-          slug,
-          description,
-          isActive,
+          model: FlashSaleItem,
+          as: 'flashSaleItems',
+          include: [
+            {
+              model: Sku,
+              as: 'flashSaleSku',
+              include: [
+                {
+                  model: Product,
+                  as: 'product'
+                }
+              ]
+            }
+          ]
         },
-        { transaction: t }
-      );
+        {
+          model: FlashSaleCategory,
+          as: 'categories',
+          include: [
+            {
+              model: Category,
+              as: 'category'
+            }
+          ]
+        }
+      ]
+    });
 
-      if (items.length) {
-        const itemData = items.map((item) => ({
-          ...item,
-          flashSaleId: flashSale.id,
-        }));
-        await FlashSaleItem.bulkCreate(itemData, { transaction: t });
-      }
-
-      if (categories.length) {
-        const catData = categories.map((cat) => ({
-          ...cat,
-          flashSaleId: flashSale.id,
-        }));
-        await FlashSaleCategory.bulkCreate(catData, { transaction: t });
-      }
-
-      await t.commit();
-      res.status(201).json({ message: '✅ Tạo thành công', data: flashSale });
-    } catch (err) {
-      await t.rollback();
-      console.error('❌ Lỗi tạo Flash Sale:', err);
-      res.status(500).json({ message: 'Lỗi server' });
+    if (!flashSale) {
+      return res.status(404).json({ message: 'Không tìm thấy Flash Sale' });
     }
+
+    // ================== CÔNG CỤ DEBUG ==================
+    // Dòng này sẽ in ra toàn bộ dữ liệu mà server lấy được từ database
+    // trước khi gửi cho front-end.
+    console.log("--- DỮ LIỆU TỪ DATABASE SERVER ---");
+    console.log(JSON.stringify(flashSale, null, 2));
+    console.log("-----------------------------------");
+    // ====================================================
+
+    res.json(flashSale);
+
+  } catch (err) {
+    console.error('❌ Lỗi getById Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
   }
+}
 
+ static async update(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { slug } = req.params;
 
-  static async update(req, res) {
+    const flashSale = await FlashSale.findOne({ where: { slug } });
+    if (!flashSale) {
+      return res.status(404).json({ message: 'Không tìm thấy' });
+    }
+
+    const {
+      title,
+      description,
+      startTime,
+      endTime,
+      isActive,
+      bgColor,
+    } = req.body;
+
+    const items = req.body.items ? JSON.parse(req.body.items) : [];
+    const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+
+    const updateData = {
+      title,
+      description,
+      startTime,
+      endTime,
+      slug: slugify(title || '', {
+        lower: true,
+        strict: true,
+        remove: /[*+~.()'"!:@]/g,
+      }),
+      isActive,
+      bgColor,
+    };
+
+    if (req.file) {
+      updateData.bannerUrl = req.file.path;
+    }
+
+    await flashSale.update(updateData, { transaction: t });
+
+    await FlashSaleItem.destroy({ where: { flashSaleId: flashSale.id }, transaction: t });
+    await FlashSaleCategory.destroy({ where: { flashSaleId: flashSale.id }, transaction: t });
+
+    if (items && items.length > 0) {
+      const itemData = items.map((item) => ({
+        ...item,
+        flashSaleId: flashSale.id,
+      }));
+      await FlashSaleItem.bulkCreate(itemData, { transaction: t });
+    }
+
+    if (categories && categories.length > 0) {
+      const catData = categories.map((cat) => ({
+        ...cat,
+        flashSaleId: flashSale.id,
+      }));
+      await FlashSaleCategory.bulkCreate(catData, { transaction: t });
+    }
+
+    await t.commit();
+    res.json({ message: 'Cập nhật thành công' });
+  } catch (err) {
+    await t.rollback();
+    console.error('Lỗi cập nhật Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server: ' + err.message });
+  }
+}
+
+static async create(req, res) {
     const t = await sequelize.transaction();
     try {
-      const id = req.params.id;
-      const flashSale = await FlashSale.findByPk(id);
-      if (!flashSale) return res.status(404).json({ message: 'Không tìm thấy' });
-
+      
       const {
+        title,
+        description,
+        startTime,
+        endTime,
+        isActive,
+        bgColor,
+      } = req.body;
+
+
+      const items = req.body.items ? JSON.parse(req.body.items) : [];
+      const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+
+
+      const bannerUrl = req.file ? req.file.path : null;
+      
+      const slug = slugify(title || '', { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
+
+      const flashSale = await FlashSale.create({
         title,
         bannerUrl,
         startTime,
@@ -156,53 +224,52 @@ static async list(req, res) {
         slug,
         description,
         isActive,
-        items = [],
-        categories = [],
-      } = req.body;
+        bgColor,
+      }, { transaction: t });
 
-      await flashSale.update(
-        { title, bannerUrl, startTime, endTime, slug, description, isActive },
-        { transaction: t }
-      );
-
-      // Xoá cũ
-      await FlashSaleItem.destroy({ where: { flashSaleId: id }, transaction: t });
-      await FlashSaleCategory.destroy({ where: { flashSaleId: id }, transaction: t });
-
-      // Tạo lại
-      if (items.length) {
-        const itemData = items.map((item) => ({ ...item, flashSaleId: id }));
+      if (items && items.length > 0) {
+        const itemData = items.map((item) => ({ ...item, flashSaleId: flashSale.id }));
         await FlashSaleItem.bulkCreate(itemData, { transaction: t });
       }
 
-      if (categories.length) {
-        const catData = categories.map((cat) => ({ ...cat, flashSaleId: id }));
+      if (categories && categories.length > 0) {
+        const catData = categories.map((cat) => ({ ...cat, flashSaleId: flashSale.id }));
         await FlashSaleCategory.bulkCreate(catData, { transaction: t });
       }
 
       await t.commit();
-      res.json({ message: '✅ Cập nhật thành công' });
+      res.status(201).json({ message: 'Tạo thành công', data: flashSale });
     } catch (err) {
       await t.rollback();
-      console.error('❌ Lỗi cập nhật Flash Sale:', err);
-      res.status(500).json({ message: 'Lỗi server' });
+      console.error('Lỗi tạo Flash Sale:', err);
+      res.status(500).json({ message: 'Lỗi server: ' + err.message });
     }
   }
 
 
-  static async delete(req, res) {
-    try {
-      const flashSale = await FlashSale.findByPk(req.params.id);
-      if (!flashSale) return res.status(404).json({ message: 'Không tìm thấy' });
 
-      await flashSale.destroy();
-      res.json({ message: '✅ Đã xoá flash sale' });
-    } catch (err) {
-      console.error('❌ Lỗi xoá Flash Sale:', err);
-      res.status(500).json({ message: 'Lỗi server' });
+
+
+static async forceDelete(req, res) {
+  try {
+    const flashSale = await FlashSale.findOne({
+      where: { id: req.params.id },
+      paranoid: false
+    });
+
+    if (!flashSale) {
+      return res.status(404).json({ message: 'Không tìm thấy' });
     }
+
+    await flashSale.destroy({ force: true }); 
+    res.json({ message: 'Đã xoá vĩnh viễn flash sale' });
+  } catch (err) {
+    console.error('Lỗi xoá vĩnh viễn Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
   }
-static async deleteMany(req, res) {
+}
+
+ static async forceDeleteMany(req, res) {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -210,26 +277,26 @@ static async deleteMany(req, res) {
     }
 
     const deletedCount = await FlashSale.destroy({
-      where: {
-        id: { [Op.in]: ids }
-      }
+      where: { id: { [Op.in]: ids } },
+      force: true 
     });
 
-    return res.json({ message: `Đã xoá ${deletedCount} Flash Sale` });
+    res.json({ message: `Đã xoá vĩnh viễn ${deletedCount} mục` });
   } catch (err) {
-    console.error('Lỗi xoá nhiều Flash Sale:', err);
-    return res.status(500).json({ message: 'Lỗi server' });
+    console.error('Lỗi xoá vĩnh viễn nhiều Flash Sale:', err);
+    res.status(500).json({ message: 'Lỗi server' });
   }
 }
+
 static async softDelete(req, res) {
   try {
     const flashSale = await FlashSale.findByPk(req.params.id);
     if (!flashSale) return res.status(404).json({ message: 'Không tìm thấy' });
 
-    await flashSale.destroy(); // soft delete
-    res.json({ message: '✅ Đã chuyển vào thùng rác' });
+    await flashSale.destroy(); 
+    res.json({ message: 'Đã chuyển vào thùng rác' });
   } catch (err) {
-    console.error('❌ Lỗi xoá mềm Flash Sale:', err);
+    console.error('Lỗi xoá mềm Flash Sale:', err);
     res.status(500).json({ message: 'Lỗi server' });
   }
 }
@@ -244,9 +311,9 @@ static async softDeleteMany(req, res) {
       where: { id: { [Op.in]: ids } }
     });
 
-    res.json({ message: `✅ Đã xoá tạm thời ${ids.length} mục` });
+    res.json({ message: `Đã xoá tạm thời ${ids.length} mục` });
   } catch (err) {
-    console.error('❌ Lỗi xoá mềm nhiều Flash Sale:', err);
+    console.error('Lỗi xoá mềm nhiều Flash Sale:', err);
     res.status(500).json({ message: 'Lỗi server' });
   }
 }
@@ -262,9 +329,9 @@ static async restore(req, res) {
     }
 
     await flashSale.restore();
-    res.json({ message: '✅ Đã khôi phục' });
+    res.json({ message: 'Đã khôi phục' });
   } catch (err) {
-    console.error('❌ Lỗi khôi phục Flash Sale:', err);
+    console.error('Lỗi khôi phục Flash Sale:', err);
     res.status(500).json({ message: 'Lỗi server' });
   }
 }
@@ -287,9 +354,9 @@ static async restoreMany(req, res) {
       await flashSale.restore();
     }
 
-    res.json({ message: `✅ Đã khôi phục ${list.length} mục` });
+    res.json({ message: `Đã khôi phục ${list.length} mục` });
   } catch (err) {
-    console.error('❌ Lỗi khôi phục nhiều Flash Sale:', err);
+    console.error('Lỗi khôi phục nhiều Flash Sale:', err);
     res.status(500).json({ message: 'Lỗi server' });
   }
 }
@@ -311,13 +378,15 @@ static async getAvailableSkus(req, res) {
       order: [['createdAt', 'DESC']]
     });
 
-    const result = skus.map((sku) => ({
-      id: sku.id,
-      skuCode: sku.skuCode,
-      price: sku.price,
-      stock: sku.stock,
-      label: `${sku.product?.name} - ${sku.skuCode}`
-    }));
+  const result = skus.map((sku) => ({
+  id: sku.id,
+  skuCode: sku.skuCode,
+  price: sku.price,
+  originalPrice: sku.originalPrice,    // ✅ Thêm dòng này
+  stock: sku.stock,
+  label: `${sku.product?.name} - ${sku.skuCode} - ${sku.originalPrice?.toLocaleString('vi-VN')}đ`
+}));
+
 
     res.json(result);
   } catch (err) {

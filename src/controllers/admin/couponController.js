@@ -131,11 +131,11 @@ static async update(req, res) {
       ...couponData
     } = req.body;
 
-    // 1. Cập nhật dữ liệu chính
+    // 1. Cập nhật dữ liệu chính của coupon
     await coupon.update(couponData, { transaction: t });
 
     // ======================
-    // === CouponUser sync ==
+    // === Đồng bộ CouponUser ===
     const currentUsers = await CouponUser.findAll({ where: { couponId: id }, transaction: t });
     const currentUserIds = currentUsers.map(u => u.userId);
 
@@ -145,7 +145,7 @@ static async update(req, res) {
     if (toDeleteUser.length > 0) {
       await CouponUser.destroy({
         where: { couponId: id, userId: toDeleteUser },
-        force: true,
+        force: true, // <-- Thêm lại để xóa vĩnh viễn
         transaction: t
       });
     }
@@ -156,8 +156,8 @@ static async update(req, res) {
     }
 
     // ======================
-    // === CouponItem sync ===
-    const currentItems = await CouponItem.findAll({ where: { couponId: id }, transaction: t });
+    // === Đồng bộ CouponItem ===
+    const currentItems = await CouponItem.findAll({ where: { couponId: id }, paranoid: false, transaction: t });
     const currentItemIds = currentItems.map(i => i.skuId);
 
     const toDeleteItem = currentItemIds.filter(pid => !productIds.includes(pid));
@@ -166,7 +166,7 @@ static async update(req, res) {
     if (toDeleteItem.length > 0) {
       await CouponItem.destroy({
         where: { couponId: id, skuId: toDeleteItem },
-        force: true,
+        force: true, // <-- Thêm lại để xóa vĩnh viễn
         transaction: t
       });
     }
@@ -177,7 +177,7 @@ static async update(req, res) {
     }
 
     // ======================
-    // === CouponCategory sync ===
+    // === Đồng bộ CouponCategory ===
     const currentCategories = await CouponCategory.findAll({ where: { couponId: id }, transaction: t });
     const currentCategoryIds = currentCategories.map(c => c.categoryId);
 
@@ -187,7 +187,7 @@ static async update(req, res) {
     if (toDeleteCategory.length > 0) {
       await CouponCategory.destroy({
         where: { couponId: id, categoryId: toDeleteCategory },
-        force: true,
+        force: true, // <-- Thêm lại để xóa vĩnh viễn
         transaction: t
       });
     }
@@ -197,7 +197,7 @@ static async update(req, res) {
       await CouponCategory.bulkCreate(newCategories, { transaction: t });
     }
 
-    // ✅ Commit cuối
+    // Commit cuối
     await t.commit();
     res.json({ message: '✅ Cập nhật thành công', data: coupon });
 
@@ -207,7 +207,6 @@ static async update(req, res) {
     res.status(500).json({ message: 'Lỗi cập nhật', error: err.message });
   }
 }
-
 
 
 
@@ -330,21 +329,50 @@ static async getUsers(req, res) {
 }
 static async getCategories(req, res) {
   try {
-    const list = await Category.findAll({
+    const all = await Category.findAll({
       where: { deletedAt: null, isActive: true },
-      attributes: ['id', 'name'],
+      attributes: ['id', 'name', 'parentId'],
       order: [['name', 'ASC']]
     });
 
-    res.json(list.map(c => ({
-      id: c.id,
-      label: c.name // ✅ thêm label chuẩn
-    })));
+    const buildTree = (categories, parentId = null, level = 0) => {
+      return categories
+        .filter(cat => cat.parentId === parentId)
+        .map(cat => {
+          const indentation = '│   '.repeat(level) + (level > 0 ? '├─ ' : '');
+          return {
+            id: cat.id,
+            label: `${indentation}${cat.name}`,
+            parentId: cat.parentId,
+            level
+          };
+        });
+    };
+
+    const flattenTree = (categories, parentId = null, level = 0) => {
+      let result = [];
+      categories
+        .filter(cat => cat.parentId === parentId)
+        .forEach(cat => {
+          const indentation = '│   '.repeat(level) + (level > 0 ? '├─ ' : '');
+          result.push({
+            id: cat.id,
+            label: `${indentation}${cat.name}`
+          });
+          result = result.concat(flattenTree(categories, cat.id, level + 1));
+        });
+      return result;
+    };
+
+    const flatList = flattenTree(all);
+
+    res.json(flatList);
   } catch (err) {
     console.error('❌ Lỗi getCategories:', err);
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
+
 
  static async getProducts(req, res) {
   try {

@@ -1,140 +1,13 @@
 // src/controllers/admin/bannerController.js
-const { Banner } = require('../../models');
+const { Banner, Category, Product, } = require('../../models');
 const { Op } = require('sequelize');
+const slugify = require('slugify');  
+const bannerImageSizeMap = require('../../config/bannerImageSizeMap');
 
 class BannerController {
   
-   static async create(req, res) {
-    try {
-      const {
-        title,
-        linkUrl,
-        altText,
-        type,
-        displayOrder,
-        startDate,
-        endDate,
-        isActive
-      } = req.body;
-
-   
-      if (!req.file || !req.file.path) {
-        return res.status(400).json({ message: 'Vui lòng chọn ảnh banner' });
-      }
-
-      
-      const imageUrl = req.file.path.startsWith('http')
-        ? req.file.path
-        : `/uploads/${req.file.filename}`;
-
-      const banner = await Banner.create({
-        title: title?.trim() || null,
-        linkUrl: linkUrl?.trim() || null,
-        altText: altText?.trim() || null,
-        type: type?.trim() || null,
-        displayOrder: parseInt(displayOrder, 10) || 1,
-        startDate: startDate || null,
-        endDate: endDate || null,
-        isActive: isActive === 'true' || isActive === true,
-        imageUrl
-      });
-
-      return res.status(201).json({
-        message: 'Tạo banner thành công',
-        data: banner
-      });
-    } catch (error) {
-      console.error('CREATE BANNER ERROR:', error);
-      return res.status(500).json({
-        message: 'Lỗi server khi tạo banner',
-        error: error.message
-      });
-    }
-  }
-
-  
-  static async getAll(req, res) {
+static async create(req, res) {
   try {
-    const { type, isActive, search, page = 1, limit = 10 } = req.query;
-    const whereClause = {};
-
-    if (type) {
-      whereClause.type = type.trim();
-    }
-    if (isActive !== undefined) {
-      whereClause.isActive = isActive === '1' || isActive === 'true';
-    }
-    if (search && search.trim() !== '') {
-      const keyword = `%${search.trim()}%`;
-      whereClause[Op.or] = [
-        { title:   { [Op.like]: keyword } },
-        { altText: { [Op.like]: keyword } }
-      ];
-    }
-
-    const offset = (Number(page) - 1) * Number(limit);
-
-    const { rows: banners, count: totalItems } = await Banner.findAndCountAll({
-      where: whereClause,
-      order: [
-        ['type', 'ASC'],
-        ['displayOrder', 'ASC']
-      ],
-      offset,
-      limit: Number(limit)
-    });
-
-    const totalPages = Math.ceil(totalItems / Number(limit));
-
-    return res.json({
-      data: banners,
-      pagination: {
-        totalItems,
-        totalPages,
-        currentPage: Number(page),
-        limit: Number(limit)
-      }
-    });
-  } catch (error) {
-    console.error('GET BANNERS ERROR:', error);
-    return res.status(500).json({
-      message: 'Lỗi lấy danh sách banner',
-      error: error.message
-    });
-  }
-}
-
-
- 
-  static async getById(req, res) {
-    try {
-      const banner = await Banner.findByPk(req.params.id);
-      if (!banner) {
-        return res.status(404).json({ message: 'Không tìm thấy banner' });
-      }
-      return res.json({ data: banner });
-    } catch (error) {
-      console.error('GET BANNER BY ID ERROR:', error);
-      return res.status(500).json({ message: 'Lỗi lấy banner', error: error.message });
-    }
-  }
-
- 
- static async update(req, res) {
-  try {
-    const banner = await Banner.findByPk(req.params.id);
-    if (!banner) {
-      return res.status(404).json({ message: 'Không tìm thấy banner' });
-    }
-
-   
-    if (req.file && req.file.path) {
-      banner.imageUrl = req.file.path.startsWith('http')
-        ? req.file.path
-        : `/uploads/${req.file.filename}`;
-    }
-
-    
     const {
       title,
       linkUrl,
@@ -143,27 +16,238 @@ class BannerController {
       displayOrder,
       startDate,
       endDate,
+       categoryId,   // ✅ THÊM
+  productId  ,   // ✅ THÊM
       isActive
     } = req.body;
 
-    if (title !== undefined) banner.title = title?.trim() || null;
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: 'Vui lòng chọn ảnh banner' });
+    }
+
+    const imageUrl = req.file.path.startsWith('http')
+      ? req.file.path
+      : `/uploads/${req.file.filename}`;
+
+    const slug = slugify(title || '', { lower: true, strict: true });
+
+    if (!type) {
+      return res.status(400).json({ message: 'Thiếu type của banner' });
+    }
+
+    const trimmedType = type.trim();
+
+    let finalOrder = parseInt(displayOrder, 10);
+
+    // ✅ Nếu không truyền displayOrder thì lấy cuối
+    if (!finalOrder || isNaN(finalOrder) || finalOrder < 1) {
+      const maxOrder = await Banner.max('displayOrder', {
+        where: { type: trimmedType }
+      });
+      finalOrder = (maxOrder || 0) + 1;
+    } else {
+      // ✅ Nếu đã truyền order: kiểm tra trùng → đẩy các order >= sang phải
+      await Banner.increment(
+        { displayOrder: 1 },
+        {
+          where: {
+            type: trimmedType,
+            displayOrder: {
+              [Op.gte]: finalOrder
+            }
+          }
+        }
+      );
+    }
+
+    const banner = await Banner.create({
+  title: title?.trim() || null,
+  slug,
+  linkUrl: linkUrl?.trim() || null,
+  altText: altText?.trim() || null,
+  type: trimmedType,
+  displayOrder: finalOrder,
+  startDate: startDate || null,
+  endDate: endDate || null,
+  isActive: isActive === 'true' || isActive === true,
+  imageUrl,
+  categoryId: categoryId || null,  // ✅ GÁN
+  productId: productId || null     // ✅ GÁN
+});
+
+    return res.status(201).json({
+      message: 'Tạo banner thành công',
+      data: banner
+    });
+  } catch (error) {
+    console.error('CREATE BANNER ERROR:', error);
+    return res.status(500).json({
+      message: 'Lỗi server khi tạo banner',
+      error: error.message
+    });
+  }
+}
+
+
+
+
+static async getAll(req, res) {
+  try {
+    const { type, isActive, search, page = 1, limit = 10 } = req.query;
+    const whereClause = {};
+
+    if (type) whereClause.type = type.trim();
+    if (isActive !== undefined) whereClause.isActive = isActive === '1' || isActive === 'true';
+    if (search && search.trim() !== '') {
+      const keyword = `%${search.trim()}%`;
+      whereClause[Op.or] = [
+        { title: { [Op.like]: keyword } },
+        { altText: { [Op.like]: keyword } }
+      ];
+    }
+
+    const offset = (Number(page) - 1) * Number(limit);
+    const { rows: banners, count: totalItems } = await Banner.findAndCountAll({
+      where: whereClause,
+      offset,
+      limit: Number(limit),
+      order: [['type', 'ASC'], ['displayOrder', 'ASC']]
+    });
+
+    const bannersWithSize = banners.map(b => ({
+      ...b.toJSON(),
+      imageSize: bannerImageSizeMap[b.type] || { width: 80, height: 80 }
+    }));
+
+    return res.json({
+      data: bannersWithSize,
+      pagination: {
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: Number(page),
+        limit: Number(limit)
+      }
+    });
+  } catch (error) {
+    console.error('GET BANNERS ERROR:', error);
+    return res.status(500).json({ message: 'Lỗi lấy danh sách banner', error: error.message });
+  }
+}
+
+
+
+ 
+ static async getById(req, res) {
+  try {
+    const { slug } = req.params;
+
+    const banner = await Banner.findOne({ where: { slug } });
+
+    if (!banner) {
+      return res.status(404).json({ message: 'Không tìm thấy banner' });
+    }
+
+    return res.json({ data: banner });
+  } catch (error) {
+    console.error('GET BANNER BY SLUG ERROR:', error);
+    return res.status(500).json({ message: 'Lỗi lấy banner theo slug', error: error.message });
+  }
+}
+
+
+ 
+static async update(req, res) {
+  try {
+    const { slug } = req.params;
+
+    const banner = await Banner.findOne({ where: { slug } });
+    if (!banner) {
+      return res.status(404).json({ message: 'Không tìm thấy banner' });
+    }
+
+    const oldType = banner.type;
+    const oldOrder = banner.displayOrder;
+
+    // Cập nhật ảnh nếu có
+    if (req.file && req.file.path) {
+      banner.imageUrl = req.file.path.startsWith('http')
+        ? req.file.path
+        : `/uploads/${req.file.filename}`;
+    }
+
+const {
+  title,
+  linkUrl,
+  altText,
+  type,
+  displayOrder,
+  startDate,
+  endDate,
+  isActive,
+  categoryId,    // ✅ THÊM
+  productId      // ✅ THÊM
+} = req.body;
+
+    if (title !== undefined) {
+      banner.title = title?.trim() || null;
+      banner.slug = slugify(title || '', { lower: true, strict: true });
+    }
+
     if (linkUrl !== undefined) banner.linkUrl = linkUrl?.trim() || null;
     if (altText !== undefined) banner.altText = altText?.trim() || null;
     if (type !== undefined) banner.type = type?.trim() || null;
-    if (displayOrder !== undefined) banner.displayOrder = parseInt(displayOrder, 10) || 1;
     if (startDate !== undefined) banner.startDate = startDate || null;
     if (endDate !== undefined) banner.endDate = endDate || null;
-    if (isActive !== undefined) {
-      banner.isActive = isActive === 'true' || isActive === true;
+    if (isActive !== undefined) banner.isActive = isActive === 'true' || isActive === true;
+if (categoryId !== undefined) banner.categoryId = categoryId || null;
+if (productId !== undefined) banner.productId = productId || null;
+
+    const newType = banner.type;
+    const newOrder = parseInt(displayOrder, 10);
+
+    // ✅ Nếu có thay đổi type hoặc displayOrder → xử lý xếp chèn
+    if (
+      (type !== undefined && newType !== oldType) ||
+      (displayOrder !== undefined && newOrder !== oldOrder)
+    ) {
+      // Xoá khỏi vị trí cũ (giảm thứ tự những cái phía sau của type cũ)
+      await Banner.decrement(
+        { displayOrder: 1 },
+        {
+          where: {
+            id: { [Op.ne]: banner.id },
+            type: oldType,
+            displayOrder: { [Op.gt]: oldOrder }
+          }
+        }
+      );
+
+      // Chèn vào vị trí mới (tăng những cái >=)
+      const finalOrder = isNaN(newOrder) || newOrder < 1 ? 1 : newOrder;
+
+      await Banner.increment(
+        { displayOrder: 1 },
+        {
+          where: {
+            id: { [Op.ne]: banner.id },
+            type: newType,
+            displayOrder: { [Op.gte]: finalOrder }
+          }
+        }
+      );
+
+      banner.displayOrder = finalOrder;
     }
 
     await banner.save();
+
     return res.json({ message: 'Cập nhật banner thành công', data: banner });
   } catch (error) {
-    console.error('UPDATE BANNER ERROR:', error);
+    console.error('UPDATE BANNER BY SLUG ERROR:', error);
     return res.status(500).json({ message: 'Lỗi cập nhật banner', error: error.message });
   }
 }
+
 
 
   
@@ -230,23 +314,42 @@ class BannerController {
     return res.status(500).json({ message: 'Lỗi server khi cập nhật thứ tự', error: error.message });
   }
 }
- static async getCategoriesForSelect(req, res) {
-    try {
-      const categories = await Category.findAll({
-        attributes: ['id', 'name'],
-        where: { isActive: true },          // chỉ lấy categories đang active
-        order: [['name', 'ASC']]            // sắp xếp theo tên
-        // Sequelize sẽ tự động loại bỏ những bản ghi có deletedAt != null (paranoid = true)
-      });
-      return res.json({ data: categories });
-    } catch (error) {
-      console.error('GET CATEGORIES FOR SELECT ERROR:', error);
-      return res.status(500).json({
-        message: 'Lỗi khi lấy danh sách category',
-        error: error.message
-      });
-    }
+static async getCategoriesForSelect(req, res) {
+  try {
+    const all = await Category.findAll({
+      attributes: ['id', 'name', 'parentId', 'slug'],
+      where: { isActive: true },
+      order: [['sortOrder', 'ASC']]
+    });
+
+    const parents = all.filter(c => !c.parentId);
+    const children = all.filter(c => c.parentId);
+
+    const nested = parents.map(parent => {
+      return {
+        id: parent.id,
+        name: parent.name,
+        slug: parent.slug,
+        children: children
+          .filter(child => child.parentId === parent.id)
+          .map(child => ({
+            id: child.id,
+            name: child.name,
+            slug: child.slug
+          }))
+      };
+    });
+
+    return res.json({ data: nested });
+  } catch (error) {
+    console.error('GET NESTED CATEGORIES ERROR:', error);
+    return res.status(500).json({
+      message: 'Lỗi khi lấy danh sách danh mục cha - con',
+      error: error.message
+    });
   }
+}
+
 
   // GET /admin/banners/products-for-select
   static async getProductsForSelect(req, res) {
