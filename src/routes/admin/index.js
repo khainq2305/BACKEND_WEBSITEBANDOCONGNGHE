@@ -20,6 +20,7 @@ const bannerRoutes = require('./banner.routes');
 const tagsRoute = require('./tags.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
+const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
 
 router.use('/', orderRoutes);  
 
@@ -42,5 +43,8 @@ router.use('/categories', categoryRoutes);
 router.use("/", uploadRoutes);
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/brands', brandRoutes);
+
+
+router.use('/reviews', reviewRoutes); // 👈 quản lý đánh giá tại /admin/reviews
 
 module.exports = router;

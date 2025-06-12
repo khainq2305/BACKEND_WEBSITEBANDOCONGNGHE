@@ -1,4 +1,3 @@
-const { uploadImage } = require("../../services/common/upload.service");
 const {
   Review,
   ReviewMedia,
@@ -24,28 +23,30 @@ class ReviewController {
           {
             model: Order,
             as: "order",
-            where: {
-              userId,
-              isPaid: true,
-            },
+            where: { userId, status: "completed" },
           },
         ],
       });
 
       if (!orderItem) {
         return res.status(403).json({
-          message: "Bạn chưa mua sản phẩm này hoặc đơn chưa thanh toán!",
+          message:
+            "Bạn chỉ được đánh giá sản phẩm sau khi đơn đã giao thành công!",
         });
       }
 
-      // Chặn người dùng đã đánh giá
       const existingReview = await Review.findOne({
-        where: { userId, skuId },
+        where: {
+          userId,
+          skuId,
+          orderItemId: orderItem.id,
+        },
       });
+
       if (existingReview) {
-        return res.status(400).json({
-          message: "Bạn đã đánh giá sản phẩm này rồi!",
-        });
+        return res
+          .status(400)
+          .json({ message: "Bạn đã đánh giá sản phẩm này rồi!" });
       }
 
       const rawSlug = content?.substring(0, 60) || "review";
@@ -68,14 +69,12 @@ class ReviewController {
         slug,
       });
 
-      const files = req.files || [];
-      for (const file of files) {
-        const uploadResult = await uploadImage(file.path, "review_media");
-        const isVideo = file.mimetype.startsWith("video");
+      const allFiles = req.files || [];
+      for (const file of allFiles) {
         await ReviewMedia.create({
           reviewId: review.id,
-          url: uploadResult.url,
-          type: isVideo ? "video" : "image",
+          url: file.path,
+          type: "image",
         });
       }
 
@@ -94,15 +93,12 @@ class ReviewController {
       const sku = await Sku.findByPk(id);
       if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
 
-      // Khởi tạo where clause cơ bản
       const whereClause = { skuId: id };
 
-      // Lọc theo số sao nếu hợp lệ
       if (star !== undefined && !isNaN(Number(star))) {
         whereClause.rating = Number(star);
       }
 
-      // Lọc theo đơn hàng đã mua
       if (purchased === "true") {
         whereClause.orderItemId = { [Op.ne]: null };
       }
@@ -111,7 +107,7 @@ class ReviewController {
         {
           model: ReviewMedia,
           as: "media",
-          required: hasMedia === "true", // chỉ join nếu lọc theo media
+          required: hasMedia === "true",
         },
         {
           model: User,

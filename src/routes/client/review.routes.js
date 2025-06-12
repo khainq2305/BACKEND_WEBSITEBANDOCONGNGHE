@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const ReviewController = require("../../controllers/client/reviewController");
 const { checkJWT } = require("../../middlewares/checkJWT");
-const upload = require("../../middlewares/upload");
+const {upload }= require("../../config/cloudinary");
 const { validateReview } = require("../../validations/reviewValidator");
 
 router.post(

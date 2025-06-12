@@ -1,48 +1,54 @@
 module.exports = (sequelize, DataTypes) => {
   const Review = sequelize.define(
-    'Review',
+    "Review",
     {
       content: {
         type: DataTypes.TEXT,
-        allowNull: false
+        allowNull: false,
       },
       rating: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
       },
       isReplied: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: false,
       },
       replyContent: {
         type: DataTypes.TEXT,
-        allowNull: true
+        allowNull: true,
       },
       responderId: {
         type: DataTypes.INTEGER,
-        allowNull: true
+        allowNull: true,
       },
       isHidden: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: false,
       },
       reportCount: {
         type: DataTypes.INTEGER,
-        defaultValue: 0
+        defaultValue: 0,
       },
-       slug: {
+      slug: {
         type: DataTypes.STRING,
         allowNull: true,
         unique: true,
       },
+      replyDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      repliedBy: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
-      tableName: 'reviews',
-      timestamps: true
+      tableName: "reviews",
+      timestamps: true,
     }
   );
-
-  
 
   return Review;
 };
