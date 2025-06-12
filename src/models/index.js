@@ -34,14 +34,8 @@ const Wishlist = require('./wishlistModel');
 
 const Review = require("./reviewModel")(connection, Sequelize.DataTypes);
 const ReviewMedia = require("./reviewmediamodel")(connection, Sequelize.DataTypes);
-const Notification = require("./notification.model")(
-  connection,
-  Sequelize.DataTypes
-);
-const NotificationUser = require("./notificationUser.model")(
-  connection,
-  Sequelize.DataTypes
-);
+const Notification = require("./notification.model")
+const NotificationUser = require("./notificationUser.model")
 const Order = require("./order");
 const OrderItem = require("./orderItem");
 const PaymentMethod = require("./paymentMethod");
