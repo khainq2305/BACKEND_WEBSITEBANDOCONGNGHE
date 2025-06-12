@@ -25,7 +25,7 @@ router.use('/', sliderRoutes);
 router.use('/tin-noi-bat', postRoutes);
 router.use('/', flashSaleRoutes);  
 router.use('/', searchRoutes);
-router.use('/api/client/categories', categoryRoutes); 
+router.use('/api/client/categories', categoryRoutes);
 router.use('/', highlightedCategoryRoutes);
 router.use('/orders', orderRoutes);
 router.use('/', sectionClientRoutes); 

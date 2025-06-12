@@ -1,0 +1,24 @@
+[2025-05-25T10:42:01.128Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:42:21.730Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:42:52.379Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:42:56.484Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:42:57.596Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:43:17.583Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:43:21.953Z] Brand is not defined
+Route: POST /admin/brands/create
+
+[2025-05-25T10:47:52.539Z] Cannot read properties of undefined (reading 'findOne')
+Route: POST /admin/brands/create
+
