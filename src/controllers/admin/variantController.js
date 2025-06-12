@@ -68,9 +68,9 @@ static async create(req, res) {
       const { name, description, type, isActive } = req.body;
       const slug = name.toLowerCase().replace(/\s+/g, '-');
     const newVariant = await Variant.create({ name, description, type, slug, isActive });
-if (!['image', 'color', 'text'].includes(type)) {
-  return res.status(400).json({ message: 'Kiểu thuộc tính không hợp lệ' });
-}
+if (!['color', 'text'].includes(type)) {
+      return res.status(400).json({ message: 'Kiểu thuộc tính không hợp lệ' });
+    }
 
       res.status(201).json({ message: 'Tạo thuộc tính thành công', data: newVariant });
     } catch (error) {
@@ -230,7 +230,7 @@ static async update(req, res) {
     const { slug } = req.params;
     const { name, description, type, isActive } = req.body;
 
-    if (!['image', 'color', 'text'].includes(type)) {
+   if (!['color', 'text'].includes(type)) {
       return res.status(400).json({ message: 'Kiểu thuộc tính không hợp lệ' });
     }
 

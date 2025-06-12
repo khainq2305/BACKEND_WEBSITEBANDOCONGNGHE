@@ -4,6 +4,8 @@ const { upload } = require('../../config/cloudinary');
 const BannerController = require('../../controllers/admin/BannerController');
 const { validateBanner } = require('../../validations/bannerValidator'); 
 
+router.get('/banners/categories-for-select', BannerController.getCategoriesForSelect);
+router.get('/banners/products-for-select', BannerController.getProductsForSelect);
 
 router.post(
   '/banners',
@@ -18,22 +20,22 @@ router.put(
   BannerController.updateOrder
 );
 router.put(
-  '/banners/:id',
+  '/banners/:slug',
   upload.single('image'),
   validateBanner,
   BannerController.update
 );
+// Sửa lại route từ POST → DELETE
+router.delete('/banners/force-delete', BannerController.forceDeleteMany);
 
+router.get('/banners/:slug', BannerController.getById);
 
 router.get('/banners', BannerController.getAll);
 
 
-router.get('/banners/:id', BannerController.getById);
 
 
 router.delete('/banners/:id', BannerController.delete);
 
-
-router.post('/banners/force-delete', BannerController.forceDeleteMany);
 
 module.exports = router;

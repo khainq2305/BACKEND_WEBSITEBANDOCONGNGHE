@@ -948,65 +948,73 @@ class AuthController {
     }
   }
 
-  static async getUserInfo(req, res) {
-    try {
-      const token = req.headers.authorization?.split(" ")[1];
+ static async getUserInfo(req, res) {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
 
-      if (!token) {
-        return res.status(401).json({ message: "Không có token xác thực!" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      const user = await User.findByPk(decoded.id, {
-        attributes: [
-          "id",
-          "fullName",
-          "email",
-          "roleId",
-          "phone",
-          "gender",
-          "dateOfBirth",
-          "avatarUrl",
-        ],
-      });
-
-      if (!user) {
-        return res.status(404).json({ message: "Người dùng không tồn tại!" });
-      }
-
-      const userResponse = user.toJSON();
-
-      if (userResponse.dateOfBirth) {
-        const [year, month, day] = userResponse.dateOfBirth.split("-");
-        userResponse.birthDate = {
-          day: day || "",
-          month: month || "",
-          year: year || "",
-        };
-      } else {
-        userResponse.birthDate = { day: "", month: "", year: "" };
-      }
-
-      delete userResponse.dateOfBirth;
-
-      res.status(200).json({ user: userResponse });
-    } catch (err) {
-      console.error("Lỗi khi lấy thông tin người dùng:", err.name, err.message);
-      if (
-        err.name === "JsonWebTokenError" ||
-        err.name === "TokenExpiredError"
-      ) {
-        return res
-          .status(401)
-          .json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
-      }
-
-      res.status(500).json({
-        message: "Đã xảy ra lỗi máy chủ khi cố gắng lấy thông tin người dùng.",
-      });
+    if (!token) {
+      return res.status(401).json({ message: "Không có token xác thực!" });
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findByPk(decoded.id, {
+      attributes: [
+        "id",
+        "fullName",
+        "email",
+        "roleId",
+        "phone",
+        "gender",
+        "dateOfBirth",
+        "avatarUrl",
+        "password",   // ✅ để kiểm tra đã thiết lập chưa
+        "provider",   // ✅ để biết đăng nhập qua Google/Facebook
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại!" });
+    }
+
+    const userResponse = user.toJSON();
+
+    // 👉 Chuyển ngày sinh thành object { day, month, year }
+    if (userResponse.dateOfBirth) {
+      const [year, month, day] = userResponse.dateOfBirth.split("-");
+      userResponse.birthDate = {
+        day: day || "",
+        month: month || "",
+        year: year || "",
+      };
+    } else {
+      userResponse.birthDate = { day: "", month: "", year: "" };
+    }
+
+    // 👉 Thêm flag hasPassword cho frontend sử dụng
+    userResponse.hasPassword = !!userResponse.password;
+
+    // ❌ Không gửi password về client
+    delete userResponse.password;
+    delete userResponse.dateOfBirth;
+
+    res.status(200).json({ user: userResponse });
+  } catch (err) {
+    console.error("Lỗi khi lấy thông tin người dùng:", err.name, err.message);
+
+    if (
+      err.name === "JsonWebTokenError" ||
+      err.name === "TokenExpiredError"
+    ) {
+      return res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
+    }
+
+    res.status(500).json({
+      message: "Đã xảy ra lỗi máy chủ khi cố gắng lấy thông tin người dùng.",
+    });
   }
+}
+
 
   static async updateProfile(req, res) {
 
@@ -1345,6 +1353,58 @@ class AuthController {
       res.status(500).json({ message: "Lỗi server!" });
     }
   }
+static async changePassword(req, res) {
+  try {
+    const { id } = req.user;
+    const { currentPassword, newPassword } = req.body;
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (!newPassword || !passwordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message:
+          "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.",
+      });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
+    }
+
+    if (user.password) {
+      // Nếu user đã có mật khẩu → xác minh mật khẩu cũ
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Vui lòng nhập mật khẩu hiện tại" });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Mật khẩu hiện tại không đúng" });
+      }
+    } else {
+      // Trường hợp user login mạng xã hội lần đầu đặt mật khẩu
+      console.log("🔓 Cho phép thiết lập mật khẩu lần đầu cho user đăng nhập bằng mạng xã hội.");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.json({
+      message: user.password
+        ? "Đổi mật khẩu thành công"
+        : "Thiết lập mật khẩu thành công",
+    });
+  } catch (error) {
+    console.error("Lỗi đổi mật khẩu:", error);
+    return res.status(500).json({ message: "Lỗi server. Vui lòng thử lại sau." });
+  }
+}
+
+
+
+
 }
 
 module.exports = AuthController;

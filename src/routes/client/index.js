@@ -18,6 +18,9 @@ const sliderRoutes = require('./banner.routes');
 const reviewRoutes = require('./review.routes'); 
 const flashSaleRoutes = require('./flashSale.routes');
 const postRoutes = require('./post.route')
+const productViewRoutes = require('./productView.routes');
+router.use('/productviews', productViewRoutes); 
+
 router.use('/', sliderRoutes);             
 router.use('/tin-noi-bat', postRoutes);
 router.use('/', flashSaleRoutes);  

@@ -43,11 +43,12 @@ class UserAddressController {
       const userId = req.user.id;
       const addresses = await UserAddress.findAll({
         where: { userId },
-        include: [
-          { model: Province, attributes: ["name"], as: "province" },
-          { model: District, attributes: ["name"], as: "district" },
-          { model: Ward, attributes: ["name"], as: "ward" },
-        ],
+       include: [
+  { model: Province, attributes: ["id", "name"], as: "province" },
+  { model: District, attributes: ["id", "name", "ghnCode"], as: "district" },
+  { model: Ward, attributes: ["id", "name", "code"], as: "ward" },
+]
+
       });
 
       res.json({ data: addresses });

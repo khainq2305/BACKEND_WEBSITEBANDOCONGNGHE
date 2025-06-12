@@ -62,64 +62,60 @@ const validateProductSkus = (productData) => {
         message: `Mã của ${skuIdentifier} quá dài (tối đa ${MAX_SKU_CODE_LENGTH} ký tự).`
       });
     }
-// 2) originalPrice (Giá gốc)
-const oriPrice = Number(sku.originalPrice);
-if (sku.originalPrice == null || sku.originalPrice === '') {
-  allErrors.push({
-    field: `${skuPrefix}.originalPrice`,
-    message: `Giá gốc của ${skuIdentifier} không được để trống.`
-  });
-} else if (isNaN(oriPrice)) {
-  allErrors.push({
-    field: `${skuPrefix}.originalPrice`,
-    message: `Giá gốc của ${skuIdentifier} phải là số.`
-  });
-} else if (oriPrice <= 0) {
-  allErrors.push({
-    field: `${skuPrefix}.originalPrice`,
-    message: `Giá gốc của ${skuIdentifier} phải lớn hơn 0.`
-  });
-} else if (oriPrice > MAX_PRICE_VALUE) {
-  allErrors.push({
-    field: `${skuPrefix}.originalPrice`,
-    message: `Giá gốc của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString(
-      'vi-VN'
-    )} đ).`
-  });
-}
+  const oriPrice = Number(sku.originalPrice);
+    if (sku.originalPrice == null || sku.originalPrice === '') {
+      allErrors.push({
+        field: `${skuPrefix}.originalPrice`,
+        message: `Giá gốc của ${skuIdentifier} không được để trống.`
+      });
+    } else if (isNaN(oriPrice)) {
+      allErrors.push({
+        field: `${skuPrefix}.originalPrice`,
+        message: `Giá gốc của ${skuIdentifier} phải là một số.`
+      });
+    } else if (oriPrice <= 0) {
+      allErrors.push({
+        field: `${skuPrefix}.originalPrice`,
+        message: `Giá gốc của ${skuIdentifier} phải lớn hơn 0.`
+      });
+    } else if (oriPrice > MAX_PRICE_VALUE) {
+      allErrors.push({
+        field: `${skuPrefix}.originalPrice`,
+        message: `Giá gốc của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString('vi-VN')} đ).`
+      });
+    }
 
-// 3) price (Giá bán)
-let price;
-if (sku.price == null || sku.price === '') {
-  price = oriPrice;
-  sku.price = price;
-} else {
-  price = Number(sku.price);
-  if (isNaN(price)) {
-    allErrors.push({
-      field: `${skuPrefix}.price`,
-      message: `Giá bán của ${skuIdentifier} phải là số.`
-    });
-  } else if (price < 0) {
-    allErrors.push({
-      field: `${skuPrefix}.price`,
-      message: `Giá bán của ${skuIdentifier} không được âm.`
-    });
-  } else if (!isNaN(oriPrice) && price > oriPrice) {
-    allErrors.push({
-      field: `${skuPrefix}.price`,
-      message: `Giá bán của ${skuIdentifier} không được lớn hơn giá gốc.`
-    });
-  } else if (price > MAX_PRICE_VALUE) {
-    allErrors.push({
-      field: `${skuPrefix}.price`,
-      message: `Giá bán của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString(
-        'vi-VN'
-      )} đ).`
-    });
-  }
-}
+    // --- Validate Giá bán (KHÔNG BẮT BUỘC) ---
+    const price = Number(sku.price);
+    const hasSalePrice = sku.price != null && sku.price !== '';
 
+    // Chỉ validate NẾU người dùng có nhập giá bán
+    if (hasSalePrice) {
+      if (isNaN(price)) {
+          allErrors.push({
+              field: `${skuPrefix}.price`,
+              message: `Giá bán của ${skuIdentifier} phải là một số.`
+          });
+      } else if (price <= 0) {
+          allErrors.push({
+              field: `${skuPrefix}.price`,
+              message: `Giá bán của ${skuIdentifier} phải lớn hơn 0.`
+          });
+      } else if (price > MAX_PRICE_VALUE) {
+          allErrors.push({
+              field: `${skuPrefix}.price`,
+              message: `Giá bán của ${skuIdentifier} quá lớn (tối đa ${MAX_PRICE_VALUE.toLocaleString('vi-VN')} đ).`
+          });
+      }
+
+      // So sánh với giá gốc (chỉ khi giá gốc là một số hợp lệ)
+      if (!isNaN(oriPrice) && oriPrice > 0 && price >= oriPrice) { // <--- SỬA LẠI THÀNH >=
+        allErrors.push({
+          field: `${skuPrefix}.price`,
+          message: `Giá bán của ${skuIdentifier} phải nhỏ hơn giá gốc.` // Sửa lại câu thông báo cho rõ ràng
+        });
+      }
+    }
 
     if (sku.stock == null || sku.stock === '') {
       allErrors.push({
@@ -254,17 +250,28 @@ if (!name || name.trim() === '') {
   const slug = slugify(name.trim(), { lower: true, strict: true });
 
   // Kiểm tra slug đã tồn tại chưa (trừ chính sản phẩm đang sửa nếu có productId)
- const existing = await Product.findOne({
-  where: {
-    slug,
-    ...(productSlug && { slug: { [Op.ne]: productSlug } })  // trừ chính nó ra
-  }
-});
+let existing;
 
+if (productSlug) {
+  // Nếu đang sửa, lấy id thực tế từ slug
+  const currentProduct = await Product.findOne({ where: { slug: productSlug } });
 
-  if (existing) {
-    errors.push({ field: 'name', message: 'Tên sản phẩm đã tồn tại.' });
+  if (currentProduct) {
+    existing = await Product.findOne({
+      where: {
+        slug,
+        id: { [Op.ne]: currentProduct.id } 
+      }
+    });
   }
+} else {
+  existing = await Product.findOne({ where: { slug } });
+}
+
+if (existing) {
+  errors.push({ field: 'name', message: 'Tên sản phẩm đã tồn tại.' });
+}
+
 }
 
   

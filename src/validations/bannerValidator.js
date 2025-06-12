@@ -1,6 +1,8 @@
 const { Banner } = require('../models');
 const validator = require('validator');
 const path = require('path');
+const slugify = require('slugify');
+const { Op } = require('sequelize');
 
 const validateBanner = async (req, res, next) => {
   const {
@@ -12,7 +14,17 @@ const validateBanner = async (req, res, next) => {
   } = req.body;
 
   const errors = [];
-  const isEdit = !!req.params?.id;
+  const isEdit = !!req.params?.slug;
+  let currentBannerId = null;
+
+  // === Lấy id thật từ slug nếu đang sửa ===
+  if (isEdit) {
+    const existingBanner = await Banner.findOne({ where: { slug: req.params.slug } });
+    if (!existingBanner) {
+      return res.status(404).json({ message: 'Không tìm thấy banner cần sửa' });
+    }
+    currentBannerId = existingBanner.id;
+  }
 
   // === 1. Bắt buộc nhập ===
   if (!title || typeof title !== 'string' || !title.trim()) {
@@ -27,7 +39,7 @@ const validateBanner = async (req, res, next) => {
     errors.push({ field: 'displayOrder', message: 'Thứ tự hiển thị phải là số' });
   }
 
-  // === 2. Ngày (không bắt buộc, nhưng nếu có thì phải đúng định dạng ISO8601)
+  // === 2. Ngày
   const isValidStart = startDate && validator.isISO8601(startDate);
   const isValidEnd = endDate && validator.isISO8601(endDate);
 
@@ -43,7 +55,7 @@ const validateBanner = async (req, res, next) => {
     errors.push({ field: 'endDate', message: 'Ngày kết thúc phải sau ngày bắt đầu' });
   }
 
-  // === 3. Kiểm tra file ảnh nếu tạo mới
+  // === 3. Ảnh nếu tạo mới
   if (!isEdit && (!req.file || !req.file.path)) {
     errors.push({ field: 'image', message: 'Vui lòng chọn ảnh banner' });
   }
@@ -59,12 +71,17 @@ const validateBanner = async (req, res, next) => {
     }
   }
 
-  // === 5. Kiểm tra trùng tiêu đề khi tạo mới
-  if (!isEdit && title) {
-    const existing = await Banner.findOne({ where: { title: title.trim() } });
-    if (existing) {
-      errors.push({ field: 'title', message: 'Tiêu đề đã tồn tại' });
-    }
+  // === 5. Kiểm tra trùng slug tiêu đề
+  const slug = slugify(title.trim(), { lower: true, strict: true });
+  const slugCheckWhere = { slug };
+
+  if (isEdit && currentBannerId) {
+    slugCheckWhere.id = { [Op.ne]: currentBannerId };
+  }
+
+  const existing = await Banner.findOne({ where: slugCheckWhere });
+  if (existing) {
+    errors.push({ field: 'title', message: 'Tiêu đề đã tồn tại' });
   }
 
   if (errors.length > 0) {

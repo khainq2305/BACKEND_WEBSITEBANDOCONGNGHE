@@ -34,6 +34,7 @@ router.put(
   AuthController.updateProfile
 );
 
+router.put("/change-password",checkJWT, AuthController.changePassword);
 
 router.get("/get-reset-cooldown", AuthController.getResetCooldown); 
 router.get("/user-info", checkJWT, AuthController.getUserInfo);
