@@ -1,8 +1,7 @@
-// models/ProductQuestion.js (hoặc file tương ứng)
 module.exports = (sequelize, DataTypes) => {
-  const ProductQuestion = sequelize.define("ProductQuestion",
+  const ProductAnswer = sequelize.define("ProductAnswer",
     {
-      productId: {
+      questionId: {
         type: DataTypes.INTEGER,
         allowNull: false
       },
@@ -14,9 +13,21 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: false
       },
-      isAnswered: {
+      isOfficial: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+      },
+      parentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+      },
+      likesCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+      },
+      reportedCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
       },
       isHidden: {
         type: DataTypes.BOOLEAN,
@@ -24,10 +35,10 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     {
-      tableName: "productquestions",
+      tableName: "productanswers",
       timestamps: true
     }
   );
 
-  return ProductQuestion;
+  return ProductAnswer;
 };
