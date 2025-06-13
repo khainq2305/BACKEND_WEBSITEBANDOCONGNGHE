@@ -19,6 +19,8 @@ const reviewRoutes = require('./review.routes');
 const flashSaleRoutes = require('./flashSale.routes');
 const postRoutes = require('./post.route')
 const productViewRoutes = require('./productView.routes');
+const productQuestionRoutes = require('./productQuestion.route');
+
 router.use('/productviews', productViewRoutes); 
 
 router.use('/', sliderRoutes);             
@@ -39,4 +41,6 @@ router.use('/cart', cartRoutes);
 router.use('/review', reviewRoutes);
 router.use('/', couponRoutes);
 router.use('/notifications', require('./notificationClient.route'));
+router.use('/product-questions', productQuestionRoutes);
+
 module.exports = router;

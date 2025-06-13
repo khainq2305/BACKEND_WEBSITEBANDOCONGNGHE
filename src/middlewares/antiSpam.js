@@ -23,10 +23,12 @@ const clientSpamGuard = (req, res, next) => {
   }
 
   if (last && now - last < 30 * 1000) {
+    const remaining = Math.ceil((30 * 1000 - (now - last)) / 1000);
     return res.status(429).json({
-      message: 'Bạn đang gửi quá nhanh. Vui lòng thử lại sau 30 giây.'
+      message: `Bạn đang gửi quá nhanh. Vui lòng thử lại sau ${remaining} giây.`
     });
   }
+
 
   clientQuestionTimestamps.set(key, now);
   next();

@@ -21,6 +21,7 @@ const tagsRoute = require('./tags.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
 const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
+const productQuestionRoutes = require('./productQuestion.route');
 
 router.use('/', orderRoutes);  
 
@@ -46,5 +47,6 @@ router.use('/brands', brandRoutes);
 
 
 router.use('/reviews', reviewRoutes); // 👈 quản lý đánh giá tại /admin/reviews
+router.use('/product-questions', productQuestionRoutes);
 
 module.exports = router;
