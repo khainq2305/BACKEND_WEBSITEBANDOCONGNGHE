@@ -6,7 +6,7 @@ class HighlightedCategoryController {
     try {
       const items = await HighlightedCategoryItem.findAll({
         where: {
-          isActive: true, // ✅ lấy tất cả đang hoạt động, không lọc theo isHot/isNew/isFeatured
+          isActive: true, 
         },
         include: [
           {
@@ -23,12 +23,12 @@ class HighlightedCategoryController {
         name: item.category?.name,
         slug: item.category?.slug,
         imageUrl: item.imageUrl,
-        label: item.isHot ? 'hot' : item.isNew ? 'new' : item.isFeatured ? 'featured' : null // ✅ badge nếu có
+        label: item.isHot ? 'hot' : item.isNew ? 'new' : item.isFeatured ? 'featured' : null 
       }));
 
       return res.json({ success: true, data: result });
     } catch (err) {
-      console.error('❌ HighlightedCategoryController Error:', err);
+      console.error('HighlightedCategoryController Error:', err);
       return res.status(500).json({ success: false, message: 'Lỗi server' });
     }
   }

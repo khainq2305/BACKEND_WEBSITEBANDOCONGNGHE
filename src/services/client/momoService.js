@@ -9,7 +9,7 @@ const ipnUrl = process.env.MOMO_IPN_URL;
 
 exports.createPaymentLink = async ({ orderId, amount, orderInfo }) => {
   const requestId = `${orderId}-${Date.now()}`;
- const requestType = "payWithATM"; // hoặc "payWithCC"
+ const requestType = "payWithATM"; 
 
   const extraData = "";
 
@@ -34,8 +34,8 @@ exports.createPaymentLink = async ({ orderId, amount, orderInfo }) => {
     partnerCode,
     accessKey,
     requestId,
-    amount: `${Math.round(amount)}`, // string
-    orderId: `${orderId}`,           // string
+    amount: `${Math.round(amount)}`, 
+    orderId: `${orderId}`,         
     orderInfo,
     redirectUrl,
     ipnUrl,
@@ -44,14 +44,6 @@ exports.createPaymentLink = async ({ orderId, amount, orderInfo }) => {
     signature,
     lang: "vi",
   };
-
-  // ====================== 🔍 FULL LOG DEBUG ===========================
-  console.log("📦 --- MoMo DEBUG START ---");
-  console.log("🔐 rawSignature:", rawSignature);
-  console.log("🖊️  Signature:", signature);
-  console.log("📤 Payload gửi MoMo:", JSON.stringify(payload, null, 2));
-  // ===================================================================
-
   try {
     const response = await axios.post(
       "https://test-payment.momo.vn/v2/gateway/api/create",
@@ -60,14 +52,8 @@ exports.createPaymentLink = async ({ orderId, amount, orderInfo }) => {
         headers: { "Content-Type": "application/json" },
       }
     );
-
-    console.log("✅ MoMo response:", JSON.stringify(response.data, null, 2));
-    console.log("📦 --- MoMo DEBUG END ---\n");
     return response.data;
   } catch (error) {
-    console.log("❌ MoMo request failed:");
-    console.log("❌ Response:", error.response?.data || error.message);
-    console.log("📦 --- MoMo DEBUG END ---\n");
     throw error;
   }
 };

@@ -2,7 +2,6 @@ const { Op } = require('sequelize');
 const { Product, SearchHistory } = require('../../models');
 
 class SearchController {
-  // API: GET /api/search?q=ao-thun
   static async searchProducts(req, res) {
     try {
       const { q } = req.query;
@@ -11,14 +10,10 @@ class SearchController {
       if (!q || !q.trim()) {
         return res.status(400).json({ message: 'Từ khóa tìm kiếm không hợp lệ.' });
       }
-
-      // Ghi log lịch sử tìm kiếm
       await SearchHistory.create({
         keyword: q.trim(),
         sessionId
       });
-
-      // Tìm sản phẩm theo tên
       const products = await Product.findAll({
         where: {
           name: {
@@ -36,8 +31,6 @@ class SearchController {
       res.status(500).json({ message: 'Lỗi server' });
     }
   }
-
-  // API: GET /api/search/history
   static async getSearchHistory(req, res) {
     try {
       const sessionId = req.sessionID || req.headers['x-session-id'] || 'unknown';

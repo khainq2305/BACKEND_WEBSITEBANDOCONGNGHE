@@ -622,13 +622,13 @@ static async update(req, res) {
         return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
       }
 
-      // 3) Lấy infoContent
+      
       const infoContent = product.productInfo?.content || "";
 
-      // 4) Xử lý từng SKU để đưa vào cấu trúc trả về
+      
       const skus = await Promise.all(
         (product.skus || []).map(async (sku) => {
-          // Lấy các variantValue mapping
+       
           const variantMappings = await SkuVariantValue.findAll({
             where: { skuId: sku.id },
             include: [
@@ -669,23 +669,18 @@ static async update(req, res) {
           };
         })
       );
-
-      // 5) Tìm tất cả giá trị variant đã được sử dụng bởi ít nhất một SKU
       const usedValueIds = new Set();
       for (const sku of skus) {
         for (const valId of sku.variantValueIds || []) {
           usedValueIds.add(valId);
         }
       }
-
-      // 6) Gom nhóm productVariants → chỉ lấy variant + những giá trị đã dùng
       const variantsMap = new Map();
 
       (product.productVariants || []).forEach((pv) => {
         const variantId = pv.variant?.id;
         const variantName = pv.variant?.name;
         const allValues = pv.variant?.values || [];
-        // Chỉ giữ những giá trị mà set usedValueIds có chứa
         const filteredValues = allValues.filter((v) =>
           usedValueIds.has(v.id)
         );
@@ -700,8 +695,6 @@ static async update(req, res) {
       });
 
       const variants = Array.from(variantsMap.values());
-
-      // 7) Trả về JSON
       return res.json({
         data: {
           id: product.id,

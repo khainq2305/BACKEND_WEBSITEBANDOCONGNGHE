@@ -2,18 +2,17 @@
 const { Province, District, Ward } = require('../../models');
 
 class ShippingController {
-  // GET /shipping/provinces
+ 
   static async getProvinces(req, res) {
     try {
       const provinces = await Province.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC']] });
       res.json(provinces);
     } catch (error) {
-      console.error('❌ Lỗi lấy tỉnh từ DB:', error.message);
+      console.error('Lỗi lấy tỉnh từ DB:', error.message);
       res.status(500).json({ message: 'Lỗi lấy tỉnh từ database' });
     }
   }
 
-  // GET /shipping/districts?province_id=202
   static async getDistricts(req, res) {
     const { province_id } = req.query;
     if (!province_id) {
@@ -28,12 +27,12 @@ class ShippingController {
       });
       res.json(districts);
     } catch (error) {
-      console.error('❌ Lỗi lấy quận từ DB:', error.message);
+      console.error('Lỗi lấy quận từ DB:', error.message);
       res.status(500).json({ message: 'Lỗi lấy quận từ database' });
     }
   }
 
-  // GET /shipping/wards?district_id=1454
+
   static async getWards(req, res) {
     const { district_id } = req.query;
     if (!district_id) {
@@ -48,7 +47,7 @@ class ShippingController {
       });
       res.json(wards);
     } catch (error) {
-      console.error('❌ Lỗi lấy xã từ DB:', error.message);
+      console.error('Lỗi lấy xã từ DB:', error.message);
       res.status(500).json({ message: 'Lỗi lấy xã từ database' });
     }
   }

@@ -386,7 +386,7 @@ WishlistItem.belongsTo(Wishlist, { foreignKey: 'wishlistId' });
 
 WishlistItem.belongsTo(Product, {
   foreignKey: 'productId',
-  as: 'product', // ✅ Đặt alias để join chính xác
+  as: 'product',
 });
 Product.hasMany(WishlistItem, {
   foreignKey: 'productId',

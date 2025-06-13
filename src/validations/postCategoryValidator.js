@@ -3,14 +3,10 @@ const validator = require("validator");
 const validatePostCategory = (req, res, next) => {
   const formData = {
     name: req.body.name,
-    // parentId: req.body.parentId,
-    // isActive: req.body.isActive,
-    // description: req.body.description
   };
 
   const errors = {};
 
-  // Tên danh mục
   if (!formData.name || validator.isEmpty(formData.name.trim())) {
   errors.name = "Tên danh mục không được để trống";
 } else if (formData.name.trim().length < 2) {

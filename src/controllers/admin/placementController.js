@@ -19,8 +19,6 @@ class PlacementController {
       if (!placement) {
         return res.status(404).json({ message: 'Không tìm thấy khối hiển thị' });
       }
-
-      // Lật giá trị isActive
       placement.isActive = !placement.isActive;
       await placement.save();
 

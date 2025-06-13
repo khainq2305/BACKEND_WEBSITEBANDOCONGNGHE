@@ -17,8 +17,6 @@ const parseProductBody = (req, res, next) => {
   try {
     if (req.body.product) {
       req.product = JSON.parse(req.body.product);
-
-      // ÉP đảm bảo luôn có array
       if (Array.isArray(req.product?.skus)) {
         req.product.skus = req.product.skus.map(sku => ({
           ...sku,

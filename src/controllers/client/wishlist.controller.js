@@ -47,7 +47,7 @@ class WishlistController {
 
       res.json(result);
     } catch (err) {
-      console.error("❌ Lỗi lấy wishlist:", err);
+      console.error("Lỗi lấy wishlist:", err);
       res.status(500).json({ message: "Lỗi server" });
     }
   }
@@ -82,7 +82,7 @@ class WishlistController {
       });
       res.status(201).json(item);
     } catch (err) {
-      console.error("❌ Lỗi thêm wishlist:", err);
+      console.error("Lỗi thêm wishlist:", err);
       res.status(500).json({ message: "Lỗi server" });
     }
   }
@@ -110,7 +110,7 @@ class WishlistController {
 
       res.json({ message: "Đã xóa khỏi yêu thích" });
     } catch (err) {
-      console.error("❌ Lỗi xoá wishlist:", err);
+      console.error("Lỗi xoá wishlist:", err);
       res.status(500).json({ message: "Lỗi server" });
     }
   }

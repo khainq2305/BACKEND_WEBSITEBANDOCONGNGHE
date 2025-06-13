@@ -35,17 +35,14 @@ class HighlightedCategoryItemController {
 
       let sortOrder;
       if (req.body.sortOrder === undefined || req.body.sortOrder === "") {
-      
         sortOrder = 0;
 
-        
         const existedZero = await HighlightedCategoryItem.findOne({
           where: { sortOrder: 0 },
           transaction: t,
         });
 
         if (existedZero) {
-       
           await HighlightedCategoryItem.update(
             { sortOrder: literal("sortOrder + 1") },
             {
@@ -55,7 +52,6 @@ class HighlightedCategoryItemController {
           );
         }
       } else {
-      
         sortOrder = parseInt(req.body.sortOrder, 10);
 
         await HighlightedCategoryItem.update(
@@ -67,8 +63,7 @@ class HighlightedCategoryItemController {
         );
       }
 
-     const imageUrl = req.file?.path; // Cloudinary trả về URL trong req.file.path
-
+      const imageUrl = req.file?.path; // Cloudinary trả về URL trong req.file.path
 
       const item = await HighlightedCategoryItem.create(
         {
@@ -173,80 +168,79 @@ class HighlightedCategoryItemController {
   }
 
   static async update(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { slug } = req.params;
+    const t = await sequelize.transaction();
+    try {
+      const { slug } = req.params;
 
-    const item = await HighlightedCategoryItem.findOne({
-      where: { slug },
-      transaction: t,
-    });
-    if (!item) return res.status(404).json({ message: "Không tìm thấy" });
-
-    if (req.body.customTitle && req.body.customTitle !== item.customTitle) {
-      let baseSlug = slugify(req.body.customTitle);
-      const existing = await HighlightedCategoryItem.findAll({
-        where: {
-          slug: { [Op.like]: `${baseSlug}%` },
-          slug: { [Op.ne]: slug },
-        },
-        attributes: ["slug"],
+      const item = await HighlightedCategoryItem.findOne({
+        where: { slug },
         transaction: t,
       });
-      let newSlug = baseSlug;
-      if (existing.length) {
-        const suffix = existing
-          .map((it) => {
-            const m = it.slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
-            return m ? +m[1] : null;
-          })
-          .filter((n) => n != null);
-        newSlug = suffix.length
-          ? `${baseSlug}-${Math.max(...suffix) + 1}`
-          : `${baseSlug}-1`;
+      if (!item) return res.status(404).json({ message: "Không tìm thấy" });
+
+      if (req.body.customTitle && req.body.customTitle !== item.customTitle) {
+        let baseSlug = slugify(req.body.customTitle);
+        const existing = await HighlightedCategoryItem.findAll({
+          where: {
+            slug: { [Op.like]: `${baseSlug}%` },
+            slug: { [Op.ne]: slug },
+          },
+          attributes: ["slug"],
+          transaction: t,
+        });
+        let newSlug = baseSlug;
+        if (existing.length) {
+          const suffix = existing
+            .map((it) => {
+              const m = it.slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
+              return m ? +m[1] : null;
+            })
+            .filter((n) => n != null);
+          newSlug = suffix.length
+            ? `${baseSlug}-${Math.max(...suffix) + 1}`
+            : `${baseSlug}-1`;
+        }
+        req.body.slug = newSlug;
       }
-      req.body.slug = newSlug;
+
+      if (req.body.sortOrder && +req.body.sortOrder !== item.sortOrder) {
+        const newOrder = +req.body.sortOrder;
+        await HighlightedCategoryItem.update(
+          { sortOrder: literal("sortOrder + 1") },
+          {
+            where: {
+              sortOrder: { [Op.gte]: newOrder },
+              slug: { [Op.ne]: slug },
+            },
+            transaction: t,
+          }
+        );
+      }
+
+      if (req.file?.path) {
+        req.body.imageUrl = req.file.path;
+      }
+
+      await item.update(
+        {
+          ...req.body,
+          isHot: req.body.isHot === "true",
+          isNew: req.body.isNew === "true",
+          isFeatured: req.body.isFeatured === "true",
+        },
+        { transaction: t }
+      );
+
+      await t.commit();
+      return res.json({ message: "Cập nhật thành công", data: item });
+    } catch (err) {
+      await t.rollback();
+      console.error(err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server", error: err.message });
     }
-
-   if (req.body.sortOrder && +req.body.sortOrder !== item.sortOrder) {
-  const newOrder = +req.body.sortOrder;
-  await HighlightedCategoryItem.update(
-    { sortOrder: literal("sortOrder + 1") },
-    {
-      where: {
-        sortOrder: { [Op.gte]: newOrder },
-        slug: { [Op.ne]: slug },
-      },
-      transaction: t,
-    }
-  );
-}
-
-
-if (req.file?.path) {
-  req.body.imageUrl = req.file.path;
-}
-
-    await item.update(
-      {
-        ...req.body,
-        isHot: req.body.isHot === "true",
-        isNew: req.body.isNew === "true",
-        isFeatured: req.body.isFeatured === "true",
-      },
-      { transaction: t }
-    );
-
-    await t.commit();
-    return res.json({ message: "Cập nhật thành công", data: item });
-  } catch (err) {
-    await t.rollback();
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: "Lỗi server", error: err.message });
   }
-}
 
   static async delete(req, res) {
     try {
@@ -260,22 +254,22 @@ if (req.file?.path) {
       res.status(500).json({ message: "Lỗi xoá", error: err.message });
     }
   }
-static async getById(req, res) {
-  try {
-    const item = await HighlightedCategoryItem.findOne({
-      where: { slug: req.params.slug },
-      include: {
-        model: Category,
-        as: "category",
-        attributes: ["id", "name"],
-      },
-    });
-    if (!item) return res.status(404).json({ message: "Không tìm thấy" });
-    res.json(item);
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi lấy chi tiết", error: err.message });
+  static async getById(req, res) {
+    try {
+      const item = await HighlightedCategoryItem.findOne({
+        where: { slug: req.params.slug },
+        include: {
+          model: Category,
+          as: "category",
+          attributes: ["id", "name"],
+        },
+      });
+      if (!item) return res.status(404).json({ message: "Không tìm thấy" });
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Lỗi lấy chi tiết", error: err.message });
+    }
   }
-}
 
   static async reorder(req, res) {
     const t = await sequelize.transaction();

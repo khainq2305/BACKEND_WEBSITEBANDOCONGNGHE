@@ -968,8 +968,8 @@ class AuthController {
         "gender",
         "dateOfBirth",
         "avatarUrl",
-        "password",   // ✅ để kiểm tra đã thiết lập chưa
-        "provider",   // ✅ để biết đăng nhập qua Google/Facebook
+        "password",   
+        "provider",
       ],
     });
 
@@ -978,8 +978,6 @@ class AuthController {
     }
 
     const userResponse = user.toJSON();
-
-    // 👉 Chuyển ngày sinh thành object { day, month, year }
     if (userResponse.dateOfBirth) {
       const [year, month, day] = userResponse.dateOfBirth.split("-");
       userResponse.birthDate = {
@@ -990,11 +988,7 @@ class AuthController {
     } else {
       userResponse.birthDate = { day: "", month: "", year: "" };
     }
-
-    // 👉 Thêm flag hasPassword cho frontend sử dụng
     userResponse.hasPassword = !!userResponse.password;
-
-    // ❌ Không gửi password về client
     delete userResponse.password;
     delete userResponse.dateOfBirth;
 
@@ -1373,7 +1367,6 @@ static async changePassword(req, res) {
     }
 
     if (user.password) {
-      // Nếu user đã có mật khẩu → xác minh mật khẩu cũ
       if (!currentPassword) {
         return res.status(400).json({ message: "Vui lòng nhập mật khẩu hiện tại" });
       }
@@ -1383,7 +1376,6 @@ static async changePassword(req, res) {
         return res.status(400).json({ message: "Mật khẩu hiện tại không đúng" });
       }
     } else {
-      // Trường hợp user login mạng xã hội lần đầu đặt mật khẩu
       console.log("🔓 Cho phép thiết lập mật khẩu lần đầu cho user đăng nhập bằng mạng xã hội.");
     }
 

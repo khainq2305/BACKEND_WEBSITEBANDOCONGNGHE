@@ -43,12 +43,15 @@ class UserAddressController {
       const userId = req.user.id;
       const addresses = await UserAddress.findAll({
         where: { userId },
-       include: [
-  { model: Province, attributes: ["id", "name"], as: "province" },
-  { model: District, attributes: ["id", "name", "ghnCode"], as: "district" },
-  { model: Ward, attributes: ["id", "name", "code"], as: "ward" },
-]
-
+        include: [
+          { model: Province, attributes: ["id", "name"], as: "province" },
+          {
+            model: District,
+            attributes: ["id", "name", "ghnCode"],
+            as: "district",
+          },
+          { model: Ward, attributes: ["id", "name", "code"], as: "ward" },
+        ],
       });
 
       res.json({ data: addresses });
@@ -127,42 +130,49 @@ class UserAddressController {
   }
 
   // UserAddressController.js
-static async getDefault(req, res) {
-  try {
-    const userId = req.user.id;
-    const { addressId } = req.query;
-    let address;
-console.log("👉 [getDefault] req.user.id:", req.user.id);
+  static async getDefault(req, res) {
+    try {
+      const userId = req.user.id;
+      const { addressId } = req.query;
+      let address;
+      console.log("👉 [getDefault] req.user.id:", req.user.id);
 
-    const provinceAttributes = ["id", "name"];
-    const districtAttributes = ["id", "name", "ghnCode"]; 
-    const wardAttributes = ["id", "name", "code"];     
+      const provinceAttributes = ["id", "name"];
+      const districtAttributes = ["id", "name", "ghnCode"];
+      const wardAttributes = ["id", "name", "code"];
 
-    const includeOptions = [
-      { model: Province, as: "province", attributes: provinceAttributes },
-      { model: District, as: "district", attributes: districtAttributes },
-      { model: Ward, as: "ward", attributes: wardAttributes }, 
-    ];
+      const includeOptions = [
+        { model: Province, as: "province", attributes: provinceAttributes },
+        { model: District, as: "district", attributes: districtAttributes },
+        { model: Ward, as: "ward", attributes: wardAttributes },
+      ];
 
-    if (addressId) {
-      address = await UserAddress.findOne({
-        where: { id: addressId, userId },
-        include: includeOptions,
-      });
-    } else {
-      address = await UserAddress.findOne({
-        where: { userId, isDefault: true },
-        include: includeOptions,
-      });
+      if (addressId) {
+        address = await UserAddress.findOne({
+          where: { id: addressId, userId },
+          include: includeOptions,
+        });
+      } else {
+        address = await UserAddress.findOne({
+          where: { userId, isDefault: true },
+          include: includeOptions,
+        });
+      }
+
+      res.json({ data: address || null });
+    } catch (error) {
+      console.error(
+        "Lỗi lấy địa chỉ mặc định:",
+        error.name,
+        error.message,
+        error.parent?.sqlMessage
+      );
+      console.error("SQL Query (nếu có):", error.parent?.sql);
+      res
+        .status(500)
+        .json({ message: "Lỗi lấy địa chỉ", errorDetails: error.message });
     }
-
-    res.json({ data: address || null });
-  } catch (error) {
-    console.error("Lỗi lấy địa chỉ mặc định:", error.name, error.message, error.parent?.sqlMessage);
-    console.error("SQL Query (nếu có):", error.parent?.sql);
-    res.status(500).json({ message: "Lỗi lấy địa chỉ", errorDetails: error.message });
   }
-}
 }
 
 module.exports = UserAddressController;
