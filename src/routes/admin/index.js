@@ -20,8 +20,10 @@ const bannerRoutes = require('./banner.routes');
 const tagsRoute = require('./tags.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
+
 const productCompareRoutes = require("./productCompareRoutes");
 router.use("/", productCompareRoutes);
+
 
 router.use('/', orderRoutes);  
 

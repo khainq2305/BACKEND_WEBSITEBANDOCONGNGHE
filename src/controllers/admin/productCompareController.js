@@ -29,7 +29,7 @@ const ProductCompareController = {
         order: [["sortOrder", "ASC"]],
       });
 
-      // Gom thông số theo specKey
+      // Gom thông số theo specKeyy
       const specMap = {};
       specs.forEach(spec => {
         const key = spec.specKey;
