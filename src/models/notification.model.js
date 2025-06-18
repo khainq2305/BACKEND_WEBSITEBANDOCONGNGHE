@@ -64,5 +64,4 @@ const Notification = sequelize.define("Notification", {
   timestamps: true,
   paranoid: true,
 });
-
 module.exports = Notification;

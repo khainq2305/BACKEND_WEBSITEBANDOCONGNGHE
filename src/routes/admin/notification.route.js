@@ -11,17 +11,14 @@ const {
 
 router.get("/", NotificationController.getAll);
 router.post("/delete-many", NotificationController.deleteMany);
-
 router.get('/slug/:slug', NotificationController.getBySlug);
 router.get('/:id', NotificationController.getById);
-
 router.post(
   "/",
   upload.single("image"),
   autoSlug(Notification),
   NotificationController.create
 );
-
 router.put(
   "/:id",
   upload.single("image"),
@@ -29,5 +26,4 @@ router.put(
   NotificationController.update
 );
 router.delete("/:id", NotificationController.delete);
-
 module.exports = router;

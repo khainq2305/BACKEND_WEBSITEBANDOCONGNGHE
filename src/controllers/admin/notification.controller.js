@@ -1,13 +1,10 @@
 const { Notification } = require("../../models");
 const { NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
-//
+
 const NotificationController = {
   async create(req, res) {
     try {
-      console.log("🔥 [CREATE] req.body:", req.body);
-      console.log("🔥 [CREATE] req.file:", req.file?.path);
-
       const {
         title,
         message,
@@ -36,7 +33,7 @@ const NotificationController = {
       try {
         notification = await Notification.create({
           title,
-          slug, // ✅ dùng slug đã gán bởi middleware autoSlug
+          slug,
           message,
           imageUrl,
           link,
@@ -48,7 +45,7 @@ const NotificationController = {
           startAt: startAt ? new Date(startAt) : null,
         });
       } catch (err) {
-        console.error("❌ Lỗi khi tạo Notification:", err);
+        console.error("Lỗi khi tạo Notification:", err);
         return res
           .status(500)
           .json({ message: "Tạo Notification thất bại", error: err.message });
@@ -62,7 +59,7 @@ const NotificationController = {
           try {
             parsed = JSON.parse(userIds);
           } catch (err) {
-            console.error("❌ userIds parse lỗi:", userIds);
+            console.error("userIds parse lỗi:", userIds);
             return res.status(400).json({ message: "userIds không hợp lệ" });
           }
         } else if (Array.isArray(userIds)) {
@@ -79,7 +76,7 @@ const NotificationController = {
           try {
             await NotificationUser.bulkCreate(inserts);
           } catch (err) {
-            console.error("❌ Lỗi khi tạo NotificationUser:", err);
+            console.error("Lỗi khi tạo NotificationUser:", err);
             return res
               .status(500)
               .json({ message: "Tạo user nhận thông báo thất bại" });
@@ -119,7 +116,7 @@ const NotificationController = {
       const existing = await Notification.findOne({
         where: {
           title,
-          id: { [Op.ne]: id }, // loại trừ bản ghi hiện tại
+          id: { [Op.ne]: id },
         },
       });
       if (existing) {
@@ -135,7 +132,7 @@ const NotificationController = {
 
       await notification.update({
         title,
-        slug, // ✅ cập nhật slug mới
+        slug,
         message,
         imageUrl,
         link,
@@ -175,12 +172,13 @@ const NotificationController = {
 
       return res.json({ message: "Cập nhật thành công", data: notification });
     } catch (err) {
-      console.error("❌ Lỗi cập nhật:", err);
+      console.error("Lỗi cập nhật:", err);
       return res
         .status(500)
         .json({ message: "Lỗi máy chủ", error: err.message });
     }
   },
+
   async getAll(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -231,10 +229,11 @@ const NotificationController = {
         },
       });
     } catch (err) {
-      console.error("❌ Lỗi getAll notification:", err);
+      console.error("Lỗi getAll notification:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
+
   async delete(req, res) {
     try {
       const { id } = req.params;
@@ -282,7 +281,6 @@ const NotificationController = {
     }
   },
 
-  // [GET] /admin/notifications/slug/:slug
   async getBySlug(req, res) {
     try {
       const { slug } = req.params;
@@ -299,5 +297,4 @@ const NotificationController = {
     }
   },
 };
-
 module.exports = NotificationController;

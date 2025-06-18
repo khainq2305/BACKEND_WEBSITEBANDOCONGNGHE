@@ -1,7 +1,6 @@
 const { NotificationUser, User } = require("../../models");
 
 const NotificationUserController = {
-  // [POST] /admin/notification-users
   async createMany(req, res) {
     try {
       const { notificationId, userIds } = req.body;
@@ -29,17 +28,16 @@ const NotificationUserController = {
     }
   },
 
-  // [GET] /admin/notification-users/:notificationId
   async getUsersByNotification(req, res) {
     try {
       const { notificationId } = req.params;
 
-      // ✅ Nếu không có req.user thì từ chối
+      // Nếu không có req.user thì từ chối
       if (!req.user) {
         return res.status(401).json({ message: "Bạn chưa đăng nhập!" });
       }
 
-      // // ✅ Không kiểm tra roleId nữa!
+      // Không kiểm tra roleId nữa!
       // if (req.user.roleId !== 1) {
       //   return res.status(403).json({ message: 'Bạn không có quyền truy cập' });
       // }
@@ -56,12 +54,11 @@ const NotificationUserController = {
 
       return res.json(users);
     } catch (err) {
-      console.error("❌ Lỗi lấy danh sách user:", err.message, err.stack);
+      console.error("Lỗi lấy danh sách user:", err.message, err.stack);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
 
-  // [DELETE] /admin/notification-users/:notificationId
   async deleteByNotification(req, res) {
     try {
       const { notificationId } = req.params;
@@ -79,5 +76,4 @@ const NotificationUserController = {
     }
   },
 };
-
 module.exports = NotificationUserController;

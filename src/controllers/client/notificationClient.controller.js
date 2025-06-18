@@ -1,9 +1,8 @@
-// src/controllers/client/notificationClient.controller.js
 const { Notification, NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
 
 const NotificationClientController = {
-  // ✅ Lấy danh sách thông báo cho user (global + cá nhân)
+  //Lấy danh sách thông báo cho user (global + cá nhân)
   async getForCurrentUser(req, res) {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
@@ -49,7 +48,7 @@ const NotificationClientController = {
     }
   },
 
-  // ✅ Đánh dấu 1 thông báo là đã đọc
+  //Đánh dấu 1 thông báo là đã đọc
   async markAsRead(req, res) {
     const userId = req.user?.id;
     const notificationId = req.params.id;
@@ -139,5 +138,4 @@ const NotificationClientController = {
     }
   },
 };
-
 module.exports = NotificationClientController;

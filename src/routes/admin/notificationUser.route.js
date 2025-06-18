@@ -9,7 +9,6 @@ router.post('/', checkJWT,  NotificationUserController.createMany);
 // GET /admin/notification-users/:notificationId
 router.get('/:notificationId', checkJWT, NotificationUserController.getUsersByNotification);
 
-// DELETE /admin/notification-users/:notificationIddd//
+// DELETE /admin/notification-users/:notificationId
 router.delete('/:notificationId', checkJWT,  NotificationUserController.deleteByNotification);
-
 module.exports = router;

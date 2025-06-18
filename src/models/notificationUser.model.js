@@ -29,5 +29,4 @@ const NotificationUser = sequelize.define("NotificationUser", {
   tableName: "notificationUsers",
   timestamps: true,
 });
-
 module.exports = NotificationUser;
