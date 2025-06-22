@@ -12,37 +12,36 @@ const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
-const ReturnRequest = require("./returnRequest"); // 👈 THÊM DÒNG NÀY
+const ReturnRequest = require("./returnRequest"); 
 
-const ProductHomeSection = require('./productHomeSection');
+const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
 const ProductSpec = require("./productspec.model");
-const ProductView = require('./productView.model');
-const ProductQuestion = require("./productQuestionModel")
-const ProductAnswer = require("./productanswer.model")
-const UserRole = require('./userRole');
-const HomeSectionCategory = require('./homeSectionCategory.model');
+const ProductView = require("./productView.model");
+const ProductQuestion = require("./productQuestionModel");
+const ProductAnswer = require("./productanswer.model");
+const UserRole = require("./userRole");
+const HomeSectionCategory = require("./homeSectionCategory.model");
 
 //
 const HomeSection = require("./homeSection");
 const HomeSectionBanner = require("./homeSectionBanner");
 const Post = require("./post");
 const categoryPostModel = require("./categoryPostModel");
-const Tags = require('./TagModel')
-const PostTag = require('./PostTag')
-
+const Tags = require("./TagModel");
+const PostTag = require("./PostTag");
 
 //
 const Banner = require("./Banner");
-const WishlistItem = require('./wishlistitemModel');
-const Wishlist = require('./wishlistModel');
+const WishlistItem = require("./wishlistitemModel");
+const Wishlist = require("./wishlistModel");
 
 //
 
-const Review = require("./reviewModel")
-const ReviewMedia = require("./reviewmediamodel")
-const Notification = require("./notification.model")
-const NotificationUser = require("./notificationUser.model")
+const Review = require("./reviewModel");
+const ReviewMedia = require("./reviewmediamodel");
+const Notification = require("./notification.model");
+const NotificationUser = require("./notificationUser.model");
 const Order = require("./order");
 const OrderItem = require("./orderItem");
 const PaymentMethod = require("./paymentMethod");
@@ -94,25 +93,25 @@ SkuVariantValue.belongsTo(VariantValue, {
   as: "variantValue",
 });
 
-categoryPostModel.hasMany(Post, { foreignKey: 'categoryId', as: 'posts' });
-Post.belongsTo(categoryPostModel, { foreignKey: 'categoryId', as: 'category' });
+categoryPostModel.hasMany(Post, { foreignKey: "categoryId", as: "posts" });
+Post.belongsTo(categoryPostModel, { foreignKey: "categoryId", as: "category" });
 Post.belongsToMany(Tags, {
   through: PostTag,
-  foreignKey: 'postId',
-  otherKey: 'tagId',
-  as: 'tags',
+  foreignKey: "postId",
+  otherKey: "tagId",
+  as: "tags",
 });
 
 Tags.belongsToMany(Post, {
   through: PostTag,
-  foreignKey: 'tagId',
-  otherKey: 'postId',
-  as: 'posts',
+  foreignKey: "tagId",
+  otherKey: "postId",
+  as: "posts",
 });
 
 // Tác giả bài viết
-User.hasMany(Post, { foreignKey: "authorId", as: 'posts' });
-Post.belongsTo(User, { foreignKey: "authorId", as: 'author' });
+User.hasMany(Post, { foreignKey: "authorId", as: "posts" });
+Post.belongsTo(User, { foreignKey: "authorId", as: "author" });
 //
 User.hasMany(Review, { foreignKey: "userId", as: "reviews" });
 Review.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -126,8 +125,8 @@ Review.belongsTo(OrderItem, { foreignKey: "orderItemId", as: "orderItem" });
 Review.hasMany(ReviewMedia, { foreignKey: "reviewId", as: "media" });
 ReviewMedia.belongsTo(Review, { foreignKey: "reviewId", as: "review" });
 OrderItem.belongsTo(Order, {
-  foreignKey: 'orderId',
-  as: 'order'
+  foreignKey: "orderId",
+  as: "order",
 });
 // Liên kết với Category
 HighlightedCategoryItem.belongsTo(Category, {
@@ -138,7 +137,7 @@ Category.hasMany(HighlightedCategoryItem, {
   foreignKey: "categoryId",
   as: "highlightedItems",
 });
-// 
+//
 //
 
 Product.hasMany(Sku, { foreignKey: "productId", as: "skus" });
@@ -157,7 +156,7 @@ ProductInfo.belongsTo(Product, {
 });
 Product.hasMany(ProductSpec, { foreignKey: "productId", as: "specs" });
 ProductSpec.belongsTo(Product, { foreignKey: "productId", as: "product" });
-Category.hasMany(Product, { foreignKey: 'categoryId', as: 'products' });
+Category.hasMany(Product, { foreignKey: "categoryId", as: "products" });
 
 Product.hasMany(ProductVariant, {
   foreignKey: "productId",
@@ -170,26 +169,26 @@ ProductVariant.belongsTo(Product, {
 
 ProductVariant.belongsTo(Variant, {
   foreignKey: "variantId",
-  as: "variant", 
+  as: "variant",
 });
 
 Variant.hasMany(ProductVariant, {
   foreignKey: "variantId",
   as: "productVariants",
 });
-// 
+//
 User.belongsToMany(Role, {
   through: UserRole,
   foreignKey: "userId",
   otherKey: "roleId",
-  as: "roles"
+  as: "roles",
 });
 
 Role.belongsToMany(User, {
   through: UserRole,
   foreignKey: "roleId",
   otherKey: "userId",
-  as: "users"
+  as: "users",
 });
 //
 HomeSection.hasMany(HomeSectionBanner, {
@@ -202,22 +201,22 @@ HomeSectionBanner.belongsTo(HomeSection, { foreignKey: "homeSectionId" });
 
 HomeSection.belongsToMany(Product, {
   through: ProductHomeSection,
-  foreignKey: 'homeSectionId',
-  otherKey: 'productId',
-  as: 'products'
+  foreignKey: "homeSectionId",
+  otherKey: "productId",
+  as: "products",
 });
 
 Product.belongsToMany(HomeSection, {
   through: ProductHomeSection,
-  foreignKey: 'productId',
-  otherKey: 'homeSectionId',
-  as: 'homeSections'
+  foreignKey: "productId",
+  otherKey: "homeSectionId",
+  as: "homeSections",
 });
 Product.belongsToMany(HomeSection, {
   through: ProductHomeSection,
-  foreignKey: 'productId',
-  otherKey: 'homeSectionId',
-  as: 'sections'
+  foreignKey: "productId",
+  otherKey: "homeSectionId",
+  as: "sections",
 });
 
 //
@@ -259,16 +258,16 @@ Variant.hasMany(VariantValue, { foreignKey: "variantId", as: "values" });
 VariantValue.belongsTo(Variant, { foreignKey: "variantId", as: "variant" });
 Product.belongsToMany(Variant, {
   through: ProductVariant,
-  foreignKey: 'productId',
-  otherKey: 'variantId',
-  as: 'variants' // alias này chỉ cần nếu bạn muốn dùng product.variants sau này
+  foreignKey: "productId",
+  otherKey: "variantId",
+  as: "variants", // alias này chỉ cần nếu bạn muốn dùng product.variants sau này
 });
 
 Variant.belongsToMany(Product, {
   through: ProductVariant,
-  foreignKey: 'variantId',
-  otherKey: 'productId',
-  as: 'products'
+  foreignKey: "variantId",
+  otherKey: "productId",
+  as: "products",
 });
 
 //
@@ -281,8 +280,6 @@ CouponCategory.belongsTo(Coupon, { foreignKey: "couponId" });
 Coupon.hasMany(CouponItem, { foreignKey: "couponId", as: "products" });
 CouponItem.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
 //
-
-
 
 //
 
@@ -318,7 +315,10 @@ User.hasMany(Order, { foreignKey: "userId" });
 Order.belongsTo(User, { foreignKey: "userId" });
 
 Order.hasMany(OrderItem, { foreignKey: "orderId", as: "items" });
-OrderItem.belongsTo(Order, { foreignKey: "orderId" });
+OrderItem.belongsTo(Order, {
+  foreignKey: "orderId",
+  as: "orderData",
+});
 
 OrderItem.belongsTo(Sku, { foreignKey: "skuId" });
 Sku.hasMany(OrderItem, { foreignKey: "skuId" });
@@ -341,45 +341,45 @@ PaymentTransaction.belongsTo(PaymentMethod, {
   foreignKey: "paymentMethodId",
   as: "method",
 });
+
 //
 Banner.belongsTo(Category, {
   foreignKey: "categoryId",
-  as: "category"
+  as: "category",
 });
 Category.hasMany(Banner, {
   foreignKey: "categoryId",
-  as: "banners"
+  as: "banners",
 });
-User.hasMany(ProductView, { foreignKey: 'userId', as: 'productViews' });
-ProductView.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(ProductView, { foreignKey: "userId", as: "productViews" });
+ProductView.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-Product.hasMany(ProductView, { foreignKey: 'productId', as: 'views' });
-ProductView.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+Product.hasMany(ProductView, { foreignKey: "productId", as: "views" });
+ProductView.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
 Banner.belongsTo(Product, {
   foreignKey: "productId",
-  as: "product"
+  as: "product",
 });
 Product.hasMany(Banner, {
   foreignKey: "productId",
-  as: "banners"
+  as: "banners",
 });
 
-// 
+//
 HomeSection.belongsToMany(Category, {
   through: HomeSectionCategory,
-  foreignKey: 'homeSectionId',
-  otherKey: 'categoryId',
-  as: 'linkedCategories',
+  foreignKey: "homeSectionId",
+  otherKey: "categoryId",
+  as: "linkedCategories",
 });
 
 Category.belongsToMany(HomeSection, {
   through: HomeSectionCategory,
-  foreignKey: 'categoryId',
-  otherKey: 'homeSectionId',
-  as: 'homeSections',
+  foreignKey: "categoryId",
+  otherKey: "homeSectionId",
+  as: "homeSections",
 });
-
 
 Product.belongsTo(Category, { foreignKey: "categoryId", as: "category" });
 
@@ -404,28 +404,31 @@ Category.belongsTo(Category, {
   foreignKey: "parentId",
   as: "parent",
 });
-User.hasMany(Wishlist, { foreignKey: 'userId' });
-Wishlist.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(Wishlist, { foreignKey: "userId" });
+Wishlist.belongsTo(User, { foreignKey: "userId" });
 
-Wishlist.hasMany(WishlistItem, { foreignKey: 'wishlistId', as: 'items' });
-WishlistItem.belongsTo(Wishlist, { foreignKey: 'wishlistId' });
+Wishlist.hasMany(WishlistItem, { foreignKey: "wishlistId", as: "items" });
+WishlistItem.belongsTo(Wishlist, { foreignKey: "wishlistId" });
 
 WishlistItem.belongsTo(Product, {
-  foreignKey: 'productId',
-  as: 'product',
+  foreignKey: "productId",
+  as: "product",
 });
 Product.hasMany(WishlistItem, {
-  foreignKey: 'productId',
-  as: 'wishlistItems',
+  foreignKey: "productId",
+  as: "wishlistItems",
 });
 OrderItem.belongsTo(FlashSaleItem, {
-  foreignKey: 'flashSaleId',
-  as: 'flashSaleItem'
+  foreignKey: "flashSaleId",
+  as: "flashSaleItem",
 });
 FlashSaleItem.hasMany(OrderItem, {
-  foreignKey: 'flashSaleId',
-  as: 'orderItems'
+  foreignKey: "flashSaleId",
+  as: "orderItems",
 });
+
+WishlistItem.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
+Sku.hasMany(WishlistItem, { foreignKey: "skuId", as: "wishlistItems" });
 
 District.hasMany(Ward, { foreignKey: "districtId" });
 Ward.belongsTo(District, { foreignKey: "districtId" });
@@ -440,42 +443,57 @@ UserAddress.belongsTo(Ward, {
   targetKey: "code",
   as: "ward",
 });
-// 
+//
 Product.hasMany(ProductQuestion, { foreignKey: "productId", as: "questions" });
 ProductQuestion.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
 User.hasMany(ProductQuestion, { foreignKey: "userId", as: "productQuestions" });
 ProductQuestion.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-ProductQuestion.hasMany(ProductAnswer, { foreignKey: "questionId", as: "answers" });
-ProductAnswer.belongsTo(ProductQuestion, { foreignKey: "questionId", as: "question" });
+ProductQuestion.hasMany(ProductAnswer, {
+  foreignKey: "questionId",
+  as: "answers",
+});
+ProductAnswer.belongsTo(ProductQuestion, {
+  foreignKey: "questionId",
+  as: "question",
+});
 
 User.hasMany(ProductAnswer, { foreignKey: "userId", as: "productAnswers" });
 ProductAnswer.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-ProductAnswer.belongsTo(ProductAnswer, { foreignKey: "parentId", as: "parent" });
+ProductAnswer.belongsTo(ProductAnswer, {
+  foreignKey: "parentId",
+  as: "parent",
+});
 ProductAnswer.hasMany(ProductAnswer, { foreignKey: "parentId", as: "replies" });
 Order.hasOne(ReturnRequest, { foreignKey: "orderId", as: "returnRequest" });
 ReturnRequest.belongsTo(Order, { foreignKey: "orderId", as: "order" });
-const RefundRequest = require('./refundRequest'); // THÊM Ở ĐÂY
+const RefundRequest = require("./refundRequest"); // THÊM Ở ĐÂY
 
 // THÊM QUAN HỆ
-Order.hasMany(RefundRequest, { foreignKey: 'orderId', as: 'refunds' });
-RefundRequest.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
+Order.hasMany(RefundRequest, { foreignKey: "orderId", as: "refunds" });
+RefundRequest.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 
-User.hasMany(RefundRequest, { foreignKey: 'userId', as: 'refundRequests' });
-RefundRequest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(RefundRequest, { foreignKey: "userId", as: "refundRequests" });
+RefundRequest.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-RefundRequest.belongsTo(ReturnRequest, { foreignKey: 'returnRequestId', as: 'returnRequest' });
-ReturnRequest.hasOne(RefundRequest, { foreignKey: 'returnRequestId', as: 'refundRequest' });
+RefundRequest.belongsTo(ReturnRequest, {
+  foreignKey: "returnRequestId",
+  as: "returnRequest",
+});
+ReturnRequest.hasOne(RefundRequest, {
+  foreignKey: "returnRequestId",
+  as: "refundRequest",
+});
 
 module.exports = {
   User,
   Role,
   Province,
   Sku,
-    ReturnRequest,
-RefundRequest,
+  ReturnRequest,
+  RefundRequest,
 
   ProductQuestion,
   ProductAnswer,
@@ -509,7 +527,7 @@ RefundRequest,
   HomeSection,
   HomeSectionBanner,
   HomeSectionCategory,
-UserRole,
+  UserRole,
   Category,
   ProductHomeSection,
   ProductInfo,

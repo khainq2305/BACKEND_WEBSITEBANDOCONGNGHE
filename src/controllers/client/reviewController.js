@@ -5,6 +5,9 @@ const {
   Sku,
   OrderItem,
   Order,
+  VariantValue,
+  Variant,
+  SkuVariantValue,
 } = require("../../models");
 const { Op } = require("sequelize");
 
@@ -15,9 +18,12 @@ class ReviewController {
       const userId = req.user.id;
 
       const sku = await Sku.findByPk(skuId);
-      if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
+      if (!sku) {
+        return res.status(404).json({ message: "Không tìm thấy SKU" });
+      }
 
-      const orderItem = await OrderItem.findOne({
+      // Tìm đơn hàng đã hoàn tất của người dùng chứa SKU này nhưng chưa được đánh giá
+      const orderItems = await OrderItem.findAll({
         where: { skuId },
         include: [
           {
@@ -28,27 +34,30 @@ class ReviewController {
         ],
       });
 
-      if (!orderItem) {
+      if (!orderItems.length) {
         return res.status(403).json({
           message:
             "Bạn chỉ được đánh giá sản phẩm sau khi đơn đã giao thành công!",
         });
       }
 
-      const existingReview = await Review.findOne({
-        where: {
-          userId,
-          skuId,
-          orderItemId: orderItem.id,
-        },
+      const reviewed = await Review.findAll({
+        where: { userId, skuId },
+        attributes: ["orderItemId"],
       });
+      const reviewedIds = reviewed.map((r) => r.orderItemId);
 
-      if (existingReview) {
-        return res
-          .status(400)
-          .json({ message: "Bạn đã đánh giá sản phẩm này rồi!" });
+      // Tìm orderItem chưa đánh giá
+      const orderItemToReview = orderItems.find(
+        (oi) => !reviewedIds.includes(oi.id)
+      );
+      if (!orderItemToReview) {
+        return res.status(400).json({
+          message: "Bạn đã đánh giá hết các đơn hàng có sản phẩm này!",
+        });
       }
 
+      // Tạo slug duy nhất
       const rawSlug = content?.substring(0, 60) || "review";
       const slugBase = rawSlug
         .toLowerCase()
@@ -63,7 +72,7 @@ class ReviewController {
       const review = await Review.create({
         userId,
         skuId,
-        orderItemId: orderItem.id,
+        orderItemId: orderItemToReview.id,
         content,
         rating,
         slug,
@@ -85,25 +94,35 @@ class ReviewController {
     }
   }
 
-  static async getBySkuId(req, res) {
-    try {
-      const { id } = req.params;
-      const { hasMedia, purchased, star } = req.query;
+static async getBySkuId(req, res) {
+  try {
+    const { id } = req.params;
+    const { hasMedia, purchased, star } = req.query;
 
-      const sku = await Sku.findByPk(id);
-      if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
+    const sku = await Sku.findByPk(id);
+    if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
 
-      const whereClause = { skuId: id };
+    const skuList = await Sku.findAll({
+      where: { productId: sku.productId },
+      attributes: ['id'],
+    });
+    const skuIds = skuList.map((s) => s.id);
 
-      if (star !== undefined && !isNaN(Number(star))) {
-        whereClause.rating = Number(star);
-      }
+    const whereClause = {
+      skuId: { [Op.in]: skuIds },
+    };
 
-      if (purchased === "true") {
-        whereClause.orderItemId = { [Op.ne]: null };
-      }
+    if (star !== undefined && !isNaN(Number(star))) {
+      whereClause.rating = Number(star);
+    }
 
-      const include = [
+    if (purchased === "true") {
+      whereClause.orderItemId = { [Op.ne]: null };
+    }
+
+    const reviews = await Review.findAll({
+      where: whereClause,
+      include: [
         {
           model: ReviewMedia,
           as: "media",
@@ -114,18 +133,159 @@ class ReviewController {
           as: "user",
           attributes: ["id", "fullName"],
         },
-      ];
+        {
+          model: Sku,
+          as: "sku",
+          include: [
+            {
+              model: SkuVariantValue,
+              as: "variantValues",
+              include: [
+                {
+                  model: VariantValue,
+                  as: "variantValue",
+                  include: [{ model: Variant, as: "variant" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
 
-      const reviews = await Review.findAll({
-        where: whereClause,
-        include,
-        order: [["createdAt", "DESC"]],
+    return res.status(200).json({ reviews });
+  } catch (err) {
+    console.error("Review fetch error:", err);
+    return res.status(500).json({ message: "Lỗi server khi lấy đánh giá" });
+  }
+}
+
+
+  static async checkCanReview(req, res) {
+    try {
+      const { skuId } = req.params;
+      const userId = req.user.id;
+
+      // Lấy tất cả OrderItem chứa SKU đó của người dùng đã hoàn tất
+      const orderItems = await OrderItem.findAll({
+        where: { skuId },
+        include: [
+          {
+            model: Order,
+            as: "order",
+            where: { userId, status: "completed" },
+            attributes: [],
+          },
+        ],
       });
 
-      return res.status(200).json({ reviews });
+      if (!orderItems.length) {
+        return res.status(200).json({ canReview: false });
+      }
+
+      // Lấy tất cả review đã gửi cho SKU đó (loại bỏ orderItemId null)
+      const existingReviews = await Review.findAll({
+        where: {
+          userId,
+          skuId,
+          orderItemId: { [Op.ne]: null },
+        },
+        attributes: ["orderItemId"],
+      });
+
+      const reviewedIds = existingReviews.map((r) => r.orderItemId);
+
+      // Nếu còn đơn hàng nào chưa được đánh giá => được đánh giá
+      const canReview = orderItems.some((oi) => !reviewedIds.includes(oi.id));
+
+      return res.status(200).json({ canReview });
     } catch (err) {
-      console.error("Review fetch error:", err);
-      return res.status(500).json({ message: "Lỗi server khi lấy đánh giá" });
+      console.error("checkCanReview error:", err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi kiểm tra quyền đánh giá" });
+    }
+  }
+
+  static async checkCanEdit(req, res) {
+    try {
+      const review = await Review.findByPk(req.params.id);
+      if (!review)
+        return res.status(404).json({ message: "Không tìm thấy đánh giá" });
+
+      if (review.userId !== req.user.id)
+        return res
+          .status(403)
+          .json({ message: "Không có quyền sửa đánh giá này" });
+
+      const createdAt = new Date(review.createdAt);
+      const now = new Date();
+      const daysPassed = (now - createdAt) / (1000 * 60 * 60 * 24);
+
+      const canEdit = daysPassed <= 7 && !review.replyContent;
+      return res.status(200).json({ canEdit });
+    } catch (err) {
+      console.error("checkCanEdit error:", err);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
+  }
+
+  static async update(req, res) {
+    try {
+      const { id } = req.params;
+      const { content, rating } = req.body;
+      const userId = req.user.id;
+
+      const review = await Review.findByPk(id, {
+        include: [{ model: ReviewMedia, as: "media" }],
+      });
+
+      if (!review)
+        return res.status(404).json({ message: "Không tìm thấy đánh giá" });
+
+      if (review.userId !== userId)
+        return res.status(403).json({ message: "Không có quyền" });
+
+      const createdAt = new Date(review.createdAt);
+      const now = new Date();
+      const daysPassed = (now - createdAt) / (1000 * 60 * 60 * 24);
+
+      if (daysPassed > 7)
+        return res
+          .status(400)
+          .json({ message: "Đã quá 7 ngày, không thể sửa." });
+
+      if (review.replyContent)
+        return res
+          .status(400)
+          .json({ message: "Đánh giá đã được phản hồi, không thể sửa." });
+
+      // Cập nhật nội dung và sao
+      review.content = content;
+      review.rating = rating;
+      await review.save();
+
+      // Nếu có media mới được upload
+      const newFiles = req.files || [];
+      if (newFiles.length > 0) {
+        // Xoá media cũ
+        await ReviewMedia.destroy({ where: { reviewId: review.id } });
+
+        // Tạo media mới
+        for (const file of newFiles) {
+          await ReviewMedia.create({
+            reviewId: review.id,
+            url: file.path,
+            type: "image",
+          });
+        }
+      }
+
+      return res.status(200).json({ message: "Cập nhật thành công", review });
+    } catch (err) {
+      console.error("Update review error:", err);
+      return res.status(500).json({ message: "Lỗi server" });
     }
   }
 }

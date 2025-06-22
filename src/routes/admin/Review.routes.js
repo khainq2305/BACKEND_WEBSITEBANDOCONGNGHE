@@ -12,4 +12,5 @@ router.get('/product/:productId', checkJWT, ReviewAdminController.getByProductId
 
 router.get('/all', checkJWT, ReviewAdminController.getAll);
 
+
 module.exports = router;

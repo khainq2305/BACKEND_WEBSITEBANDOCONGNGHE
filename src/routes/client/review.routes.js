@@ -14,5 +14,10 @@ router.post(
 
 router.get("/sku/:id", ReviewController.getBySkuId);
 
+router.get('/check-can-review/:skuId', checkJWT, ReviewController.checkCanReview);
+
+router.get('/:id/can-edit', checkJWT, ReviewController.checkCanEdit);
+
+router.put('/:id', checkJWT, upload.array("media", 5), validateReview, ReviewController.update);
 
 module.exports = router;
