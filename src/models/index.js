@@ -320,7 +320,7 @@ OrderItem.belongsTo(Order, {
   as: "orderData",
 });
 
-OrderItem.belongsTo(Sku, { foreignKey: "skuId" });
+OrderItem.belongsTo(Sku, { foreignKey: "skuId", as: 'sku' });
 Sku.hasMany(OrderItem, { foreignKey: "skuId" });
 
 Order.belongsTo(UserAddress, {
@@ -486,6 +486,8 @@ ReturnRequest.hasOne(RefundRequest, {
   foreignKey: "returnRequestId",
   as: "refundRequest",
 });
+
+
 
 module.exports = {
   User,
