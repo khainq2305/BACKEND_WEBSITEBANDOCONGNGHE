@@ -6,7 +6,8 @@ const OrderItem = sequelize.define('OrderItem', {
   price: DataTypes.DECIMAL(10, 2),
   quantity: DataTypes.INTEGER,
   orderId: DataTypes.INTEGER,
-  skuId: DataTypes.INTEGER
+  skuId: DataTypes.INTEGER,
+  flashSaleId: { type: DataTypes.INTEGER, allowNull: true },
 }, {
   tableName: 'orderitems',
   timestamps: false,

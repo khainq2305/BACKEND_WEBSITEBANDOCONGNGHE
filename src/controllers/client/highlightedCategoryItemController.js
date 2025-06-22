@@ -18,13 +18,15 @@ class HighlightedCategoryController {
         order: [['sortOrder', 'ASC']]
       });
 
-      const result = items.map(item => ({
-        id: item.category?.id,
-        name: item.category?.name,
-        slug: item.category?.slug,
-        imageUrl: item.imageUrl,
-        label: item.isHot ? 'hot' : item.isNew ? 'new' : item.isFeatured ? 'featured' : null 
-      }));
+   const result = items.map(item => ({
+  id: item.categoryId,
+  title: item.customTitle || item.category?.name || "Chưa đặt tiêu đề",
+  slug: item.slug || item.category?.slug || null,
+  imageUrl: item.imageUrl,
+  label: item.isHot ? 'hot' : item.isNew ? 'new' : item.isFeatured ? 'featured' : null,
+  link: item.customLink || (item.category ? `/category/${item.category.slug}` : '#'),
+}));
+
 
       return res.json({ success: true, data: result });
     } catch (err) {

@@ -24,12 +24,13 @@ const UserToken = connection.define("UserToken", {
   },
   token: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
-  type: {
-    type: DataTypes.ENUM("passwordReset", "emailVerification"),
-    allowNull: false,
-  },
+ type: {
+  type: DataTypes.ENUM("passwordReset", "emailVerification", "changePasswordAttempt"),
+  allowNull: false,
+},
+
   lockedUntil: {
     type: DataTypes.DATE,
     allowNull: true,

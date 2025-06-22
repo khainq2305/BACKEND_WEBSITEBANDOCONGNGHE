@@ -128,8 +128,6 @@ class UserAddressController {
       res.status(500).json({ message: "Lỗi xóa địa chỉ" });
     }
   }
-
-  // UserAddressController.js
   static async getDefault(req, res) {
     try {
       const userId = req.user.id;

@@ -20,6 +20,10 @@ description: {
   type: DataTypes.TEXT('long'),
   allowNull: true,
 },
+badge: {
+  type: DataTypes.STRING(50),
+  allowNull: true
+},
 
   shortDescription: {
     type: DataTypes.TEXT,

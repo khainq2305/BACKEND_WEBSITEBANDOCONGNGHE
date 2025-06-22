@@ -2,18 +2,21 @@ const {
   HomeSection,
   HomeSectionBanner,
   Product,
+  Sku,
   Category,
+  HomeSectionCategory,
   ProductHomeSection,
 } = require("../../models");
 const { Op } = require("sequelize");
 const slugify = require("slugify");
-// ở đầu file SectionController.js, ngay sau các require:
+
 function buildCategoryTree(list) {
-  const map = {}, roots = [];
-  // Khởi tạo map[id] và thêm children + level
-  list.forEach(c => map[c.id] = { ...c, children: [], level: 0 });
-  // Gán con vào parent
-  list.forEach(c => {
+  const map = {},
+    roots = [];
+
+  list.forEach((c) => (map[c.id] = { ...c, children: [], level: 0 }));
+
+  list.forEach((c) => {
     if (c.parentId && map[c.parentId]) {
       map[c.parentId].children.push(map[c.id]);
       map[c.id].level = map[c.parentId].level + 1;
@@ -21,7 +24,7 @@ function buildCategoryTree(list) {
       roots.push(map[c.id]);
     }
   });
-  // Duyệt theo thứ tự depth-first để flatten ra array theo cây
+
   const out = [];
   function dfs(node) {
     out.push(node);
@@ -53,13 +56,19 @@ class SectionController {
           {
             model: Product,
             as: "products",
-            attributes: ["id", "name", "thumbnail"],
-            through: { attributes: ["sortOrder"] },
+            attributes: ["id"],
+            through: { attributes: [] }, // nếu không cần sortOrder
           },
           {
             model: HomeSectionBanner,
             as: "banners",
             attributes: ["id"],
+          },
+          {
+            model: Category,
+            as: "linkedCategories",
+            attributes: ["id"], // ✅ THÊM VÔ ĐÂY để đếm
+            through: { attributes: [] },
           },
         ],
         distinct: true,
@@ -94,13 +103,11 @@ class SectionController {
       });
     } catch (error) {
       console.error("[getAllSections]", error);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: "Lỗi server khi lấy danh sách",
-          error: error.message,
-        });
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi server khi lấy danh sách",
+        error: error.message,
+      });
     }
   }
 
@@ -128,6 +135,12 @@ class SectionController {
               "sortOrder",
             ],
           },
+          {
+            model: Category,
+            as: "linkedCategories",
+            attributes: ["id", "name", "slug", "parentId"],
+            through: { attributes: ["sortOrder"] },
+          },
         ],
       });
 
@@ -145,150 +158,24 @@ class SectionController {
         .json({ success: false, message: "Lỗi server", error: error.message });
     }
   }
-
   static async createSection(req, res) {
-  const t = await HomeSection.sequelize.transaction();
-  try {
-    const { title, type, orderIndex = 0, isActive = true } = req.body;
-    const parsedProductIds = JSON.parse(req.body.productIds || "[]");
-    const parsedBannersMeta = JSON.parse(req.body.bannersMetaJson || "[]");
+    const t = await HomeSection.sequelize.transaction();
+    try {
+      const { title, type, orderIndex = 0, isActive = true } = req.body;
+      const parsedProductIds = JSON.parse(req.body.productIds || "[]");
+      const parsedCategoryIds = JSON.parse(req.body.categoryIds || "[]");
+      const parsedBannersMeta = JSON.parse(req.body.bannersMetaJson || "[]");
 
-    const slug = slugify(title, {
-      lower: true,
-      strict: true,
-      remove: /[*+~.()'"!:@]/g,
-    });
-
-    const existingSection = await HomeSection.findOne({
-      where: { slug },
-      transaction: t,
-    });
-    if (existingSection) {
-      await t.rollback();
-      return res.status(409).json({
-        success: false,
-        field: "title",
-        message: "Tiêu đề đã tồn tại. Hãy dùng tên khác.",
-      });
-    }
-
-    const existingSameIndex = await HomeSection.findOne({
-      where: { orderIndex },
-      transaction: t,
-    });
-    if (existingSameIndex) {
-      await HomeSection.update(
-        { orderIndex: HomeSection.sequelize.literal("orderIndex + 1") },
-        { where: { orderIndex: { [Op.gte]: orderIndex } }, transaction: t }
-      );
-    }
-
-    const section = await HomeSection.create(
-      { title, slug, type, orderIndex, isActive },
-      { transaction: t }
-    );
-
-    if (parsedProductIds && parsedProductIds.length > 0) {
-      await section.setProducts(parsedProductIds, { transaction: t });
-    }
-
-    const files = req.files || [];
-
-    if (Array.isArray(parsedBannersMeta) && parsedBannersMeta.length > 0) {
-      const toCreate = [];
-      let fileIndex = 0;
-
-      for (const meta of parsedBannersMeta) {
-        let imageUrl = meta.existingImageUrl || null;
-        if (meta.hasNewFile && files[fileIndex]) {
-          imageUrl = files[fileIndex].path;
-          fileIndex++;
-        }
-
-        // ✅ FIX: Chuẩn hoá linkValue
-        let finalLinkValue = "";
-        if (typeof meta.linkValue === "object" && meta.linkValue !== null) {
-          finalLinkValue = meta.linkValue.slug || String(meta.linkValue.id);
-        } else {
-          finalLinkValue = meta.linkValue || "";
-        }
-
-        if (imageUrl) {
-          toCreate.push({
-            homeSectionId: section.id,
-            imageUrl,
-            linkType: meta.linkType || "url",
-            linkValue: finalLinkValue,
-            sortOrder: meta.sortOrder ?? toCreate.length,
-          });
-        }
-      }
-
-      if (toCreate.length > 0) {
-        await HomeSectionBanner.bulkCreate(toCreate, { transaction: t });
-      }
-    }
-
-    await t.commit();
-    return res.status(201).json({
-      success: true,
-      message: "Tạo section thành công",
-      data: section,
-    });
-  } catch (error) {
-    await t.rollback();
-    console.error("[CREATE_SECTION ERROR]", {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
-      files: req.files,
-    });
-
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi khi tạo section",
-      error: error.message,
-    });
-  }
-}
-
-
-  static async updateSection(req, res) {
-  const t = await HomeSection.sequelize.transaction();
-  try {
-    const { slug } = req.params;
-    const section = await HomeSection.findOne({
-      where: { slug },
-      transaction: t,
-    });
-
-    if (!section) {
-      await t.rollback();
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy section",
-      });
-    }
-
-    const { title, type, orderIndex, isActive } = req.body;
-    const { parsedProductIds, parsedBannersMeta } = req.parsedBody;
-
-    const updateData = { title, type, isActive };
-
-    // ✅ Đổi slug nếu title đổi
-    if (title && title !== section.title) {
-      const newSlug = slugify(title, {
+      const slug = slugify(title, {
         lower: true,
         strict: true,
         remove: /[*+~.()'"!:@]/g,
       });
-
-      const existed = await HomeSection.findOne({
-        where: { slug: newSlug, id: { [Op.ne]: section.id } },
+      const existingSection = await HomeSection.findOne({
+        where: { slug },
         transaction: t,
       });
-
-      if (existed) {
+      if (existingSection) {
         await t.rollback();
         return res.status(409).json({
           success: false,
@@ -296,101 +183,257 @@ class SectionController {
           message: "Tiêu đề đã tồn tại.",
         });
       }
-
-      updateData.slug = newSlug;
-    }
-
-    // ✅ Đổi orderIndex nếu khác
-    if (orderIndex !== undefined && orderIndex !== section.orderIndex) {
-      const existing = await HomeSection.findOne({
-        where: { orderIndex, id: { [Op.ne]: section.id } },
-        transaction: t,
-      });
-
-      if (existing) {
-        await HomeSection.update(
-          { orderIndex: HomeSection.sequelize.literal("orderIndex + 1") },
-          {
-            where: {
-              orderIndex: { [Op.gte]: orderIndex },
-              id: { [Op.ne]: section.id },
-            },
-            transaction: t,
-          }
-        );
+      if (orderIndex !== null) {
+        const conflict = await HomeSection.findOne({
+          where: { orderIndex },
+          transaction: t,
+        });
+        if (conflict) {
+          await HomeSection.increment(
+            { orderIndex: 1 },
+            {
+              where: {
+                orderIndex: { [Op.gte]: orderIndex },
+              },
+              transaction: t,
+            }
+          );
+        }
       }
 
-      updateData.orderIndex = orderIndex;
-    }
+      const newSection = await HomeSection.create(
+        { title, slug, type, orderIndex, isActive },
+        { transaction: t }
+      );
+      if (parsedProductIds.length > 0) {
+        const productAssociations = parsedProductIds.map((id, index) => ({
+          homeSectionId: newSection.id,
+          productId: id,
+          sortOrder: index,
+        }));
+        await ProductHomeSection.bulkCreate(productAssociations, {
+          transaction: t,
+        });
+      }
+      if (parsedCategoryIds.length > 0) {
+        const categoryAssociations = parsedCategoryIds.map((id, index) => ({
+          homeSectionId: newSection.id,
+          categoryId: id,
+          sortOrder: index,
+        }));
+        await HomeSectionCategory.bulkCreate(categoryAssociations, {
+          transaction: t,
+        });
+      }
 
-    // ✅ Update section
-    await section.update(updateData, { transaction: t });
+      const files = req.files || [];
+      if (parsedBannersMeta.length > 0) {
+        let fileIndex = 0;
+        const bannersToCreate = parsedBannersMeta
+          .map((meta) => {
+            let imageUrl = meta.existingImageUrl || null;
 
-    if (parsedProductIds) {
-      await section.setProducts(parsedProductIds, { transaction: t });
-    }
+            const newFile = (files || []).find(
+              (f) => f.originalname === meta.fileName
+            );
+            if (newFile) {
+              imageUrl = newFile.path;
+            }
 
-    // ✅ Clear banners cũ
-    await HomeSectionBanner.destroy({
-      where: { homeSectionId: section.id },
-      transaction: t,
-    });
+            if (!imageUrl) return null;
 
-    const files = req.files || [];
+            let finalLinkValue =
+              typeof meta.linkValue === "object" && meta.linkValue !== null
+                ? meta.linkValue.slug || String(meta.linkValue.id)
+                : meta.linkValue || "";
 
-    if (Array.isArray(parsedBannersMeta) && parsedBannersMeta.length > 0) {
-      const toCreate = [];
-      let fileIndex = 0;
+            return {
+              homeSectionId: newSection.id,
+              imageUrl,
+              linkType: meta.linkType || "url",
+              linkValue: finalLinkValue,
+              sortOrder: meta.sortOrder,
+            };
+          })
+          .filter(Boolean);
 
-      for (const meta of parsedBannersMeta) {
-        let imageUrl = meta.existingImageUrl || null;
-
-        if (meta.hasNewFile && files[fileIndex]) {
-          imageUrl = files[fileIndex].path || files[fileIndex].url;
-          fileIndex++;
-        }
-
-        // ✅ CHUẨN HÓA linkValue
-        let finalLinkValue = "";
-        if (typeof meta.linkValue === "object" && meta.linkValue !== null) {
-          finalLinkValue = meta.linkValue.slug || String(meta.linkValue.id);
-        } else {
-          finalLinkValue = meta.linkValue || "";
-        }
-
-        if (imageUrl) {
-          toCreate.push({
-            homeSectionId: section.id,
-            imageUrl,
-            linkType: meta.linkType || "url",
-            linkValue: finalLinkValue,
-            sortOrder: meta.sortOrder ?? toCreate.length,
+        if (bannersToCreate.length > 0) {
+          await HomeSectionBanner.bulkCreate(bannersToCreate, {
+            transaction: t,
           });
         }
       }
 
-      if (toCreate.length > 0) {
-        await HomeSectionBanner.bulkCreate(toCreate, { transaction: t });
-      }
+      await t.commit();
+      return res.status(201).json({
+        success: true,
+        message: "Tạo section thành công",
+        data: newSection,
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error("[CREATE_SECTION ERROR]", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi tạo section",
+        error: error.message,
+      });
     }
-
-    await t.commit();
-    return res.json({
-      success: true,
-      message: "Cập nhật section thành công",
-      data: section,
-    });
-  } catch (error) {
-    await t.rollback();
-    console.error("[UPDATE_SECTION ERROR]", error);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi cập nhật section",
-      error: error.message,
-    });
   }
-}
 
+  static async updateSection(req, res) {
+    const t = await HomeSection.sequelize.transaction();
+    try {
+      const { slug } = req.params;
+      const section = await HomeSection.findOne({
+        where: { slug },
+        transaction: t,
+      });
+
+      if (!section) {
+        await t.rollback();
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy section" });
+      }
+
+      const { title, type, orderIndex, isActive } = req.body;
+      const parsedProductIds = JSON.parse(req.body.productIds || "[]");
+      const parsedCategoryIds = JSON.parse(req.body.categoryIds || "[]");
+      const parsedBannersMeta = JSON.parse(req.body.bannersMetaJson || "[]");
+
+      const updateData = { title, type, isActive, orderIndex };
+      if (title && title !== section.title) {
+        updateData.slug = slugify(title, {
+          lower: true,
+          strict: true,
+          remove: /[*+~.()'"!:@]/g,
+        });
+        const existed = await HomeSection.findOne({
+          where: {
+            slug: updateData.slug,
+            id: { [Op.ne]: section.id },
+          },
+          transaction: t,
+        });
+        if (existed) {
+          await t.rollback();
+          return res.status(409).json({
+            success: false,
+            field: "title",
+            message: "Tiêu đề đã tồn tại.",
+          });
+        }
+      }
+      if (orderIndex !== null && Number(orderIndex) !== section.orderIndex) {
+        const conflict = await HomeSection.findOne({
+          where: {
+            orderIndex,
+            id: { [Op.ne]: section.id },
+          },
+          transaction: t,
+        });
+
+        if (conflict) {
+          await HomeSection.increment(
+            { orderIndex: 1 },
+            {
+              where: {
+                orderIndex: { [Op.gte]: orderIndex },
+                id: { [Op.ne]: section.id },
+              },
+              transaction: t,
+            }
+          );
+        }
+      }
+
+      await section.update(updateData, { transaction: t });
+      await ProductHomeSection.destroy({
+        where: { homeSectionId: section.id },
+        transaction: t,
+      });
+      if (parsedProductIds.length > 0) {
+        const productAssociations = parsedProductIds.map((id, index) => ({
+          homeSectionId: section.id,
+          productId: id,
+          sortOrder: index,
+        }));
+        await ProductHomeSection.bulkCreate(productAssociations, {
+          transaction: t,
+        });
+      }
+      await HomeSectionCategory.destroy({
+        where: { homeSectionId: section.id },
+        transaction: t,
+      });
+      if (parsedCategoryIds.length > 0) {
+        const categoryAssociations = parsedCategoryIds.map((id, index) => ({
+          homeSectionId: section.id,
+          categoryId: id,
+          sortOrder: index,
+        }));
+        await HomeSectionCategory.bulkCreate(categoryAssociations, {
+          transaction: t,
+        });
+      }
+      await HomeSectionBanner.destroy({
+        where: { homeSectionId: section.id },
+        transaction: t,
+      });
+
+      const files = req.files || [];
+      if (parsedBannersMeta.length > 0) {
+        const bannersToCreate = parsedBannersMeta
+          .map((meta) => {
+            let imageUrl = meta.existingImageUrl || null;
+            const newFile = (files || []).find(
+              (f) => f.originalname === meta.fileName
+            );
+            if (newFile) {
+              imageUrl = newFile.path;
+            }
+
+            if (!imageUrl) return null;
+
+            let finalLinkValue =
+              typeof meta.linkValue === "object" && meta.linkValue !== null
+                ? meta.linkValue.slug || String(meta.linkValue.id)
+                : meta.linkValue || "";
+
+            return {
+              homeSectionId: section.id,
+              imageUrl,
+              linkType: meta.linkType || "url",
+              linkValue: finalLinkValue,
+              sortOrder: meta.sortOrder,
+            };
+          })
+          .filter(Boolean);
+
+        if (bannersToCreate.length > 0) {
+          await HomeSectionBanner.bulkCreate(bannersToCreate, {
+            transaction: t,
+          });
+        }
+      }
+
+      await t.commit();
+      return res.json({
+        success: true,
+        message: "Cập nhật section thành công",
+        data: section,
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error("[UPDATE_SECTION ERROR]", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi cập nhật section",
+        error: error.message,
+      });
+    }
+  }
 
   static async deleteSection(req, res) {
     const t = await HomeSection.sequelize.transaction();
@@ -417,70 +460,109 @@ class SectionController {
     } catch (error) {
       await t.rollback();
       console.error("[DELETE_SECTION ERROR]", error);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: "Lỗi xoá section",
-          error: error.message,
-        });
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi xoá section",
+        error: error.message,
+      });
     }
   }
 
-static async getAllProducts(req, res) {
-  try {
-    const { search = '' } = req.query;
+  static async getAllProducts(req, res) {
+    try {
+      const { search = "", page = 1, limit = 10 } = req.query;
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 10;
+      const offset = (pageNum - 1) * limitNum;
 
-    const whereClause = {
-      deletedAt: null,
-      isActive: true, // 👈 chỉ lấy sản phẩm đang hoạt động
-      ...(search && { name: { [Op.like]: `%${search}%` } })
-    };
+      const whereClause = {
+        deletedAt: null,
+        isActive: true,
+        ...(search && { name: { [Op.like]: `%${search}%` } }),
+      };
 
-    const products = await Product.findAll({
-      where: whereClause,
-      order: [['updatedAt', 'DESC']],
-      attributes: ['id', 'name', 'thumbnail']
-    });
+      const { count, rows: products } = await Product.findAndCountAll({
+        where: whereClause,
+        offset,
+        limit: limitNum,
+        order: [["updatedAt", "DESC"]],
+        include: [
+          {
+            model: Sku,
+            as: "skus",
+            where: { deletedAt: null },
+            required: false,
+            limit: 1, // Chỉ lấy 1 SKU đại diện
+            separate: true,
+            order: [["price", "ASC"]], // hoặc ['id', 'ASC']
+            attributes: ["price", "originalPrice"],
+          },
+        ],
+        attributes: ["id", "name", "thumbnail"],
+        distinct: true,
+      });
 
-    return res.json({ success: true, data: products });
-  } catch (error) {
-    console.error('[getAllProducts]', error);
-    return res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách sản phẩm', error: error.message });
+      const formatted = products.map((product) => {
+        const sku = product.skus?.[0]; // Lấy SKU đầu tiên
+        return {
+          id: product.id,
+          name: product.name,
+          thumbnail: product.thumbnail,
+          price: sku?.price || 0,
+          originalPrice: sku?.originalPrice || 0,
+        };
+      });
+
+      return res.json({
+        success: true,
+        data: formatted,
+        pagination: {
+          totalItems: count,
+          totalPages: Math.ceil(count / limitNum),
+          currentPage: pageNum,
+          pageSize: limitNum,
+        },
+      });
+    } catch (error) {
+      console.error("[getAllProducts]", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi lấy danh sách sản phẩm",
+        error: error.message,
+      });
+    }
   }
-}
-static async getAllCategories(req, res) {
-  try {
-    const { search = '' } = req.query;
 
-    const whereClause = {
-      deletedAt: null,
-      isActive: true,
-      ...(search && { name: { [Op.like]: `%${search}%` } })
-    };
+  static async getAllCategories(req, res) {
+    try {
+      const { search = "" } = req.query;
 
-    // Lấy về flat list dưới dạng plain objects
-    const categories = await Category.findAll({
-      where: whereClause,
-      order: [['sortOrder', 'ASC']],
-      attributes: ['id', 'name', 'slug', 'thumbnail', 'parentId'],
-      raw: true
-    });
+      const whereClause = {
+        deletedAt: null,
+        isActive: true,
+        ...(search && { name: { [Op.like]: `%${search}%` } }),
+      };
 
-    // Xây tree rồi trả về
-    const treeList = buildCategoryTree(categories);
-    return res.json({ success: true, data: treeList });
-  } catch (error) {
-    console.error('[getAllCategories]', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi khi lấy danh sách danh mục',
-      error: error.message
-    });
+      // Lấy về flat list dưới dạng plain objects
+      const categories = await Category.findAll({
+        where: whereClause,
+        order: [["sortOrder", "ASC"]],
+        attributes: ["id", "name", "slug", "thumbnail", "parentId"],
+        raw: true,
+      });
+
+      // Xây tree rồi trả về
+      const treeList = buildCategoryTree(categories);
+      return res.json({ success: true, data: treeList });
+    } catch (error) {
+      console.error("[getAllCategories]", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi lấy danh sách danh mục",
+        error: error.message,
+      });
+    }
   }
-}
-
-
 
   static async updateOrderIndexes(req, res) {
     const t = await HomeSection.sequelize.transaction();
@@ -505,13 +587,11 @@ static async getAllCategories(req, res) {
     } catch (error) {
       await t.rollback();
       console.error("[updateOrderIndexes]", error);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: "Lỗi server khi cập nhật thứ tự",
-          error: error.message,
-        });
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi server khi cập nhật thứ tự",
+        error: error.message,
+      });
     }
   }
 }

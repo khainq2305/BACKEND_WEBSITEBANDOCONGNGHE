@@ -21,9 +21,6 @@ router.delete('/coupon/force/:id', CouponController.forceDelete);
 router.get('/coupon/users', CouponController.getUsers);
 
 
-router.get('/coupon/categories', CouponController.getCategories);
-
-
 router.get('/coupon/products', CouponController.getProducts);
 
 router.post('/coupon/soft-delete-many', CouponController.softDeleteMany);

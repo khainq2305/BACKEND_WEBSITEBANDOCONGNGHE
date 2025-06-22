@@ -33,14 +33,10 @@ const User = connection.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    roleId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
     status: {
       type: DataTypes.TINYINT,
       allowNull: false,
-      defaultValue: 1, // 1 = hoạt động
+      defaultValue: 1, 
     },
 
     phone: {
@@ -52,6 +48,12 @@ const User = connection.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    isEmailVerified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+
     lastLoginAt: {
       type: DataTypes.DATE,
       allowNull: true,
@@ -60,7 +62,7 @@ const User = connection.define(
   {
     tableName: "users",
     timestamps: true,
-     paranoid: true
+    paranoid: true,
   }
 );
 

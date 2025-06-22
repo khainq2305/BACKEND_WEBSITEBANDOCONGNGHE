@@ -1,8 +1,13 @@
 const { HomeSection } = require("../models");
 const { Op } = require("sequelize");
 const validator = require("validator");
+const validTypes = [
+  "productOnly",
+  "productWithBanner",
+  "productWithCategoryFilter", // ✅ thêm dòng này
+  "full"                       // ✅ và sửa lại "fullBlock" thành "full" để khớp ENUM
+];
 
-const validTypes = ["productOnly", "productWithBanner", "fullBlock"];
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
 const MAX_MB = 5;

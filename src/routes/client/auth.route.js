@@ -6,7 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const { checkJWT} = require("../../middlewares/checkJWT");
 const AuthController = require("../../controllers/client/authController");
-const upload = require("../../middlewares/upload");
+const {upload} = require("../../config/cloudinary");
 
 const { validateRegister, validateLogin, validateForgotPassword, validateResetPassword, validateUpdateProfile } = require("../../validations/authValidator");
 router.get("/verify-reset-token", AuthController.verifyResetToken);
@@ -29,10 +29,11 @@ router.get("/verification-cooldown", AuthController.getVerificationCooldown);
 router.put(
   "/update-profile",
   checkJWT,
-  upload.single("avatarImage"),
+  upload.single("avatarImage"), // dùng middleware đã config cloudinary
   validateUpdateProfile,
   AuthController.updateProfile
 );
+
 
 router.put("/change-password",checkJWT, AuthController.changePassword);
 

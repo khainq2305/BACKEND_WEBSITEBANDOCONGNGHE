@@ -22,6 +22,7 @@ const productViewRoutes = require('./productView.routes');
 const productQuestionRoutes = require('./productQuestion.route');
 
 router.use('/productviews', productViewRoutes); 
+router.post('/payment/momo-callback', require('../../controllers/client/orderController').momoCallback);
 
 router.use('/', sliderRoutes);             
 router.use('/tin-noi-bat', postRoutes);

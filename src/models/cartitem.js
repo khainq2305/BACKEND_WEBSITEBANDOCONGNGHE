@@ -19,14 +19,6 @@ const CartItem = sequelize.define('CartItem', {
     type: DataTypes.INTEGER,
     defaultValue: 1
   },
-  price: {
-    type: DataTypes.FLOAT,
-    allowNull: false
-  },
-  finalPrice: {
-    type: DataTypes.FLOAT,
-    allowNull: false
-  },
   isSelected: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
@@ -35,6 +27,7 @@ const CartItem = sequelize.define('CartItem', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   },
+  flashSaleId: { type: DataTypes.INTEGER, allowNull: true },
   updatedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

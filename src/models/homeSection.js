@@ -11,14 +11,15 @@ const HomeSection = connection.define('HomeSection', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  type: {
-  type: DataTypes.ENUM(
-    'productOnly',
-    'productWithBanner',
-
-  ),
-  allowNull: false
-}
+   type: {
+    type: DataTypes.ENUM(
+      'productOnly',
+      'productWithBanner',
+      'productWithCategoryFilter',
+      'full'
+    ),
+    allowNull: false
+  }
 
 ,
  slug: { 

@@ -25,6 +25,7 @@ static async create(req, res) {
     // 1) Lấy dữ liệu đầu vào
     const {
       name,
+      badge,
       description,
       shortDescription,
       thumbnail,
@@ -82,6 +83,7 @@ static async create(req, res) {
       isActive,
       hasVariants,
       categoryId,
+      badge,
       brandId
     }, { transaction: t });
 
@@ -236,6 +238,7 @@ static async update(req, res) {
       description,
       shortDescription,
       thumbnail,
+      badge,
       orderIndex,
       isActive,
       categoryId,
@@ -287,7 +290,7 @@ static async update(req, res) {
     await product.update({
       name, slug: newSlug, description, shortDescription,
       thumbnail: finalThumbnail, orderIndex, isActive,
-      hasVariants, categoryId, brandId
+      hasVariants, categoryId, brandId, badge,
     }, { transaction: t });
 
     // Cập nhật lại các biến thể nếu có
@@ -705,6 +708,8 @@ static async update(req, res) {
           thumbnail: product.thumbnail,
           orderIndex: product.orderIndex,
           isActive: product.isActive,
+          badge: product.badge,
+
           hasVariants: product.hasVariants,
           categoryId: product.categoryId,
           brandId: product.brandId,

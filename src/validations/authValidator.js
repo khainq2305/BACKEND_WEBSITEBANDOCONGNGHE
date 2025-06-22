@@ -104,10 +104,10 @@ const validateUpdateProfile = (req, res, next) => {
   console.log("body:", req.body);
   console.log("file:", req.file);
 
-  const { fullName, dateOfBirth } = req.body;
+  const { fullName, dateOfBirth, phone } = req.body;
   const errors = {};
 
-
+  // Kiểm tra họ tên
   if (!fullName || fullName.trim() === "") {
     errors.fullName = "Họ tên không được để trống!";
   } else {
@@ -117,7 +117,15 @@ const validateUpdateProfile = (req, res, next) => {
     }
   }
 
+  // ✅ Kiểm tra số điện thoại
+  if (phone) {
+    const phoneRegex = /^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-9]|9[0-9])[0-9]{7}$/;
+    if (!phoneRegex.test(phone)) {
+      errors.phone = "Số điện thoại không hợp lệ!";
+    }
+  }
 
+  // Kiểm tra ngày sinh
   if (dateOfBirth) {
     const birthDate = new Date(dateOfBirth);
     const now = new Date();
@@ -129,8 +137,6 @@ const validateUpdateProfile = (req, res, next) => {
       errors.dateOfBirth = "Tuổi không được vượt quá 100!";
     }
   }
-
-  
   const file = req.file;
   if (file) {
     const allowedExt = [".jpg", ".jpeg", ".png"];
@@ -144,7 +150,6 @@ const validateUpdateProfile = (req, res, next) => {
       errors.avatarImage = "Ảnh đại diện không được vượt quá 5MB!";
     }
   }
-
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({ errors });
   }
