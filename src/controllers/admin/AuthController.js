@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/userModel");
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret";
 const { Role, Permission } = require("../../models");
-const { getUserDetail } = require("../../services/admin/user.service");
+const AuthService = require('../../services/admin/auth.service'); 
 class AuthController {
   static async login(req, res) {
     try {
@@ -64,16 +64,17 @@ class AuthController {
     }
   }
 
+  async getMe(req, res) {
+    
+  }
   static async getUserInfo(req, res) {
     try {
-      const user = await getUserDetail(req.user.id);
-      if (!user)
-        return res.status(404).json({ message: "Người dùng không tồn tại" });
-
-      res.status(200).json({ user });
+      const user = await AuthService.getUserInfo(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      return res.status(200).json({data: user});
     } catch (err) {
-      console.error("Lỗi getUserInfo:", err);
-      res.status(500).json({ message: "Lỗi server" });
+      console.error('[getMe error]', err);
+      return res.status(500).json({ message: 'Lỗi server' });
     }
   }
   static async logout(req, res) {

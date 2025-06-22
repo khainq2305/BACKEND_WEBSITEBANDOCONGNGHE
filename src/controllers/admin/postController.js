@@ -3,7 +3,7 @@ const slugify = require("slugify");
 const { Post, Category, User, Tags, PostTag, categoryPostModel } = require('../../models/index');
 
 class PostController {
-  
+  // [CREATE] Thêm bài viết
   static async create(req, res) {
     try {
       const {
@@ -111,12 +111,14 @@ class PostController {
             model: Tags,
             as: "tags",
             attributes: ["id", "name", "slug"],
-            through: { attributes: [] }, 
+            through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
           },
         ],
         paranoid: false,
         order: [["createdAt", "DESC"]],
       });
+
+      // 👇 Tính số lượng từng loại bài viết (toàn bộ, kể cả xóa mềm)
       const allPosts = await Post.findAll({ paranoid: false });
 
       const counts = {
@@ -132,7 +134,7 @@ class PostController {
         total: count,
         page,
         totalPages: Math.ceil(count / limit),
-        counts, 
+        counts, // 👈 Trả thêm counts cho FE
       });
     } catch (error) {
       console.error("GET POSTS ERROR:", error);
@@ -141,6 +143,8 @@ class PostController {
         .json({ message: "Lỗi server khi lấy danh sách bài viết" });
     }
   }
+
+  // [READ] Lấy 1 bài viết theo slug
   static async getBySlug(req, res) {
     try {
       const { slug } = req.params;
@@ -161,7 +165,7 @@ class PostController {
             model: Tags,
             as: "tags",
             attributes: ["id", "name", "slug"],
-            through: { attributes: [] }, 
+            through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
           },
         ],
       });
@@ -176,7 +180,7 @@ class PostController {
     }
   }
 
-
+  // [UPDATE] Cập nhật bài viết
   static async update(req, res) {
     try {
       const { slug } = req.params;
@@ -245,7 +249,7 @@ class PostController {
     }
   }
 
-
+  // [SOFT DELETE] Xoá mềm bài viết theo slug
   static async softDelete(req, res) {
     try {
       console.log("=== Đã vào BE softDelete ===");
@@ -278,7 +282,7 @@ class PostController {
     }
   }
 
-
+  // [RESTORE] Khôi phục bài viết theo id
   static async restore(req, res) {
     try {
       const { slugs } = req.body;
@@ -321,7 +325,7 @@ class PostController {
     }
   }
 
-  
+  // [FORCE DELETE] Xoá vĩnh viễn bài viết theo slug
   static async forceDelete(req, res) {
     try {
       console.log("===> BODY:", req.body);

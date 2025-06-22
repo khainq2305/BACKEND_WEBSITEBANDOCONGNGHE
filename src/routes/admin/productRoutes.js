@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const ProductController = require('../../controllers/admin/productController');
 const { validateSimpleProduct } = require('../../validations/validateSimpleProduct');
-
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize'); // Import middleware phân quyền thông minh
+const { checkJWT } = require('../../middlewares/checkJWT');
 const { upload } = require('../../config/cloudinary');
-
+router.use(checkJWT);
+router.use(attachUserDetail);
+router.use(authorize("Product"))
 router.get('/product/list', ProductController.getAll);  
 router.get(
   '/product/:slug',

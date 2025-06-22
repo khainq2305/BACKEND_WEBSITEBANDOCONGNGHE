@@ -2,11 +2,15 @@ const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
-const User = require("../../models/userModel");
+// const User = require("../../models/userModel");
 const Role = require("../../models/roleModel");
 const sendEmail = require("../../utils/sendEmail");
-const { sendAccountStatusEmail } = require("../../services/common/emailService");
+const {
+  sendAccountStatusEmail,
+} = require("../../services/common/emailService");
+const { getUserDetail } = require("../../services/admin/user.service");
 
+const { User, UserRoles } = require("../../models");
 class UserController {
   static async getAllUsers(req, res) {
     try {
@@ -33,7 +37,9 @@ class UserController {
         totalPages: Math.ceil(count / limit),
       });
     } catch (error) {
-      res.status(500).json({ message: "Không thể lấy danh sách người dùng", error });
+      res
+        .status(500)
+        .json({ message: "Không thể lấy danh sách người dùng", error });
     }
   }
 
@@ -57,7 +63,9 @@ class UserController {
         ...(phone ? { phone } : {}),
       });
 
-      res.status(201).json({ message: "Tạo tài khoản thành công", user: newUser });
+      res
+        .status(201)
+        .json({ message: "Tạo tài khoản thành công", user: newUser });
     } catch (error) {
       console.error("❌ Lỗi tạo tài khoản:", error);
       res.status(500).json({ message: "Không thể tạo tài khoản", error });
@@ -69,7 +77,9 @@ class UserController {
       const roles = await Role.findAll({ attributes: ["id", "name"] });
       res.json(roles);
     } catch (error) {
-      res.status(500).json({ message: "Không thể lấy danh sách vai trò", error });
+      res
+        .status(500)
+        .json({ message: "Không thể lấy danh sách vai trò", error });
     }
   }
 
@@ -84,23 +94,29 @@ class UserController {
       }
 
       const user = await User.findByPk(id);
-      if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
+      if (!user)
+        return res.status(404).json({ message: "Người dùng không tồn tại" });
 
       if (user.id === req.user.id && status === 0) {
-        return res.status(400).json({ message: "Không thể tự ngưng tài khoản chính mình" });
+        return res
+          .status(400)
+          .json({ message: "Không thể tự ngưng tài khoản chính mình" });
       }
 
       await user.update({ status });
       await sendAccountStatusEmail(user.email, user.fullName, status, reason);
 
       res.json({
-        message: status === 1
-          ? `Đã chuyển ${user.fullName} sang HOẠT ĐỘNG`
-          : `Đã chuyển ${user.fullName} sang NGỪNG HOẠT ĐỘNG`
+        message:
+          status === 1
+            ? `Đã chuyển ${user.fullName} sang HOẠT ĐỘNG`
+            : `Đã chuyển ${user.fullName} sang NGỪNG HOẠT ĐỘNG`,
       });
     } catch (error) {
       console.error("❌ Lỗi cập nhật trạng thái:", error);
-      res.status(500).json({ message: "Không thể cập nhật trạng thái tài khoản", error });
+      res
+        .status(500)
+        .json({ message: "Không thể cập nhật trạng thái tài khoản", error });
     }
   }
 
@@ -108,7 +124,8 @@ class UserController {
     try {
       const { id } = req.params;
       const user = await User.findByPk(id);
-      if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
+      if (!user)
+        return res.status(404).json({ message: "Người dùng không tồn tại" });
 
       const newPassword = crypto.randomBytes(4).toString("hex");
       const hashed = await bcrypt.hash(newPassword, 10);
@@ -117,11 +134,15 @@ class UserController {
       const html = `...`; // Nội dung email HTML
       await sendEmail(user.email, "Cấp lại mật khẩu truy cập hệ thống", html);
 
-      res.json({ message: "Mật khẩu mới đã được gửi về email của người dùng." });
+      res.json({
+        message: "Mật khẩu mới đã được gửi về email của người dùng.",
+      });
     } catch (error) {
       console.error("❌ Lỗi reset mật khẩu:", error);
       if (error.code === "EAUTH") {
-        return res.status(500).json({ message: "Gửi email thất bại. Kiểm tra cấu hình." });
+        return res
+          .status(500)
+          .json({ message: "Gửi email thất bại. Kiểm tra cấu hình." });
       }
       res.status(500).json({ message: "Không thể cấp lại mật khẩu", error });
     }
@@ -131,9 +152,11 @@ class UserController {
     try {
       const threshold = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000);
       const count = await User.destroy({
-        where: { lastLoginAt: { [Op.lt]: threshold } }
+        where: { lastLoginAt: { [Op.lt]: threshold } },
       });
-      res.json({ message: `Đã xoá ${count} tài khoản không hoạt động trên 3 năm.` });
+      res.json({
+        message: `Đã xoá ${count} tài khoản không hoạt động trên 3 năm.`,
+      });
     } catch (error) {
       res.status(500).json({ message: "Lỗi khi xoá người dùng", error });
     }
@@ -147,9 +170,9 @@ class UserController {
       const whereClause = {
         [Op.or]: [
           { fullName: { [Op.like]: `%${search}%` } },
-          { email: { [Op.like]: `%${search}%` } }
+          { email: { [Op.like]: `%${search}%` } },
         ],
-        deletedAt: { [Op.ne]: null }
+        deletedAt: { [Op.ne]: null },
       };
 
       const { rows, count } = await User.findAndCountAll({
@@ -157,14 +180,14 @@ class UserController {
         paranoid: false,
         limit: parseInt(limit),
         offset: parseInt(offset),
-        order: [["id", "ASC"]]
+        order: [["id", "ASC"]],
       });
 
       res.json({
         data: rows,
         total: count,
         currentPage: parseInt(page),
-        totalPages: Math.ceil(count / limit)
+        totalPages: Math.ceil(count / limit),
       });
     } catch (err) {
       res.status(500).json({ message: "Lỗi lấy danh sách đã xoá", error: err });
@@ -173,11 +196,10 @@ class UserController {
 
   static async getUserById(req, res) {
     try {
-      const user = await User.findByPk(req.params.id, {
-        attributes: { exclude: ["password"] }
-      });
+      const user = await getUserDetail(req.params.id);
+
       if (!user) return res.status(404).json({ message: "Không tìm thấy" });
-      res.json(user);
+      res.json({ data: user });
     } catch (err) {
       res.status(500).json({ message: "Lỗi server", error: err });
     }
@@ -192,12 +214,69 @@ class UserController {
 
       const deleted = await User.destroy({
         where: { id: { [Op.in]: ids } },
-        force: true
+        force: true,
       });
 
       res.json({ message: `Đã xoá ${deleted} tài khoản vĩnh viễn.` });
     } catch (err) {
       res.status(500).json({ message: "Lỗi xoá vĩnh viễn", error: err });
+    }
+  }
+
+  static async updateUserRoles(req, res) {
+    const { userId } = req.params;
+    const { roleIds } = req.body; // mảng ID: [1, 2, 3]
+
+    if (!Array.isArray(roleIds)) {
+      return res
+        .status(400)
+        .json({ message: "Danh sách vai trò không hợp lệ." });
+    }
+
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Không tìm thấy người dùng." });
+      }
+
+      // Xóa hết role cũ rồi gán mới
+      await user.setRoles(roleIds); // Sequelize magic method
+
+      return res.status(200).json({ message: "Cập nhật vai trò thành công." });
+    } catch (error) {
+      console.error("[UpdateUserRoles]", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi cập nhật vai trò." });
+    }
+  }
+
+  static async getUsersByRole(req, res, next) {
+    try {
+      const { roleId } = req.params;
+
+      const users = await User.findAll({
+        include: [
+          {
+            model: Role,
+            where: { id: roleId },
+            through: { attributes: [] }, // ẩn bảng trung gian
+            attributes: [], // không cần data Role
+          },
+        ],
+
+        attributes: ["id", "fullName", "email", "phone", "status"],
+        order: [["id", "ASC"]],
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Tìm thấy ${users.length} user thuộc roleId ${roleId}.`,
+        data: users,
+        totalUsers: users.length,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 }

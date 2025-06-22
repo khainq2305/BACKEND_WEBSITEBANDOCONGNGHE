@@ -1,8 +1,9 @@
-const { Post, categoryPostModel, User } = require('../../models'); 
+const { Post, categoryPostModel, User } = require('../../models'); // ✅ GIỜ mới đúng 100%
 const { Sequelize } = require('sequelize');
 const { Op } = require('sequelize');
 
 class CategoryController {
+  // [CREATE] Thêm bài viết
   static async create(req, res) {
     try {
       const {
@@ -14,6 +15,8 @@ class CategoryController {
         orderIndex = 0,
         isDefault = false,
       } = req.body;
+
+      // ❌ KHÔNG cần check trùng tên ở đây nữa, middleware xử lý rồi
       if (!name) {
         return res.status(400).json({ message: 'Tên danh mục là bắt buộc' });
       }
@@ -26,6 +29,15 @@ class CategoryController {
         isActive,
         orderIndex,
         isDefault,
+      });
+      console.log('📦 Dữ liệu tạo category:', {
+        name,
+        slug,
+        description,
+        parentId,
+        isActive,
+        orderIndex,
+        isDefault
       });
 
       return res.status(201).json({ message: 'Tạo danh mục thành công', data: newCategory });
@@ -52,6 +64,8 @@ class CategoryController {
     }
   }
 
+
+  // [READ] Lấy danh sách bài viết
   static async getAll(req, res) {
     try {
       const { search = '', status = '', categoryId = '' } = req.query;
@@ -80,6 +94,8 @@ class CategoryController {
       if (categoryId) {
         whereClause.parentId = Number(categoryId);
       }
+
+      // ✅ Truy vấn chính: lấy categories (không đếm post tại đây)
       const { count, rows } = await categoryPostModel.findAndCountAll({
         where: whereClause,
         limit,
@@ -87,6 +103,8 @@ class CategoryController {
         order: [['createdAt', 'DESC']],
         paranoid: false
       });
+
+      // ✅ Đếm số bài viết theo categoryId
       const postCounts = await Post.findAll({
         attributes: [
           'categoryId',
@@ -97,12 +115,12 @@ class CategoryController {
         paranoid: false
       });
 
-
+      // ✅ Map: { categoryId: total }
       const postCountMap = Object.fromEntries(
         postCounts.map(p => [p.categoryId, Number(p.total)])
       );
 
-     
+      // ✅ Gộp vào rows
       const enrichedRows = rows.map(c => ({
         ...c.toJSON(),
         postCount: postCountMap[c.id] || 0
@@ -111,7 +129,7 @@ class CategoryController {
 
 
 
-    
+      // 👇 Tính số lượng từng loại danh mục (bao gồm cả xóa mềm)
       const allCategories = await categoryPostModel.findAll({ paranoid: false });
 
       const counts = {
@@ -140,7 +158,7 @@ class CategoryController {
 
   static async update(req, res) {
     try {
-      const { slug } = req.params;
+      const { slug } = req.params; // 👈 lấy slug từ URL
       const {
         name,
         description = '',
@@ -160,7 +178,7 @@ class CategoryController {
         return res.status(404).json({ message: 'Không tìm thấy danh mục với slug này' });
       }
 
-      
+      // Cập nhật
       await categoryPostModel.update({
         name,
         description,
@@ -172,7 +190,7 @@ class CategoryController {
 
       return res.json({ message: 'Cập nhật danh mục thành công', data: category });
     } catch (error) {
-   
+      console.error('UPDATE CATEGORY ERROR:', error);
       return res.status(500).json({ message: 'Lỗi server khi cập nhật danh mục' });
     }
   }
@@ -199,7 +217,7 @@ class CategoryController {
       return res.status(500).json({ message: 'Lỗi server khi xóa mềm danh mục' });
     }
   }
-
+  // controllers/postController.js
   static async restoreBySlug(req, res) {
     try {
       const { slugs } = req.body;
@@ -214,7 +232,7 @@ class CategoryController {
           where: {
             slug: slugs
           },
-          paranoid: false 
+          paranoid: false // cần có để cập nhật bản ghi đã bị xóa mềm
         }
       );
 
@@ -239,7 +257,7 @@ class CategoryController {
             model: Post,
             attributes: [],
             where: {
-              deletedAt: null 
+              deletedAt: null // Chỉ tính bài chưa bị xoá mềm
             },
             required: false
           }

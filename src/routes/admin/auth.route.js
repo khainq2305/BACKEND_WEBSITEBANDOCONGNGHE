@@ -7,8 +7,9 @@ const fs = require("fs");
 const AuthController = require("../../controllers/admin/AuthController");
 
 const { validateRegister, validateLogin, validateForgotPassword, validateResetPassword, validateUpdateProfile } = require("../../validations/authValidator");
-const { checkJWT } = require("../../middlewares/checkJWT");
-router.post("/dang-nhap-dashboard", AuthController.login);
+const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
+const { requireTurnstile } = require('../../middlewares/requireTurnstile')
+router.post("/dang-nhap-dashboard",requireTurnstile, AuthController.login);
 router.post("/dang-xuat", AuthController.logout)
 router.get("/account-info", checkJWT, AuthController.getUserInfo);
 

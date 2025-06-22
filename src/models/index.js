@@ -64,6 +64,49 @@ const Brand = require("./brandModel");
 const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
 const Product = require("./product");
+const RolePermission = require('./RolePermission')
+const Action = require('./actionModel')
+const Subject = require('./Subject')
+// phan quyen
+// User - Role
+User.belongsToMany(Role, {
+  through: UserRole, // 👈 sửa đây
+  foreignKey: 'userId',
+  otherKey: 'roleId'
+});
+
+Role.belongsToMany(User, {
+  through: UserRole, // 👈 sửa đây
+  foreignKey: 'roleId',
+  otherKey: 'userId'
+});
+
+
+  Role.hasMany(RolePermission, {
+  foreignKey: 'roleId',
+  as: 'rolePermissions'
+});
+RolePermission.belongsTo(Role, {
+  foreignKey: 'roleId',
+  as: 'role'
+});
+Action.hasMany(RolePermission, {
+  foreignKey: 'actionId',
+  as: 'rolePermissions'
+});
+RolePermission.belongsTo(Action, {
+  foreignKey: 'actionId',
+  as: 'action'
+});
+Subject.hasMany(RolePermission, {
+  foreignKey: 'subjectId',
+  as: 'rolePermissions'
+});
+RolePermission.belongsTo(Subject, {
+  foreignKey: 'subjectId',
+  as: 'subject'
+});
+
 //
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
 NotificationUser.belongsTo(User, { foreignKey: "userId" });
