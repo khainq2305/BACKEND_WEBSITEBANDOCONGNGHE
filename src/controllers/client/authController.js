@@ -461,6 +461,8 @@ class AuthController {
           .json({ message: "Email hoặc mật khẩu không đúng!" });
       }
 
+      await user.update({ lastLoginAt: new Date() });
+
       const token = jwt.sign(
         {
           id: user.id,
@@ -486,6 +488,7 @@ class AuthController {
           fullName: user.fullName,
           roleId: user.roleId,
           status: user.status,
+          lastLoginAt: user.lastLoginAt,
         },
       });
     } catch (err) {
@@ -917,148 +920,145 @@ class AuthController {
     }
   }
 
- static async getUserInfo(req, res) {
-  try {
-    const token = req.headers.authorization?.split(" ")[1];
+  static async getUserInfo(req, res) {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
 
-    if (!token) {
-      return res.status(401).json({ message: "Không có token xác thực!" });
+      if (!token) {
+        return res.status(401).json({ message: "Không có token xác thực!" });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      const user = await User.findByPk(decoded.id, {
+        attributes: [
+          "id",
+          "fullName",
+          "email",
+          "phone",
+          "gender",
+          "dateOfBirth",
+          "avatarUrl",
+          "password",
+          "provider",
+        ],
+        include: [
+          {
+            model: UserToken,
+            as: "UserTokens",
+
+            where: { type: "lock" },
+            required: false,
+            limit: 1,
+            order: [["createdAt", "DESC"]],
+            attributes: ["lockedUntil"],
+          },
+        ],
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "Người dùng không tồn tại!" });
+      }
+
+      const userResponse = user.toJSON();
+      if (userResponse.dateOfBirth) {
+        const [year, month, day] = userResponse.dateOfBirth.split("-");
+        userResponse.birthDate = {
+          day: day || "",
+          month: month || "",
+          year: year || "",
+        };
+      } else {
+        userResponse.birthDate = { day: "", month: "", year: "" };
+      }
+      userResponse.hasPassword = !!userResponse.password;
+      delete userResponse.password;
+      delete userResponse.dateOfBirth;
+      userResponse.lockedUntil = userResponse.tokens?.[0]?.lockedUntil || null;
+      delete userResponse.tokens;
+
+      res.status(200).json({ user: userResponse });
+    } catch (err) {
+      console.error("Lỗi khi lấy thông tin người dùng:", err.name, err.message);
+
+      if (
+        err.name === "JsonWebTokenError" ||
+        err.name === "TokenExpiredError"
+      ) {
+        return res
+          .status(401)
+          .json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
+      }
+
+      res.status(500).json({
+        message: "Đã xảy ra lỗi máy chủ khi cố gắng lấy thông tin người dùng.",
+      });
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findByPk(decoded.id, {
-      attributes: [
-        "id",
-        "fullName",
-        "email",
-        "phone",
-        "gender",
-        "dateOfBirth",
-        "avatarUrl",
-        "password",
-        "provider",
-      ],
-      include: [
-        {
-          model: UserToken,
-    as: "UserTokens",
-
-          where: { type: "lock" },
-          required: false,
-          limit: 1,
-          order: [["createdAt", "DESC"]],
-          attributes: ["lockedUntil"],
-        },
-      ],
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: "Người dùng không tồn tại!" });
-    }
-
-    const userResponse = user.toJSON();
-
-    // Parse ngày sinh
-    if (userResponse.dateOfBirth) {
-      const [year, month, day] = userResponse.dateOfBirth.split("-");
-      userResponse.birthDate = {
-        day: day || "",
-        month: month || "",
-        year: year || "",
-      };
-    } else {
-      userResponse.birthDate = { day: "", month: "", year: "" };
-    }
-
-    // Trả về thông tin đã xử lý
-    userResponse.hasPassword = !!userResponse.password;
-    delete userResponse.password;
-    delete userResponse.dateOfBirth;
-
-    // Thêm lockedUntil nếu có
-    userResponse.lockedUntil = userResponse.tokens?.[0]?.lockedUntil || null;
-    delete userResponse.tokens;
-
-    res.status(200).json({ user: userResponse });
-  } catch (err) {
-    console.error("Lỗi khi lấy thông tin người dùng:", err.name, err.message);
-
-    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
-    }
-
-    res.status(500).json({
-      message: "Đã xảy ra lỗi máy chủ khi cố gắng lấy thông tin người dùng.",
-    });
   }
-}
 
+  static async updateProfile(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Xác thực thất bại!" });
+      }
 
- static async updateProfile(req, res) {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: "Xác thực thất bại!" });
-    }
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Người dùng không tồn tại!" });
+      }
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Người dùng không tồn tại!" });
-    }
+      const { fullName, phone, gender, birthDate: birthDateString } = req.body;
 
-    const { fullName, phone, gender, birthDate: birthDateString } = req.body;
+      if (req.file && req.file.path) {
+        user.avatarUrl = req.file.path;
+      }
 
-    
-    if (req.file && req.file.path) {
-      user.avatarUrl = req.file.path; 
-    }
+      if (fullName !== undefined) user.fullName = fullName;
+      if (phone !== undefined) user.phone = phone === "" ? null : phone;
+      if (gender !== undefined) user.gender = gender;
 
-    if (fullName !== undefined) user.fullName = fullName;
-    if (phone !== undefined) user.phone = phone === "" ? null : phone;
-    if (gender !== undefined) user.gender = gender;
+      if (birthDateString !== undefined) {
+        try {
+          const parsed =
+            typeof birthDateString === "string"
+              ? JSON.parse(birthDateString)
+              : birthDateString;
 
-    if (birthDateString !== undefined) {
-      try {
-        const parsed =
-          typeof birthDateString === "string"
-            ? JSON.parse(birthDateString)
-            : birthDateString;
-
-        if (parsed.year && parsed.month && parsed.day) {
-          const monthPadded = String(parsed.month).padStart(2, "0");
-          const dayPadded = String(parsed.day).padStart(2, "0");
-          user.dateOfBirth = `${parsed.year}-${monthPadded}-${dayPadded}`;
-        } else {
-          user.dateOfBirth = null;
-        }
-      } catch (e) {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateString)) {
-          user.dateOfBirth = birthDateString;
+          if (parsed.year && parsed.month && parsed.day) {
+            const monthPadded = String(parsed.month).padStart(2, "0");
+            const dayPadded = String(parsed.day).padStart(2, "0");
+            user.dateOfBirth = `${parsed.year}-${monthPadded}-${dayPadded}`;
+          } else {
+            user.dateOfBirth = null;
+          }
+        } catch (e) {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateString)) {
+            user.dateOfBirth = birthDateString;
+          }
         }
       }
+
+      await user.save();
+
+      const [year, month, day] = (user.dateOfBirth || "").split("-");
+      res.status(200).json({
+        message: "Cập nhật hồ sơ thành công!",
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          roleId: user.roleId,
+          phone: user.phone,
+          gender: user.gender,
+          avatarUrl: user.avatarUrl,
+          birthDate: { year: year || "", month: month || "", day: day || "" },
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Lỗi máy chủ: " + error.message });
     }
-
-    await user.save();
-
-    const [year, month, day] = (user.dateOfBirth || "").split("-");
-    res.status(200).json({
-      message: "Cập nhật hồ sơ thành công!",
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        roleId: user.roleId,
-        phone: user.phone,
-        gender: user.gender,
-        avatarUrl: user.avatarUrl,
-        birthDate: { year: year || "", month: month || "", day: day || "" },
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi máy chủ: " + error.message });
   }
-}
 
   static async googleLogin(req, res) {
     try {
@@ -1228,88 +1228,98 @@ class AuthController {
     }
   }
   static async changePassword(req, res) {
-  try {
-    const { id } = req.user;
-    const { currentPassword, newPassword } = req.body;
+    try {
+      const { id } = req.user;
+      const { currentPassword, newPassword } = req.body;
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-    if (!newPassword || !passwordRegex.test(newPassword)) {
-      return res.status(400).json({
-        message: "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.",
-      });
-    }
-
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ message: "Người dùng không tồn tại" });
-    }
-
-    // ✅ Kiểm tra khóa tạm từ userTokens
-    const attempt = await UserToken.findOne({
-      where: { userId: id, type: "changePasswordAttempt" },
-      order: [["createdAt", "DESC"]],
-    });
-
-    if (attempt?.lockedUntil && new Date() < new Date(attempt.lockedUntil)) {
-      const remaining = Math.ceil((new Date(attempt.lockedUntil) - new Date()) / 1000);
-      return res.status(429).json({
-        message: `Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ${remaining} giây.`,
-      });
-    }
-
-    if (user.password) {
-      if (!currentPassword) {
-        return res.status(400).json({ message: "Vui lòng nhập mật khẩu hiện tại" });
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+      if (!newPassword || !passwordRegex.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.",
+        });
       }
 
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        // ✅ Cập nhật số lần nhập sai
-        if (attempt) {
-          attempt.sendCount += 1;
-          if (attempt.sendCount >= 5) {
-            attempt.lockedUntil = new Date(Date.now() + 5 * 60 * 1000); // Khóa 5 phút
-          }
-          await attempt.save();
-        } else {
-          await UserToken.create({
-            userId: id,
-            email: user.email,
-            type: "changePasswordAttempt",
-            sendCount: 1,
-            lastSentAt: new Date(),
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-            ipAddress: req.ip || "unknown",
-            lockedUntil: null,
-            usedAt: null,
-          });
+      const user = await User.findByPk(id);
+      if (!user) {
+        return res.status(404).json({ message: "Người dùng không tồn tại" });
+      }
+
+      const attempt = await UserToken.findOne({
+        where: { userId: id, type: "changePasswordAttempt" },
+        order: [["createdAt", "DESC"]],
+      });
+
+      if (attempt?.lockedUntil && new Date() < new Date(attempt.lockedUntil)) {
+        const remaining = Math.ceil(
+          (new Date(attempt.lockedUntil) - new Date()) / 1000
+        );
+        return res.status(429).json({
+          message: `Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau ${remaining} giây.`,
+        });
+      }
+
+      if (user.password) {
+        if (!currentPassword) {
+          return res
+            .status(400)
+            .json({ message: "Vui lòng nhập mật khẩu hiện tại" });
         }
-        return res.status(400).json({ message: "Mật khẩu hiện tại không đúng" });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+          if (attempt) {
+            attempt.sendCount += 1;
+            if (attempt.sendCount >= 5) {
+              attempt.lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
+            }
+            await attempt.save();
+          } else {
+            await UserToken.create({
+              userId: id,
+              email: user.email,
+              type: "changePasswordAttempt",
+              sendCount: 1,
+              lastSentAt: new Date(),
+              expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+              ipAddress: req.ip || "unknown",
+              lockedUntil: null,
+              usedAt: null,
+            });
+          }
+          return res
+            .status(400)
+            .json({ message: "Mật khẩu hiện tại không đúng" });
+        }
+        const isSamePassword = await bcrypt.compare(newPassword, user.password);
+        if (isSamePassword) {
+          return res
+            .status(400)
+            .json({
+              message: "Mật khẩu mới không được trùng với mật khẩu cũ.",
+            });
+        }
       }
 
-      // ✅ Kiểm tra mật khẩu mới có trùng cũ không
-      const isSamePassword = await bcrypt.compare(newPassword, user.password);
-      if (isSamePassword) {
-        return res.status(400).json({ message: "Mật khẩu mới không được trùng với mật khẩu cũ." });
-      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      await user.save();
+      await UserToken.destroy({
+        where: { userId: id, type: "changePasswordAttempt" },
+      });
+
+      return res.json({
+        message: user.password
+          ? "Đổi mật khẩu thành công"
+          : "Thiết lập mật khẩu thành công",
+      });
+    } catch (error) {
+      console.error("Lỗi đổi mật khẩu:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server. Vui lòng thử lại sau." });
     }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    await user.save();
-
-    // ✅ Xóa token failed attempt sau khi đổi thành công
-    await UserToken.destroy({ where: { userId: id, type: "changePasswordAttempt" } });
-
-    return res.json({
-      message: user.password ? "Đổi mật khẩu thành công" : "Thiết lập mật khẩu thành công",
-    });
-  } catch (error) {
-    console.error("Lỗi đổi mật khẩu:", error);
-    return res.status(500).json({ message: "Lỗi server. Vui lòng thử lại sau." });
   }
-}
-
 }
 
 module.exports = AuthController;

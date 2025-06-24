@@ -631,7 +631,9 @@ console.log("MoMo CALLBACK BODY:", req.body);
   }
 }
 
- static async getAllByUser(req, res) {
+// ... (các import và hàm khác)
+
+static async getAllByUser(req, res) {
   try {
     const userId = req.user.id;
 
@@ -658,8 +660,14 @@ console.log("MoMo CALLBACK BODY:", req.body);
         },
         {
           model: ReturnRequest,
-          as: "returnRequest", // ✅ thêm dòng này
+          as: "returnRequest",
           required: false,
+        },
+        { // ✅ THÊM DÒNG NÀY ĐỂ INCLUDE PAYMENT METHOD
+          model: PaymentMethod,
+          as: "paymentMethod",
+          attributes: ['id', 'name', 'code'], // Chỉ lấy id, name, code
+          required: true, // Giả định mỗi order đều có paymentMethod
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -679,7 +687,15 @@ console.log("MoMo CALLBACK BODY:", req.body);
             id: order.returnRequest.id,
             status: order.returnRequest.status,
           }
-        : null, // ✅ Đảm bảo trả về returnRequest và status
+        : null,
+      // ✅ THÊM THÔNG TIN PAYMENT METHOD VÀO ĐÂY
+      paymentMethod: order.paymentMethod
+        ? {
+            id: order.paymentMethod.id,
+            name: order.paymentMethod.name,
+            code: order.paymentMethod.code, // RẤT QUAN TRỌNG
+          }
+        : null,
       products: order.items.map((item) => {
         const productInfo = item.Sku?.product;
         const skuInfo = item.Sku;
@@ -709,6 +725,8 @@ console.log("MoMo CALLBACK BODY:", req.body);
     return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
   }
 }
+
+// ... (các hàm khác)
 
   static async cancel(req, res) {
   try {

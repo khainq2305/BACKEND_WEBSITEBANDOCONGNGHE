@@ -363,7 +363,7 @@ OrderItem.belongsTo(Order, {
   as: "orderData",
 });
 
-OrderItem.belongsTo(Sku, { foreignKey: "skuId", as: 'sku' });
+OrderItem.belongsTo(Sku, { foreignKey: "skuId" });
 Sku.hasMany(OrderItem, { foreignKey: "skuId" });
 
 Order.belongsTo(UserAddress, {

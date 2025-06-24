@@ -11,10 +11,7 @@ router.post('/create', checkJWT, OrderController.createOrder);
 router.post("/momo", checkJWT, OrderController.momoPay);
 router.post("/zalopay", checkJWT, OrderController.zaloPay);
 router.post("/vnpay", checkJWT, OrderController.vnpay);
-// ✅ API mua lại đơn hàng
 router.post('/:id/reorder', checkJWT, OrderController.reorder);
-
-// Chọn phương thức hoàn hàng: ghn đến lấy hoặc tự gửi
 router.put(
   '/return/:id/choose-method',
   checkJWT,
@@ -26,10 +23,7 @@ router.put('/:id/cancel', checkJWT, OrderController.cancel);
 
 router.post("/generate-vietqr", OrderController.generate);
 router.post('/calculate-shipping-fee', OrderController.getShippingFee);
-
-// Chỉ cần là /lookup
 router.get('/lookup', OrderController.lookupOrder);
-// routes/client/order.js
 
 router.post(
   '/return',

@@ -29,7 +29,7 @@ router.get("/verification-cooldown", AuthController.getVerificationCooldown);
 router.put(
   "/update-profile",
   checkJWT,
-  upload.single("avatarImage"), // dùng middleware đã config cloudinary
+  upload.single("avatarImage"), 
   validateUpdateProfile,
   AuthController.updateProfile
 );
