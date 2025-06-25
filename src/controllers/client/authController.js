@@ -441,7 +441,7 @@ class AuthController {
 
   static async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const { email, password, remember } = req.body; // 👈 nhận thêm "remember"
 
       const user = await User.findOne({ where: { email } });
       if (!user) {
@@ -463,6 +463,7 @@ class AuthController {
 
       await user.update({ lastLoginAt: new Date() });
 
+      // 👇 Token sống 1h nếu không ghi nhớ, 7d nếu có ghi nhớ
       const token = jwt.sign(
         {
           id: user.id,
@@ -471,12 +472,14 @@ class AuthController {
           roleId: user.roleId,
         },
         JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: remember ? "7d" : "1h" }
       );
 
       res.cookie("token", token, {
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        secure: true,
+        sameSite: "None",
+        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, // 👈 7d or 1h
       });
 
       res.status(200).json({
@@ -1025,17 +1028,20 @@ class AuthController {
               ? JSON.parse(birthDateString)
               : birthDateString;
 
-          if (parsed.year && parsed.month && parsed.day) {
-            const monthPadded = String(parsed.month).padStart(2, "0");
-            const dayPadded = String(parsed.day).padStart(2, "0");
-            user.dateOfBirth = `${parsed.year}-${monthPadded}-${dayPadded}`;
+          if (parsed?.year && parsed?.month && parsed?.day) {
+            const year = String(parsed.year);
+            const month = String(parsed.month).padStart(2, "0");
+            const day = String(parsed.day).padStart(2, "0");
+
+            const finalDate = `${year}-${month}-${day}`;
+
+            user.dateOfBirth = finalDate;
           } else {
             user.dateOfBirth = null;
           }
         } catch (e) {
-          if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateString)) {
-            user.dateOfBirth = birthDateString;
-          }
+          console.error("JSON parse birthDate failed:", e);
+          user.dateOfBirth = null;
         }
       }
 
@@ -1065,16 +1071,20 @@ class AuthController {
       const { token } = req.body;
       if (!token) return res.status(400).json({ message: "Thiếu token!" });
 
-      const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
+      // ✅ Gọi Google API userinfo
+      const { data } = await axios.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      const payload = ticket.getPayload();
-      const providerId = payload.sub;
-      const email = payload.email;
-      const name = payload.name || email.split("@")[0];
-      const avatar = payload.picture;
+      const providerId = data.sub;
+      const email = data.email;
+      const name = data.name || email.split("@")[0];
+      const avatar = data.picture;
 
       let user = await User.findOne({
         where: {
@@ -1293,11 +1303,9 @@ class AuthController {
         }
         const isSamePassword = await bcrypt.compare(newPassword, user.password);
         if (isSamePassword) {
-          return res
-            .status(400)
-            .json({
-              message: "Mật khẩu mới không được trùng với mật khẩu cũ.",
-            });
+          return res.status(400).json({
+            message: "Mật khẩu mới không được trùng với mật khẩu cũ.",
+          });
         }
       }
 

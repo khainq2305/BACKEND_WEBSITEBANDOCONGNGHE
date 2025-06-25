@@ -14,6 +14,10 @@ const User = connection.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    dateOfBirth: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
 
     email: {
       type: DataTypes.STRING,
@@ -36,7 +40,11 @@ const User = connection.define(
     status: {
       type: DataTypes.TINYINT,
       allowNull: false,
-      defaultValue: 1, 
+      defaultValue: 1,
+    },
+    gender: {
+      type: DataTypes.ENUM("male", "female", "other"),
+      allowNull: true,
     },
 
     phone: {
@@ -52,6 +60,10 @@ const User = connection.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       allowNull: false,
+    },
+    avatarUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
 
     lastLoginAt: {
