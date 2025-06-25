@@ -16,7 +16,7 @@ const { authorize } = require("../../middlewares/authorize"); // Import middlewa
 // =================================================================
 router.use(checkJWT);
 router.use(attachUserDetail);
-router.use(authorize("Post"))
+// router.use(authorize("Post"))
 // =================================================================
 // ĐỊNH NGHĨA CÁC ROUTE
 // Giờ đây, chúng ta chỉ cần dùng authorize() rất gọn gàng.
@@ -30,7 +30,7 @@ router.post(
 );
 
 // [GET] / -> Tự động hiểu action là 'read'
-router.get("/", pagination, PostController.getAll);
+router.get("/", pagination,authorize("Post"), PostController.getAll);
 
 // [GET] /chinh-sua-bai-viet/:slug -> Tự động hiểu action là 'read'
 router.get("/chinh-sua-bai-viet/:slug", PostController.getBySlug);

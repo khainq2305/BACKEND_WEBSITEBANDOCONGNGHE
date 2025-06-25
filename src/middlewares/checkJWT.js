@@ -2,25 +2,27 @@
 const { verifyToken } = require('../utils/jwtUtils');
 
 const checkJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Bạn chưa đăng nhập hoặc token không hợp lệ!" });
+  const token = req.cookies.token; // ✅ Đúng cú pháp
+
+  console.log('Token từ cookie:', token);
+
+  if (!token) {
+    return res.status(401).json({ message: "Bạn chưa đăng nhập hoặc token không tồn tại!" });
   }
 
-  const token = authHeader.split(" ")[1];
-
   try {
-    const decoded = verifyToken(token);
-    req.user = decoded; 
+    const decoded = verifyToken(token); // hoặc jwt.verify(token, SECRET)
+    req.user = decoded;
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {
       return res.status(401).json({ message: "Token đã hết hạn, vui lòng đăng nhập lại!" });
     }
+
     return res.status(401).json({ message: "Token không hợp lệ!" });
   }
 };
+
 
 
 const isAdmin = (req, res, next) => {

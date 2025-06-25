@@ -590,5 +590,8 @@ module.exports = {
   Coupon,
   Product,
   UserToken,
+  RolePermission,
+  Action,
+  Subject,
   sequelize: connection,
 };
