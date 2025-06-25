@@ -18,6 +18,8 @@ const orderRoutes = require('./order.routes');
 const uploadRoutes = require("./upload.routes"); 
 const bannerRoutes = require('./banner.routes'); 
 const tagsRoute = require('./tags.route')
+const permissionRoutes = require('./permission.route')
+const roleRoutes= require('./role.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
 const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
@@ -30,7 +32,8 @@ router.use('/tags', tagsRoute)
 router.use('/', bannerRoutes); 
 router.use('/notifications', notificationRoutes);
 router.use('/notification-users', notificationUserRoutes);
-
+router.use('/permissions', permissionRoutes);
+router.use('/quan-ly-vai-tro', roleRoutes);
 router.use('/', productRoutes); 
 router.use('/', userRoutes); 
 router.use('/quan-ly-bai-viet', postRoutes);

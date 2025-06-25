@@ -2,16 +2,14 @@
 const { verifyToken } = require('../utils/jwtUtils');
 
 const checkJWT = (req, res, next) => {
-  const token = req.cookies.token; // ✅ Đúng cú pháp
-
-  console.log('Token từ cookie:', token);
+  const token = req.cookies.token;
 
   if (!token) {
     return res.status(401).json({ message: "Bạn chưa đăng nhập hoặc token không tồn tại!" });
   }
 
   try {
-    const decoded = verifyToken(token); // hoặc jwt.verify(token, SECRET)
+    const decoded = verifyToken(token);
     req.user = decoded;
     next();
   } catch (error) {

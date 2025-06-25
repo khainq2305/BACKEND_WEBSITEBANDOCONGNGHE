@@ -7,8 +7,7 @@ const attachUserDetail = async (req, res, next) => {
     }
 
     const fullUser = await getUserInfo(req.user.id);
-    req.user = fullUser; // 👈 Gắn lại user có đủ `permissions`
-    console.log(req.user)
+    req.user = fullUser; 
     next();
   } catch (error) {
     res.status(500).json({ message: 'Không lấy được thông tin người dùng!' });
