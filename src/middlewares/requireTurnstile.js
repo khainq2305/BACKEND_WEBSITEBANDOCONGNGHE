@@ -9,7 +9,7 @@ export async function requireTurnstile(req, res, next) {
 
   const passed = await verifyTurnstile(cfToken, req.ip);
   if (!passed) {
-    return res.status(403).json({ message: 'Xác minh bảo mật thất bại!' });
+    return res.status(403).json({ message: 'Xác minh bảo mật thất bại! cvv' });
   }
 
   next(); // ✅ Cho đi tiếp nếu pass

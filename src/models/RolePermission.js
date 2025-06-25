@@ -30,7 +30,7 @@ const RolePermission = sequelize.define(
     },
   },
   {
-    tableName: "role_permissions",
+    tableName: "rolepermissions",
     timestamps: false, // dùng created_at thủ công
   }
 );

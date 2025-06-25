@@ -3,6 +3,8 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 const clientRoutes = require('./routes/client'); 
 const adminRoutes = require('./routes/admin'); 
 
@@ -28,9 +30,11 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/admin', adminRoutes); 
+
 
 app.use('/', clientRoutes);
-app.use('/admin', adminRoutes); 
+
 
 
 module.exports = app;

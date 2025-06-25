@@ -8,7 +8,7 @@ const { checkJWT } = require('../../middlewares/checkJWT');
 const { upload } = require('../../config/cloudinary');
 router.use(checkJWT);
 router.use(attachUserDetail);
-router.use(authorize("Product"))
+// router.use(authorize("ggg"))
 router.get('/product/list', ProductController.getAll);  
 router.get(
   '/product/:slug',

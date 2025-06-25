@@ -12,14 +12,16 @@ const checkPermission = (action, subject) => {
 
     const ability = defineAbilitiesFor(user.permissions, user.roles);
 
-    // console.log(`[CASL] ✅ Check quyền: ${action} ${subject} =>`, ability.can(action, subject));
+    console.log("roels", user.roles);
+    console.log("permision", user.permissions)
+    console.log(`[CASL] ✅ Check quyền: ${action} ${subject} =>`, ability.can(action, subject));
 
     if (ability.can(action, subject)) {
       return next();
     }
-
     return res.status(403).json({
-      message: `Cấm: Không có quyền ${action} trên ${subject}`
+      message: `Cấm: Không có quyền ${action} trên ${subject} 🚨 Danh sách quyền hiện tại: ${JSON.stringify(user.permissions)}`
+
     });
   };
 };

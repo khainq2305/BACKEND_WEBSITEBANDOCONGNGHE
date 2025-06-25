@@ -23,8 +23,9 @@ const notificationUserRoutes = require('./notificationUser.route');
 const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
 const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
+const authRouters = require('./auth.route')
 router.use('/', orderRoutes);  
-
+router.use('/', authRouters); 
 router.use('/tags', tagsRoute)
 router.use('/', bannerRoutes); 
 router.use('/notifications', notificationRoutes);
@@ -42,10 +43,9 @@ router.use('/', sectionRoutes);
 router.use('/', flashSaleRoutes); 
 router.use('/categories', categoryRoutes);
 router.use("/", uploadRoutes);
-router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/brands', brandRoutes);
 
-router.use('/reviews', reviewRoutes); // 👈 quản lý đánh giá tại /admin/reviews
+router.use('/reviews', reviewRoutes); 
 router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 
 module.exports = router;

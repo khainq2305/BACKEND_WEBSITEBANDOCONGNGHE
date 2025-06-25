@@ -31,9 +31,7 @@ router.put(
 router.post('/highlighted-category-items/delete-many', HighlightedCategoryItemController.deleteMany);
 
 
-
 router.post('/highlighted-category-items/reorder', HighlightedCategoryItemController.reorder);
-
 
 router.delete('/highlighted-category-items/:id', HighlightedCategoryItemController.delete);
 
