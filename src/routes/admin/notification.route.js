@@ -4,11 +4,17 @@ const NotificationController = require("../../controllers/admin/notification.con
 const { upload } = require("../../config/cloudinary");
 const autoSlug = require("../../middlewares/autoSlug");
 const { Notification } = require("../../models");
+const {checkJWT} = require("../../middlewares/checkJWT")
+const {attachUserDetail} = require("../../middlewares/getUserDetail ")
+const {authorize} = require("../../middlewares/authorize")
+
 const {
   createNotificationValidator,
   updateNotificationValidator,
 } = require("../../validations/notificationValidator");
-
+router.use(checkJWT);
+router.use(attachUserDetail);
+router.use(authorize("notification"))
 router.get("/", NotificationController.getAll);
 router.post("/delete-many", NotificationController.deleteMany);
 
