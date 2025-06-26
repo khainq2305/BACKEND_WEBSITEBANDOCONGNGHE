@@ -12,7 +12,7 @@ const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
-const ReturnRequest = require("./returnRequest"); 
+const ReturnRequest = require("./returnRequest");
 
 const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
@@ -82,7 +82,7 @@ Role.belongsToMany(User, {
 });
 
 
-  Role.hasMany(RolePermission, {
+Role.hasMany(RolePermission, {
   foreignKey: 'roleId',
   as: 'rolePermissions'
 });
@@ -363,7 +363,7 @@ OrderItem.belongsTo(Order, {
   as: "orderData",
 });
 
-OrderItem.belongsTo(Sku, { foreignKey: "skuId" });
+OrderItem.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
 Sku.hasMany(OrderItem, { foreignKey: "skuId" });
 
 Order.belongsTo(UserAddress, {
