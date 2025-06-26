@@ -67,6 +67,8 @@ const Product = require("./product");
 const RolePermission = require('./RolePermission')
 const Action = require('./actionModel')
 const Subject = require('./Subject')
+const SystemSetting = require("./systemsetting");
+
 // phan quyen
 // User - Role
 User.belongsToMany(Role, {
@@ -593,5 +595,6 @@ module.exports = {
   RolePermission,
   Action,
   Subject,
+  SystemSetting,
   sequelize: connection,
 };

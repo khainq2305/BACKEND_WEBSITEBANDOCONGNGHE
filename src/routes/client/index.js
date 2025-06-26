@@ -20,6 +20,7 @@ const flashSaleRoutes = require('./flashSale.routes');
 const postRoutes = require('./post.route')
 const productViewRoutes = require('./productView.routes');
 const productQuestionRoutes = require('./productQuestion.route');
+const systemSettingRoutes = require('./systemSetting.routes');
 
 router.use('/productviews', productViewRoutes); 
 router.post('/payment/momo-callback', require('../../controllers/client/orderController').momoCallback);
@@ -43,5 +44,6 @@ router.use('/review', reviewRoutes);
 router.use('/', couponRoutes);
 router.use('/notifications', require('./notificationClient.route'));
 router.use('/product-questions', productQuestionRoutes);
+router.use('/system-settings', systemSettingRoutes); 
 
 module.exports = router;

@@ -26,6 +26,8 @@ const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
 const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
 const authRouters = require('./auth.route')
+const systemSettingRoutes = require('./systemSetting.routes');
+
 router.use('/', orderRoutes);  
 router.use('/', authRouters); 
 router.use('/tags', tagsRoute)
@@ -51,4 +53,6 @@ router.use('/brands', brandRoutes);
 router.use('/reviews', reviewRoutes); 
 router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 
+router.use('/system-settings', systemSettingRoutes);
+
 module.exports = router;
