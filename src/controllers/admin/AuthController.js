@@ -14,7 +14,7 @@ class AuthController {
       if (!user) {
         return res
           .status(400)
-          .json({ message: "Email hoặc mật khẩu không đúng!" });
+          .json({ message: "Email, lolololhoặc mật khẩu không đúng!" });
       }
 
       if (user.status === 0) {
