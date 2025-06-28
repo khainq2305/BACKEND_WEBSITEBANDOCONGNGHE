@@ -98,13 +98,13 @@ class ProductQuestionController {
 
             const questions = await ProductQuestion.findAll({
                 where: { productId, isHidden: false },
-                include: [{ model: User, as: 'user', attributes: ['id', 'fullName'] }],
+                include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'avatarUrl'] }],
                 order: [['createdAt', 'DESC']],
             });
 
             const allAnswers = await ProductAnswer.findAll({
                 where: { isHidden: false },
-                include: [{ model: User, as: 'user', attributes: ['id', 'fullName'] }],
+                include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'avatarUrl'] }], 
             });
 
             const questionMap = {};

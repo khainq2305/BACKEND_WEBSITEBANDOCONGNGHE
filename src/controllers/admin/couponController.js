@@ -10,44 +10,39 @@ const {
 const { sequelize } = require("../../models");
 
 class CouponController {
- static async create(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const {
-      userIds = [],
-      productIds = [],
-      ...couponData
-    } = req.body;
+  static async create(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { userIds = [], productIds = [], ...couponData } = req.body;
 
-    const coupon = await Coupon.create(couponData, { transaction: t });
+      const coupon = await Coupon.create(couponData, { transaction: t });
 
-    if (userIds.length > 0) {
-      const userRecords = userIds.map((userId) => ({
-        couponId: coupon.id,
-        userId,
-      }));
-      await CouponUser.bulkCreate(userRecords, { transaction: t });
+      if (userIds.length > 0) {
+        const userRecords = userIds.map((userId) => ({
+          couponId: coupon.id,
+          userId,
+        }));
+        await CouponUser.bulkCreate(userRecords, { transaction: t });
+      }
+
+      if (productIds.length > 0) {
+        const productRecords = productIds.map((skuId) => ({
+          couponId: coupon.id,
+          skuId,
+        }));
+        await CouponItem.bulkCreate(productRecords, { transaction: t });
+      }
+
+      await t.commit();
+      res
+        .status(201)
+        .json({ message: "Thêm mã giảm giá thành công", data: coupon });
+    } catch (err) {
+      await t.rollback();
+      console.error("Lỗi tạo mã giảm giá:", err);
+      res.status(500).json({ message: "Lỗi server", error: err.message });
     }
-
-    if (productIds.length > 0) {
-      const productRecords = productIds.map((skuId) => ({
-        couponId: coupon.id,
-        skuId,
-      }));
-      await CouponItem.bulkCreate(productRecords, { transaction: t });
-    }
-
-    await t.commit();
-    res
-      .status(201)
-      .json({ message: "Thêm mã giảm giá thành công", data: coupon });
-  } catch (err) {
-    await t.rollback();
-    console.error("Lỗi tạo mã giảm giá:", err);
-    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
-}
-
 
   static async list(req, res) {
     try {
@@ -62,7 +57,6 @@ class CouponController {
         ];
       }
 
-      // Trạng thái hoạt động
       if (status === "active") {
         whereClause.isActive = true;
       } else if (status === "inactive") {
@@ -112,88 +106,79 @@ class CouponController {
     }
   }
 
- static async update(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { id } = req.params;
+  static async update(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { id } = req.params;
 
-    const coupon = await Coupon.findByPk(id);
-    if (!coupon) {
-      return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
-    }
+      const coupon = await Coupon.findByPk(id);
+      if (!coupon) {
+        return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+      }
 
-    const {
-      userIds = [],
-      productIds = [],
-      ...couponData
-    } = req.body;
+      const { userIds = [], productIds = [], ...couponData } = req.body;
 
-    await coupon.update(couponData, { transaction: t });
+      await coupon.update(couponData, { transaction: t });
 
-    // Xử lý user
-    const currentUsers = await CouponUser.findAll({
-      where: { couponId: id },
-      transaction: t,
-    });
-    const currentUserIds = currentUsers.map((u) => u.userId);
-
-    const toDeleteUser = currentUserIds.filter(
-      (uid) => !userIds.includes(uid)
-    );
-    const toAddUser = userIds.filter(
-      (uid) => !currentUserIds.includes(uid)
-    );
-
-    if (toDeleteUser.length > 0) {
-      await CouponUser.destroy({
-        where: { couponId: id, userId: toDeleteUser },
-        force: true,
+      // Xử lý user
+      const currentUsers = await CouponUser.findAll({
+        where: { couponId: id },
         transaction: t,
       });
-    }
+      const currentUserIds = currentUsers.map((u) => u.userId);
 
-    if (toAddUser.length > 0) {
-      const newUsers = toAddUser.map((userId) => ({ couponId: id, userId }));
-      await CouponUser.bulkCreate(newUsers, { transaction: t });
-    }
+      const toDeleteUser = currentUserIds.filter(
+        (uid) => !userIds.includes(uid)
+      );
+      const toAddUser = userIds.filter((uid) => !currentUserIds.includes(uid));
 
-    // Xử lý product (sku)
-    const currentItems = await CouponItem.findAll({
-      where: { couponId: id },
-      paranoid: false,
-      transaction: t,
-    });
-    const currentItemIds = currentItems.map((i) => i.skuId);
+      if (toDeleteUser.length > 0) {
+        await CouponUser.destroy({
+          where: { couponId: id, userId: toDeleteUser },
+          force: true,
+          transaction: t,
+        });
+      }
 
-    const toDeleteItem = currentItemIds.filter(
-      (pid) => !productIds.includes(pid)
-    );
-    const toAddItem = productIds.filter(
-      (pid) => !currentItemIds.includes(pid)
-    );
-
-    if (toDeleteItem.length > 0) {
-      await CouponItem.destroy({
-        where: { couponId: id, skuId: toDeleteItem },
-        force: true,
+      if (toAddUser.length > 0) {
+        const newUsers = toAddUser.map((userId) => ({ couponId: id, userId }));
+        await CouponUser.bulkCreate(newUsers, { transaction: t });
+      }
+      const currentItems = await CouponItem.findAll({
+        where: { couponId: id },
+        paranoid: false,
         transaction: t,
       });
-    }
+      const currentItemIds = currentItems.map((i) => i.skuId);
 
-    if (toAddItem.length > 0) {
-      const newItems = toAddItem.map((skuId) => ({ couponId: id, skuId }));
-      await CouponItem.bulkCreate(newItems, { transaction: t });
-    }
+      const toDeleteItem = currentItemIds.filter(
+        (pid) => !productIds.includes(pid)
+      );
+      const toAddItem = productIds.filter(
+        (pid) => !currentItemIds.includes(pid)
+      );
 
-    await t.commit();
-    res.json({ message: "Cập nhật thành công", data: coupon });
-  } catch (err) {
-    await t.rollback();
-    console.error("Lỗi cập nhật mã giảm:", err);
-    res.status(500).json({ message: "Lỗi cập nhật", error: err.message });
+      if (toDeleteItem.length > 0) {
+        await CouponItem.destroy({
+          where: { couponId: id, skuId: toDeleteItem },
+          force: true,
+          transaction: t,
+        });
+      }
+
+      if (toAddItem.length > 0) {
+        const newItems = toAddItem.map((skuId) => ({ couponId: id, skuId }));
+        await CouponItem.bulkCreate(newItems, { transaction: t });
+      }
+
+      await t.commit();
+      res.json({ message: "Cập nhật thành công", data: coupon });
+    } catch (err) {
+      await t.rollback();
+      console.error("Lỗi cập nhật mã giảm:", err);
+      res.status(500).json({ message: "Lỗi cập nhật", error: err.message });
+    }
   }
-}
-
 
   static async softDelete(req, res) {
     try {
@@ -283,44 +268,51 @@ class CouponController {
     }
   }
 
-static async forceDeleteMany(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { ids } = req.body;
-    if (!Array.isArray(ids))
-      return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+  static async forceDeleteMany(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids))
+        return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
 
-    // Xoá liên kết trước nếu không có CASCADE
-    await CouponUser.destroy({ where: { couponId: { [Op.in]: ids } }, force: true, transaction: t });
-    await CouponItem.destroy({ where: { couponId: { [Op.in]: ids } }, force: true, transaction: t });
+      // Xoá liên kết trước nếu không có CASCADE
+      await CouponUser.destroy({
+        where: { couponId: { [Op.in]: ids } },
+        force: true,
+        transaction: t,
+      });
+      await CouponItem.destroy({
+        where: { couponId: { [Op.in]: ids } },
+        force: true,
+        transaction: t,
+      });
 
-    await Coupon.destroy({
-      where: { id: { [Op.in]: ids } },
-      force: true,
-      transaction: t,
-    });
+      await Coupon.destroy({
+        where: { id: { [Op.in]: ids } },
+        force: true,
+        transaction: t,
+      });
 
-    await t.commit();
-    res.json({ message: "Đã xoá vĩnh viễn nhiều mã" });
-  } catch (err) {
-    await t.rollback();
-    console.error("❌ forceDeleteMany error:", err);
-    res.status(500).json({ message: "Lỗi xoá vĩnh viễn nhiều", error: err.message });
+      await t.commit();
+      res.json({ message: "Đã xoá vĩnh viễn nhiều mã" });
+    } catch (err) {
+      await t.rollback();
+      console.error("forceDeleteMany error:", err);
+      res
+        .status(500)
+        .json({ message: "Lỗi xoá vĩnh viễn nhiều", error: err.message });
+    }
   }
-}
-
 
   static async getUsers(req, res) {
     try {
       const list = await User.findAll({
-        where: {
-          deletedAt: null,
-        },
+        where: { deletedAt: null },
         include: [
           {
             model: Role,
-              as: "roles", // ✅ PHẢI CÓ alias này
-            where: { name: "user" },
+            as: "roles",
+            where: { key: "user" },
             attributes: [],
           },
         ],
@@ -330,11 +322,10 @@ static async forceDeleteMany(req, res) {
 
       res.json(list);
     } catch (err) {
-      console.error(" Lỗi getUsers:", err);
+      console.error("Lỗi getUsers:", err);
       res.status(500).json({ message: "Lỗi server", error: err.message });
     }
   }
-  
 
   static async getProducts(req, res) {
     try {
@@ -363,45 +354,44 @@ static async forceDeleteMany(req, res) {
   }
 
   static async getById(req, res) {
-  try {
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
 
-    const coupon = await Coupon.findOne({
-      where: { id },
-      include: [
-        {
-          model: CouponUser,
-          as: "users",
-          attributes: ["userId"],
-          paranoid: false,
-        },
-        {
-          model: CouponItem,
-          as: "products",
-          attributes: ["skuId"],
-          paranoid: false,
-        },
-        // ❌ Bỏ CouponCategory vì không dùng nữa
-      ],
-      paranoid: false,
-    });
+      const coupon = await Coupon.findOne({
+        where: { id },
+        include: [
+          {
+            model: CouponUser,
+            as: "users",
+            attributes: ["userId"],
+            paranoid: false,
+          },
+          {
+            model: CouponItem,
+            as: "products",
+            attributes: ["skuId"],
+            paranoid: false,
+          },
+          
+        ],
+        paranoid: false,
+      });
 
-    if (!coupon) {
-      return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+      if (!coupon) {
+        return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+      }
+
+      res.json({
+        ...coupon.toJSON(),
+        userIds: coupon.users?.map((c) => c.userId) || [],
+        productIds: coupon.products?.map((c) => c.skuId) || [],
+
+      });
+    } catch (err) {
+      console.error("Lỗi getById:", err);
+      res.status(500).json({ message: "Lỗi server", error: err.message });
     }
-
-    res.json({
-      ...coupon.toJSON(),
-      userIds: coupon.users?.map((c) => c.userId) || [],
-      productIds: coupon.products?.map((c) => c.skuId) || [],
-      // ❌ Bỏ categoryIds
-    });
-  } catch (err) {
-    console.error("Lỗi getById:", err);
-    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
-}
-
 }
 
 module.exports = CouponController;

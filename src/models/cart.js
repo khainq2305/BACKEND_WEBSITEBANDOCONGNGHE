@@ -11,6 +11,10 @@ const Cart = sequelize.define('Cart', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
+  lastReminderAt: {                       // ✅ THÊM DÒNG NÀY
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

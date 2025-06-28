@@ -1,8 +1,9 @@
-const { Notification, NotificationUser } = require("../../models");
+const { Notification } = require("../../models");
+const { NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
 
-class NotificationController {
-  static async create(req, res) {
+const NotificationController = {
+  async create(req, res) {
     try {
       const {
         title,
@@ -19,8 +20,16 @@ class NotificationController {
       } = req.body;
 
       const imageUrl = req.file?.path || "";
+      // Kiểm tra trùng tiêu đề
+      const existing = await Notification.findOne({ where: { title } });
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Tên thông báo này đã tồn tại" });
+      }
 
       let notification;
+
       try {
         notification = await Notification.create({
           title,
@@ -42,6 +51,7 @@ class NotificationController {
           .json({ message: "Tạo Notification thất bại", error: err.message });
       }
 
+      // Nếu là thông báo cho từng user
       if (isGlobal === "false" || isGlobal === false || isGlobal === "0") {
         let parsed = [];
 
@@ -83,9 +93,9 @@ class NotificationController {
         .status(500)
         .json({ message: "Lỗi máy chủ", error: err.message });
     }
-  }
+  },
 
-  static async update(req, res) {
+  async update(req, res) {
     try {
       const { id } = req.params;
       const {
@@ -103,9 +113,20 @@ class NotificationController {
       } = req.body;
 
       const notification = await Notification.findByPk(id);
-      if (!notification) {
-        return res.status(404).json({ message: "Không tìm thấy thông báo" });
+      const existing = await Notification.findOne({
+        where: {
+          title,
+          id: { [Op.ne]: id },
+        },
+      });
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Tên thông báo này đã tồn tại" });
       }
+
+      if (!notification)
+        return res.status(404).json({ message: "Không tìm thấy thông báo" });
 
       const imageUrl = req.file?.path || notification.imageUrl;
 
@@ -123,6 +144,7 @@ class NotificationController {
         startAt: startAt ? new Date(startAt) : null,
       });
 
+      // Cập nhật danh sách user nhận thông báo nếu isGlobal = false
       if (isGlobal === "false" || isGlobal === false || isGlobal === "0") {
         await NotificationUser.destroy({ where: { notificationId: id } });
 
@@ -155,9 +177,9 @@ class NotificationController {
         .status(500)
         .json({ message: "Lỗi máy chủ", error: err.message });
     }
-  }
+  },
 
-  static async getAll(req, res) {
+  async getAll(req, res) {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
@@ -190,8 +212,12 @@ class NotificationController {
       });
 
       const allCount = await Notification.count();
-      const activeCount = await Notification.count({ where: { isActive: true } });
-      const hiddenCount = await Notification.count({ where: { isActive: false } });
+      const activeCount = await Notification.count({
+        where: { isActive: true },
+      });
+      const hiddenCount = await Notification.count({
+        where: { isActive: false },
+      });
 
       return res.status(200).json({
         data: rows,
@@ -206,9 +232,9 @@ class NotificationController {
       console.error("Lỗi getAll notification:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
-  }
+  },
 
-  static async delete(req, res) {
+  async delete(req, res) {
     try {
       const { id } = req.params;
       const notification = await Notification.findByPk(id);
@@ -224,9 +250,18 @@ class NotificationController {
       console.error("Lỗi xoá thông báo:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
-  }
+  },
 
-  static async deleteMany(req, res) {
+  async getById(req, res) {
+    const { id } = req.params;
+    const notification = await Notification.findByPk(id);
+    if (!notification)
+      return res.status(404).json({ message: "Không tìm thấy thông báo" });
+
+    return res.json(notification);
+  },
+
+  async deleteMany(req, res) {
     try {
       const { ids } = req.body;
 
@@ -244,23 +279,9 @@ class NotificationController {
       console.error("Lỗi xoá nhiều:", error);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
-  }
+  },
 
-  static async getById(req, res) {
-    try {
-      const { id } = req.params;
-      const notification = await Notification.findByPk(id);
-      if (!notification)
-        return res.status(404).json({ message: "Không tìm thấy thông báo" });
-
-      return res.json(notification);
-    } catch (err) {
-      console.error("Lỗi getById:", err);
-      return res.status(500).json({ message: "Lỗi máy chủ" });
-    }
-  }
-
-  static async getBySlug(req, res) {
+  async getBySlug(req, res) {
     try {
       const { slug } = req.params;
       const notification = await Notification.findOne({ where: { slug } });
@@ -274,7 +295,6 @@ class NotificationController {
       console.error("Lỗi getBySlug:", err);
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
-  }
-}
-
+  },
+};
 module.exports = NotificationController;

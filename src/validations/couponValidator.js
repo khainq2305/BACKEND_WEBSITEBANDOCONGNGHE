@@ -113,6 +113,25 @@ const validateCoupon = async (req, res, next) => {
   if (isNaN(minOrderValue) || Number(minOrderValue) < 0) {
     errors.push({ field: "minOrderValue", message: "Giá trị đơn hàng tối thiểu không hợp lệ" });
   }
+  if (
+    req.body.type === "private" &&
+    (!Array.isArray(userIds) || userIds.length === 0)
+  ) {
+    errors.push({
+      field: "userIds",
+      message: "Phải chọn người dùng cho coupon chỉ định",
+    });
+  }
+
+  if (
+    req.body.applyProduct &&
+    (!Array.isArray(productIds) || productIds.length === 0)
+  ) {
+    errors.push({
+      field: "productIds",
+      message: "Phải chọn ít nhất 1 sản phẩm",
+    });
+  }
 
   if (!validator.isISO8601(startTime) && !errors.find(e => e.field === "startTime")) {
     errors.push({ field: "startTime", message: "Ngày bắt đầu không hợp lệ" });

@@ -26,6 +26,9 @@ const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
 const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
 const authRouters = require('./auth.route')
+const systemSettingRoutes = require('./systemSetting.routes');
+
+router.use('/system-settings', systemSettingRoutes);
 router.use('/', orderRoutes);  
 router.use('/', authRouters); 
 router.use('/tags', tagsRoute)
