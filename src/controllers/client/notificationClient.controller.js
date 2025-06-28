@@ -11,7 +11,10 @@ const NotificationClientController = {
       const notifications = await Notification.findAll({
         where: {
           isActive: true, 
-          startAt: { [Op.lte]: new Date() },
+        [Op.or]: [
+  { startAt: null },
+  { startAt: { [Op.lte]: new Date() } }
+],
           [Op.or]: [
             { isGlobal: true },
             { "$notificationUsers.userId$": userId },

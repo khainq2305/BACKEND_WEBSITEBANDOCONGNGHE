@@ -6,7 +6,11 @@ const { checkJWT } = require('../../middlewares/checkJWT');
 router.get('/user-orders', checkJWT, OrderController.getAllByUser);
 
 router.get('/code/:code', checkJWT, OrderController.getById);
-router.post("/momo-callback", OrderController.momoCallback);
+router.get ('/momo-callback', OrderController.momoCallback);
+router.post('/momo-callback', OrderController.momoCallback);
+// routes
+router.post('/:id/pay-again', checkJWT, OrderController.payAgain);
+
 router.post('/create', checkJWT, OrderController.createOrder);
 router.post("/momo", checkJWT, OrderController.momoPay);
 router.post("/zalopay", checkJWT, OrderController.zaloPay);
@@ -18,7 +22,14 @@ router.put(
   OrderController.chooseReturnMethod
 );
 router.put("/:id/mark-completed", checkJWT, OrderController.markAsCompleted);
-
+// routes/client/orderRoutes.js
+router.post(
+  '/return/:id/book-pickup',
+  checkJWT,
+  OrderController.bookReturnPickup
+);
+router.all('/viettel-money/callback', OrderController.viettelMoneyCallback);
+router.post('/viettel-money', checkJWT, OrderController.viettelMoneyPay);
 router.put('/:id/cancel', checkJWT, OrderController.cancel);
 
 router.post("/generate-vietqr", OrderController.generate);

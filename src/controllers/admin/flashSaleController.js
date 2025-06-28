@@ -388,6 +388,7 @@ class FlashSaleController {
       const result = skus.map((sku) => ({
         id: sku.id,
         skuCode: sku.skuCode,
+        productName: sku.product?.name ?? "",
         price: sku.price,
         originalPrice: sku.originalPrice,
         stock: sku.stock,

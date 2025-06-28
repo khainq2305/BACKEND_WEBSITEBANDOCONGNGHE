@@ -2,10 +2,7 @@ const { Op } = require('sequelize');
 const { Banner } = require('../../models');
 
 class bannerController {
-  /**
-   * GET /api/banners?type=homepage_slider
-   * Lấy danh sách banner hiển thị phía client
-   */
+  
   static async getByType(req, res) {
     try {
       const { type } = req.query;
@@ -94,7 +91,7 @@ static async getProductBanner(req, res) {
 
     const banners = await Banner.findAll({
       where: {
-        type: 'mid-detail', // hoặc 'product-banner', tuỳ bạn setup
+        type: 'mid-detail', 
         productId: productId,
         isActive: true,
         [Op.or]: [

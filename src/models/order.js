@@ -4,9 +4,17 @@ const sequelize = require('../config/database');
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
 status: {
-  type: DataTypes.ENUM('pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled'),
-  defaultValue: 'pending',
+  // chỉ luồng xử lý/hậu cần, KHÔNG dính tới tiền
+  type: DataTypes.ENUM('processing', 'shipping', 'delivered', 'completed', 'cancelled'),
+  defaultValue: 'processing',
 },
+
+paymentStatus: {
+  // luồng thanh toán
+  type: DataTypes.ENUM('unpaid', 'waiting', 'paid'),
+  defaultValue: 'unpaid',
+},
+
 
 orderCode: {
   type: DataTypes.STRING,
@@ -17,11 +25,6 @@ orderCode: {
     type: DataTypes.FLOAT,
     defaultValue: 0
   },
-  paymentStatus: {
-  type: DataTypes.ENUM('unpaid', 'waiting', 'paid'),
-  defaultValue: 'unpaid'
-}
-,
   shippingDiscount: {
     type: DataTypes.FLOAT,
     defaultValue: 0

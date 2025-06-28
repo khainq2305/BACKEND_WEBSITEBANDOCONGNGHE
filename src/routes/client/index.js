@@ -20,10 +20,11 @@ const flashSaleRoutes = require('./flashSale.routes');
 const postRoutes = require('./post.route')
 const productViewRoutes = require('./productView.routes');
 const productQuestionRoutes = require('./productQuestion.route');
+const systemSettingRoutes = require('./systemSetting.routes');
 
 router.use('/productviews', productViewRoutes); 
 router.post('/payment/momo-callback', require('../../controllers/client/orderController').momoCallback);
-
+const chatboxRoutes = require('./chatbox.routes');   // 👈 THÊM DÒNG NÀY
 router.use('/', sliderRoutes);             
 router.use('/tin-noi-bat', postRoutes);
 router.use('/', flashSaleRoutes);  
@@ -38,7 +39,9 @@ router.use('/', authRoutes);
 router.use('/shipping', shippingRoutes);
 router.use('/user-address', userAddressRoutes); 
 router.use('/', productRoutes);
+router.use('/chatbox', chatboxRoutes);              // 👈 GẮN VÀO ĐÂY
 router.use('/cart', cartRoutes); 
+router.use('/system-settings', systemSettingRoutes); 
 router.use('/review', reviewRoutes);
 router.use('/', couponRoutes);
 router.use('/notifications', require('./notificationClient.route'));

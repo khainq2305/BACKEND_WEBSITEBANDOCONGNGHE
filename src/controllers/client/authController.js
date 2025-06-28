@@ -441,7 +441,7 @@ class AuthController {
 
   static async login(req, res) {
     try {
-      const { email, password, remember } = req.body; // 👈 nhận thêm "remember"
+      const { email, password, remember } = req.body; 
 
       const user = await User.findOne({ where: { email } });
       if (!user) {
@@ -463,7 +463,7 @@ class AuthController {
 
       await user.update({ lastLoginAt: new Date() });
 
-      // 👇 Token sống 1h nếu không ghi nhớ, 7d nếu có ghi nhớ
+      
       const token = jwt.sign(
         {
           id: user.id,
@@ -479,7 +479,7 @@ class AuthController {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, // 👈 7d or 1h
+        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, 
       });
 
       res.status(200).json({

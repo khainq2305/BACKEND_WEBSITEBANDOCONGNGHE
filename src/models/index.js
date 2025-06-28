@@ -38,6 +38,9 @@ const Wishlist = require("./wishlistModel");
 
 //
 
+// 
+const SystemSetting = require("./systemsetting");
+
 const Review = require("./reviewModel");
 const ReviewMedia = require("./reviewmediamodel");
 const Notification = require("./notification.model");
@@ -545,7 +548,7 @@ module.exports = {
 
   Banner,
   ProductView,
-
+SystemSetting,
   WishlistItem,
   Wishlist,
   categoryPostModel,

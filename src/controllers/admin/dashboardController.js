@@ -178,7 +178,7 @@ class DashboardController {
                     },
                     {
                         model: Sku,
-                        as: 'sku', // Alias này phải khớp với OrderItem.belongsTo(Sku, {as: 'sku'})
+                       
                         attributes: ['productId'], // LẤY productId TỪ SKU
                         include: [
                             {

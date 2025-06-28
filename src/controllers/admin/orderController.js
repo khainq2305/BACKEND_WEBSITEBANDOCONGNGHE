@@ -86,14 +86,16 @@ class OrderController {
       distinct: true
     });
 
-    const formattedOrders = rows.map((o) => ({
-      id: o.id,
-      code: o.orderCode,
-      customer: o.User?.fullName || '—',
-      total: o.totalPrice || 0,
-      status: o.status,
-      createdAt: o.createdAt
-    }));
+   const formattedOrders = rows.map((o) => ({
+  id           : o.id,
+  code         : o.orderCode,
+  customer     : o.User?.fullName || '—',
+  total        : o.totalPrice || 0,
+  status       : o.status,          // trạng thái giao hàng
+  paymentStatus: o.paymentStatus,   // 👈 thêm dòng này
+  createdAt    : o.createdAt
+}));
+
 
     return res.json({
       totalItems: count,
@@ -201,7 +203,7 @@ static async cancelOrder(req, res) {
 static async updateStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status } = req.body;            // ⬅ trạng thái mới
 
     if (!status) {
       return res.status(400).json({ message: 'Thiếu trạng thái cần cập nhật' });
@@ -212,34 +214,54 @@ static async updateStatus(req, res) {
       return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
     }
 
-    // ❌ Không được cập nhật trạng thái nếu giống nhau
+    /* ───────────────────────────────────────────────
+       1. Không cho cập nhật những trạng thái “chốt”
+    ─────────────────────────────────────────────── */
+    if (['completed', 'cancelled'].includes(order.status)) {
+      return res.status(400).json({ message: 'Đơn hàng đã kết thúc, không thể cập nhật' });
+    }
+
+    /* ───────────────────────────────────────────────
+       2. Không được cập nhật nếu trùng trạng thái
+    ─────────────────────────────────────────────── */
     if (order.status === status) {
       return res.status(400).json({ message: 'Đơn hàng đã ở trạng thái này' });
     }
 
-    // ❌ Không được cập nhật nếu đơn đã huỷ
-    if (order.status === 'cancelled') {
-      return res.status(400).json({ message: 'Đơn hàng đã huỷ và không thể cập nhật nữa' });
+    /* ───────────────────────────────────────────────
+       3. Định nghĩa luồng chuyển tiếp hợp lệ
+    ─────────────────────────────────────────────── */
+    const forwardFlow = {
+      processing: ['shipping', 'cancelled'],        // xử lý xong → giao / huỷ
+      shipping  : ['delivered', 'cancelled'],       // đang giao  → đã giao / huỷ
+      delivered : ['completed'],                    // giao xong  → hoàn thành
+    };
+
+    const nextAllowed = forwardFlow[order.status] || [];
+
+    if (!nextAllowed.includes(status)) {
+      return res.status(400).json({ 
+        message: `Không thể chuyển từ "${order.status}" sang "${status}"` 
+      });
     }
 
-    // ❌ Không được chuyển về trạng thái trước đó (ví dụ: từ "đang giao" về "xác nhận")
-    const validFlow = ['pending', 'confirmed', 'shipping', 'delivered', 'completed'];
-    const fromIndex = validFlow.indexOf(order.status);
-    const toIndex = validFlow.indexOf(status);
-
-    if (fromIndex !== -1 && toIndex !== -1 && toIndex < fromIndex) {
-      return res.status(400).json({ message: 'Không thể quay lại trạng thái trước đó' });
-    }
-
+    /* ───────────────────────────────────────────────
+       4. Cập nhật & trả về
+    ─────────────────────────────────────────────── */
     order.status = status;
     await order.save();
 
-    return res.json({ message: 'Cập nhật trạng thái thành công', status: order.status });
+    return res.json({ 
+      message: 'Cập nhật trạng thái thành công',
+      status : order.status 
+    });
+
   } catch (error) {
     console.error('Lỗi khi cập nhật trạng thái đơn hàng:', error);
     return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái đơn hàng' });
   }
 }
+
 static async getReturnByOrder(req, res) {
   try {
     const { orderId } = req.params;
