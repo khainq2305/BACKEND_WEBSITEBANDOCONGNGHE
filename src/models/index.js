@@ -5,9 +5,9 @@ const Category = require("./categoryModel");
 const User = require("./userModel");
 const Role = require("./roleModel");
 const UserToken = require("./userTokenModel");
-const UserAddress = require("./UserAddress");
+const UserAddress = require("./userAddress");
 //
-const HighlightedCategoryItem = require("./HighlightedCategoryItem");
+const HighlightedCategoryItem = require("./highlightedCategoryItem");
 const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
@@ -23,8 +23,11 @@ const Post = require("./post");
 const categoryPostModel = require("./categoryPostModel");
 const Tags = require('./TagModel')
 const PostTag = require('./PostTag')
+const SEOReport = require('./seoReport');
+const SEOConfig = require('./seoConfig');
+const PostSEO = require('./postSEO');
 
-//
+// 
 const Banner = require("./Banner");
 const WishlistItem = require('./wishlistitemModel');
 const Wishlist = require('./wishlistModel');
@@ -111,6 +114,11 @@ Tags.belongsToMany(Post, {
 // Tác giả bài viết
 User.hasMany(Post, { foreignKey: "authorId", as: 'posts' });
 Post.belongsTo(User, { foreignKey: "authorId", as: 'author' });
+
+// Post SEO associations
+Post.hasOne(PostSEO, { foreignKey: "postId", as: 'seoData' });
+PostSEO.belongsTo(Post, { foreignKey: "postId", as: 'post' });
+
 //
 User.hasMany(Review, { foreignKey: "userId", as: "reviews" });
 Review.belongsTo(User, { foreignKey: "userId", as: "user" });
@@ -457,5 +465,8 @@ ProductHomeSection,
   Coupon,
   Product,
   UserToken,
+  SEOReport,
+  SEOConfig,
+  PostSEO,
   sequelize: connection,
 };
