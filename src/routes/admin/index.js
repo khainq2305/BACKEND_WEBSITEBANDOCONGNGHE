@@ -54,4 +54,6 @@ router.use('/brands', brandRoutes);
 router.use('/reviews', reviewRoutes); 
 router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 
+router.use('/system-settings', systemSettingRoutes);
+
 module.exports = router;

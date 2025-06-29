@@ -46,5 +46,6 @@ router.use('/review', reviewRoutes);
 router.use('/', couponRoutes);
 router.use('/notifications', require('./notificationClient.route'));
 router.use('/product-questions', productQuestionRoutes);
+router.use('/system-settings', systemSettingRoutes); 
 
 module.exports = router;
