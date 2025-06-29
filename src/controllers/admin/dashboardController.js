@@ -178,7 +178,7 @@ class DashboardController {
                     },
                     {
                         model: Sku,
-                       
+                        
                         attributes: ['productId'], // LẤY productId TỪ SKU
                         include: [
                             {

@@ -2,15 +2,16 @@ const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
-// const User = require("../../models/userModel");
 const Role = require("../../models/roleModel");
 const sendEmail = require("../../utils/sendEmail");
+
 const {
   sendAccountStatusEmail,
 } = require("../../services/common/emailService");
 const { getUserDetail } = require("../../services/admin/user.service");
 
 const { User, UserRoles } = require("../../models");
+
 class UserController {
   static async getAllUsers(req, res) {
     try {
@@ -22,9 +23,18 @@ class UserController {
       else if (status === "0") whereClause.status = 0;
 
       const offset = (page - 1) * limit;
+
       const { rows: users, count } = await User.findAndCountAll({
         where: whereClause,
         attributes: { exclude: ["password"] },
+        include: [
+          {
+            model: Role,
+            as: "roles", // 👈 PHẢI trùng alias
+            attributes: ["id", "name"],
+            through: { attributes: [] },
+          },
+        ],
         limit: parseInt(limit),
         offset: parseInt(offset),
         order: [["id", "ASC"]],
@@ -37,6 +47,7 @@ class UserController {
         totalPages: Math.ceil(count / limit),
       });
     } catch (error) {
+      console.error(error);
       res
         .status(500)
         .json({ message: "Không thể lấy danh sách người dùng", error });
@@ -45,7 +56,14 @@ class UserController {
 
   static async createUser(req, res) {
     try {
-      const { fullName, email, password, phone, roleId, status } = req.body;
+      const {
+        fullName,
+        email,
+        password,
+        phone,
+        roleIds = [],
+        status,
+      } = req.body;
 
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
@@ -54,14 +72,19 @@ class UserController {
         });
       }
 
+      // 1) Tạo user
       const newUser = await User.create({
         fullName,
         email,
         password,
-        roleId,
         status,
         ...(phone ? { phone } : {}),
       });
+
+      // 2) Gán roles thông qua bảng trung gian
+      if (Array.isArray(roleIds) && roleIds.length > 0) {
+        await newUser.setRoles(roleIds); // Sequelize magic method
+      }
 
       res
         .status(201)
@@ -74,12 +97,30 @@ class UserController {
 
   static async getAllRoles(req, res) {
     try {
-      const roles = await Role.findAll({ attributes: ["id", "name"] });
-      res.json(roles);
+      const { userId } = req.query; // Truyền userId qua query: /roles?userId=18
+
+      // Lấy tất cả role
+      const roles = await Role.findAll({
+        attributes: ["id", "name", "key", "canAccess"],
+      });
+
+      // Nếu có userId thì lấy các roleId đã gán cho user đó
+      let userRoleIds = [];
+      if (userId) {
+        const userRoles = await UserRole.findAll({
+          where: { userId },
+          attributes: ["roleId"],
+        });
+        userRoleIds = userRoles.map((r) => r.roleId);
+      }
+
+      res.json({
+        roles,
+        userRoleIds, // mảng roleId đã gán
+      });
     } catch (error) {
-      res
-        .status(500)
-        .json({ message: "Không thể lấy danh sách vai trò", error });
+      console.error(error);
+      res.status(500).json({ message: "Không thể lấy vai trò", error });
     }
   }
 
