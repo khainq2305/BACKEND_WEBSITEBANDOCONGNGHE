@@ -1,8 +1,7 @@
 const { Product, Sku, Category, ProductMedia, Brand } = require('../../models');
 const { Op } = require('sequelize');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const shopResponses = require('../../utils/promtBuilder');
-
+const { formatCurrencyVND } = require("../../utils/number");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 function sleep(ms) {
@@ -437,8 +436,8 @@ class ChatboxController {
         name: p.name,
         slug: p.slug,
         image: p.thumbnail,
-        price: price.toLocaleString('vi-VN') + 'đ',
-        originalPrice: originalPrice ? originalPrice.toLocaleString('vi-VN') + 'đ' : null,
+        price: formatCurrencyVND(price),
+        originalPrice: originalPrice ? formatCurrencyVND(originalPrice) : null,
         discount,
         reviews: p.reviewCount || Math.floor(Math.random() * 1000) + 100,
         stock: sku.stock || 0,
@@ -457,8 +456,14 @@ class ChatboxController {
     const rows = [];
     for (let i = 0; i < products.length; i += 2) {
       const items = [products[i], products[i + 1]].filter(Boolean).map(p => {
-        const price = typeof p.price === 'number' ? p.price.toLocaleString('vi-VN') + 'đ' : (p.price || 'Đang cập nhật');
-        const originalPrice = typeof p.originalPrice === 'number' ? p.originalPrice.toLocaleString('vi-VN') + 'đ' : '';
+        const price = typeof p.price === 'number'
+          ? formatCurrencyVND(p.price)
+          : (p.price || 'Đang cập nhật');
+
+        const originalPrice = typeof p.originalPrice === 'number'
+          ? formatCurrencyVND(p.originalPrice)
+          : '';
+
         const rating = p.rating ? Math.round(p.rating) : 5;
         const reviewsCount = p.reviews ? p.reviews.toLocaleString('vi-VN') : '0';
 
@@ -505,62 +510,95 @@ class ChatboxController {
       ]
     });
 
-    if (!product) return '<div class="text-center text-red-500 py-8 text-lg font-semibold">Không tìm thấy sản phẩm này.</div>';
+    if (!product) {
+      return `
+    <div class="flex flex-col items-center justify-center p-6 bg-white rounded-xl shadow-lg max-w-md mx-auto my-10 text-center">
+      <svg class="w-16 h-16 text-red-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <p class="text-xl font-bold text-gray-800 mb-1">Sản phẩm không tồn tại</p>
+      <p class="text-sm text-gray-600">Xin lỗi, chúng tôi không tìm thấy sản phẩm bạn đang tìm kiếm.</p>
+    </div>`;
+    }
 
     const sku = product.skus[0] || {};
-    const images = sku.ProductMedia?.map(m => m.mediaUrl) || [product.image];
-    const price = sku.price || 0;
-    const originalPrice = sku.originalPrice || 0;
+    const images = (sku.ProductMedia?.map(m => m.mediaUrl) || [product.image]).filter(Boolean);
+    const mainImageUrl = images[0] || '/placeholder-product.jpg';
+    const price = formatCurrencyVND(sku.price || 0);
+    const originalPrice = formatCurrencyVND(sku.originalPrice || 0);
+
+    const hasDiscount = originalPrice > price && originalPrice > 0;
 
     const imageGallery = images.map((img, idx) => `
-    <img src="${img}" alt="thumbnail ${idx + 1}" 
-      class="w-20 h-20 object-cover border-2 border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-500 shadow-sm"
-      onclick="document.getElementById('mainProductImage').src='${img}'">`).join('');
+    <img src="${img}" alt="Thumbnail ${idx + 1}"
+      class="w-14 h-14 md:w-16 md:h-16 object-cover rounded-md border-2 border-gray-200 cursor-pointer 
+             transition-all duration-300 ease-in-out transform hover:scale-105 hover:border-blue-500
+             ${idx === 0 ? 'border-blue-500 shadow-sm' : ''}"
+      onclick="document.getElementById('mainProductImage').src='${img}'; 
+               Array.from(this.parentNode.children).forEach(el => el.classList.remove('border-blue-500', 'shadow-sm')); 
+               this.classList.add('border-blue-500', 'shadow-sm');">`).join('');
+
+    const rating = product.rating ? Math.round(product.rating) : 5;
+    const reviewsCount = product.reviews ? product.reviews.toLocaleString('vi-VN') : '0';
+    const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
 
     return `
-    <div class="p-6 bg-white rounded-xl shadow-lg space-y-6 max-w-6xl mx-auto my-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="flex flex-col items-center">
-          <div class="w-full max-h-[500px] bg-gray-100 rounded-lg overflow-hidden flex justify-center items-center border border-gray-200 shadow-sm mb-4">
-            <img id="mainProductImage" src="${images[0]}" class="max-w-full max-h-full object-contain rounded-lg" alt="${product.name}" />
-          </div>
-          <div class="flex flex-wrap gap-3 justify-center">
-            ${imageGallery}
+  <div class="p-4 sm:p-5 lg:p-6 bg-white rounded-xl shadow-lg space-y-6 max-w-5xl mx-auto my-8 font-sans">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+      <div class="flex flex-col items-center lg:sticky lg:top-6 lg:self-start">
+        <div class="w-full h-72 sm:h-80 md:h-[400px] lg:h-[480px] bg-gray-50 rounded-lg overflow-hidden flex justify-center items-center 
+                     border border-gray-100 shadow-sm mb-5 p-2"> <img id="mainProductImage" src="${mainImageUrl}" 
+               class="max-w-full max-h-full object-contain rounded-lg" 
+               alt="${product.name}" />
+        </div>
+        <div class="flex flex-nowrap gap-2 justify-center max-w-full overflow-x-auto pb-1 hide-scrollbar">
+          ${imageGallery}
+        </div>
+      </div>
+
+      <div class="flex flex-col justify-start">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2 leading-tight">${product.name}</h1>
+        
+        <div class="flex flex-col items-start mb-4 sm:mb-5">
+<span class="text-3xl sm:text-4xl font-bold text-red-600">
+  ${price}
+</span>
+          ${hasDiscount ? `
+            <div class="flex items-center gap-2 mt-1">
+              <span class="inline-flex items-center justify-center w-auto px-2 py-1 rounded-full bg-green-500 text-white text-xs font-semibold shrink-0">
+                -${Math.round(((originalPrice - price) / originalPrice) * 100)}%
+              </span>
+             <span class="text-base sm:text-lg text-gray-500 line-through leading-none">
+  ${originalPrice}
+</span>
+
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="flex items-center flex-wrap gap-x-4 gap-y-1 mb-4 sm:mb-5">
+          ${product.category ? `<p class="text-sm text-gray-600">Danh mục: 
+            <span class="font-semibold text-blue-700 hover:underline cursor-pointer">${product.category.name}</span></p>` : ''}
+          <div class="text-sm text-yellow-500 flex items-center gap-1">
+            <span>${stars}</span>
+            <span class="text-gray-500 text-xs">(${reviewsCount} đánh giá)</span>
           </div>
         </div>
 
-        <div class="flex flex-col justify-start">
-          <h1 class="text-3xl font-extrabold text-gray-900 mb-3">${product.name}</h1>
-          <div class="flex items-baseline mb-4">
-            <span class="text-4xl font-bold text-red-600">${price.toLocaleString('vi-VN')}đ</span>
-            ${originalPrice && originalPrice > price ? `<span class="text-lg text-gray-500 line-through ml-3">${originalPrice.toLocaleString('vi-VN')}đ</span>` : ''}
-          </div>
-          ${product.category ? `<p class="text-md text-gray-600 mb-2">Danh mục: <span class="font-medium text-blue-700">${product.category.name}</span></p>` : ''}
-          
-          <div class="text-sm text-yellow-500 flex items-center gap-1 mb-4">
-            <span>${'★'.repeat(Math.round(product.rating || 5))}${'☆'.repeat(5 - Math.round(product.rating || 5))}</span>
-            <span class="text-gray-500 text-xs">(${product.reviews?.toLocaleString('vi-VN') || 0} đánh giá)</span>
-          </div>
+        <p class="text-gray-700 leading-relaxed mb-6 sm:mb-8 text-sm max-h-48 overflow-y-auto custom-scrollbar">
+          ${product.description || 'Sản phẩm này hiện chưa có mô tả chi tiết. Vui lòng liên hệ để được tư vấn thêm.'}
+        </p>
 
-          <p class="text-gray-700 leading-relaxed mb-6">${product.description || 'Sản phẩm này hiện chưa có mô tả chi tiết. Vui lòng liên hệ để biết thêm thông tin.'}</p>
-          
-          <div class="flex items-center space-x-4 mb-6">
-            <input type="number" value="1" min="1" class="w-24 p-2 border border-gray-300 rounded-lg text-center text-lg font-medium focus:ring-blue-500 focus:border-blue-500">
-            <button class="flex-grow bg-blue-600 text-white text-lg font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-300 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-              <i class="fas fa-cart-plus mr-2"></i> Thêm vào giỏ hàng
-            </button>
-          </div>
-          
-          <div class="mt-auto pt-6 border-t border-gray-200 text-sm text-gray-600">
-            <p><strong>Mã sản phẩm:</strong> ${product.id}</p>
-            <p><strong>Tình trạng:</strong> <span class="font-semibold text-green-600">Còn hàng</span></p>
-          </div>
+        <div class="mt-auto pt-5 border-t border-gray-200 text-xs text-gray-600 space-y-0.5">
+          <p><strong>Mã sản phẩm:</strong> <span class="font-medium text-gray-800">${product.id}</span></p>
+          <p><strong>Tình trạng:</strong> <span class="font-semibold text-green-600">Còn hàng</span></p>
+          <p class="mt-2 text-blue-700 text-sm font-medium">Liên hệ để đặt hàng hoặc tư vấn chi tiết!</p>
         </div>
       </div>
     </div>
-  `;
+  </div>`;
   }
-
 }
 
 module.exports = new ChatboxController();
