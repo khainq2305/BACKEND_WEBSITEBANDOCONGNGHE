@@ -2,15 +2,15 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const SystemSetting = sequelize.define('SystemSetting', {
-  site_name: {
+  siteName: {
     type: DataTypes.STRING,
     allowNull: false
   },
-  site_description: {
+  siteDescription: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  website_url: {
+  websiteUrl: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -18,19 +18,19 @@ const SystemSetting = sequelize.define('SystemSetting', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  hotline_sales: {
+  hotlineSales: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  hotline_warranty: {
+  hotlineWarranty: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  hotline_feedback: {
+  hotlineFeedback: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  email_contact: {
+  emailContact: {
     type: DataTypes.STRING,
     allowNull: true,
     validate: {
@@ -41,15 +41,15 @@ const SystemSetting = sequelize.define('SystemSetting', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  low_stock_threshold: {
+  lowStockThreshold: {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  facebook_page_url: {
+  facebookPageUrl: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  site_logo: {
+  siteLogo: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -57,34 +57,34 @@ const SystemSetting = sequelize.define('SystemSetting', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  show_social_footer: {
+  showSocialFooter: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  facebook_enabled: {
+  facebookEnabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  instagram_enabled: {
+  instagramEnabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  tiktok_enabled: {
+  tiktokEnabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  youtube_enabled: {
+  youtubeEnabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  zalo_enabled: {
+  zaloEnabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   }
 }, {
-  tableName: 'system_settings',
+  tableName: 'systemsettings',
   timestamps: false,
-  underscored: false
+  underscored: false // ⚙️ Giữ camelCase cột DB
 });
 
 module.exports = SystemSetting;

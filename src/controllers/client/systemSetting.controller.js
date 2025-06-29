@@ -10,48 +10,47 @@ class SystemSettingClientController {
       }
 
       const {
-        site_name,
-        site_logo,
+        siteName,
+        siteLogo,
         favicon,
         hotline,
-        hotline_sales,
-        hotline_warranty,
-        hotline_feedback,
-        email_contact,
+        hotlineSales,
+        hotlineWarranty,
+        hotlineFeedback,
+        emailContact,
         address,
-        facebook_page_url,
-        show_social_footer,
-        facebook_enabled,
-        instagram_enabled,
-        youtube_enabled,
-        tiktok_enabled,
-        zalo_enabled
+        facebookPageUrl,
+        showSocialFooter,
+        facebookEnabled,
+        instagramEnabled,
+        youtubeEnabled,
+        tiktokEnabled,
+        zaloEnabled
       } = setting;
 
       return res.json({
-        site_name,
-        site_logo,
+        siteName,
+        siteLogo,
         favicon,
         hotline,
-        hotline_sales,
-        hotline_warranty,
-        hotline_feedback,
-        email_contact,
+        hotlineSales,
+        hotlineWarranty,
+        hotlineFeedback,
+        emailContact,
         address,
-        facebook_page_url,
-        show_social_footer,
-        facebook_enabled,
-        instagram_enabled,
-        youtube_enabled,
-        tiktok_enabled,
-        zalo_enabled
+        facebookPageUrl,
+        showSocialFooter,
+        facebookEnabled,
+        instagramEnabled,
+        youtubeEnabled,
+        tiktokEnabled,
+        zaloEnabled
       });
     } catch (error) {
-      console.error('GET SYSTEM SETTING ERROR:', error);
+      console.error('GET SYSTEM SETTING CLIENT ERROR:', error);
       res.status(500).json({ message: 'Lỗi server khi lấy cài đặt hệ thống' });
     }
   }
-
 }
 
 module.exports = new SystemSettingClientController();
