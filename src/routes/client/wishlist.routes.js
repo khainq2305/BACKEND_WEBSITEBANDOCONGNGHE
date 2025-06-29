@@ -9,7 +9,9 @@ router.get('/', checkJWT, WishlistController.getAll);
 router.post('/:productId', checkJWT, WishlistController.add);
 
 // DELETE: /api/client/wishlist/:productId/:skuId? (skuId optional)
-router.delete('/:productId/:skuId', checkJWT, WishlistController.remove);
+router.delete('/:productId/:skuId',checkJWT, WishlistController.remove);
 
+// Không có SKU
+router.delete('/:productId',checkJWT, WishlistController.remove);
 
 module.exports = router;

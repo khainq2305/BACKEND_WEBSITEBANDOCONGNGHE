@@ -10,6 +10,9 @@ const {
   Variant,
   SkuVariantValue,
   FlashSaleItem,
+  FlashSale,
+  FlashSaleCategory,
+  Category,
 } = require("../../models");
 
 const { Op } = require("sequelize");
@@ -27,25 +30,23 @@ class WishlistController {
             model: WishlistItem,
             as: "items",
             include: [
+              /* PRODUCT */
               {
                 model: Product,
                 as: "product",
                 attributes: ["id", "name", "thumbnail", "slug"],
                 where: keyword
-                  ? {
-                      name: {
-                        [Op.like]: `%${keyword}%`,
-                      },
-                    }
+                  ? { name: { [Op.like]: `%${keyword}%` } }
                   : undefined,
               },
+              /* SKU + liên kết */
               {
                 model: Sku,
                 as: "sku",
                 attributes: ["id", "price", "originalPrice", "skuCode"],
                 include: [
                   {
-                    model: ProductMedia,
+                    /* ảnh đại diện */ model: ProductMedia,
                     as: "ProductMedia",
                     attributes: ["mediaUrl"],
                     separate: true,
@@ -53,7 +54,7 @@ class WishlistController {
                     order: [["sortOrder", "ASC"]],
                   },
                   {
-                    model: SkuVariantValue,
+                    /* biến thể */ model: SkuVariantValue,
                     as: "variantValues",
                     include: [
                       {
@@ -72,9 +73,33 @@ class WishlistController {
                   {
                     model: FlashSaleItem,
                     as: "flashSaleSkus",
-                    where: { isActive: true },
                     required: false,
+                    where: { isActive: true },
                     attributes: ["salePrice"],
+                    include: [
+                      {
+                        model: FlashSale,
+                        as: "flashSale",
+                        attributes: ["id", "title", "startTime", "endTime", 'bgColor'],
+                        include: [
+                          {
+                            model: FlashSaleCategory,
+                            as: "categories",
+                            attributes: ["discountType", "discountValue"],
+                            include: [
+                              {
+                                model: Category,
+                                as: "category",
+                                attributes: [
+                                  "id",
+                                  "name",
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
                   },
                 ],
               },
@@ -83,33 +108,29 @@ class WishlistController {
         ],
       });
 
-      if (!wishlists || wishlists.length === 0) {
-        return res.status(200).json([]);
-      }
+      if (!wishlists.length) return res.json([]);
 
-      const formatVariantText = (sku) => {
-        if (!sku || !sku.variantValues) return "";
-        return sku.variantValues
+      const variantTxt = (sku) =>
+        (sku?.variantValues || [])
           .map(
             (v) => `${v.variantValue?.variant?.name}: ${v.variantValue?.value}`
           )
           .join(" - ");
-      };
 
-      const result = wishlists.flatMap((wishlist) =>
-        wishlist.items.map((item) => ({
-          id: item.id,
-          productId: item.productId,
-          skuId: item.skuId,
-          product: item.product,
-          sku: item.sku,
-          variantText: formatVariantText(item.sku),
+      const result = wishlists.flatMap((wl) =>
+        wl.items.map((it) => ({
+          id: it.id,
+          productId: it.productId,
+          skuId: it.skuId,
+          product: it.product,
+          sku: it.sku,
+          variantText: variantTxt(it.sku),
         }))
       );
 
       return res.json(result);
-    } catch (err) {
-      console.error("🔥 Lỗi lấy wishlist:", err);
+    } catch (e) {
+      console.error("🔥 wishlist error:", e);
       return res.status(500).json({ message: "Lỗi server" });
     }
   }
@@ -119,11 +140,6 @@ class WishlistController {
       const userId = req.user.id;
       const productId = parseInt(req.params.productId);
       const skuId = req.body?.skuId ? parseInt(req.body.skuId) : null;
-
-      console.log("🟡 [ADD WISHLIST] userId:", userId);
-      console.log("🟡 [ADD WISHLIST] productId (param):", productId);
-      console.log("🟡 [ADD WISHLIST] req.body:", req.body);
-      console.log("🟡 [ADD WISHLIST] skuId (from body):", skuId);
 
       let wishlist = await Wishlist.findOne({
         where: { userId, isDefault: true },

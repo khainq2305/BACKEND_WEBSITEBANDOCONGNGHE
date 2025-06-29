@@ -22,14 +22,16 @@ class ReviewController {
         return res.status(404).json({ message: "Không tìm thấy SKU" });
       }
 
-      // Tìm đơn hàng đã hoàn tất của người dùng chứa SKU này nhưng chưa được đánh giá
       const orderItems = await OrderItem.findAll({
         where: { skuId },
         include: [
           {
             model: Order,
             as: "order",
-            where: { userId, status: "completed" },
+            where: {
+              userId,
+              status: { [Op.in]: ["completed", "delivered"] },
+            },
           },
         ],
       });
@@ -94,73 +96,72 @@ class ReviewController {
     }
   }
 
-static async getBySkuId(req, res) {
-  try {
-    const { id } = req.params;
-    const { hasMedia, purchased, star } = req.query;
+  static async getBySkuId(req, res) {
+    try {
+      const { id } = req.params;
+      const { hasMedia, purchased, star } = req.query;
 
-    const sku = await Sku.findByPk(id);
-    if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
+      const sku = await Sku.findByPk(id);
+      if (!sku) return res.status(404).json({ message: "Không tìm thấy SKU" });
 
-    const skuList = await Sku.findAll({
-      where: { productId: sku.productId },
-      attributes: ['id'],
-    });
-    const skuIds = skuList.map((s) => s.id);
+      const skuList = await Sku.findAll({
+        where: { productId: sku.productId },
+        attributes: ["id"],
+      });
+      const skuIds = skuList.map((s) => s.id);
 
-    const whereClause = {
-      skuId: { [Op.in]: skuIds },
-    };
+      const whereClause = {
+        skuId: { [Op.in]: skuIds },
+      };
 
-    if (star !== undefined && !isNaN(Number(star))) {
-      whereClause.rating = Number(star);
+      if (star !== undefined && !isNaN(Number(star))) {
+        whereClause.rating = Number(star);
+      }
+
+      if (purchased === "true") {
+        whereClause.orderItemId = { [Op.ne]: null };
+      }
+
+      const reviews = await Review.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: ReviewMedia,
+            as: "media",
+            required: hasMedia === "true",
+          },
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName"],
+          },
+          {
+            model: Sku,
+            as: "sku",
+            include: [
+              {
+                model: SkuVariantValue,
+                as: "variantValues",
+                include: [
+                  {
+                    model: VariantValue,
+                    as: "variantValue",
+                    include: [{ model: Variant, as: "variant" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+      });
+
+      return res.status(200).json({ reviews });
+    } catch (err) {
+      console.error("Review fetch error:", err);
+      return res.status(500).json({ message: "Lỗi server khi lấy đánh giá" });
     }
-
-    if (purchased === "true") {
-      whereClause.orderItemId = { [Op.ne]: null };
-    }
-
-    const reviews = await Review.findAll({
-      where: whereClause,
-      include: [
-        {
-          model: ReviewMedia,
-          as: "media",
-          required: hasMedia === "true",
-        },
-        {
-          model: User,
-          as: "user",
-          attributes: ["id", "fullName"],
-        },
-        {
-          model: Sku,
-          as: "sku",
-          include: [
-            {
-              model: SkuVariantValue,
-              as: "variantValues",
-              include: [
-                {
-                  model: VariantValue,
-                  as: "variantValue",
-                  include: [{ model: Variant, as: "variant" }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
-    return res.status(200).json({ reviews });
-  } catch (err) {
-    console.error("Review fetch error:", err);
-    return res.status(500).json({ message: "Lỗi server khi lấy đánh giá" });
   }
-}
-
 
   static async checkCanReview(req, res) {
     try {
