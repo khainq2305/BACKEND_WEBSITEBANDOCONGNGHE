@@ -25,7 +25,7 @@ const Notification = sequelize.define("Notification", {
     allowNull: true,
   },
   targetType: {
-    type: DataTypes.ENUM("order", "system", "promotion"),
+    type: DataTypes.ENUM("order", "system","promotion"),
     allowNull: true,
   },
   targetId: {
@@ -43,7 +43,7 @@ const Notification = sequelize.define("Notification", {
     defaultValue: true,
   },
   type: {
-    type: DataTypes.ENUM("order", "system", "promotion"),
+    type: DataTypes.ENUM("order", "system","promotion"),
     allowNull: false,
   },
   slug: {
