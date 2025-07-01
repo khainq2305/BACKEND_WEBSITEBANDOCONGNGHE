@@ -166,39 +166,92 @@ class OrderController {
       return res.status(500).json({ message: 'Lỗi server khi lấy chi tiết đơn hàng' });
     }
   }
+// controllers/client/orderController.js
 static async cancelOrder(req, res) {
+  const t = await sequelize.transaction();
   try {
-    const { id } = req.params;
-    const { reason } = req.body;
+    /* --------- 0. Input --------- */
+    const { id }     = req.params;
+    const { reason } = req.body || {};
 
-    if (!reason || reason.trim() === '') {
+    if (!reason?.trim()) {
       return res.status(400).json({ message: 'Lý do huỷ đơn không được bỏ trống' });
     }
 
-    const order = await Order.findByPk(id);
+    /* --------- 1. Lấy đơn + items + sku + flashSaleItem --------- */
+    const order = await Order.findOne({
+      where: { id },
+      include: [{
+        model : OrderItem,
+        as    : 'items',
+        include: [{
+          model : Sku,
+          required: true,
+          include: {
+            model : FlashSaleItem,
+            as    : 'flashSaleSkus',      // alias bạn đã khai báo
+            required: false
+          }
+        }]
+      }],
+      transaction: t,
+      lock: t.LOCK.UPDATE
+    });
 
-    if (!order) {
-      return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    if (!order)                 return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    if (order.status === 'cancelled')
+      return res.status(400).json({ message: 'Đơn hàng đã huỷ' });
+    if (['delivered', 'completed'].includes(order.status))
+      return res.status(400).json({ message: 'Không thể huỷ đơn đã giao hoặc hoàn thành' });
+
+    /* --------- 2. Trả tồn kho / flash sale --------- */
+    for (const it of order.items) {
+      /* 2.1 SKU */
+      await Sku.increment('stock', {
+        by : it.quantity,
+        where: { id: it.skuId },
+        transaction: t
+      });
+
+      /* 2.2 Flash Sale (nếu có) */
+      const fsItem = it.Sku.flashSaleSkus?.[0];
+      if (fsItem) {
+        await FlashSaleItem.increment('quantity', {
+          by : it.quantity,
+          where: { id: fsItem.id },
+          transaction: t
+        });
+      }
     }
 
-    if (order.status === 'cancelled') {
-      return res.status(400).json({ message: 'Đơn hàng đã huỷ rồi' });
+    /* --------- 3. Trả lượt dùng coupon (nếu giới hạn) --------- */
+    if (order.couponId) {
+      await Coupon.increment('totalQuantity', {
+        by : 1,
+        where: { id: order.couponId },
+        transaction: t
+      });
     }
 
-    if (order.status === 'delivered' || order.status === 'completed') {
-      return res.status(400).json({ message: 'Không thể huỷ đơn đã giao hoặc đã hoàn thành' });
-    }
+    /* --------- 4. Cập nhật trạng thái đơn --------- */
+    order.status        = 'cancelled';
+    order.paymentStatus = 'unpaid';      // huỷ ⇒ coi như chưa thanh toán
+    order.cancelReason  = reason.trim();
+    await order.save({ transaction: t });
 
-    order.status = 'cancelled';
-    order.cancelReason = reason;
-    await order.save();
+    await t.commit();
+    return res.json({
+      message: 'Huỷ đơn & hoàn kho thành công',
+      orderId: order.id
+    });
 
-    return res.json({ message: 'Huỷ đơn hàng thành công', orderId: order.id });
-  } catch (error) {
-    console.error('Lỗi khi huỷ đơn hàng:', error);
-    return res.status(500).json({ message: 'Lỗi server khi huỷ đơn hàng' });
+  } catch (err) {
+    await t.rollback();
+    console.error('[cancelOrder]', err);
+    return res.status(500).json({ message: 'Lỗi server khi huỷ đơn' });
   }
 }
+
 
 static async updateStatus(req, res) {
   try {

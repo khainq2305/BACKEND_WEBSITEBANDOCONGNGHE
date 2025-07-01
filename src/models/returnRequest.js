@@ -46,7 +46,9 @@ const ReturnRequest = sequelize.define('ReturnRequest', {
       'pending',          // 1. Khách gửi yêu cầu
       'approved',         // 2. Admin duyệt yêu cầu
       'awaiting_pickup',  // 3. Chờ khách chọn cách gửi (ghn / tự gửi)
-      'shipping',         // 4. Hàng đang gửi về
+      'shipping',     
+          'pickup_booked',   // 👈 THÊM
+          // 4. Hàng đang gửi về
       'received',         // 5. Admin xác nhận đã nhận hàng
       'refunded',         // 6. Đã hoàn tiền
       'rejected',         // Admin từ chối ngay lúc đầu

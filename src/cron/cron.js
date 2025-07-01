@@ -1,36 +1,70 @@
 // services/common/cron.js
 const cron = require('node-cron');
-const { Order, OrderItem, Sku, Notification, NotificationUser } = require('../../models');
+const { Op }  = require('sequelize');
+const {
+  Order,
+  OrderItem,
+  Sku,
+  Notification,
+  NotificationUser
+} = require('../../models');
 
-cron.schedule('*/1 * * * *', async () => {    // mỗi phút
-  const now = Date.now();
-  const expiredOrders = await Order.findAll({
-    where: {
-      paymentStatus: 'waiting',
-      status: 'processing',
-      expiredAt: { [Op.lt]: now }
-    },
-    include: [{ model: OrderItem, as: 'items' }]
-  });
+/**
+ * Hủy tự động các đơn “processing + waiting”
+ * đã quá 15 phút kể từ khi tạo nhưng vẫn chưa thanh toán.
+ *
+ * Job chạy mỗi phút.
+ */
+cron.schedule('*/1 * * * *', async () => {
+  try {
+    // thời điểm cách đây 15 phút
+    const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
 
-  for (const o of expiredOrders) {
-    // hoàn kho
-    for (const it of o.items) await Sku.increment('stock', { by: it.quantity, where: { id: it.skuId } });
-
-    o.status = 'cancelled';
-    o.paymentStatus = 'unpaid';
-    o.cancelReason = 'Thanh toán không hoàn tất trong 15 phút';
-    await o.save();
-
-    // gửi notification
-    const notif = await Notification.create({
-      title: 'Đơn hàng tự huỷ',
-      message: `Đơn ${o.orderCode} đã huỷ do quá hạn thanh toán`,
-      slug: `order-${o.orderCode}`, type: 'order', referenceId: o.id
+    const expiredOrders = await Order.findAll({
+      where: {
+        status       : 'processing',
+        paymentStatus: 'waiting',
+        createdAt    : { [Op.lt]: fifteenMinutesAgo }
+      },
+      include: [{ model: OrderItem, as: 'items' }]
     });
-    await NotificationUser.create({ notificationId: notif.id, userId: o.userId });
-  }
 
-  if (expiredOrders.length)
-    console.log(`[Cron] Đã huỷ ${expiredOrders.length} đơn quá hạn thanh toán`);
+    if (!expiredOrders.length) return; // không có đơn nào hết hạn
+
+    for (const order of expiredOrders) {
+      /* ---------- 1. Hoàn lại tồn kho SKU ---------- */
+      for (const item of order.items) {
+        await Sku.increment('stock', {
+          by   : item.quantity,
+          where: { id: item.skuId }
+        });
+      }
+
+      /* ---------- 2. Cập nhật trạng thái đơn ---------- */
+      order.status        = 'cancelled';
+      order.paymentStatus = 'unpaid';
+      order.cancelReason  = 'Thanh toán không hoàn tất trong 15 phút';
+      await order.save();
+
+      /* ---------- 3. Tạo thông báo cho người dùng ---------- */
+      const notif = await Notification.create({
+        title       : 'Đơn hàng tự huỷ',
+        message     : `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
+        slug        : `order-${order.orderCode}`,
+        type        : 'order',
+        referenceId : order.id
+      });
+
+      await NotificationUser.create({
+        notificationId: notif.id,
+        userId        : order.userId
+      });
+    }
+
+    console.log(
+      `[Cron] Đã huỷ ${expiredOrders.length} đơn quá hạn thanh toán (${new Date().toLocaleString()})`
+    );
+  } catch (err) {
+    console.error('[Cron] Lỗi khi huỷ đơn quá hạn:', err);
+  }
 });

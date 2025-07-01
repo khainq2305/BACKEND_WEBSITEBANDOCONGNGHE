@@ -7,6 +7,7 @@ const {
   SkuVariantValue,
   VariantValue,
   Variant,
+   Order,
   ProductInfo,
   ProductSpec,
   Review,
@@ -27,7 +28,7 @@ class ProductController {
       const { slug } = req.params;
       const { includeInactive } = req.query;
 
-      /* -------------------- 1. Lấy sản phẩm + SKU -------------------- */
+      
       const whereClause = { slug };
       if (!includeInactive || includeInactive !== "true")
         whereClause.isActive = 1;
@@ -36,7 +37,7 @@ class ProductController {
         where: whereClause,
         attributes: {
           include: [
-            /* đã bán */
+            
             [
               literal(`(
               SELECT COALESCE(SUM(oi.quantity),0)
@@ -293,6 +294,7 @@ class ProductController {
           "name",
           "slug",
           "thumbnail",
+           "badgeImage",  
           "badge",
           [fn("MIN", col("skus.price")), "min_price"],
           [fn("MAX", col("skus.originalPrice")), "max_price"],
@@ -355,7 +357,7 @@ class ProductController {
 
       const details = await Product.findAll({
         where: { id: { [Op.in]: pageIds } },
-        attributes: ["id", "name", "slug", "thumbnail", "badge", "categoryId"],
+        attributes: ["id", "name", "slug", "thumbnail", "badge", "categoryId", ],
         include: [
           {
             model: Sku,
@@ -461,7 +463,7 @@ class ProductController {
           thumbnail: prod.thumbnail,
           badge: prod.badge,
           image: primary.ProductMedia?.[0]?.mediaUrl || prod.thumbnail,
-
+badgeImage: prod.badgeImage, 
           price: finalPrice,
           oldPrice: finalOldPrice,
           originalPrice: primary.originalPrice,
@@ -486,133 +488,149 @@ class ProductController {
 
   /* controllers/client/productController.js */
 
-  static async getRelatedProducts(req, res) {
-    try {
-      const { categoryId, excludeId } = req.query;
-      if (!categoryId) {
-        return res.status(400).json({ message: "Cần cung cấp categoryId." });
-      }
+  // controllers/SectionClientController.js
+static async getRelatedProducts(req, res) {
+  try {
+    const { categoryId, excludeId } = req.query;
+    if (!categoryId)
+      return res.status(400).json({ message: 'Cần cung cấp categoryId.' });
 
-      const whereClause = {
-        categoryId,
-        isActive: 1,
-        deletedAt: null,
+    const whereClause = {
+      categoryId,
+      isActive : 1,
+      deletedAt: null,
+    };
+    if (excludeId) whereClause.id = { [Op.ne]: excludeId };
+
+    const now = new Date();
+
+    /* ===== lấy deal flash-sale theo category (nếu có) ===== */
+    let catDeal = null;
+    const catFlash = await FlashSaleCategory.findOne({
+      where : { categoryId },
+      include: [{
+        model   : FlashSale,
+        as      : 'flashSale',
+        required: true,
+        where   : {
+          isActive : true,
+          startTime: { [Op.lte]: now },
+          endTime  : { [Op.gte]: now },
+        },
+        attributes: ['endTime'],
+      }],
+      order: [['priority', 'DESC']],
+    });
+    if (catFlash) {
+      catDeal = {
+        discountType : catFlash.discountType,
+        discountValue: catFlash.discountValue,
+        endTime      : catFlash.flashSale.endTime,
       };
-      if (excludeId) whereClause.id = { [Op.ne]: excludeId };
-
-      const now = new Date();
-      let catDeal = null;
-      const catFlash = await FlashSaleCategory.findOne({
-        where: { categoryId },
-        include: [
-          {
-            model: FlashSale,
-            as: "flashSale",
-            required: true,
-            where: {
-              isActive: true,
-              startTime: { [Op.lte]: now },
-              endTime: { [Op.gte]: now },
-            },
-            attributes: ["endTime"],
-          },
-        ],
-        order: [["priority", "DESC"]],
-      });
-      if (catFlash) {
-        catDeal = {
-          discountType: catFlash.discountType,
-          discountValue: catFlash.discountValue,
-          endTime: catFlash.flashSale.endTime,
-        };
-      }
-
-      const products = await Product.findAll({
-        where: whereClause,
-        attributes: ["id", "name", "slug", "thumbnail", "badge"],
-        order: [["createdAt", "DESC"]],
-        include: [
-          {
-            model: Sku,
-            as: "skus",
-            attributes: ["id", "price", "originalPrice", "stock"],
-            include: [
-              {
-                model: FlashSaleItem,
-                as: "flashSaleSkus",
-                required: false,
-                include: [
-                  {
-                    model: FlashSale,
-                    as: "flashSale",
-                    required: true,
-                    where: {
-                      startTime: { [Op.lte]: now },
-                      endTime: { [Op.gte]: now },
-                    },
-                    attributes: [],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      });
-
-      const formattedProducts = products.map((prod) => {
-        const skuInfos = (prod.skus || []).map((sku) => {
-          const basePrice = +sku.price || 0;
-
-          const fsItem = sku.flashSaleSkus?.[0];
-          let salePrice = basePrice;
-          if (fsItem && fsItem.salePrice > 0 && fsItem.salePrice < basePrice) {
-            salePrice = fsItem.salePrice;
-          } else if (catDeal) {
-            let tmp = basePrice;
-            if (catDeal.discountType === "percent") {
-              tmp = (basePrice * (100 - catDeal.discountValue)) / 100;
-            } else {
-              tmp = basePrice - catDeal.discountValue;
-            }
-            tmp = Math.max(0, Math.round(tmp / 1_000) * 1_000);
-            if (tmp < salePrice) salePrice = tmp;
-          }
-
-          const oldPrice = salePrice < basePrice ? basePrice : null;
-          let discount = null;
-          if (oldPrice && oldPrice > 0) {
-            discount = Math.round(((oldPrice - salePrice) / oldPrice) * 100);
-            discount = Math.min(99, Math.max(1, discount));
-          }
-
-          return { salePrice, oldPrice, discount, sku };
-        });
-
-        const best =
-          skuInfos.sort((a, b) => a.salePrice - b.salePrice)[0] || {};
-
-        return {
-          id: prod.id,
-          name: prod.name,
-          slug: prod.slug,
-          image: prod.thumbnail,
-          price: best.salePrice ?? null,
-          oldPrice: best.oldPrice ?? null,
-          discount: best.discount ?? null,
-          badge: prod.badge ?? null,
-          rating: 0,
-          soldCount: 0,
-          isFavorite: false,
-          inStock: (prod.skus || []).some((s) => (s.stock || 0) > 0),
-        };
-      });
-
-      return res.status(200).json({ products: formattedProducts });
-    } catch (err) {
-      console.error("Lỗi getRelatedProducts:", err);
-      return res.status(500).json({ message: "Lỗi server" });
     }
+
+    /* ===== lấy product + sku + flashSale + orderItems ===== */
+    const products = await Product.findAll({
+      where : whereClause,
+      order : [['createdAt', 'DESC']],
+      attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage'],
+      include: [{
+        model      : Sku,
+        as         : 'skus',
+        attributes : ['id', 'price', 'originalPrice', 'stock'],
+        include: [
+          /* flashSale của SKU */
+          {
+            model   : FlashSaleItem,
+            as      : 'flashSaleSkus',
+            required: false,
+            include : [{
+              model   : FlashSale,
+              as      : 'flashSale',
+              required: true,
+              where   : { startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
+              attributes: [],
+            }],
+          },
+          /* orderItems đã hoàn thành – để đếm sold */
+          {
+            model   : OrderItem,
+            as      : 'OrderItems',
+            required: false,              // lấy SKU kể cả khi chưa bán
+            include : [{
+              model   : Order,
+              as      : 'order',
+              attributes: [],
+              required : true,            // chỉ giữ OrderItem có đơn thoả status
+              where    : { status: { [Op.in]: ['completed', 'delivered'] } },
+            }],
+          },
+        ],
+      }],
+    });
+
+    /* ===== format ===== */
+    const formattedProducts = products.map((prod) => {
+      /* ---- soldCount của product ---- */
+      const soldCount = (prod.skus || []).reduce((sum, sku) => {
+        const sold = sku.OrderItems?.reduce((s, oi) => s + (oi.quantity || 0), 0) || 0;
+        return sum + sold;
+      }, 0);
+
+      /* ---- tính giá rẻ nhất + discount ---- */
+      const skuInfos = (prod.skus || []).map((sku) => {
+        const basePrice = +sku.price || 0;
+
+        /* flashSale SKU */
+        const fsItem = sku.flashSaleSkus?.[0];
+        let salePrice = basePrice;
+        if (fsItem && fsItem.salePrice > 0 && fsItem.salePrice < basePrice) {
+          salePrice = fsItem.salePrice;
+        } else if (catDeal) {
+          let tmp = basePrice;
+          tmp = catDeal.discountType === 'percent'
+            ? (basePrice * (100 - catDeal.discountValue)) / 100
+            : basePrice - catDeal.discountValue;
+          tmp = Math.max(0, Math.round(tmp / 1_000) * 1_000);
+          if (tmp < salePrice) salePrice = tmp;
+        }
+
+        const oldPrice = salePrice < basePrice ? basePrice : null;
+        let discount = null;
+        if (oldPrice && oldPrice > 0) {
+          discount = Math.round(((oldPrice - salePrice) / oldPrice) * 100);
+          discount = Math.min(99, Math.max(1, discount));
+        }
+
+        return { salePrice, oldPrice, discount, sku };
+      });
+
+      const best = skuInfos.sort((a, b) => a.salePrice - b.salePrice)[0] || {};
+
+      return {
+        id       : prod.id,
+        name     : prod.name,
+        slug     : prod.slug,
+        image    : prod.thumbnail,
+        price    : best.salePrice ?? null,
+        oldPrice : best.oldPrice ?? null,
+        discount : best.discount ?? null,
+        badge    : prod.badge ?? null,
+        badgeImage: prod.badgeImage ?? null,
+        rating   : 0,           // (có thể tính thêm nếu cần)
+        soldCount,
+        isFavorite: false,
+        inStock  : (prod.skus || []).some((s) => (s.stock || 0) > 0),
+      };
+    });
+
+    return res.status(200).json({ products: formattedProducts });
+  } catch (err) {
+    console.error('Lỗi getRelatedProducts:', err);
+    return res.status(500).json({ message: 'Lỗi server' });
   }
+}
+
 }
 
 module.exports = ProductController;

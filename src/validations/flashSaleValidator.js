@@ -56,7 +56,7 @@ const validateFlashSale = async (req, res, next) => {
 
   if (req.file && req.file.originalname) {
     const ext = path.extname(req.file.originalname).toLowerCase();
-    if (![".jpg", ".jpeg", ".png"].includes(ext)) {
+    if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
       errors.push({
         field: "bannerImage",
         message: "Chỉ chấp nhận ảnh .jpg, .jpeg, .png",

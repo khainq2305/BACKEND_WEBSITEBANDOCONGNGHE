@@ -15,6 +15,8 @@ router.post('/create', checkJWT, OrderController.createOrder);
 router.post("/momo", checkJWT, OrderController.momoPay);
 router.post("/zalopay", checkJWT, OrderController.zaloPay);
 router.post("/vnpay", checkJWT, OrderController.vnpay);
+router.get ('/vnpay-callback',  OrderController.vnpayCallback); // redirect
+router.post('/vnpay-callback', OrderController.vnpayCallback); // IPN (tùy bật)
 router.post('/:id/reorder', checkJWT, OrderController.reorder);
 router.put(
   '/return/:id/choose-method',

@@ -75,37 +75,35 @@ class AuthController {
 
       const verificationLink = `${BASE_URL}/verify-email?token=${token}`;
       const emailHtmlContent = `
-        <div style="margin: 0; padding: 0; background-color: #f4f7f6; font-family: Arial, sans-serif;">
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f7f6;">
-            <tr>
-              <td align="center" style="padding: 20px;">
-                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                  <tr>
-                    <td align="center" style="background-color: #0073e6; padding: 30px 20px; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: bold;">Xác Thực Địa Chỉ Email</h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 35px 30px;">
-                      <p style="font-size: 17px; color: #333333; line-height: 1.6em; margin: 0 0 20px;">Chào ${fullName.trim()},</p>
-                      <p style="font-size: 17px; color: #333333; line-height: 1.6em; margin: 0 0 25px;">Cảm ơn bạn đã đăng ký tài khoản! Để hoàn tất quá trình, vui lòng nhấp vào nút bên dưới để xác thực địa chỉ email của bạn.</p>
-                      <div style="text-align: center; margin: 30px 0;">
-                        <a href="${verificationLink}" target="_blank" style="background-color: #0073e6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-size: 17px; font-weight: bold; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Kích Hoạt Tài Khoản</a>
-                      </div>
-                      <p style="font-size: 16px; color: #555555; line-height: 1.6em; margin: 0 0 15px;">Liên kết này sẽ hết hạn sau <strong>30 phút</strong>.</p>
-                      <p style="font-size: 15px; color: #777777; line-height: 1.6em; margin: 0;">Nếu bạn không yêu cầu tạo tài khoản này, bạn có thể bỏ qua email này một cách an toàn.</p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 25px 30px; background-color: #f8f9fa; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; text-align: center;">
-                      <p style="font-size: 13px; color: #888888; margin: 0;">&copy; ${new Date().getFullYear()} [Tên công ty/website của bạn]. Bảo lưu mọi quyền.</p>
-                      <p style="font-size: 13px; color: #888888; margin: 5px 0 0;">Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại <a href="mailto:support@example.com" style="color: #0073e6; text-decoration: none;">liên hệ với chúng tôi</a>.</p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); overflow: hidden;">
+          <!-- Header của Email -->
+          <div style="background-color: #E6F0F6; padding: 30px 20px; text-align: center; border-bottom: 1px solid #D6E0E6;">
+            <!-- Bạn có thể đặt logo của công ty ở đây. Ví dụ: -->
+        
+            <h1 style="margin: 0; font-size: 26px; font-weight: 600; color: #4A90E2;">Xác Thực Địa Chỉ Email</h1>
+          </div>
+
+          <!-- Nội dung chính của Email -->
+          <div style="padding: 30px; text-align: left;">
+            <p style="font-size: 17px; margin-bottom: 20px;">Chào <strong>${fullName.trim()}</strong>,</p>
+            <p style="font-size: 17px; margin-bottom: 25px;">Cảm ơn bạn đã đăng ký tài khoản! Để hoàn tất quá trình và bắt đầu sử dụng dịch vụ của chúng tôi, vui lòng nhấp vào nút bên dưới để xác thực địa chỉ email của bạn:</p>
+
+            <!-- Nút Call to Action (Xác Thực) -->
+            <div style="text-align: center; margin: 35px 0;">
+              <a href="${verificationLink}" target="_blank" style="background-color: #007BFF; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                Xác Thực Tài Khoản Ngay
+              </a>
+            </div>
+
+            <p style="font-size: 16px; color: #666; margin-top: 25px;">Liên kết này sẽ hết hạn sau <strong>30 phút</strong>.</p>
+            <p style="font-size: 15px; color: #888; margin-top: 20px;">Nếu bạn không yêu cầu tạo tài khoản này, vui lòng bỏ qua email này một cách an toàn.</p>
+          </div>
+
+          <!-- Footer của Email -->
+          <div style="background-color: #F8F8F8; padding: 25px 30px; text-align: center; border-top: 1px solid #EEE;">
+            <p style="font-size: 14px; color: #777; margin: 0;">&copy; ${new Date().getFullYear()} Homepowear. Mọi quyền được bảo lưu.</p>
+            <p style="font-size: 14px; color: #777; margin: 8px 0 0;">Cần hỗ trợ? <a href="mailto:support@example.com" style="color: #007BFF; text-decoration: none;">Liên hệ với chúng tôi</a>.</p>
+          </div>
         </div>
         `;
 
@@ -235,19 +233,31 @@ class AuthController {
       }
 
       const verificationLink = `${BASE_URL}/verify-email?token=${newToken}`;
-      await sendEmail(
-        email,
-        "Xác thực tài khoản",
-        `
-      <div>
-        <h2>Xác thực tài khoản</h2>
-        <p>Chào ${fullName},</p>
-        <p>Vui lòng nhấp vào link dưới đây để xác thực tài khoản của bạn:</p>
-        <a href="${verificationLink}">Xác thực tài khoản</a>
-        <p>Link này sẽ hết hạn sau 30 phút.</p>
+      const emailHtmlContent = `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:20px auto;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.05);overflow:hidden">
+        <div style="background:#E6F0F6;padding:30px 20px;text-align:center;border-bottom:1px solid #D6E0E6">
+          <!-- <img src="https://cdn.homepowear.vn/logo.svg" alt="Homepowear" style="max-width:150px;margin:0 auto 15px;display:block"> -->
+          <h1 style="margin:0;font-size:26px;font-weight:600;color:#4A90E2">Xác Thực Địa Chỉ Email</h1>
+        </div>
+
+        <div style="padding:30px;text-align:left">
+          <p style="font-size:17px;margin-bottom:20px">Chào <strong>${fullName.trim()}</strong>,</p>
+          <p style="font-size:17px;margin-bottom:25px">Bạn vừa yêu cầu gửi lại link xác thực. Vui lòng nhấp nút bên dưới để hoàn tất:</p>
+          <div style="text-align:center;margin:35px 0">
+            <a href="${verificationLink}" target="_blank" style="background:#007BFF;color:#fff;padding:15px 30px;text-decoration:none;border-radius:8px;font-size:18px;font-weight:bold;display:inline-block;box-shadow:0 4px 10px rgba(0,0,0,.1)">Xác Thực Tài Khoản Ngay</a>
+          </div>
+          <p style="font-size:16px;color:#666;margin-top:25px">Liên kết này sẽ hết hạn sau <strong>30&nbsp;phút</strong>.</p>
+          <p style="font-size:15px;color:#888;margin-top:20px">Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.</p>
+        </div>
+
+        <div style="background:#F8F8F8;padding:25px 30px;text-align:center;border-top:1px solid #EEE">
+          <p style="font-size:14px;color:#777;margin:0">&copy; ${new Date().getFullYear()} Homepowear. Mọi quyền được bảo lưu.</p>
+          <p style="font-size:14px;color:#777;margin:8px 0 0">Cần hỗ trợ? <a href="mailto:support@example.com" style="color:#007BFF;text-decoration:none">Liên hệ với chúng tôi</a>.</p>
+        </div>
       </div>
-    `
-      );
+    `;
+
+      await sendEmail(email, "Xác thực tài khoản của bạn", emailHtmlContent);
 
       res.status(200).json({
         message: "Đã gửi lại link xác thực qua email!",
@@ -359,16 +369,276 @@ class AuthController {
 
         await UserRole.create({
           userId: newUser.id,
-          roleId: 2, // Gán quyền "user"
+          roleId: 2, 
         });
       }
 
-      await sendEmail(
-        email,
-        "Đăng ký tài khoản thành công!",
-        `<div>Chúc mừng ${fullName}, bạn đã xác thực tài khoản thành công.</div>`
-      );
+    await sendEmail(
+  email,
+  "Chào mừng đến với Homepower! Tài khoản của bạn đã sẵn sàng.",
+  `
+  <!DOCTYPE html>
+  <html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chào mừng bạn đến với Homepower!</title>
+    <style>
+      /* Reset CSS để tương thích tốt hơn */
+      body, div, p, a, li, td {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      table, td {
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+        border-collapse: collapse;
+      }
+      img {
+        -ms-interpolation-mode: bicubic;
+        border: 0;
+        outline: none;
+        text-decoration: none;
+      }
+      a[x-apple-data-detectors] {
+        color: inherit !important;
+        text-decoration: none !important;
+        font-size: inherit !important;
+        font-family: inherit !important;
+        font-weight: inherit !important;
+        line-height: inherit !important;
+      }
+      /* Các kiểu dáng cơ bản */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        background-color: #f4f7fa;
+        margin: 0;
+        padding: 0;
+      }
+      .wrapper {
+        background-color: #f4f7fa;
+        padding: 20px 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 10px; /* Bo tròn góc hơn */
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); /* Đổ bóng sâu hơn */
+      }
+      .header {
+        background-color: #007bff; /* Màu chủ đạo của bạn */
+        color: #ffffff;
+        padding: 35px 30px 25px; /* Điều chỉnh padding */
+        text-align: center;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        position: relative;
+        overflow: hidden; /* Để xử lý gradient hoặc pattern nếu có */
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 30px; /* Lớn hơn một chút */
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .header p {
+        font-size: 16px;
+        margin-top: 10px;
+        opacity: 0.9;
+      }
+      .content {
+        padding: 30px;
+      }
+      .content p {
+        margin-bottom: 18px; /* Khoảng cách giữa các đoạn văn */
+        font-size: 16px;
+        line-height: 1.7;
+        color: #444444; /* Màu chữ dịu hơn */
+      }
+      .button-container {
+        text-align: center;
+        margin-top: 30px;
+        margin-bottom: 30px;
+      }
+      .button {
+        display: inline-block;
+        background-color: #28a745; /* Màu nút gọi hành động */
+        color: #ffffff;
+        padding: 14px 30px; /* Nút lớn hơn */
+        border-radius: 30px; /* Bo tròn hoàn toàn */
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 18px;
+        transition: background-color 0.3s ease;
+        box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3); /* Bóng cho nút */
+      }
+      .button:hover {
+        background-color: #218838;
+      }
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #007bff;
+        margin-bottom: 20px;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 20px 0;
+      }
+      .feature-list li {
+        margin-bottom: 10px;
+        font-size: 15px;
+        color: #555555;
+      }
+      .feature-list li span {
+        color: #007bff;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+      .footer {
+        background-color: #f0f0f0;
+        padding: 25px 30px;
+        text-align: center;
+        font-size: 13px;
+        color: #777777;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+      }
+      .footer a {
+        color: #007bff;
+        text-decoration: none;
+      }
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      .highlight {
+        color: #007bff;
+        font-weight: 600;
+      }
+      .greeting {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #222222;
+      }
+      .small-text {
+        font-size: 14px;
+        color: #555555;
+      }
+      .logo-placeholder {
+        margin-bottom: 20px;
+      }
+      .social-icon {
+        width: 28px;
+        height: 28px;
+        margin: 0 8px;
+      }
+      .signature-block {
+        margin-top: 30px;
+        text-align: left;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+      }
+      @media only screen and (max-width: 600px) {
+        .container {
+          width: 100% !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+        .wrapper {
+          padding: 0 !important;
+        }
+        .header, .content, .footer {
+          padding-left: 20px !important;
+          padding-right: 20px !important;
+        }
+        .header {
+            border-radius: 0 !important;
+        }
+        .footer {
+            border-radius: 0 !important;
+        }
+        .button {
+          padding: 12px 20px !important;
+          font-size: 16px !important;
+        }
+        .header h1 {
+            font-size: 26px !important;
+        }
+        .content p, .feature-list li {
+            font-size: 15px !important;
+        }
+        .greeting {
+            font-size: 17px !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="container">
+        <div class="header">
+          <img src="[URL_TO_YOUR_LOGO]" alt="Homepower Logo" style="max-width: 160px; margin-bottom: 18px; display: block; margin-left: auto; margin-right: auto;">
+          <h1>Chào mừng ${fullName} đã gia nhập!</h1>
+          <p>Tài khoản của bạn đã được kích hoạt thành công.</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Xin chào ${fullName},</p>
+          <p>Chúng tôi vô cùng háo hức được chào đón bạn đến với <span class="highlight">Homepower</span>. Hành trình của bạn với chúng tôi đã chính thức bắt đầu!</p>
 
+         
+
+          <p>Với tài khoản mới, bạn đã sẵn sàng để khám phá những điều tuyệt vời:</p>
+          <ul class="feature-list">
+            <li><span>&#10003;</span> Duyệt qua hàng ngàn sản phẩm/dịch vụ độc đáo.</li>
+            <li><span>&#10003;</span> Nhận các ưu đãi và khuyến mãi đặc biệt dành riêng cho thành viên.</li>
+            <li><span>&#10003;</span> Quản lý đơn hàng, thông tin cá nhân dễ dàng.</li>
+            <li><span>&#10003;</span> Truy cập vào cộng đồng hỗ trợ của chúng tôi (nếu có).</li>
+          </ul>
+
+          <p style="text-align: center; font-style: italic; color: #666;">Đừng bỏ lỡ những điều thú vị đang chờ đợi!</p>
+
+          <div class="button-container">
+            <a href="[URL_TO_YOUR_WEBSITE_LOGIN_PAGE]" class="button">Bắt đầu khám phá ngay!</a>
+          </div>
+
+          <p>Bạn có thể cập nhật hồ sơ của mình để có trải nghiệm cá nhân hóa tốt nhất. Hãy thêm ảnh đại diện và thông tin sở thích để chúng tôi có thể phục vụ bạn tốt hơn!</p>
+          <p style="text-align: center; margin-top: 25px;"><a href="[URL_TO_YOUR_PROFILE_PAGE]" style="color: #007bff; text-decoration: none; font-weight: 600;">Cập nhật hồ sơ của bạn</a></p>
+
+          <div class="signature-block">
+            <p>Trân trọng,</p>
+            <p style="font-weight: 600; color: #007bff;">Đội ngũ Homepower</p>
+          </div>
+        </div>
+        <div class="footer">
+          <p>Bạn có câu hỏi? Chúng tôi luôn sẵn lòng trợ giúp!</p>
+          <p>Liên hệ hỗ trợ: <a href="mailto:[EMAIL_SUPPORT]" target="_blank">[EMAIL_SUPPORT]</a> | Hotline: <a href="tel:[YOUR_PHONE_NUMBER]" style="color: #007bff; text-decoration: none;">[YOUR_PHONE_NUMBER]</a></p>
+          
+          <div style="margin-top: 15px;">
+            <a href="[URL_TO_FACEBOOK_PAGE]" target="_blank"><img src="[URL_TO_FACEBOOK_ICON]" alt="Facebook" class="social-icon"></a>
+            <a href="[URL_TO_TWITTER_PAGE]" target="_blank"><img src="[URL_TO_TWITTER_ICON]" alt="Twitter" class="social-icon"></a>
+            <a href="[URL_TO_INSTAGRAM_PAGE]" target="_blank"><img src="[URL_TO_INSTAGRAM_ICON]" alt="Instagram" class="social-icon"></a>
+            </div>
+
+          <p style="margin-top: 15px;">&copy; ${new Date().getFullYear()} Homepower. Mọi quyền được bảo lưu.</p>
+          <p><a href="[URL_TO_YOUR_WEBSITE]" target="_blank">Website của chúng tôi</a> | <a href="[URL_TO_YOUR_PRIVACY_POLICY]" target="_blank">Chính sách bảo mật</a></p>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+  `
+);
       return res
         .status(200)
         .json({ message: "Xác thực thành công! Vui lòng đăng nhập." });
@@ -441,7 +711,7 @@ class AuthController {
 
   static async login(req, res) {
     try {
-      const { email, password, remember } = req.body; 
+      const { email, password, remember } = req.body;
 
       const user = await User.findOne({ where: { email } });
       if (!user) {
@@ -463,7 +733,6 @@ class AuthController {
 
       await user.update({ lastLoginAt: new Date() });
 
-      
       const token = jwt.sign(
         {
           id: user.id,
@@ -479,7 +748,7 @@ class AuthController {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, 
+        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
       });
 
       res.status(200).json({
@@ -655,62 +924,66 @@ class AuthController {
     }
   }
 
-  static async checkResetStatus(req, res) {
-    try {
-      const { email } = req.query;
-      if (!email) {
-        return res.status(400).json({ message: "Thiếu email." });
-      }
-
-      const now = new Date();
-      const userToken = await UserToken.findOne({
-        where: { email, type: "passwordReset" },
-        order: [["createdAt", "DESC"]],
-      });
-
-      if (!userToken) {
-        return res.status(200).json({
-          verified: false,
-          lockTime: 0,
-          resendCooldown: 0,
-          message: "Không có yêu cầu đặt lại mật khẩu đang chờ xử lý.",
-        });
-      }
-
-      if (userToken.usedAt) {
-        return res.status(200).json({
-          verified: true,
-          lockTime: 0,
-          resendCooldown: 0,
-          message: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập.",
-        });
-      }
-
-      const lockTime =
-        userToken.lockedUntil && userToken.lockedUntil > now
-          ? userToken.lockedUntil - now
-          : 0;
-
-      const cooldownDuration = 60 * 1000;
-
-      const timeSinceLastSend =
-        now - new Date(userToken.lastSentAt || userToken.createdAt);
-      const resendCooldown =
-        timeSinceLastSend < cooldownDuration
-          ? cooldownDuration - timeSinceLastSend
-          : 0;
-
-      res.status(200).json({
-        verified: false,
-        lockTime,
-        resendCooldown,
-        message: "Yêu cầu đặt lại mật khẩu đang chờ xử lý.",
-      });
-    } catch (err) {
-      console.error("Lỗi kiểm tra trạng thái:", err);
-      res.status(500).json({ message: "Lỗi server!" });
+ static async checkResetStatus(req, res) {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: 'Thiếu email.' });
     }
+
+    const now = new Date();
+
+    const userToken = await UserToken.findOne({
+      where: { email, type: 'passwordReset' },
+      order: [['createdAt', 'DESC']],
+    });
+
+   
+    if (!userToken) {
+      return res.status(200).json({
+        verified: false,
+        lockTime: 0,
+        resendCooldown: 0,
+        message: 'Không có yêu cầu đặt lại mật khẩu đang chờ xử lý.',
+      });
+    }
+
+   
+    if (userToken.usedAt) {
+      return res.status(200).json({
+        verified: true,
+        lockTime: 0,
+        resendCooldown: 0,
+        message: 'Mật khẩu đã được đặt lại. Vui lòng đăng nhập.',
+      });
+    }
+
+    
+    const lockTime =
+      userToken.lockedUntil && userToken.lockedUntil > now
+        ? userToken.lockedUntil - now
+        : 0;
+
+   
+    let resendCooldown = 0;
+    if (lockTime === 0) {
+      const COOLDOWN_MS = 60 * 1000; 
+      const elapsed = now - new Date(userToken.lastSentAt || userToken.createdAt);
+      resendCooldown = elapsed < COOLDOWN_MS ? COOLDOWN_MS - elapsed : 0;
+    }
+
+    return res.status(200).json({
+      verified: false,
+      lockTime,       
+      resendCooldown,  
+      message: 'Yêu cầu đặt lại mật khẩu đang chờ xử lý.',
+    });
+  } catch (err) {
+    console.error('Lỗi kiểm tra trạng thái:', err);
+    return res.status(500).json({ message: 'Lỗi server!' });
   }
+}
+
 
   static async verifyResetToken(req, res) {
     try {

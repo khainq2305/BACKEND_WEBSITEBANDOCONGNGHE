@@ -22,10 +22,11 @@ class ProductController {
 static async create(req, res) {
   const t = await Product.sequelize.transaction();
   try {
-    // 1) Lấy dữ liệu đầu vào
+    
     const {
       name,
       badge,
+       badgeImage,   
       description,
       shortDescription,
       thumbnail,
@@ -40,14 +41,14 @@ static async create(req, res) {
       specs = []
     } = req.product;
 
-    // 2) Tạo slug duy nhất
+    
     const baseSlug = slugify(name, { lower: true, strict: true });
     let slug = baseSlug, suffix = 1;
     while (await Product.findOne({ where: { slug } })) {
       slug = `${baseSlug}-${suffix++}`;
     }
 
-    // 3) Tính orderIndex
+   
     let finalOrderIndex = orderIndex;
     if (finalOrderIndex == null || finalOrderIndex === "") {
       const maxOrder = await Product.findOne({
@@ -68,11 +69,12 @@ static async create(req, res) {
       });
     }
 
-    // 4) Xử lý thumbnail upload
+    
     const uploadedThumb = req.files?.find(f => f.fieldname === "thumbnail");
     const finalThumb = uploadedThumb?.path || thumbnail;
-
-    // 5) Tạo product
+  const uploadedBadge  = req.files?.find(f => f.fieldname === "badgeImage"); 
+ const finalBadgeImg  = uploadedBadge?.path || badgeImage || null;          
+   
     const product = await Product.create({
       name,
       slug,
@@ -81,13 +83,14 @@ static async create(req, res) {
       thumbnail: finalThumb,
       orderIndex: finalOrderIndex,
       isActive,
+      badgeImage:  finalBadgeImg,
       hasVariants,
       categoryId,
       badge,
       brandId
     }, { transaction: t });
 
-    // 6) Helper cho SKU & file type
+    
     const generateSkuCode = async (prefix = "SKU") => {
       let code, exists = true;
       while (exists) {
@@ -101,14 +104,14 @@ static async create(req, res) {
       return ["mp4","mov","avi","webm"].includes(ext) ? "video" : "image";
     };
 
-    // 7) Trường hợp không có biến thể: chỉ 1 SKU
+    
     if (!hasVariants && skus.length > 0) {
       const sku = skus[0];
       const newSku = await Sku.create({
         skuCode: sku.skuCode || await generateSkuCode(product.slug.toUpperCase()),
         productId: product.id,
-        price: sku.price > 0 ? sku.price : null,                            // <-- SỬA ĐỔI
-        originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,    // <-- SỬA ĐỔI
+        price: sku.price > 0 ? sku.price : null,                          
+        originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,   
         stock: sku.stock,
         height: sku.height || 0,
         width:  sku.width  || 0,
@@ -133,7 +136,7 @@ static async create(req, res) {
       }
     }
 
-    // 8) Trường hợp có biến thể
+   
     if (hasVariants) {
       for (const v of variants) {
         await ProductVariant.findOrCreate({
@@ -147,8 +150,8 @@ static async create(req, res) {
         const createdSku = await Sku.create({
           productId: product.id,
           skuCode: sku.skuCode || await generateSkuCode(product.slug.toUpperCase()),
-          price: sku.price > 0 ? sku.price : null,                            // <-- SỬA ĐỔI
-          originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,    // <-- SỬA ĐỔI
+          price: sku.price > 0 ? sku.price : null,                           
+          originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,    
           stock: sku.stock,
           height: sku.height || 0,
           width:  sku.width  || 0,
@@ -180,7 +183,7 @@ static async create(req, res) {
       }
     }
 
-    // 9) Lưu ProductInfo nếu có
+    
     if (infoContent) {
       await ProductInfo.create({
         productId: product.id,
@@ -188,7 +191,7 @@ static async create(req, res) {
       }, { transaction: t });
     }
 
-    // 10) Lưu specs
+   
     for (const spec of specs) {
       if (spec.key && spec.value) {
         await ProductSpec.create({
@@ -201,7 +204,7 @@ static async create(req, res) {
       }
     }
 
-    // 11) Commit & trả về
+   
     await t.commit();
     return res.status(201).json({
       message: "Thêm sản phẩm thành công",
@@ -241,6 +244,7 @@ static async update(req, res) {
       badge,
       orderIndex,
       isActive,
+       badgeImage, 
       categoryId,
       brandId,
       hasVariants,
@@ -283,23 +287,25 @@ static async update(req, res) {
       }
     }
 
-    // Thumbnail
+ 
     const uploadedThumbnail = req.files?.find(f => f.fieldname === "thumbnail");
     const finalThumbnail = uploadedThumbnail?.path || thumbnail || product.thumbnail;
+ const uploadedBadge     = req.files?.find(f => f.fieldname === "badgeImage"); 
+const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImage; 
 
     await product.update({
       name, slug: newSlug, description, shortDescription,
-      thumbnail: finalThumbnail, orderIndex, isActive,
+      thumbnail: finalThumbnail, orderIndex, isActive,badgeImage:  finalBadgeImg, 
       hasVariants, categoryId, brandId, badge,
     }, { transaction: t });
 
-    // Cập nhật lại các biến thể nếu có
+
     await ProductVariant.destroy({ where: { productId }, transaction: t });
     for (const variant of variants) {
       await ProductVariant.create({ productId, variantId: variant.id }, { transaction: t });
     }
 
-    // SKU xử lý thông minh
+  
     const existingSkus = await Sku.findAll({ where: { productId }, transaction: t });
     const existingMap = new Map(existingSkus.map(s => [s.id, s]));
     const seenSkuIds = new Set();
@@ -322,7 +328,7 @@ static async update(req, res) {
       let skuId = sku.id;
 
       if (skuId && existingMap.has(skuId)) {
-        // ✅ Update SKU
+        
         await Sku.update({
           skuCode: sku.skuCode || existingMap.get(skuId).skuCode,
           price: sku.price > 0 ? sku.price : null,
@@ -337,7 +343,7 @@ static async update(req, res) {
 
         seenSkuIds.add(skuId);
 
-        // Clear & tái tạo media, variantValue
+        
         await ProductMedia.destroy({ where: { skuId }, transaction: t });
         await SkuVariantValue.destroy({ where: { skuId }, transaction: t });
 
@@ -351,7 +357,7 @@ static async update(req, res) {
           await SkuVariantValue.create({ skuId, variantValueId: valId }, { transaction: t });
         }
       } else {
-        // ✅ Create SKU mới
+       
         const createdSku = await Sku.create({
           productId,
           skuCode: sku.skuCode || await generateSkuCode(newSlug.toUpperCase()),
@@ -380,19 +386,19 @@ static async update(req, res) {
       }
     }
 
-    // Xoá SKU cũ không còn
+ 
     const skuIdsToDelete = [...existingMap.keys()].filter(id => !seenSkuIds.has(id));
     await ProductMedia.destroy({ where: { skuId: { [Op.in]: skuIdsToDelete } }, transaction: t });
     await SkuVariantValue.destroy({ where: { skuId: { [Op.in]: skuIdsToDelete } }, transaction: t });
     await Sku.destroy({ where: { id: skuIdsToDelete }, transaction: t });
 
-    // Product Info
+    
     await ProductInfo.destroy({ where: { productId }, transaction: t });
     if (infoContent) {
       await ProductInfo.create({ productId, content: infoContent }, { transaction: t });
     }
 
-    // Specs
+   
     await ProductSpec.destroy({ where: { productId }, transaction: t });
     for (const spec of specs) {
       if (spec.key && spec.value) {
@@ -514,7 +520,7 @@ static async update(req, res) {
         raw: true,
       });
 
-      // Hàm đệ quy để xây cây danh mục
+      
       const buildTree = (parentId = null) => {
         return categories
           .filter((cat) => cat.parentId === parentId)
@@ -567,10 +573,10 @@ static async update(req, res) {
 
   static async getById(req, res) {
     try {
-      // 1) Lấy slug từ URL thay vì id
+     
       const { slug: slugParam } = req.params;
 
-      // 2) Tìm product theo slug, bao gồm luôn các quan hệ cần thiết
+      
       const product = await Product.findOne({
         where: { slug: slugParam },
         include: [
@@ -578,7 +584,7 @@ static async update(req, res) {
           {
             model: ProductSpec,
             as: "specs",
-            attributes: ["specKey", "specValue", "specGroup", "sortOrder"], // Bổ sung specGroup
+            attributes: ["specKey", "specValue", "specGroup", "sortOrder"], 
           },
           {
             model: Sku,
@@ -708,6 +714,7 @@ static async update(req, res) {
           thumbnail: product.thumbnail,
           orderIndex: product.orderIndex,
           isActive: product.isActive,
+          badgeImage    : product.badgeImage || null, 
           badge: product.badge,
 
           hasVariants: product.hasVariants,

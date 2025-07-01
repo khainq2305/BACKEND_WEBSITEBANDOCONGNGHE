@@ -34,6 +34,11 @@ orderCode: {
   finalPrice: DataTypes.DECIMAL(10, 2),
   ghnOrderCode: DataTypes.STRING,
   cancelReason: DataTypes.TEXT,
+    momoOrderId: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true,
+  },
   refundStatus: DataTypes.ENUM('none', 'requested', 'approved', 'rejected'),
   totalPrice: DataTypes.DECIMAL(10, 2),
   paymentTime: DataTypes.DATE,

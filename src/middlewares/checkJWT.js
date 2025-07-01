@@ -1,35 +1,45 @@
 // src/middlewares/authMiddleware.js
 const { verifyToken } = require('../utils/jwtUtils');
 
+const clearAndReply = (res, msg) => {
+  // ⚠️ QUAN TRỌNG: xóa luôn cookie token
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure   : true,
+    sameSite : 'None',
+  });
+  return res.status(401).json({ message: msg });
+};
+
 const checkJWT = (req, res, next) => {
-  const token = req.cookies.token;
+  const token =
+    req.cookies.token ||
+    (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
   if (!token) {
-    return res.status(401).json({ message: "Bạn chưa đăng nhập hoặc token không tồn tại!" });
+    return clearAndReply(res, 'Bạn chưa đăng nhập hoặc token không tồn tại!');
   }
 
   try {
-    const decoded = verifyToken(token);
+    const decoded = verifyToken(token);  
     req.user = decoded;
-    next();
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token đã hết hạn, vui lòng đăng nhập lại!" });
+    return next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return clearAndReply(res, 'Token đã hết hạn, vui lòng đăng nhập lại!');
     }
-
-    return res.status(401).json({ message: "Token không hợp lệ!" });
+    return clearAndReply(res, 'Token không hợp lệ!');
   }
 };
 
-
-
 const isAdmin = (req, res, next) => {
   if (!req.user) {
-    return res.status(403).json({ message: "Bạn chưa đăng nhập!" });
+    return res.status(403).json({ message: 'Bạn chưa đăng nhập!' });
   }
-
   if (req.user.roleId !== 1) {
-    return res.status(403).json({ message: "Bạn không có quyền truy cập (Admin Only)!" });
+    return res
+      .status(403)
+      .json({ message: 'Bạn không có quyền truy cập (Admin Only)!' });
   }
   next();
 };
