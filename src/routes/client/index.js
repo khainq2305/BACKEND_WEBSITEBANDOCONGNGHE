@@ -23,7 +23,12 @@ const productQuestionRoutes = require('./productQuestion.route');
 const systemSettingRoutes = require('./systemSetting.routes');
 
 router.use('/productviews', productViewRoutes); 
-router.post('/payment/momo-callback', require('../../controllers/client/orderController').momoCallback);
+router.post('/payment/momo-callback',      require('../../controllers/client/orderController').momoCallback);
+router.get ('/payment/momo-callback',      require('../../controllers/client/orderController').momoCallback);
+
+router.post('/payment/vnpay-callback',     require('../../controllers/client/orderController').vnpayCallback);
+router.get ('/payment/vnpay-callback',     require('../../controllers/client/orderController').vnpayCallback);
+
 const chatboxRoutes = require('./chatbox.routes');   // 👈 THÊM DÒNG NÀY
 router.use('/', sliderRoutes);             
 router.use('/tin-noi-bat', postRoutes);

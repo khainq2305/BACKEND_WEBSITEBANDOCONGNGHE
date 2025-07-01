@@ -10,11 +10,8 @@ const NotificationClientController = {
     try {
       const notifications = await Notification.findAll({
         where: {
-          isActive: true, 
-        [Op.or]: [
-  { startAt: null },
-  { startAt: { [Op.lte]: new Date() } }
-],
+          isActive: true,
+          [Op.or]: [{ startAt: null }, { startAt: { [Op.lte]: new Date() } }],
           [Op.or]: [
             { isGlobal: true },
             { "$notificationUsers.userId$": userId },
@@ -24,15 +21,15 @@ const NotificationClientController = {
         include: [
           {
             model: NotificationUser,
-            as: "notificationUsers", 
+            as: "notificationUsers",
             required: false,
             where: { userId },
             attributes: ["isRead", "readAt"],
           },
         ],
         order: [
-          ["startAt", "DESC"], 
-          ["createdAt", "DESC"], 
+          ["startAt", "DESC"],
+          ["createdAt", "DESC"],
         ],
       });
 
@@ -50,7 +47,6 @@ const NotificationClientController = {
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
-
 
   async markAsRead(req, res) {
     const userId = req.user?.id;
@@ -76,7 +72,6 @@ const NotificationClientController = {
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
-
 
   async markAllAsRead(req, res) {
     const userId = req.user?.id;

@@ -52,6 +52,8 @@ exports.createPaymentLink = async ({ orderId, amount, orderInfo }) => {
         headers: { "Content-Type": "application/json" },
       }
     );
+  console.log("🟢 Phản hồi từ MoMo:", response.data);
+
     return response.data;
   } catch (error) {
     throw error;

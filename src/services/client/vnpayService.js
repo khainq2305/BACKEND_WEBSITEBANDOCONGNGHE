@@ -3,6 +3,7 @@
 //--------------------------------------------------
 const crypto = require('crypto');
 const moment = require('moment-timezone');
+const qs = require('qs'); // 👈 cần dùng để stringify đúng cách
 
 /* Bỏ dấu tiếng Việt & ký tự lạ */
 function toLatin(str = '') {
@@ -14,15 +15,18 @@ function toLatin(str = '') {
     .replace(/\s+/g, ' ');
 }
 
-exports.createPaymentLink = ({
-  orderId,            // Mã đơn (duy nhất trong ngày)
-  amount,             // Số tiền (VND)
+/**
+ * Tạo link thanh toán VNPay
+ */
+function createPaymentLink({
+  orderId,
+  amount,
   orderInfo,
-  locale    = 'vn',
-  bankCode  = '',     // 'VNPAYQR' để ép hiển thị QR
+  locale = 'vn',
+  bankCode = '',
   orderType = 'other',
   expireMin = 15,
-}) => {
+}) {
   const VNP_TMN_CODE   = process.env.VNP_TMNCODE;
   const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
   const VNP_URL        = process.env.VNP_URL;
@@ -34,7 +38,7 @@ exports.createPaymentLink = ({
     vnp_Version   : '2.1.0',
     vnp_Command   : 'pay',
     vnp_TmnCode   : VNP_TMN_CODE,
-    vnp_Amount    : Math.round(+amount) * 100,          // nhân 100
+    vnp_Amount    : Math.round(+amount) * 100,
     vnp_CurrCode  : 'VND',
     vnp_TxnRef    : orderId,
     vnp_OrderInfo : toLatin(orderInfo),
@@ -47,7 +51,6 @@ exports.createPaymentLink = ({
   };
   if (bankCode) params.vnp_BankCode = bankCode;
 
-  /* sort A→Z và encode value */
   const signData = Object.entries(params)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -64,4 +67,32 @@ exports.createPaymentLink = ({
     signData +
     `&vnp_SecureHashType=SHA512&vnp_SecureHash=${secureHash}`
   );
+}
+
+/**
+ * ✅ Xác thực checksum của VNPay callback (IPN hoặc redirect)
+ */
+function verifySignature(params, secureHash) {
+  const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
+
+  const filtered = { ...params };
+  delete filtered.vnp_SecureHash;
+  delete filtered.vnp_SecureHashType;
+
+  const signData = qs.stringify(filtered, {
+    encode: false,
+    sort: (a, b) => a.localeCompare(b),
+  });
+
+  const hash = crypto
+    .createHmac('sha512', VNP_HASHSECRET)
+    .update(Buffer.from(signData, 'utf-8'))
+    .digest('hex');
+
+  return hash === secureHash;
+}
+
+module.exports = {
+  createPaymentLink,
+  verifySignature, // 👈 export đầy đủ
 };

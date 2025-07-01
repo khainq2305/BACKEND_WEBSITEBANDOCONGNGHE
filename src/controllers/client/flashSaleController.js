@@ -51,7 +51,7 @@ static async getAll(req, res) {
                 ]
               ],
               include: [
-                { model: Product,      as: 'product',       attributes: ['id','name','slug','thumbnail','badge'] },
+                { model: Product,      as: 'product',        attributes: ['id','name','slug','thumbnail','badge','badgeImage'] },
                 { model: ProductMedia, as: 'ProductMedia',  attributes: ['mediaUrl','type','sortOrder'], required: false }
               ]
             }
@@ -74,7 +74,7 @@ static async getAll(req, res) {
                   model : Product,
                   as    : 'products',
                   required: true,
-                  attributes: ['id','name','slug','thumbnail','badge'],
+                 attributes: ['id','name','slug','thumbnail','badge','badgeImage'],
                   include: [
                     {
                       model : Sku,
@@ -102,7 +102,7 @@ static async getAll(req, res) {
                         ]
                       ],
                       include: [
-                        { model: Product,      as: 'product',      attributes: ['id','name','slug','thumbnail','badge'] },
+                        { model: Product,      as: 'product',      attributes: ['id','name','slug','thumbnail','badge', 'badgeImage'] },
                         { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl','type','sortOrder'], required: false }
                       ]
                     }

@@ -63,7 +63,7 @@ const validateBanner = async (req, res, next) => {
   // === 4. Kiểm tra định dạng ảnh
   if (req.file && req.file.originalname) {
     const ext = path.extname(req.file.originalname).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
       errors.push({
         field: 'image',
         message: 'Chỉ chấp nhận định dạng ảnh .jpg, .jpeg hoặc .png'
