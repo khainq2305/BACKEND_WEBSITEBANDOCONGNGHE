@@ -409,42 +409,108 @@ class PostSEOController {
 
   // Phân tích SEO URL
   analyzeUrlSEO(slug, focusKeyword) {
-    let score = 0;
-    const issues = [];
-    const recommendations = [];
+  let score = 0;
+  const issues = [];
+  const recommendations = [];
 
-    if (!slug) {
-      issues.push('Thiếu URL slug');
-      recommendations.push('Tạo URL slug cho bài viết');
-      return { score: 0, issues, recommendations };
-    }
-
-    // Kiểm tra độ dài slug
-    if (slug.length <= 75) {
-      score += 30;
-    } else {
-      issues.push('URL quá dài');
-      recommendations.push('URL nên ngắn hơn 75 ký tự');
-    }
-
-    // Kiểm tra focus keyword trong slug
-    if (focusKeyword && slug.toLowerCase().includes(focusKeyword.toLowerCase().replace(/\s+/g, '-'))) {
-      score += 40;
-    } else if (focusKeyword) {
-      issues.push('Thiếu focus keyword trong URL');
-      recommendations.push(`Thêm từ khóa "${focusKeyword}" vào URL`);
-    }
-
-    // Kiểm tra ký tự đặc biệt
-    if (!/[^a-z0-9\-]/.test(slug)) {
-      score += 30;
-    } else {
-      issues.push('URL chứa ký tự đặc biệt');
-      recommendations.push('URL chỉ nên chứa chữ thường, số và dấu gạch ngang');
-    }
-
-    return { score: Math.min(score, 100), issues, recommendations };
+  if (!slug) {
+    issues.push('Thiếu URL slug');
+    recommendations.push('Tạo URL slug cho bài viết');
+    return { score: 0, issues, recommendations };
   }
+
+  // Kiểm tra độ dài slug
+  if (slug.length <= 75) {
+    score += 40;
+  } else {
+    issues.push('URL quá dài');
+    recommendations.push('URL nên ngắn hơn 75 ký tự');
+  }
+
+  // Kiểm tra focus keyword trong slug - Cải thiện cho tiếng Việt
+  if (focusKeyword) {
+    const keywordProcessed = this.processVietnameseKeyword(focusKeyword);
+    const slugLower = slug.toLowerCase();
+    
+    // Kiểm tra từ khóa gốc (có thể đã được convert)
+    if (slugLower.includes(focusKeyword.toLowerCase().replace(/\s+/g, '-'))) {
+      score += 30;
+    }
+    // Kiểm tra từ khóa đã xử lý (không dấu)
+    else if (slugLower.includes(keywordProcessed)) {
+      score += 25;
+    }
+    // Kiểm tra các từ riêng lẻ trong keyword
+    else {
+      const keywordWords = keywordProcessed.split('-');
+      const matchingWords = keywordWords.filter(word => 
+        word.length > 2 && slugLower.includes(word)
+      );
+      
+      if (matchingWords.length > 0) {
+        const matchPercentage = matchingWords.length / keywordWords.length;
+        if (matchPercentage >= 0.7) {
+          score += 20;
+          recommendations.push(`URL chứa ${matchingWords.length}/${keywordWords.length} từ của keyword "${focusKeyword}"`);
+        } else if (matchPercentage >= 0.5) {
+          score += 15;
+          recommendations.push(`URL chứa một phần từ khóa "${focusKeyword}". Có thể cải thiện thêm.`);
+        } else {
+          score += 5;
+          issues.push(`URL chỉ chứa ít từ của keyword "${focusKeyword}"`);
+          recommendations.push(`Cố gắng thêm nhiều từ của keyword "${focusKeyword}" vào URL`);
+        }
+      } else {
+        issues.push(`URL không chứa từ khóa "${focusKeyword}"`);
+        recommendations.push(`Thêm từ khóa "${focusKeyword}" hoặc các từ liên quan vào URL`);
+      }
+    }
+  }
+
+  // Kiểm tra cấu trúc URL thân thiện
+  if (!/[^a-z0-9\-]/.test(slug)) {
+    score += 20;
+  } else {
+    issues.push('URL chứa ký tự không phù hợp');
+    recommendations.push('URL chỉ nên chứa chữ thường, số và dấu gạch ngang');
+  }
+
+  // Kiểm tra cấu trúc có ý nghĩa
+  const slugWords = slug.split('-').filter(word => word.length > 2);
+  if (slugWords.length >= 3) {
+    score += 10;
+  } else if (slugWords.length >= 2) {
+    score += 5;
+  } else {
+    recommendations.push('URL nên có ít nhất 2-3 từ có ý nghĩa');
+  }
+
+  return { score: Math.min(score, 100), issues, recommendations };
+}
+
+// Thêm phương thức xử lý từ khóa tiếng Việt
+processVietnameseKeyword(keyword) {
+  if (!keyword) return '';
+  
+  // Bảng chuyển đổi ký tự có dấu sang không dấu
+  const vietnameseMap = {
+    'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a', 'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
+    'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
+    'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
+    'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o', 'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o', 'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
+    'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u', 'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
+    'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
+    'đ': 'd'
+  };
+
+  return keyword
+    .toLowerCase()
+    .split('')
+    .map(char => vietnameseMap[char] || char)
+    .join('')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '');
+}
 
   // Phân tích mật độ từ khóa (Keywords Density)
   analyzeKeywordsDensity(content, focusKeyword) {
