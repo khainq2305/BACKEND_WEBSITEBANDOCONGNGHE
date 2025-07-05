@@ -349,6 +349,74 @@ class PostController {
       return res.status(500).json({ message: "Lỗi server khi xóa vĩnh viễn" });
     }
   }
+
+  // [UPDATE] Cập nhật slug của bài viết
+  static async updateSlug(req, res) {
+    try {
+      const { id } = req.params;
+      const { slug } = req.body;
+
+      if (!slug || !slug.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug không được để trống"
+        });
+      }
+
+      // Validate slug format
+      const slugRegex = /^[a-z0-9-]+$/;
+      if (!slugRegex.test(slug)) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug chỉ được chứa chữ thường, số và dấu gạch ngang"
+        });
+      }
+
+      // Kiểm tra bài viết có tồn tại không
+      const post = await Post.findByPk(id);
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy bài viết"
+        });
+      }
+
+      // Kiểm tra slug có bị trùng không
+      const existingPost = await Post.findOne({
+        where: {
+          slug,
+          id: { [Op.ne]: id } // Loại trừ bài viết hiện tại
+        }
+      });
+
+      if (existingPost) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug này đã được sử dụng bởi bài viết khác"
+        });
+      }
+
+      // Cập nhật slug
+      await post.update({ slug });
+
+      return res.json({
+        success: true,
+        message: "Cập nhật slug thành công",
+        data: {
+          id: post.id,
+          slug: post.slug,
+          title: post.title
+        }
+      });
+
+    } catch (error) {
+      console.error("UPDATE SLUG ERROR:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi server khi cập nhật slug"
+      });
+    }
+  }
 }
 
 module.exports = PostController;

@@ -922,7 +922,7 @@ processVietnameseKeyword(keyword) {
   // Phân tích SEO hàng loạt
   async bulkAnalyzePosts(req, res) {
     try {
-      const { postIds } = req.body;
+      const { postIds, focusKeyword } = req.body;
 
       if (!postIds || !Array.isArray(postIds) || postIds.length === 0) {
         return res.status(400).json({
@@ -931,7 +931,13 @@ processVietnameseKeyword(keyword) {
         });
       }
 
+      console.log('=== BULK ANALYZE SEO DEBUG ===');
+      console.log('postIds:', postIds);
+      console.log('focusKeyword:', focusKeyword);
+
       const results = [];
+      let successCount = 0;
+      let errorCount = 0;
 
       for (const postId of postIds) {
         try {
@@ -942,56 +948,86 @@ processVietnameseKeyword(keyword) {
               success: false,
               message: 'Không tìm thấy bài viết'
             });
+            errorCount++;
             continue;
           }
 
-          const analysisResult = await postSEOController.performSEOAnalysis(post);
+          // Lấy PostSEO hiện tại để giữ nguyên các giá trị đã có
+          let postSEO = await PostSEO.findOne({ where: { postId } });
           
-          // Tạo hoặc cập nhật PostSEO
-          const [postSEO, created] = await PostSEO.findOrCreate({
-            where: { postId },
-            defaults: {
-              title: post.title,
-              metaDescription: analysisResult.metaDescription,
-              focusKeyword: analysisResult.focusKeyword,
-              seoScore: analysisResult.seoScore,
-              readabilityScore: analysisResult.readabilityScore,
-              lastAnalyzed: new Date()
-            }
-          });
+          // Sử dụng focusKeyword từ request body hoặc giữ nguyên focusKeyword hiện tại
+          let analysisKeyword = focusKeyword;
+          if (!analysisKeyword && postSEO) {
+            analysisKeyword = postSEO.focusKeyword || '';
+          }
 
-          if (!created) {
-            await postSEO.update({
-              seoScore: analysisResult.seoScore,
-              readabilityScore: analysisResult.readabilityScore,
-              lastAnalyzed: new Date()
+          // Thực hiện phân tích SEO với từ khóa phù hợp
+          const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
+
+          // Chuẩn bị dữ liệu cập nhật
+          const updateData = {
+            analysis: analysis.details,
+            seoScore: analysis.seoScore,
+            readabilityScore: analysis.readabilityScore,
+            lastAnalyzed: new Date()
+          };
+
+          // Chỉ cập nhật focusKeyword nếu được cung cấp trong request body
+          if (focusKeyword && focusKeyword.trim() !== '') {
+            updateData.focusKeyword = focusKeyword.trim();
+          }
+
+          // Lưu kết quả phân tích
+          if (postSEO) {
+            await postSEO.update(updateData);
+          } else {
+            postSEO = await PostSEO.create({
+              postId,
+              title: post.title,
+              metaDescription: '',
+              focusKeyword: focusKeyword || '',
+              ...updateData
             });
           }
 
           results.push({
             postId,
             success: true,
-            data: analysisResult
+            data: {
+              analysis,
+              postSEO
+            }
           });
+          successCount++;
         } catch (error) {
+          console.error(`Error analyzing post ${postId}:`, error);
           results.push({
             postId,
             success: false,
             message: error.message
           });
+          errorCount++;
         }
       }
 
       res.json({
         success: true,
-        message: 'Phân tích hàng loạt hoàn thành',
-        data: results
+        message: `Phân tích hoàn thành: ${successCount} thành công, ${errorCount} lỗi`,
+        data: {
+          results,
+          summary: {
+            total: postIds.length,
+            success: successCount,
+            error: errorCount
+          }
+        }
       });
     } catch (error) {
       console.error('Bulk analyze posts error:', error);
       res.status(500).json({
         success: false,
-        message: 'Lỗi khi phân tích hàng loạt'
+        message: 'Lỗi khi phân tích SEO hàng loạt',
+        error: error.message
       });
     }
   }

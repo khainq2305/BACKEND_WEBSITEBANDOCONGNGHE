@@ -13,6 +13,7 @@ router.post('/them-bai-viet-moi',upload.single('thumbnail'), validatePost , auto
 router.get('/',pagination, PostController.getAll);
 router.get('/chinh-sua-bai-viet/:slug', PostController.getBySlug);
 router.put('/cap-nhat-bai-viet/:slug',upload.single('thumbnail'), validatePost, autoSlug(Post), PostController.update);
+router.put('/update-slug/:id', PostController.updateSlug);
 router.post('/chuyen-vao-thung-rac', PostController.softDelete);           // Lấy tất cả
 router.post('/khoi-phuc', PostController.restore);        // Lấy theo ID
 router.put('/:slug', PostController.update);         // Cập nhật
