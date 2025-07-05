@@ -1,5 +1,4 @@
 const sequelize = require("../../config/database");
-
 const {
   Wishlist,
   WishlistItem,
@@ -22,6 +21,7 @@ class WishlistController {
     try {
       const userId = req.user.id;
       const { keyword } = req.query;
+      const now = new Date();
 
       const wishlists = await Wishlist.findAll({
         where: { userId },
@@ -30,7 +30,6 @@ class WishlistController {
             model: WishlistItem,
             as: "items",
             include: [
-              /* PRODUCT */
               {
                 model: Product,
                 as: "product",
@@ -39,14 +38,13 @@ class WishlistController {
                   ? { name: { [Op.like]: `%${keyword}%` } }
                   : undefined,
               },
-              /* SKU + liên kết */
               {
                 model: Sku,
                 as: "sku",
                 attributes: ["id", "price", "originalPrice", "skuCode"],
                 include: [
                   {
-                    /* ảnh đại diện */ model: ProductMedia,
+                    model: ProductMedia,
                     as: "ProductMedia",
                     attributes: ["mediaUrl"],
                     separate: true,
@@ -54,7 +52,7 @@ class WishlistController {
                     order: [["sortOrder", "ASC"]],
                   },
                   {
-                    /* biến thể */ model: SkuVariantValue,
+                    model: SkuVariantValue,
                     as: "variantValues",
                     include: [
                       {
@@ -80,20 +78,21 @@ class WishlistController {
                       {
                         model: FlashSale,
                         as: "flashSale",
-                        attributes: ["id", "title", "startTime", "endTime", 'bgColor'],
+                        attributes: ["id", "title", "startTime", "endTime", "bgColor"],
+                        where: {
+                          startTime: { [Op.lte]: now },
+                          endTime: { [Op.gte]: now },
+                        },
                         include: [
                           {
                             model: FlashSaleCategory,
                             as: "categories",
-                            attributes: ["discountType", "discountValue"],
+                            attributes: ["discountType", "discountValue", "priority"],
                             include: [
                               {
                                 model: Category,
                                 as: "category",
-                                attributes: [
-                                  "id",
-                                  "name",
-                                ],
+                                attributes: ["id", "name"],
                               },
                             ],
                           },
@@ -109,6 +108,50 @@ class WishlistController {
       });
 
       if (!wishlists.length) return res.json([]);
+
+      // ✅ TÍNH SALE PRICE GIỐNG FLASH SALE CONTROLLER
+      wishlists.forEach((wl) => {
+        wl.items.forEach((it) => {
+          const sku = it.sku;
+          const basePrice = sku.price ?? sku.originalPrice ?? 0;
+
+          let salePrice = null;
+          let bestPriority = -1;
+
+          if (sku.flashSaleSkus && sku.flashSaleSkus.length > 0) {
+            const item = sku.flashSaleSkus[0];
+            const fs = item.flashSale;
+
+            if (
+              fs &&
+              fs.startTime <= now &&
+              fs.endTime >= now
+            ) {
+              if (item.salePrice) {
+                salePrice = item.salePrice;
+              } else {
+                const categories = fs.categories || [];
+                categories.forEach((cat) => {
+                  const { discountType, discountValue, priority = 0 } = cat;
+                  if (priority >= bestPriority) {
+                    let newPrice = basePrice;
+                    if (discountType === "percent") {
+                      newPrice = (basePrice * (100 - discountValue)) / 100;
+                    } else {
+                      newPrice = basePrice - discountValue;
+                    }
+                    newPrice = Math.max(0, Math.round(newPrice / 1000) * 1000);
+                    salePrice = newPrice;
+                    bestPriority = priority;
+                  }
+                });
+              }
+            }
+          }
+
+          sku.dataValues.salePrice = salePrice;
+        });
+      });
 
       const variantTxt = (sku) =>
         (sku?.variantValues || [])
@@ -146,13 +189,11 @@ class WishlistController {
       });
 
       if (!wishlist) {
-        console.log("🔵 [ADD WISHLIST] Chưa có wishlist, tạo mới...");
         wishlist = await Wishlist.create({
           userId,
           name: "Danh sách yêu thích mặc định",
           isDefault: true,
         });
-        console.log("✅ [ADD WISHLIST] Wishlist mới:", wishlist.id);
       }
 
       const exists = await WishlistItem.findOne({
@@ -162,8 +203,6 @@ class WishlistController {
           skuId,
         },
       });
-
-      console.log("🔍 [ADD WISHLIST] exists:", !!exists);
 
       if (exists) {
         return res
@@ -177,10 +216,6 @@ class WishlistController {
         skuId,
       });
 
-      console.log(
-        "✅ [ADD WISHLIST] Đã thêm vào danh sách yêu thích:",
-        item.id
-      );
       res.status(201).json(item);
     } catch (err) {
       console.error("❌ Lỗi thêm wishlist:", err);
