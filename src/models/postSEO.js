@@ -10,6 +10,7 @@ const PostSEO = sequelize.define('PostSEO', {
   postId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    unique: true, // Đảm bảo mỗi post chỉ có 1 record SEO
     references: {
       model: 'posts',
       key: 'id'
@@ -112,6 +113,7 @@ const PostSEO = sequelize.define('PostSEO', {
   timestamps: true,
   indexes: [
     {
+      unique: true,
       fields: ['postId']
     },
     {

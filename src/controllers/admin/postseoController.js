@@ -138,6 +138,7 @@ class PostSEOController {
 
   // Phân tích SEO cho post
   async analyzePostSEO(req, res) {
+    const transaction = await sequelize.transaction();
     try {
       console.log('=== ANALYZE SEO DEBUG ===');
       console.log('req.params:', req.params);
@@ -149,8 +150,9 @@ class PostSEOController {
       console.log('postId:', postId);
       console.log('focusKeyword:', focusKeyword);
 
-      const post = await Post.findByPk(postId);
+      const post = await Post.findByPk(postId, { transaction });
       if (!post) {
+        await transaction.rollback();
         return res.status(404).json({
           success: false,
           message: 'Không tìm thấy bài viết'
@@ -158,7 +160,11 @@ class PostSEOController {
       }
 
       // Lấy PostSEO hiện tại để giữ nguyên các giá trị đã có
-      let postSEO = await PostSEO.findOne({ where: { postId } });
+      let postSEO = await PostSEO.findOne({ 
+        where: { postId },
+        transaction,
+        lock: true // Lock để tránh race condition
+      });
       
       // Sử dụng focusKeyword từ request body hoặc giữ nguyên focusKeyword hiện tại
       let analysisKeyword = focusKeyword;
@@ -169,29 +175,33 @@ class PostSEOController {
       // Thực hiện phân tích SEO với từ khóa phù hợp
       const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
 
-      // Chuẩn bị dữ liệu cập nhật (chỉ cập nhật analysis và scores, KHÔNG thay đổi focusKeyword)
-      const updateData = {
+      // Chuẩn bị dữ liệu cập nhật/tạo mới
+      const dataToSave = {
+        postId,
+        title: post.title,
+        metaDescription: '',
+        focusKeyword: (focusKeyword && focusKeyword.trim() !== '') ? focusKeyword.trim() : (postSEO?.focusKeyword || ''),
         analysis: analysis.details,
         seoScore: analysis.seoScore,
         readabilityScore: analysis.readabilityScore,
         lastAnalyzed: new Date()
       };
 
-      // Chỉ cập nhật focusKeyword nếu được cung cấp trong request body
-      if (focusKeyword && focusKeyword.trim() !== '') {
-        updateData.focusKeyword = focusKeyword.trim();
-      }
+      // Sử dụng upsert để tránh duplicate
+      const [upsertedPostSEO, created] = await PostSEO.upsert(dataToSave, {
+        transaction,
+        returning: true
+      });
 
-      // Lưu kết quả phân tích
-      if (postSEO) {
-        await postSEO.update(updateData);
-      } else {
-        postSEO = await PostSEO.create({
-          postId,
-          focusKeyword: focusKeyword || '',
-          ...updateData
-        });
-      }
+      // Lấy record đã được upsert
+      postSEO = upsertedPostSEO || await PostSEO.findOne({ 
+        where: { postId }, 
+        transaction 
+      });
+
+      await transaction.commit();
+
+      console.log(`✅ SEO ${created ? 'created' : 'updated'} for post ${postId}`);
 
       res.json({
         success: true,
@@ -202,6 +212,7 @@ class PostSEOController {
         }
       });
     } catch (error) {
+      await transaction.rollback();
       console.error('Analyze post SEO error:', error);
       res.status(500).json({
         success: false,
@@ -964,31 +975,29 @@ processVietnameseKeyword(keyword) {
           // Thực hiện phân tích SEO với từ khóa phù hợp
           const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
 
-          // Chuẩn bị dữ liệu cập nhật
-          const updateData = {
+          // Chuẩn bị dữ liệu upsert
+          const dataToSave = {
+            postId,
+            title: post.title,
+            metaDescription: '',
+            focusKeyword: (focusKeyword && focusKeyword.trim() !== '') ? focusKeyword.trim() : (postSEO?.focusKeyword || ''),
             analysis: analysis.details,
             seoScore: analysis.seoScore,
             readabilityScore: analysis.readabilityScore,
             lastAnalyzed: new Date()
           };
 
-          // Chỉ cập nhật focusKeyword nếu được cung cấp trong request body
-          if (focusKeyword && focusKeyword.trim() !== '') {
-            updateData.focusKeyword = focusKeyword.trim();
-          }
+          // Sử dụng upsert để tránh duplicate
+          const [upsertedPostSEO, created] = await PostSEO.upsert(dataToSave, {
+            returning: true
+          });
 
-          // Lưu kết quả phân tích
-          if (postSEO) {
-            await postSEO.update(updateData);
-          } else {
-            postSEO = await PostSEO.create({
-              postId,
-              title: post.title,
-              metaDescription: '',
-              focusKeyword: focusKeyword || '',
-              ...updateData
-            });
-          }
+          // Lấy record đã được upsert
+          postSEO = upsertedPostSEO || await PostSEO.findOne({ 
+            where: { postId }
+          });
+
+          console.log(`✅ SEO ${created ? 'created' : 'updated'} for post ${postId}`);
 
           results.push({
             postId,
@@ -1059,7 +1068,8 @@ processVietnameseKeyword(keyword) {
           const cleanContent = post.content ? post.content.replace(/<[^>]*>/g, '') : '';
           const metaDescription = cleanContent.substring(0, 160).trim();
 
-          const postSEO = await PostSEO.create({
+          // Sử dụng upsert để tránh duplicate nếu có race condition
+          const [postSEO, created] = await PostSEO.upsert({
             postId: post.id,
             title: post.title || '',
             metaDescription: metaDescription || '',
@@ -1102,9 +1112,11 @@ processVietnameseKeyword(keyword) {
             seoScore: 0,
             readabilityScore: 0,
             lastAnalyzed: new Date()
+          }, {
+            returning: true
           });
 
-          console.log(`✅ Created SEO for post: ${post.id} - "${post.title}"`);
+          console.log(`✅ ${created ? 'Created' : 'Updated'} SEO for post: ${post.id} - "${post.title}"`);
 
           results.push({
             postId: post.id,
