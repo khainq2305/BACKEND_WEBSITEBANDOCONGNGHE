@@ -1,4 +1,5 @@
-const slugify = require('slugify');
+const slugify = require('../utils/slugify');
+const seoSlugify = require('../utils/seoSlugify');
 const { Op } = require('sequelize');
 
 const autoSlug = (Model) => {
@@ -9,7 +10,10 @@ const autoSlug = (Model) => {
 
       const id = req.params.id; 
 
-      let baseSlug = slugify(name, { lower: true, strict: true });
+      // Use seoSlugify for Post model to maintain consistency with frontend
+      // Use regular slugify for other models (Brand, Category, etc.)
+      const isPostModel = Model.name === 'Post' || Model.tableName === 'posts';
+      let baseSlug = isPostModel ? seoSlugify(name) : slugify(name);
       let slug = baseSlug;
       let count = 1;
 
