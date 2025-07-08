@@ -309,9 +309,9 @@ class PostSEOController {
       score += 10;
     }
 
-    // Kiểm tra title có từ khóa cảm xúc
-    const emotionalWords = ['best', 'tốt nhất', 'amazing', 'tuyệt vời', 'ultimate', 'hoàn hảo'];
-    if (emotionalWords.some(word => title.toLowerCase().includes(word))) {
+    // Kiểm tra title có từ khóa cảm xúc 
+    const emotionalWords = ['best', 'tốt nhất', 'amazing', 'tuyệt vời', 'ultimate', 'hoàn hảo', 'top', 'hàng đầu'];
+    if (emotionalWords.some(word => title.toLowerCase().includes(word.toLowerCase()))) {
       score += 20;
     }
 
