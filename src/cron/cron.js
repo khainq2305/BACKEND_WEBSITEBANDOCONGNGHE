@@ -7,7 +7,7 @@ const {
   Sku,
   Notification,
   NotificationUser
-} = require('../../models');
+} = require('../models');
 
 /**
  * Hủy tự động các đơn “processing + waiting”
@@ -21,13 +21,22 @@ cron.schedule('*/1 * * * *', async () => {
     const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
 
     const expiredOrders = await Order.findAll({
-      where: {
-        status       : 'processing',
-        paymentStatus: 'waiting',
-        createdAt    : { [Op.lt]: fifteenMinutesAgo }
-      },
-      include: [{ model: OrderItem, as: 'items' }]
-    });
+  where: {
+  status: 'processing',
+  paymentStatus: {
+    [Op.in]: ['waiting', 'unpaid']
+  },
+  createdAt: {
+    [Op.lt]: fifteenMinutesAgo
+  },
+  paymentMethodId: {
+    [Op.ne]: 2 // ATM không bao giờ bị hủy
+  }
+}
+,
+  include: [{ model: OrderItem, as: 'items' }]
+});
+
 
     if (!expiredOrders.length) return; // không có đơn nào hết hạn
 
@@ -47,18 +56,25 @@ cron.schedule('*/1 * * * *', async () => {
       await order.save();
 
       /* ---------- 3. Tạo thông báo cho người dùng ---------- */
-      const notif = await Notification.create({
-        title       : 'Đơn hàng tự huỷ',
-        message     : `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
-        slug        : `order-${order.orderCode}`,
-        type        : 'order',
-        referenceId : order.id
-      });
+    const existingNotif = await Notification.findOne({
+  where: { slug: `order-${order.orderCode}` }
+});
 
-      await NotificationUser.create({
-        notificationId: notif.id,
-        userId        : order.userId
-      });
+if (!existingNotif) {
+  const notif = await Notification.create({
+    title      : 'Đơn hàng tự huỷ',
+    message    : `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
+    slug       : `order-${order.orderCode}`,
+    type       : 'order',
+    referenceId: order.id
+  });
+
+  await NotificationUser.create({
+    notificationId: notif.id,
+    userId        : order.userId
+  });
+}
+
     }
 
     console.log(

@@ -91,7 +91,7 @@ static async getProductBanner(req, res) {
 
     const banners = await Banner.findAll({
       where: {
-        type: 'mid-detail', 
+        type: 'product-banner', 
         productId: productId,
         isActive: true,
         [Op.or]: [

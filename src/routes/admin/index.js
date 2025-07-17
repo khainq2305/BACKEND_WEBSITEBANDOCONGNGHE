@@ -27,7 +27,9 @@ const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
 const authRouters = require('./auth.route')
 const systemSettingRoutes = require('./systemSetting.routes');
-
+const paymentMethodRoutes          = require('./paymentMethodRoutes');
+const shippingProviderRoutes       = require('./shippingProviderRoutes');
+const skuRoutes = require("./sku.route")
 router.use('/system-settings', systemSettingRoutes);
 router.use('/', orderRoutes);  
 router.use('/', authRouters); 
@@ -39,6 +41,7 @@ router.use('/permissions', permissionRoutes);
 router.use('/quan-ly-vai-tro', roleRoutes);
 router.use('/', productRoutes); 
 router.use('/', userRoutes); 
+router.use('/sku', skuRoutes); 
 router.use('/quan-ly-bai-viet', postRoutes);
 router.use('/quan-ly-danh-muc', postCategoryRoutes);
 router.use('/', variantRoutes);
@@ -50,7 +53,8 @@ router.use('/', flashSaleRoutes);
 router.use('/categories', categoryRoutes);
 router.use("/", uploadRoutes);
 router.use('/brands', brandRoutes);
-
+router.use('/payment-methods', paymentMethodRoutes);
+router.use('/shipping-providers', shippingProviderRoutes);
 router.use('/reviews', reviewRoutes); 
 router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 

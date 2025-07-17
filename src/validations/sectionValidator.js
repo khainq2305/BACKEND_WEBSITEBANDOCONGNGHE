@@ -4,11 +4,16 @@ const validator = require("validator");
 const validTypes = [
   "productOnly",
   "productWithBanner",
-  "productWithCategoryFilter", // ✅ thêm dòng này
-  "full"                       // ✅ và sửa lại "fullBlock" thành "full" để khớp ENUM
+  "productWithCategoryFilter",
+  "full",
 ];
 
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "image/webp",
+];
 
 const MAX_MB = 5;
 
@@ -25,63 +30,108 @@ const validateSection = async (req, res, next) => {
     const errors = [];
     const slugParam = req.params.slug;
 
-    // --- Title ---
-    if (validator.isEmpty(title || '')) {
-      errors.push({ field: "title", message: "Tiêu đề khối không được để trống!" });
+
+    if (validator.isEmpty(title || "")) {
+      errors.push({
+        field: "title",
+        message: "Tiêu đề khối không được để trống!",
+      });
     } else {
       const where = { title: title.trim() };
       if (slugParam) {
-        const currentSection = await HomeSection.findOne({ where: { slug: slugParam }, attributes: ['id'] });
+        const currentSection = await HomeSection.findOne({
+          where: { slug: slugParam },
+          attributes: ["id"],
+        });
         if (currentSection) where.id = { [Op.ne]: currentSection.id };
       }
 
       const existed = await HomeSection.findOne({ where });
-      if (existed) errors.push({ field: "title", message: "Tiêu đề khối đã tồn tại!" });
+      if (existed)
+        errors.push({ field: "title", message: "Tiêu đề khối đã tồn tại!" });
     }
 
-    // --- Type ---
+   
     if (!validTypes.includes(type)) {
-      errors.push({ field: "type", message: "Loại khối không hợp lệ hoặc bị thiếu!" });
+      errors.push({
+        field: "type",
+        message: "Loại khối không hợp lệ hoặc bị thiếu!",
+      });
     }
 
-    // --- orderIndex ---
+  
     if (!validator.isInt(String(orderIndex), { min: 0 })) {
-      errors.push({ field: "orderIndex", message: "Thứ tự phải là số nguyên không âm!" });
+      errors.push({
+        field: "orderIndex",
+        message: "Thứ tự phải là số nguyên không âm!",
+      });
     }
 
-    // --- Parse JSON ---
+   
     let parsedProductIds = [];
     let parsedBannersMeta = [];
 
     if (!validator.isJSON(productIds)) {
-      errors.push({ field: "productIds", message: "productIds phải là chuỗi JSON của mảng!" });
+      errors.push({
+        field: "productIds",
+        message: "productIds phải là chuỗi JSON của mảng!",
+      });
     } else {
       parsedProductIds = JSON.parse(productIds);
       if (!Array.isArray(parsedProductIds)) {
-        errors.push({ field: "productIds", message: "productIds phải là mảng!" });
+        errors.push({
+          field: "productIds",
+          message: "productIds phải là mảng!",
+        });
       }
     }
 
     if (!validator.isJSON(bannersMetaJson)) {
-      errors.push({ field: "bannersMetaJson", message: "Dữ liệu banner phải là chuỗi JSON mảng!" });
+      errors.push({
+        field: "bannersMetaJson",
+        message: "Dữ liệu banner phải là chuỗi JSON mảng!",
+      });
     } else {
       parsedBannersMeta = JSON.parse(bannersMetaJson);
       if (!Array.isArray(parsedBannersMeta)) {
-        errors.push({ field: "bannersMetaJson", message: "Banner phải là mảng!" });
+        errors.push({
+          field: "bannersMetaJson",
+          message: "Banner phải là mảng!",
+        });
       }
     }
 
-    if ((type === 'productOnly' || type === 'productWithBanner') && parsedProductIds.length === 0) {
-      errors.push({ field: "productIds", message: "Phải chọn ít nhất 1 sản phẩm!" });
+    if (
+      (type === "productOnly" || type === "productWithBanner") &&
+      parsedProductIds.length === 0
+    ) {
+      errors.push({
+        field: "productIds",
+        message: "Phải chọn ít nhất 1 sản phẩm!",
+      });
     }
 
-    if (type === "productWithBanner" || type === "fullBlock") {
+    if (type === "productWithBanner" || type === "full") {
       const bannerFiles = req.files || [];
-      const hasContent = parsedBannersMeta.some(b => b.existingImageUrl || b.hasNewFile);
-      const newBannerCount = parsedBannersMeta.filter(b => b.hasNewFile).length;
+      const hasContent = parsedBannersMeta.some(
+        (b) => b.existingImageUrl || b.hasNewFile
+      );
+      const newBannerCount = parsedBannersMeta.filter(
+        (b) => b.hasNewFile
+      ).length;
+      const totalBannerCount = parsedBannersMeta.filter(
+        (b) => b.existingImageUrl || b.hasNewFile
+      ).length;
 
-      if (!hasContent && bannerFiles.length === 0) {
+      if (totalBannerCount < 1) {
         errors.push({ field: "banners", message: "Cần ít nhất 1 banner!" });
+      }
+
+      if (totalBannerCount > 2) {
+        errors.push({
+          field: "banners",
+          message: "Chỉ được chọn tối đa 2 banner!",
+        });
       }
 
       if (newBannerCount > bannerFiles.length) {
@@ -91,7 +141,6 @@ const validateSection = async (req, res, next) => {
         });
       }
 
-      // ✅ Validate file định dạng và dung lượng
       bannerFiles.forEach((file, idx) => {
         const { originalname, mimetype, size } = file;
         const sizeMB = size / (1024 * 1024);
@@ -112,7 +161,6 @@ const validateSection = async (req, res, next) => {
       });
     }
 
-    // --- Trả lỗi nếu có ---
     if (errors.length > 0) {
       return res.status(400).json({ success: false, errors });
     }

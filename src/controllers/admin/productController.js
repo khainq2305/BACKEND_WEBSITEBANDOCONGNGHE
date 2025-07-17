@@ -19,408 +19,527 @@ const slugify = require("slugify");
 const { Op } = require("sequelize");
 
 class ProductController {
-static async create(req, res) {
-  const t = await Product.sequelize.transaction();
-  try {
-    
-    const {
-      name,
-      badge,
-       badgeImage,   
-      description,
-      shortDescription,
-      thumbnail,
-      hasVariants,
-      orderIndex,
-      isActive,
-      categoryId,
-      brandId,
-      variants = [],
-      skus = [],
-      infoContent,
-      specs = []
-    } = req.product;
-
-    
-    const baseSlug = slugify(name, { lower: true, strict: true });
-    let slug = baseSlug, suffix = 1;
-    while (await Product.findOne({ where: { slug } })) {
-      slug = `${baseSlug}-${suffix++}`;
-    }
-
-   
-    let finalOrderIndex = orderIndex;
-    if (finalOrderIndex == null || finalOrderIndex === "") {
-      const maxOrder = await Product.findOne({
-        where: { categoryId },
-        order: [["orderIndex", "DESC"]],
-        paranoid: false
-      });
-      finalOrderIndex = maxOrder ? maxOrder.orderIndex + 1 : 0;
-    } else {
-      await Product.increment("orderIndex", {
-        by: 1,
-        where: {
-          categoryId,
-          orderIndex: { [Op.gte]: finalOrderIndex },
-          deletedAt: null
-        },
-        transaction: t
-      });
-    }
-
-    
-    const uploadedThumb = req.files?.find(f => f.fieldname === "thumbnail");
-    const finalThumb = uploadedThumb?.path || thumbnail;
-  const uploadedBadge  = req.files?.find(f => f.fieldname === "badgeImage"); 
- const finalBadgeImg  = uploadedBadge?.path || badgeImage || null;          
-   
-    const product = await Product.create({
-      name,
-      slug,
-      description,
-      shortDescription,
-      thumbnail: finalThumb,
-      orderIndex: finalOrderIndex,
-      isActive,
-      badgeImage:  finalBadgeImg,
-      hasVariants,
-      categoryId,
-      badge,
-      brandId
-    }, { transaction: t });
-
-    
-    const generateSkuCode = async (prefix = "SKU") => {
-      let code, exists = true;
-      while (exists) {
-        code = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-        exists = await Sku.findOne({ where: { skuCode: code } });
-      }
-      return code;
-    };
-    const getFileType = url => {
-      const ext = url.split(".").pop().toLowerCase();
-      return ["mp4","mov","avi","webm"].includes(ext) ? "video" : "image";
-    };
-
-    
-    if (!hasVariants && skus.length > 0) {
-      const sku = skus[0];
-      const newSku = await Sku.create({
-        skuCode: sku.skuCode || await generateSkuCode(product.slug.toUpperCase()),
-        productId: product.id,
-        price: sku.price > 0 ? sku.price : null,                          
-        originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,   
-        stock: sku.stock,
-        height: sku.height || 0,
-        width:  sku.width  || 0,
-        length: sku.length || 0,
-        weight: sku.weight || 0,
-        isActive: true
-      }, { transaction: t });
-
-      for (const url of sku.mediaUrls || []) {
-        await ProductMedia.create({
-          skuId: newSku.id,
-          mediaUrl: url,
-          type: getFileType(url)
-        }, { transaction: t });
-      }
-      for (const f of req.files?.filter(f => f.fieldname === "media_sku_0") || []) {
-        await ProductMedia.create({
-          skuId: newSku.id,
-          mediaUrl: f.path,
-          type: getFileType(f.filename)
-        }, { transaction: t });
-      }
-    }
-
-   
-    if (hasVariants) {
-      for (const v of variants) {
-        await ProductVariant.findOrCreate({
-          where: { productId: product.id, variantId: v.id },
-          defaults: { productId: product.id, variantId: v.id },
-          transaction: t
-        });
-      }
-      for (let i = 0; i < skus.length; i++) {
-        const sku = skus[i];
-        const createdSku = await Sku.create({
-          productId: product.id,
-          skuCode: sku.skuCode || await generateSkuCode(product.slug.toUpperCase()),
-          price: sku.price > 0 ? sku.price : null,                           
-          originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,    
-          stock: sku.stock,
-          height: sku.height || 0,
-          width:  sku.width  || 0,
-          length: sku.length || 0,
-          weight: sku.weight || 0,
-          isActive: true
-        }, { transaction: t });
-
-        for (const url of sku.mediaUrls || []) {
-          await ProductMedia.create({
-            skuId: createdSku.id,
-            mediaUrl: url,
-            type: getFileType(url)
-          }, { transaction: t });
-        }
-        for (const f of req.files?.filter(f => f.fieldname === `media_sku_${i}`) || []) {
-          await ProductMedia.create({
-            skuId: createdSku.id,
-            mediaUrl: f.path,
-            type: getFileType(f.filename)
-          }, { transaction: t });
-        }
-        for (const valId of sku.variantValueIds || []) {
-          await SkuVariantValue.create({
-            skuId: createdSku.id,
-            variantValueId: valId
-          }, { transaction: t });
-        }
-      }
-    }
-
-    
-    if (infoContent) {
-      await ProductInfo.create({
-        productId: product.id,
-        content:   infoContent
-      }, { transaction: t });
-    }
-
-   
-    for (const spec of specs) {
-      if (spec.key && spec.value) {
-        await ProductSpec.create({
-          productId:  product.id,
-          specKey:    spec.key,
-          specValue:  spec.value,
-          specGroup:  spec.specGroup || null,
-          sortOrder:  spec.sortOrder || 0
-        }, { transaction: t });
-      }
-    }
-
-   
-    await t.commit();
-    return res.status(201).json({
-      message: "Thêm sản phẩm thành công",
-      data: product
-    });
-
-  } catch (error) {
-    await t.rollback();
-    console.error("Lỗi tạo sản phẩm:", error);
-    return res.status(500).json({
-      message: "Lỗi server",
-      error:   error.message
-    });
-  }
-}
-static async update(req, res) {
-  const t = await Product.sequelize.transaction();
-  try {
-    const { slug: slugParam } = req.params;
-
-    if (!req.body.product) {
-      return res.status(400).json({ message: "Thiếu dữ liệu sản phẩm" });
-    }
-
-    let parsedProduct;
+  static async create(req, res) {
+    const t = await Product.sequelize.transaction();
     try {
-      parsedProduct = JSON.parse(req.body.product);
-    } catch (err) {
-      return res.status(400).json({ message: "Dữ liệu sản phẩm không hợp lệ (JSON lỗi)" });
-    }
+      const {
+        name,
+        badge,
+        badgeImage,
+        description,
+        shortDescription,
+        thumbnail,
+        hasVariants,
+        orderIndex,
+        isActive,
+        categoryId,
+        brandId,
+        variants = [],
+        skus = [],
+        infoContent,
+        specs = [],
+      } = req.product;
 
-    const {
-      name,
-      description,
-      shortDescription,
-      thumbnail,
-      badge,
-      orderIndex,
-      isActive,
-       badgeImage, 
-      categoryId,
-      brandId,
-      hasVariants,
-      skus = [],
-      variants = [],
-      infoContent = "",
-      specs = [],
-    } = parsedProduct;
-
-    const product = await Product.findOne({ where: { slug: slugParam } });
-    if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-
-    const productId = product.id;
-
-    // Xử lý slug nếu đổi tên
-    let newSlug = product.slug;
-    if (name && name !== product.name) {
       const baseSlug = slugify(name, { lower: true, strict: true });
-      newSlug = baseSlug;
-      let suffix = 1;
-      while (await Product.findOne({ where: { slug: newSlug, id: { [Op.ne]: productId } } })) {
-        newSlug = `${baseSlug}-${suffix++}`;
+      let slug = baseSlug,
+        suffix = 1;
+      while (await Product.findOne({ where: { slug } })) {
+        slug = `${baseSlug}-${suffix++}`;
       }
-    }
 
-    // Xử lý thứ tự
-    if (orderIndex !== undefined && orderIndex !== product.orderIndex) {
-      if (orderIndex > product.orderIndex) {
-        await Product.decrement("orderIndex", {
-          by: 1,
-          where: { orderIndex: { [Op.gt]: product.orderIndex, [Op.lte]: orderIndex } },
-          transaction: t
+      let finalOrderIndex = orderIndex;
+      if (finalOrderIndex == null || finalOrderIndex === "") {
+        const maxOrder = await Product.findOne({
+          where: { categoryId },
+          order: [["orderIndex", "DESC"]],
+          paranoid: false,
         });
+        finalOrderIndex = maxOrder ? maxOrder.orderIndex + 1 : 0;
       } else {
         await Product.increment("orderIndex", {
           by: 1,
-          where: { orderIndex: { [Op.gte]: orderIndex, [Op.lt]: product.orderIndex } },
-          transaction: t
+          where: {
+            categoryId,
+            orderIndex: { [Op.gte]: finalOrderIndex },
+            deletedAt: null,
+          },
+          transaction: t,
         });
       }
-    }
 
- 
-    const uploadedThumbnail = req.files?.find(f => f.fieldname === "thumbnail");
-    const finalThumbnail = uploadedThumbnail?.path || thumbnail || product.thumbnail;
- const uploadedBadge     = req.files?.find(f => f.fieldname === "badgeImage"); 
-const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImage; 
+      const uploadedThumb = req.files?.find((f) => f.fieldname === "thumbnail");
+      const finalThumb = uploadedThumb?.path || thumbnail;
+      const uploadedBadge = req.files?.find(
+        (f) => f.fieldname === "badgeImage"
+      );
+      const finalBadgeImg = uploadedBadge?.path || badgeImage || null;
 
-    await product.update({
-      name, slug: newSlug, description, shortDescription,
-      thumbnail: finalThumbnail, orderIndex, isActive,badgeImage:  finalBadgeImg, 
-      hasVariants, categoryId, brandId, badge,
-    }, { transaction: t });
+      const product = await Product.create(
+        {
+          name,
+          slug,
+          description,
+          shortDescription,
+          thumbnail: finalThumb,
+          orderIndex: finalOrderIndex,
+          isActive,
+          badgeImage: finalBadgeImg,
+          hasVariants,
+          categoryId,
+          badge,
+          brandId,
+        },
+        { transaction: t }
+      );
 
-
-    await ProductVariant.destroy({ where: { productId }, transaction: t });
-    for (const variant of variants) {
-      await ProductVariant.create({ productId, variantId: variant.id }, { transaction: t });
-    }
-
-  
-    const existingSkus = await Sku.findAll({ where: { productId }, transaction: t });
-    const existingMap = new Map(existingSkus.map(s => [s.id, s]));
-    const seenSkuIds = new Set();
-
-    const generateSkuCode = async (prefix = "SKU") => {
-      let code, exists = true;
-      while (exists) {
-        code = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-        exists = await Sku.findOne({ where: { skuCode: code } });
-      }
-      return code;
-    };
-    const getFileType = url => {
-      const ext = url.split(".").pop().toLowerCase();
-      return ["mp4","mov","avi","webm"].includes(ext) ? "video" : "image";
-    };
-
-    for (let i = 0; i < skus.length; i++) {
-      const sku = skus[i];
-      let skuId = sku.id;
-
-      if (skuId && existingMap.has(skuId)) {
-        
-        await Sku.update({
-          skuCode: sku.skuCode || existingMap.get(skuId).skuCode,
-          price: sku.price > 0 ? sku.price : null,
-          originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
-          stock: sku.stock,
-          height: sku.height || 0,
-          width:  sku.width  || 0,
-          length: sku.length || 0,
-          weight: sku.weight || 0,
-          isActive: true
-        }, { where: { id: skuId }, transaction: t });
-
-        seenSkuIds.add(skuId);
-
-        
-        await ProductMedia.destroy({ where: { skuId }, transaction: t });
-        await SkuVariantValue.destroy({ where: { skuId }, transaction: t });
-
-        for (const url of sku.mediaUrls || []) {
-          await ProductMedia.create({ skuId, mediaUrl: url, type: getFileType(url) }, { transaction: t });
+      const generateSkuCode = async (prefix = "SKU") => {
+        let code,
+          exists = true;
+        while (exists) {
+          code = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+          exists = await Sku.findOne({ where: { skuCode: code } });
         }
-        for (const f of req.files?.filter(f => f.fieldname === `media_sku_${i}`) || []) {
-          await ProductMedia.create({ skuId, mediaUrl: f.path, type: getFileType(f.filename) }, { transaction: t });
-        }
-        for (const valId of sku.variantValueIds || []) {
-          await SkuVariantValue.create({ skuId, variantValueId: valId }, { transaction: t });
-        }
-      } else {
-       
-        const createdSku = await Sku.create({
-          productId,
-          skuCode: sku.skuCode || await generateSkuCode(newSlug.toUpperCase()),
-          price: sku.price > 0 ? sku.price : null,
-          originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
-          stock: sku.stock,
-          height: sku.height || 0,
-          width:  sku.width  || 0,
-          length: sku.length || 0,
-          weight: sku.weight || 0,
-          isActive: true
-        }, { transaction: t });
+        return code;
+      };
+      const getFileType = (url) => {
+        const ext = url.split(".").pop().toLowerCase();
+        return ["mp4", "mov", "avi", "webm"].includes(ext) ? "video" : "image";
+      };
 
-        skuId = createdSku.id;
-        seenSkuIds.add(skuId);
+      if (!hasVariants && skus.length > 0) {
+        const sku = skus[0];
+        const newSku = await Sku.create(
+          {
+            skuCode:
+              sku.skuCode ||
+              (await generateSkuCode(product.slug.toUpperCase())),
+            productId: product.id,
+            price: sku.price > 0 ? sku.price : null,
+            originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
+            stock: sku.stock,
+            height: sku.height || 0,
+            width: sku.width || 0,
+            length: sku.length || 0,
+            weight: sku.weight || 0,
+            isActive: true,
+          },
+          { transaction: t }
+        );
 
-        for (const url of sku.mediaUrls || []) {
-          await ProductMedia.create({ skuId, mediaUrl: url, type: getFileType(url) }, { transaction: t });
+        for (const [order, url] of (sku.mediaUrls || []).entries()) {
+          await ProductMedia.create(
+            {
+              skuId: newSku.id,
+              mediaUrl: url,
+              type: getFileType(url),
+              sortOrder: order,
+            },
+            { transaction: t }
+          );
         }
-        for (const f of req.files?.filter(f => f.fieldname === `media_sku_${i}`) || []) {
-          await ProductMedia.create({ skuId, mediaUrl: f.path, type: getFileType(f.filename) }, { transaction: t });
-        }
-        for (const valId of sku.variantValueIds || []) {
-          await SkuVariantValue.create({ skuId, variantValueId: valId }, { transaction: t });
+
+        for (const f of req.files?.filter(
+          (f) => f.fieldname === "media_sku_0"
+        ) || []) {
+          await ProductMedia.create(
+            {
+              skuId: newSku.id,
+              mediaUrl: f.path,
+              type: getFileType(f.filename),
+            },
+            { transaction: t }
+          );
         }
       }
-    }
 
- 
-    const skuIdsToDelete = [...existingMap.keys()].filter(id => !seenSkuIds.has(id));
-    await ProductMedia.destroy({ where: { skuId: { [Op.in]: skuIdsToDelete } }, transaction: t });
-    await SkuVariantValue.destroy({ where: { skuId: { [Op.in]: skuIdsToDelete } }, transaction: t });
-    await Sku.destroy({ where: { id: skuIdsToDelete }, transaction: t });
+      if (hasVariants) {
+        for (const v of variants) {
+          await ProductVariant.findOrCreate({
+            where: { productId: product.id, variantId: v.id },
+            defaults: { productId: product.id, variantId: v.id },
+            transaction: t,
+          });
+        }
+        for (let i = 0; i < skus.length; i++) {
+          const sku = skus[i];
+          const createdSku = await Sku.create(
+            {
+              productId: product.id,
+              skuCode:
+                sku.skuCode ||
+                (await generateSkuCode(product.slug.toUpperCase())),
+              price: sku.price > 0 ? sku.price : null,
+              originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
+              stock: sku.stock,
+              height: sku.height || 0,
+              width: sku.width || 0,
+              length: sku.length || 0,
+              weight: sku.weight || 0,
+              isActive: true,
+            },
+            { transaction: t }
+          );
 
-    
-    await ProductInfo.destroy({ where: { productId }, transaction: t });
-    if (infoContent) {
-      await ProductInfo.create({ productId, content: infoContent }, { transaction: t });
-    }
-
-   
-    await ProductSpec.destroy({ where: { productId }, transaction: t });
-    for (const spec of specs) {
-      if (spec.key && spec.value) {
-        await ProductSpec.create({
-          productId,
-          specKey: spec.key,
-          specValue: spec.value,
-          specGroup: spec.specGroup || null,
-          sortOrder: spec.sortOrder || 0
-        }, { transaction: t });
+          for (const url of sku.mediaUrls || []) {
+            await ProductMedia.create(
+              {
+                skuId: createdSku.id,
+                mediaUrl: url,
+                type: getFileType(url),
+              },
+              { transaction: t }
+            );
+          }
+          for (const f of req.files?.filter(
+            (f) => f.fieldname === `media_sku_${i}`
+          ) || []) {
+            await ProductMedia.create(
+              {
+                skuId: createdSku.id,
+                mediaUrl: f.path,
+                type: getFileType(f.filename),
+              },
+              { transaction: t }
+            );
+          }
+          for (const valId of sku.variantValueIds || []) {
+            await SkuVariantValue.create(
+              {
+                skuId: createdSku.id,
+                variantValueId: valId,
+              },
+              { transaction: t }
+            );
+          }
+        }
       }
+
+      if (infoContent) {
+        await ProductInfo.create(
+          {
+            productId: product.id,
+            content: infoContent,
+          },
+          { transaction: t }
+        );
+      }
+
+      for (const spec of specs) {
+        if (spec.key && spec.value) {
+          await ProductSpec.create(
+            {
+              productId: product.id,
+              specKey: spec.key,
+              specValue: spec.value,
+              specGroup: spec.specGroup || null,
+              sortOrder: spec.sortOrder || 0,
+            },
+            { transaction: t }
+          );
+        }
+      }
+
+      await t.commit();
+      return res.status(201).json({
+        message: "Thêm sản phẩm thành công",
+        data: product,
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error("Lỗi tạo sản phẩm:", error);
+      return res.status(500).json({
+        message: "Lỗi server",
+        error: error.message,
+      });
     }
-
-    await t.commit();
-    return res.json({ message: "Cập nhật sản phẩm thành công", data: product });
-
-  } catch (error) {
-    await t.rollback();
-    console.error("Lỗi update product:", error);
-    return res.status(500).json({ message: "Lỗi server", error: error.message });
   }
-}
+  static async update(req, res) {
+    const t = await Product.sequelize.transaction();
+    try {
+      const { slug: slugParam } = req.params;
+
+      if (!req.body.product) {
+        return res.status(400).json({ message: "Thiếu dữ liệu sản phẩm" });
+      }
+
+      let parsedProduct;
+      try {
+        parsedProduct = JSON.parse(req.body.product);
+      } catch (err) {
+        return res
+          .status(400)
+          .json({ message: "Dữ liệu sản phẩm không hợp lệ (JSON lỗi)" });
+      }
+
+      const {
+        name,
+        description,
+        shortDescription,
+        thumbnail,
+        badge,
+        orderIndex,
+        isActive,
+        badgeImage,
+        categoryId,
+        brandId,
+        hasVariants,
+        skus = [],
+        variants = [],
+        infoContent = "",
+        specs = [],
+      } = parsedProduct;
+
+      const product = await Product.findOne({ where: { slug: slugParam } });
+      if (!product)
+        return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+
+      const productId = product.id;
+
+      // Xử lý slug nếu đổi tên
+      let newSlug = product.slug;
+      if (name && name !== product.name) {
+        const baseSlug = slugify(name, { lower: true, strict: true });
+        newSlug = baseSlug;
+        let suffix = 1;
+        while (
+          await Product.findOne({
+            where: { slug: newSlug, id: { [Op.ne]: productId } },
+          })
+        ) {
+          newSlug = `${baseSlug}-${suffix++}`;
+        }
+      }
+
+      // Xử lý thứ tự
+      if (orderIndex !== undefined && orderIndex !== product.orderIndex) {
+        if (orderIndex > product.orderIndex) {
+          await Product.decrement("orderIndex", {
+            by: 1,
+            where: {
+              orderIndex: { [Op.gt]: product.orderIndex, [Op.lte]: orderIndex },
+            },
+            transaction: t,
+          });
+        } else {
+          await Product.increment("orderIndex", {
+            by: 1,
+            where: {
+              orderIndex: { [Op.gte]: orderIndex, [Op.lt]: product.orderIndex },
+            },
+            transaction: t,
+          });
+        }
+      }
+
+      const uploadedThumbnail = req.files?.find(
+        (f) => f.fieldname === "thumbnail"
+      );
+      const finalThumbnail =
+        uploadedThumbnail?.path || thumbnail || product.thumbnail;
+      const uploadedBadge = req.files?.find(
+        (f) => f.fieldname === "badgeImage"
+      );
+      const finalBadgeImg =
+        uploadedBadge?.path || badgeImage || product.badgeImage;
+
+      await product.update(
+        {
+          name,
+          slug: newSlug,
+          description,
+          shortDescription,
+          thumbnail: finalThumbnail,
+          orderIndex,
+          isActive,
+          badgeImage: finalBadgeImg,
+          hasVariants,
+          categoryId,
+          brandId,
+          badge,
+        },
+        { transaction: t }
+      );
+
+      await ProductVariant.destroy({ where: { productId }, transaction: t });
+      for (const variant of variants) {
+        await ProductVariant.create(
+          { productId, variantId: variant.id },
+          { transaction: t }
+        );
+      }
+
+      const existingSkus = await Sku.findAll({
+        where: { productId },
+        transaction: t,
+      });
+      const existingMap = new Map(existingSkus.map((s) => [s.id, s]));
+      const seenSkuIds = new Set();
+
+      const generateSkuCode = async (prefix = "SKU") => {
+        let code,
+          exists = true;
+        while (exists) {
+          code = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+          exists = await Sku.findOne({ where: { skuCode: code } });
+        }
+        return code;
+      };
+      const getFileType = (url) => {
+        const ext = url.split(".").pop().toLowerCase();
+        return ["mp4", "mov", "avi", "webm"].includes(ext) ? "video" : "image";
+      };
+
+      for (let i = 0; i < skus.length; i++) {
+        const sku = skus[i];
+        let skuId = sku.id;
+
+        if (skuId && existingMap.has(skuId)) {
+          await Sku.update(
+            {
+              skuCode: sku.skuCode || existingMap.get(skuId).skuCode,
+              price: sku.price > 0 ? sku.price : null,
+              originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
+              stock: sku.stock,
+              height: sku.height || 0,
+              width: sku.width || 0,
+              length: sku.length || 0,
+              weight: sku.weight || 0,
+              isActive: true,
+            },
+            { where: { id: skuId }, transaction: t }
+          );
+
+          seenSkuIds.add(skuId);
+
+          await ProductMedia.destroy({ where: { skuId }, transaction: t });
+          await SkuVariantValue.destroy({ where: { skuId }, transaction: t });
+
+          for (const [order, url] of (sku.mediaUrls || []).entries()) {
+            await ProductMedia.create(
+              {
+                skuId,
+                mediaUrl: url,
+                type: getFileType(url),
+                sortOrder: order,
+              },
+              { transaction: t }
+            );
+          }
+
+          for (const f of req.files?.filter(
+            (f) => f.fieldname === `media_sku_${i}`
+          ) || []) {
+            await ProductMedia.create(
+              { skuId, mediaUrl: f.path, type: getFileType(f.filename) },
+              { transaction: t }
+            );
+          }
+          for (const valId of sku.variantValueIds || []) {
+            await SkuVariantValue.create(
+              { skuId, variantValueId: valId },
+              { transaction: t }
+            );
+          }
+        } else {
+          const createdSku = await Sku.create(
+            {
+              productId,
+              skuCode:
+                sku.skuCode || (await generateSkuCode(newSlug.toUpperCase())),
+              price: sku.price > 0 ? sku.price : null,
+              originalPrice: sku.originalPrice > 0 ? sku.originalPrice : null,
+              stock: sku.stock,
+              height: sku.height || 0,
+              width: sku.width || 0,
+              length: sku.length || 0,
+              weight: sku.weight || 0,
+              isActive: true,
+            },
+            { transaction: t }
+          );
+
+          skuId = createdSku.id;
+          seenSkuIds.add(skuId);
+
+          for (const [order, url] of (sku.mediaUrls || []).entries()) {
+            await ProductMedia.create(
+              {
+                skuId,
+                mediaUrl: url,
+                type: getFileType(url),
+                sortOrder: order,
+              },
+              { transaction: t }
+            );
+          }
+
+          for (const f of req.files?.filter(
+            (f) => f.fieldname === `media_sku_${i}`
+          ) || []) {
+            await ProductMedia.create(
+              { skuId, mediaUrl: f.path, type: getFileType(f.filename) },
+              { transaction: t }
+            );
+          }
+          for (const valId of sku.variantValueIds || []) {
+            await SkuVariantValue.create(
+              { skuId, variantValueId: valId },
+              { transaction: t }
+            );
+          }
+        }
+      }
+
+      const skuIdsToDelete = [...existingMap.keys()].filter(
+        (id) => !seenSkuIds.has(id)
+      );
+      await ProductMedia.destroy({
+        where: { skuId: { [Op.in]: skuIdsToDelete } },
+        transaction: t,
+      });
+      await SkuVariantValue.destroy({
+        where: { skuId: { [Op.in]: skuIdsToDelete } },
+        transaction: t,
+      });
+      await Sku.destroy({ where: { id: skuIdsToDelete }, transaction: t });
+
+      await ProductInfo.destroy({ where: { productId }, transaction: t });
+      if (infoContent) {
+        await ProductInfo.create(
+          { productId, content: infoContent },
+          { transaction: t }
+        );
+      }
+
+      await ProductSpec.destroy({ where: { productId }, transaction: t });
+      for (const spec of specs) {
+        if (spec.key && spec.value) {
+          await ProductSpec.create(
+            {
+              productId,
+              specKey: spec.key,
+              specValue: spec.value,
+              specGroup: spec.specGroup || null,
+              sortOrder: spec.sortOrder || 0,
+            },
+            { transaction: t }
+          );
+        }
+      }
+
+      await t.commit();
+      return res.json({
+        message: "Cập nhật sản phẩm thành công",
+        data: product,
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error("Lỗi update product:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server", error: error.message });
+    }
+  }
 
   static async getAll(req, res) {
     try {
@@ -520,7 +639,6 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
         raw: true,
       });
 
-      
       const buildTree = (parentId = null) => {
         return categories
           .filter((cat) => cat.parentId === parentId)
@@ -561,22 +679,17 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
       if (!product)
         return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
 
-      await product.destroy(); 
+      await product.destroy();
       res.json({ message: "Đã xóa sản phẩm tạm thời" });
     } catch (error) {
       res.status(500).json({ message: "Lỗi server", error: error.message });
     }
   }
 
-
-
-
   static async getById(req, res) {
     try {
-     
       const { slug: slugParam } = req.params;
 
-      
       const product = await Product.findOne({
         where: { slug: slugParam },
         include: [
@@ -584,7 +697,7 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
           {
             model: ProductSpec,
             as: "specs",
-            attributes: ["specKey", "specValue", "specGroup", "sortOrder"], 
+            attributes: ["specKey", "specValue", "specGroup", "sortOrder"],
           },
           {
             model: Sku,
@@ -593,8 +706,9 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
               {
                 model: ProductMedia,
                 as: "ProductMedia",
-                attributes: ["mediaUrl", "type"],
+                attributes: ["mediaUrl", "type", "sortOrder"],
                 required: false,
+                order: [["sortOrder", "ASC"]],
               },
               {
                 model: SkuVariantValue,
@@ -631,13 +745,10 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
         return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
       }
 
-      
       const infoContent = product.productInfo?.content || "";
 
-      
       const skus = await Promise.all(
         (product.skus || []).map(async (sku) => {
-       
           const variantMappings = await SkuVariantValue.findAll({
             where: { skuId: sku.id },
             include: [
@@ -672,7 +783,14 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
             length: sku.length,
             weight: sku.weight,
             description: sku.description,
-            mediaUrls: sku.ProductMedia?.map((m) => m.mediaUrl) || [],
+          mediaUrls: (sku.ProductMedia || [])
+  .sort((a, b) => a.sortOrder - b.sortOrder)
+  .map((m) => ({
+    id: m.mediaUrl, // tạm lấy mediaUrl làm id
+    url: m.mediaUrl,
+    type: m.type || getFileType(m.mediaUrl),
+  })),
+
             variantValueIds,
             selectedValues,
           };
@@ -690,9 +808,7 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
         const variantId = pv.variant?.id;
         const variantName = pv.variant?.name;
         const allValues = pv.variant?.values || [];
-        const filteredValues = allValues.filter((v) =>
-          usedValueIds.has(v.id)
-        );
+        const filteredValues = allValues.filter((v) => usedValueIds.has(v.id));
 
         if (variantId && !variantsMap.has(variantId)) {
           variantsMap.set(variantId, {
@@ -714,7 +830,7 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
           thumbnail: product.thumbnail,
           orderIndex: product.orderIndex,
           isActive: product.isActive,
-          badgeImage    : product.badgeImage || null, 
+          badgeImage: product.badgeImage || null,
           badge: product.badge,
 
           hasVariants: product.hasVariants,
@@ -816,18 +932,17 @@ const finalBadgeImg     = uploadedBadge?.path || badgeImage || product.badgeImag
       const skuIds = skus.map((s) => s.id);
 
       const usedInOrder = await OrderItem.count({
-  where: { skuId: skuIds },
-  transaction: t,
-});
-if (usedInOrder > 0) {
-  await t.rollback();
-  return res.status(400).json({
-    message:
-      "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
-      "Hãy giữ lại để bảo toàn lịch sử.",
-  });
-}
-
+        where: { skuId: skuIds },
+        transaction: t,
+      });
+      if (usedInOrder > 0) {
+        await t.rollback();
+        return res.status(400).json({
+          message:
+            "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
+            "Hãy giữ lại để bảo toàn lịch sử.",
+        });
+      }
 
       const opts = { force: true, transaction: t };
 
@@ -853,7 +968,7 @@ if (usedInOrder > 0) {
         .json({ message: " Lỗi server", error: err.message });
     }
   }
-static async forceDeleteMany(req, res) {
+  static async forceDeleteMany(req, res) {
     const t = await Product.sequelize.transaction();
     try {
       const { ids = [] } = req.body;
@@ -897,7 +1012,6 @@ static async forceDeleteMany(req, res) {
         .filter((s) => deletableProductIds.includes(s.productId))
         .map((s) => s.id);
 
-    
       await Promise.all([
         CartItem.destroy({
           where: { skuId: deletableSkuIds },
@@ -987,8 +1101,6 @@ static async forceDeleteMany(req, res) {
         .json({ message: "Lỗi cập nhật thứ tự", error: error.message });
     }
   }
-  
-  
 }
 
 module.exports = ProductController;

@@ -7,7 +7,7 @@ const validateUserAddress = async (req, res, next) => {
     streetAddress,
     provinceId,
     districtId,
-    wardCode,
+      wardId,      // ✅ đổi từ wardCode → wardId
     label,
   } = req.body;
 
@@ -35,16 +35,20 @@ const validateUserAddress = async (req, res, next) => {
   }
 
   // Kiểm tra ID huyện
-  const district = await District.findByPk(districtId);
+console.log('[DEBUG] districtId:', districtId);  // xem có undefined/null không
+const district = await District.findByPk(districtId);
+
   if (!district) {
     errors.push({ field: 'districtId', message: 'Quận/Huyện không hợp lệ!' });
   }
 
   // Kiểm tra mã xã/phường
-  const ward = await Ward.findOne({ where: { code: wardCode } });
-  if (!ward) {
-    errors.push({ field: 'wardCode', message: 'Phường/Xã không hợp lệ!' });
-  }
+  const ward = await Ward.findByPk(wardId);
+ if (!ward) {
+   errors.push({ field: 'wardId', message: 'Phường/Xã không hợp lệ!' });
+ }
+
+ 
 
   // Label (tuỳ chọn nhưng vẫn giới hạn nếu có)
   const allowedLabels = ['Nhà Riêng', 'Văn Phòng', 'Nhà Người Yêu', 'Bố Mẹ', 'Khác'];

@@ -172,10 +172,12 @@ class FlashSaleController {
       });
 
       if (items && items.length > 0) {
-        const itemData = items.map((item) => ({
-          ...item,
-          flashSaleId: flashSale.id,
-        }));
+    const itemData = items.map((item) => ({
+  ...item,
+  flashSaleId: flashSale.id,
+  originalQuantity: item.quantity, // ✅ GÁN GỐC TẠI ĐÂY
+}));
+
         await FlashSaleItem.bulkCreate(itemData, { transaction: t });
       }
 
@@ -188,6 +190,8 @@ class FlashSaleController {
       }
 
       await t.commit();
+      req.app.locals.io.emit('flash-sale-updated');
+
       res.json({ message: "Cập nhật thành công" });
     } catch (err) {
       await t.rollback();
@@ -230,10 +234,13 @@ class FlashSaleController {
       );
 
       if (items && items.length > 0) {
-        const itemData = items.map((item) => ({
-          ...item,
-          flashSaleId: flashSale.id,
-        }));
+      const itemData = items.map((item) => ({
+  ...item,
+  flashSaleId: flashSale.id,
+  originalQuantity: parseInt(item.originalQuantity ?? item.quantity) || 0
+
+}));
+
         await FlashSaleItem.bulkCreate(itemData, { transaction: t });
       }
 
@@ -246,6 +253,8 @@ class FlashSaleController {
       }
 
       await t.commit();
+      req.app.locals.io.emit('flash-sale-updated');
+
       res.status(201).json({ message: "Tạo thành công", data: flashSale });
     } catch (err) {
       await t.rollback();

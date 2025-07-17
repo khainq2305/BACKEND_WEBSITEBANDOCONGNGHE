@@ -112,7 +112,6 @@ const validateFlashSale = async (req, res, next) => {
     });
   } else {
     parsedItems.forEach((item, index) => {
-      
       if (item.salePrice == null || item.salePrice === "") {
         errors.push({
           field: `items[${index}].salePrice`,
@@ -124,20 +123,14 @@ const validateFlashSale = async (req, res, next) => {
           message: "Giá sale không được âm",
         });
       }
-      if (item.quantity == null || item.quantity === "") {
-        errors.push({
-          field: `items[${index}].quantity`,
-          message: "Số lượng là bắt buộc",
-        });
-      } else if (
-        Number(item.quantity) <= 0 ||
-        !Number.isInteger(Number(item.quantity))
-      ) {
-        errors.push({
-          field: `items[${index}].quantity`,
-          message: "Số lượng phải là số nguyên dương",
-        });
-      }
+     const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
+if (!Number.isInteger(qty) || qty < 0) {
+  errors.push({
+    field: `items[${index}].quantity`,
+    message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 0",
+  });
+}
+
     });
 
     parsedCategories.forEach((cat, index) => {

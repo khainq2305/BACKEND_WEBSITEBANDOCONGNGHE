@@ -8,9 +8,12 @@ const {
   Sku,
   Product,
   Order,
+  sequelize
 } = require("../../models");
+const { formatCurrencyVND } = require('../../utils/formatCurrency');
 
-function formatCoupon(coupon, isApplicable) {
+
+function formatCoupon(coupon, isApplicable, usedCount = 0) { // Thêm usedCount làm tham số
   return {
     id: coupon.id,
     code: coupon.code,
@@ -20,214 +23,307 @@ function formatCoupon(coupon, isApplicable) {
     maxDiscount: coupon.maxDiscountValue,
     minOrderAmount: coupon.minOrderValue || 0,
     expiryDate: coupon.endTime,
+
     type: coupon.type,
     isApplicable,
+    totalQuantity: coupon.totalQuantity, // Thêm totalQuantity
+    usedCount: usedCount, // Thêm usedCount
   };
 }
 
 class CouponController {
-  static async applyCoupon(req, res) {
-    try {
-      const userId = req.user.id;
-      const { code, skuIds = [], orderTotal } = req.body;
+static async applyCoupon(req, res) {
+  try {
+    const userId = req.user.id;
+    const { code, skuIds = [], orderTotal } = req.body;
 
-      if (!code || typeof code !== "string") {
-        console.warn("⚠️  Invalid code format");
-        return res.status(400).json({ message: "Mã không hợp lệ" });
-      }
+    if (!code || typeof code !== "string") {
+      console.warn("⚠️  Invalid code format");
+      return res.status(400).json({ message: "Mã không hợp lệ" });
+    }
 
-      const coupon = await Coupon.findOne({
-        where: { code: code.trim() },
-        include: [
-          {
-            model: CouponUser,
-            as: "users",
-            attributes: ["userId"],
-            paranoid: false,
-          },
-          {
-            model: CouponItem,
-            as: "products",
-            attributes: ["skuId"],
-            paranoid: false,
-          },
-        ],
-        paranoid: false,
-      });
+    const coupon = await Coupon.findOne({
+      where: { code: code.trim() },
+      include: [
+        {
+          model: CouponUser,
+          as: "users",
+          attributes: ["userId"],
+          paranoid: false,
+        },
+        {
+          model: CouponItem,
+          as: "products",
+          attributes: ["skuId"],
+          paranoid: false,
+        },
+      ],
+      paranoid: false,
+    });
 
-      if (!coupon) {
-        return res.status(404).json({ message: `Mã "${code}" không tồn tại.` });
-      }
+    if (!coupon) {
+      return res.status(404).json({ message: `Mã "${code}" không tồn tại.` });
+    }
 
-      const now = new Date();
-      if (coupon.startTime && now < new Date(coupon.startTime)) {
-   
+    const now = new Date();
+    if (coupon.startTime && now < new Date(coupon.startTime)) {
+      return res
+        .status(400)
+        .json({ message: "Mã chưa đến thời gian áp dụng." });
+    }
+    if (coupon.endTime && now > new Date(coupon.endTime)) {
+      return res.status(400).json({ message: "Mã đã hết hạn." });
+    }
+
+    if (coupon.deletedAt) {
+      return res.status(400).json({ message: "Mã đã bị xóa." });
+    }
+    if (!coupon.isActive) {
+      return res.status(400).json({ message: "Mã đang tạm ngưng." });
+    }
+
+    if (coupon.minOrderValue && orderTotal < coupon.minOrderValue) {
+      return res.status(400).json({
+        message: `Đơn hàng phải đạt tối thiểu ${formatCurrencyVND(          coupon.minOrderValue
+        )} để áp dụng mã.`,      });
+    }
+
+    if (coupon.type === "private") {
+      const allowedUserIds = (coupon.users ?? []).map((u) => u.userId);
+      if (!allowedUserIds.includes(userId)) {
         return res
-          .status(400)
-          .json({ message: "Mã chưa đến thời gian áp dụng." });
+          .status(403)
+          .json({ message: "Bạn không có quyền sử dụng mã này." });
       }
-      if (coupon.endTime && now > new Date(coupon.endTime)) {
-        return res.status(400).json({ message: "Mã đã hết hạn." });
-      }
-
-      if (coupon.deletedAt) {
-      
-        return res.status(400).json({ message: "Mã đã bị xóa." });
-      }
-      if (!coupon.isActive) {
-        return res.status(400).json({ message: "Mã đang tạm ngưng." });
-      }
-
-      if (coupon.minOrderValue && orderTotal < coupon.minOrderValue) {
-        return res.status(400).json({
-          message: `Đơn hàng phải đạt tối thiểu ${coupon.minOrderValue.toLocaleString()}₫ để áp dụng mã.`,
-        });
-      }
-
-      if (coupon.type === "private") {
-        const allowedUserIds = (coupon.users ?? []).map((u) => u.userId);
-        if (!allowedUserIds.includes(userId)) {
-          return res
-            .status(403)
-            .json({ message: "Bạn không có quyền sử dụng mã này." });
-        }
-      }
-
-      const allowedSkuIds = (coupon.products ?? []).map((p) => Number(p.skuId));
-      const incomingSkuIds = (skuIds ?? []).map(Number).filter(Boolean);
-
-      if (allowedSkuIds.length > 0) {
-        const allowedSet = new Set(allowedSkuIds);
-        const hasMatch = incomingSkuIds.some((id) => allowedSet.has(id));
-
-        if (!hasMatch) {
-          return res
-            .status(403)
-            .json({ message: "Mã không áp dụng cho sản phẩm này." });
-        }
-      }
-
-      if (coupon.totalQuantity !== null && coupon.totalQuantity > 0) {
-        const usedCount = await Order.count({
-          where: {
-            couponId: coupon.id,
-            status: { [Op.notIn]: ["cancelled", "failed"] },
-          },
-        });
-        if (usedCount >= coupon.totalQuantity) {
-          console.warn("⚠️  Coupon out of stock");
-          return res.status(400).json({ message: "Mã đã hết lượt sử dụng." });
-        }
-      }
-
-      let discountAmount = 0;
-      if (coupon.discountType === "percent") {
-        discountAmount = (orderTotal * Number(coupon.discountValue)) / 100;
-      } else {
-        discountAmount = Number(coupon.discountValue);
-      }
-      if (
-        coupon.maxDiscountValue &&
-        discountAmount > Number(coupon.maxDiscountValue)
-      ) {
-        discountAmount = Number(coupon.maxDiscountValue);
-      }
-
-      const finalTotal = Math.max(orderTotal - discountAmount, 0);
-
-      return res.json({
-        message: "Áp dụng mã thành công",
-        coupon: {
-          id: coupon.id,
-          code: coupon.code,
-          title: coupon.title,
-          discountType: coupon.discountType,
-          discountValue: coupon.discountValue,
-          maxDiscount: coupon.maxDiscountValue,
-          minOrderAmount: coupon.minOrderValue || 0,
-          discountAmount: Math.round(discountAmount),
-          expiryDate: coupon.endTime,
-          allowedSkuIds,
-        },
-        finalTotal,
-      });
-    } catch (err) {
-      console.error("Lỗi khi áp dụng mã giảm:", err);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server", error: err.message });
     }
-  }
 
-  static async getAvailableCoupons(req, res) {
-    try {
-      const userId = req.user.id;
-      const now = new Date();
+    const allowedSkuIds = (coupon.products ?? []).map((p) => Number(p.skuId));
+    const incomingSkuIds = (skuIds ?? []).map(Number).filter(Boolean);
 
-      let skuIdsFromQuery = [];
-      if (req.query.skuIds) {
-        skuIdsFromQuery = req.query.skuIds
-          .split(",")
-          .map((s) => Number(s.trim()))
-          .filter(Boolean);
+    if (allowedSkuIds.length > 0) {
+      const allowedSet = new Set(allowedSkuIds);
+      const hasMatch = incomingSkuIds.some((id) => allowedSet.has(id));
+
+      if (!hasMatch) {
+        return res
+          .status(403)
+          .json({ message: "Mã không áp dụng cho sản phẩm này." });
       }
-      if (req.query.skuId) {
-        const n = Number(req.query.skuId);
-        if (!Number.isNaN(n)) skuIdsFromQuery.push(n);
-      }
+    }
 
-      skuIdsFromQuery = [...new Set(skuIdsFromQuery)];
+    // Sửa phần kiểm tra giới hạn lượt dùng mã:
+    if (typeof coupon.totalQuantity === "number") {
+      console.log("🎯 Kiểm tra giới hạn lượt dùng mã:", {
+        totalAllowed: coupon.totalQuantity,
+      });
 
-      const coupons = await Coupon.findAll({
+      const usedCount = await Order.count({
         where: {
-          isActive: true,
-          deletedAt: null,
-          startTime: { [Op.lte]: now },
-          endTime: { [Op.gte]: now },
+          couponId: coupon.id,
+          status: { [Op.notIn]: ["cancelled", "failed"] },
         },
-        include: [
-          {
-            model: CouponUser,
-            as: "users",
-            attributes: ["userId"],
-            paranoid: false,
-          },
-          {
-            model: CouponItem,
-            as: "products",
-            attributes: ["skuId"],
-            paranoid: false,
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-        paranoid: false,
       });
 
-      const data = coupons.map((coupon) => {
-        const allowedUserIds = coupon.users.map((u) => u.userId);
-        const userHasAccess =
-          coupon.type === "public" || allowedUserIds.includes(userId);
-        if (!userHasAccess) return formatCoupon(coupon, false);
+      console.log("🔢 Đã dùng:", usedCount);
 
-        const allowedSkuIds = coupon.products.map((p) => Number(p.skuId));
-        if (
-          allowedSkuIds.length > 0 &&
-          skuIdsFromQuery.length > 0 &&
-          !skuIdsFromQuery.some((id) => allowedSkuIds.includes(id))
-        ) {
-          return formatCoupon(coupon, false);
-        }
-        return formatCoupon(coupon, true);
-      });
-
-      return res.json({ data });
-    } catch (err) {
-      console.error("Lỗi khi lấy danh sách mã giảm giá:", err);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server", error: err.message });
+      // Điều chỉnh logic: nếu totalQuantity là 0 hoặc usedCount đã vượt quá/bằng totalQuantity
+      if (coupon.totalQuantity === 0 || usedCount >= coupon.totalQuantity) {
+        console.warn("🚫 Coupon đã hết lượt sử dụng");
+        return res.json({
+          isValid: false,
+            isOutOfUsage: true,      // <-- thêm flag này
+          message: "Mã đã hết lượt sử dụng.",
+          coupon: null,
+        });
+      }
     }
+
+    let discountAmount = 0;
+    if (coupon.discountType === "percent") {
+      discountAmount = (orderTotal * Number(coupon.discountValue)) / 100;
+    } else {
+      discountAmount = Number(coupon.discountValue);
+    }
+    if (
+      coupon.maxDiscountValue &&
+      discountAmount > Number(coupon.maxDiscountValue)
+    ) {
+      discountAmount = Number(coupon.maxDiscountValue);
+    }
+
+    const finalTotal = Math.max(orderTotal - discountAmount, 0);
+
+    return res.json({
+      message: "Áp dụng mã thành công",
+      isValid: true,
+      coupon: {
+        id: coupon.id,
+        code: coupon.code,
+        title: coupon.title,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        maxDiscount: coupon.maxDiscountValue,
+        minOrderAmount: coupon.minOrderValue || 0,
+        discountAmount: Math.round(discountAmount),
+        expiryDate: coupon.endTime,
+        allowedSkuIds,
+      },
+      finalTotal,
+    });
+  } catch (err) {
+    console.error("Lỗi khi áp dụng mã giảm:", err);
+    return res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+}
+
+
+
+static async getAvailableCoupons(req, res) {
+  try {
+    const userId = req.user.id;
+    const now = new Date();
+
+    console.log('======================= 📥 API: getAvailableCoupons =======================');
+    console.log('➡️ userId:', userId);
+    console.log('➡️ req.query:', req.query);
+
+    let skuIdsFromQuery = [];
+    if (req.query.skuIds) {
+      skuIdsFromQuery = req.query.skuIds
+        .split(",")
+        .map((s) => Number(s.trim()))
+        .filter(Boolean);
+    }
+    if (req.query.skuId) {
+      const n = Number(req.query.skuId);
+      if (!Number.isNaN(n)) skuIdsFromQuery.push(n);
+    }
+
+    skuIdsFromQuery = [...new Set(skuIdsFromQuery)];
+    const orderTotalRaw = req.query.orderTotal;
+    const orderTotal = Number(orderTotalRaw || 0);
+
+    console.log("➡️ orderTotal (raw):", orderTotalRaw);
+    console.log("➡️ orderTotal (parsed):", orderTotal);
+    console.log("➡️ skuIdsFromQuery:", skuIdsFromQuery);
+
+    const coupons = await Coupon.findAll({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        startTime: { [Op.lte]: now },
+        endTime: { [Op.gte]: now },
+      },
+      include: [
+        {
+          model: CouponUser,
+          as: "users",
+          attributes: ["userId"],
+          required: false,
+          where: {
+            [Op.or]: [
+              { userId: userId },
+              { userId: { [Op.is]: null } }, // giúp include được luôn coupon public (type = public thì không có record trong bảng CouponUser)
+            ],
+          },
+          paranoid: false,
+        },
+        {
+          model: CouponItem,
+          as: "products",
+          attributes: ["skuId"],
+          required: false,
+          paranoid: false,
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      paranoid: false,
+    });
+
+    // Đếm lượt đã dùng cho tất cả coupon trước (để tránh gọi nhiều lần count trong map)
+    const couponIds = coupons.map(c => c.id);
+    const usedCounts = await Order.findAll({
+      where: {
+        couponId: couponIds,
+        status: { [Op.notIn]: ["cancelled", "failed"] },
+      },
+      attributes: ['couponId', [sequelize.fn('COUNT', sequelize.col('couponId')), 'usedCount']],
+      group: ['couponId']
+    });
+
+    const usedCountMap = {};
+    usedCounts.forEach(item => {
+      usedCountMap[item.couponId] = Number(item.get('usedCount'));
+    });
+
+    const data = coupons
+      .filter((coupon) => {
+        // ⚠️ Lọc lại cho chắc chắn — nếu là private mà không gán user thì bỏ
+        if (coupon.type === "private") {
+          const allowedUserIds = coupon.users.map((u) => u.userId);
+          return allowedUserIds.includes(userId);
+        }
+        return true; // public luôn giữ lại
+      })
+      .map((coupon) => {
+        const allowedUserIds = coupon.users.map((u) => u.userId);
+        const allowedSkuIds = coupon.products.map((p) => Number(p.skuId));
+
+        const userHasAccess = coupon.type === "public" || allowedUserIds.includes(userId);
+
+        const skuMatched =
+          allowedSkuIds.length === 0 ||
+          skuIdsFromQuery.some((id) => allowedSkuIds.includes(id));
+
+        const minOrderValue = Number(coupon.minOrderValue || 0);
+        const orderValid = !coupon.minOrderValue || orderTotal >= minOrderValue;
+
+        const usedCount = usedCountMap[coupon.id] || 0;
+
+        const hasRemainingUsage =
+          typeof coupon.totalQuantity === 'number'
+            ? (coupon.totalQuantity === 0 ? false : usedCount < coupon.totalQuantity)
+            : true;
+
+        const isApplicable = userHasAccess && skuMatched && orderValid && hasRemainingUsage;
+
+        console.log("------------------------------------------------------------");
+        console.log(`🎟️ [Coupon Check] "${coupon.title || coupon.code}"`);
+        console.log({
+          couponCode: coupon.code,
+          couponTitle: coupon.title,
+          couponType: coupon.type,
+          userId,
+          userHasAccess,
+          allowedUserIds,
+          skuIdsFromQuery,
+          allowedSkuIds,
+          skuMatched,
+          orderTotal,
+          minOrderValue,
+          orderValid,
+          usedCount,
+          totalQuantity: coupon.totalQuantity,
+          hasRemainingUsage,
+          isApplicable,
+          timeNow: now,
+          startTime: coupon.startTime,
+          endTime: coupon.endTime,
+          timeValid: coupon.startTime <= now && coupon.endTime >= now
+        });
+
+        return formatCoupon(coupon, isApplicable, usedCount);
+      });
+
+    return res.json({ data });
+  } catch (err) {
+    console.error("❌ Lỗi khi lấy danh sách mã giảm giá:", err);
+    return res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+}
+
+
+
 }
 
 module.exports = CouponController;

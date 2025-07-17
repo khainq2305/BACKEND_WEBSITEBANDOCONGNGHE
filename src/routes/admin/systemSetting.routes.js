@@ -13,13 +13,13 @@ router.use(attachUserDetail);
 
 router.get(
   '/',
-  checkPermission('read', 'systemSettings'),
+ 
   SystemSettingController.get
 );
 
 router.put(
   '/update',
-  checkPermission('update', 'systemSettings'),
+
   upload.fields([
     { name: 'siteLogo', maxCount: 1 },
     { name: 'favicon', maxCount: 1 }

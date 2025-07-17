@@ -102,13 +102,15 @@ const validateCoupon = async (req, res, next) => {
     }
   }
 
-  if (isNaN(totalQuantity) || Number(totalQuantity) <= 0) {
-    errors.push({ field: "totalQuantity", message: "Tổng số lượng không hợp lệ" });
-  }
+ if (isNaN(totalQuantity) || Number(totalQuantity) < 0) {
+  errors.push({ field: "totalQuantity", message: "Tổng số lượng không hợp lệ" });
+}
 
-  if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) <= 0) {
-    errors.push({ field: "maxUsagePerUser", message: "Số lần dùng mỗi người không hợp lệ" });
-  }
+
+ if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) < 0) {
+  errors.push({ field: "maxUsagePerUser", message: "Số lần dùng mỗi người không hợp lệ" });
+}
+
 
   if (isNaN(minOrderValue) || Number(minOrderValue) < 0) {
     errors.push({ field: "minOrderValue", message: "Giá trị đơn hàng tối thiểu không hợp lệ" });

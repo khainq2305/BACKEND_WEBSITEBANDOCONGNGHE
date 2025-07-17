@@ -1,21 +1,22 @@
 // src/controllers/client/authController.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { OAuth2Client } = require("google-auth-library");
 const axios = require("axios");
 
 const sendEmail = require("../../utils/sendEmail");
-const { User, Role, UserRole, UserToken } = require("../../models");
+const {
+  User,
+  Role,
+  UserRole,
+  UserToken,
+  RolePermission,
+  Action,
+  Subject,
+} = require("../../models");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret";
 const BASE_URL = process.env.BASE_URL || "http://localhost:9999";
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const { Op } = require("sequelize");
-const cloudinary = require("../../config/cloudinary");
-const { uploadImage } = require("../../services/common/upload.service");
-const Sequelize = require("sequelize");
 
-const fs = require("fs");
 class AuthController {
   static async register(req, res) {
     try {
@@ -124,8 +125,8 @@ class AuthController {
       }
 
       const cooldownDuration = 60 * 1000;
-      const lock1Minute = 3 * 60 * 1000;
-      const lock2Minutes = 5 * 60 * 1000;
+      const lock1Minute = 10 * 60 * 1000;
+      const lock2Minutes = 30 * 60 * 1000;
 
       const now = new Date();
 
@@ -369,14 +370,14 @@ class AuthController {
 
         await UserRole.create({
           userId: newUser.id,
-          roleId: 2, 
+          roleId: 2,
         });
       }
 
-    await sendEmail(
-  email,
-  "Chào mừng đến với Homepower! Tài khoản của bạn đã sẵn sàng.",
-  `
+      await sendEmail(
+        email,
+        "Chào mừng đến với Homepower! Tài khoản của bạn đã sẵn sàng.",
+        `
   <!DOCTYPE html>
   <html lang="vi">
   <head>
@@ -638,7 +639,7 @@ class AuthController {
   </body>
   </html>
   `
-);
+      );
       return res
         .status(200)
         .json({ message: "Xác thực thành công! Vui lòng đăng nhập." });
@@ -741,15 +742,8 @@ class AuthController {
           roleId: user.roleId,
         },
         JWT_SECRET,
-        { expiresIn: remember ? "7d" : "1h" }
+        { expiresIn: remember ? "7d" : "1d" }
       );
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "None",
-        maxAge: remember ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
-      });
 
       res.status(200).json({
         message: "Đăng nhập thành công!",
@@ -787,8 +781,8 @@ class AuthController {
       const tokenExpiry = 30 * 60 * 1000;
       const cooldownDuration = 60 * 1000;
 
-      const lock1Minute = 1 * 60 * 1000;
-      const lock2Minutes = 2 * 60 * 1000;
+      const lock1Minute = 10 * 60 * 1000;
+      const lock2Minutes = 30 * 60 * 1000;
       const ipAddress =
         req.ip ||
         req.headers["x-forwarded-for"] ||
@@ -864,13 +858,25 @@ class AuthController {
         email,
         "Đặt lại mật khẩu",
         `
-            <div>
-                <h2>Đặt lại mật khẩu</h2>
-                <p>Nhấn vào link dưới đây để đặt lại mật khẩu của bạn:</p>
-                <a href="${resetLink}">Đặt lại mật khẩu</a>
-                <p>Link này sẽ hết hạn sau 30 phút.</p>
-            </div>
-            `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 30px; border-radius: 10px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+    <h2 style="color: #007bff; text-align: center;">Yêu cầu đặt lại mật khẩu</h2>
+    <p style="font-size: 15px; color: #333; text-align: center;">
+      Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản của mình.
+    </p>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${resetLink}" target="_blank" style="background-color: #007bff; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; display: inline-block;">
+        Đặt lại mật khẩu
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #555; text-align: center;">
+      Liên kết có hiệu lực trong <strong>30 phút</strong>. Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email này.
+    </p>
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
+    <p style="font-size: 13px; color: #999; text-align: center;">
+      &copy; ${new Date().getFullYear()} Homepower. Mọi quyền được bảo lưu.
+    </p>
+  </div>
+  `
       );
 
       res.status(200).json({
@@ -924,66 +930,62 @@ class AuthController {
     }
   }
 
- static async checkResetStatus(req, res) {
-  try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: 'Thiếu email.' });
-    }
+  static async checkResetStatus(req, res) {
+    try {
+      const { email } = req.query;
+      if (!email) {
+        return res.status(400).json({ message: "Thiếu email." });
+      }
 
-    const now = new Date();
+      const now = new Date();
 
-    const userToken = await UserToken.findOne({
-      where: { email, type: 'passwordReset' },
-      order: [['createdAt', 'DESC']],
-    });
+      const userToken = await UserToken.findOne({
+        where: { email, type: "passwordReset" },
+        order: [["createdAt", "DESC"]],
+      });
 
-   
-    if (!userToken) {
+      if (!userToken) {
+        return res.status(200).json({
+          verified: false,
+          lockTime: 0,
+          resendCooldown: 0,
+          message: "Không có yêu cầu đặt lại mật khẩu đang chờ xử lý.",
+        });
+      }
+
+      if (userToken.usedAt) {
+        return res.status(200).json({
+          verified: true,
+          lockTime: 0,
+          resendCooldown: 0,
+          message: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập.",
+        });
+      }
+
+      const lockTime =
+        userToken.lockedUntil && userToken.lockedUntil > now
+          ? userToken.lockedUntil - now
+          : 0;
+
+      let resendCooldown = 0;
+      if (lockTime === 0) {
+        const COOLDOWN_MS = 60 * 1000;
+        const elapsed =
+          now - new Date(userToken.lastSentAt || userToken.createdAt);
+        resendCooldown = elapsed < COOLDOWN_MS ? COOLDOWN_MS - elapsed : 0;
+      }
+
       return res.status(200).json({
         verified: false,
-        lockTime: 0,
-        resendCooldown: 0,
-        message: 'Không có yêu cầu đặt lại mật khẩu đang chờ xử lý.',
+        lockTime,
+        resendCooldown,
+        message: "Yêu cầu đặt lại mật khẩu đang chờ xử lý.",
       });
+    } catch (err) {
+      console.error("Lỗi kiểm tra trạng thái:", err);
+      return res.status(500).json({ message: "Lỗi server!" });
     }
-
-   
-    if (userToken.usedAt) {
-      return res.status(200).json({
-        verified: true,
-        lockTime: 0,
-        resendCooldown: 0,
-        message: 'Mật khẩu đã được đặt lại. Vui lòng đăng nhập.',
-      });
-    }
-
-    
-    const lockTime =
-      userToken.lockedUntil && userToken.lockedUntil > now
-        ? userToken.lockedUntil - now
-        : 0;
-
-   
-    let resendCooldown = 0;
-    if (lockTime === 0) {
-      const COOLDOWN_MS = 60 * 1000; 
-      const elapsed = now - new Date(userToken.lastSentAt || userToken.createdAt);
-      resendCooldown = elapsed < COOLDOWN_MS ? COOLDOWN_MS - elapsed : 0;
-    }
-
-    return res.status(200).json({
-      verified: false,
-      lockTime,       
-      resendCooldown,  
-      message: 'Yêu cầu đặt lại mật khẩu đang chờ xử lý.',
-    });
-  } catch (err) {
-    console.error('Lỗi kiểm tra trạng thái:', err);
-    return res.status(500).json({ message: 'Lỗi server!' });
   }
-}
-
 
   static async verifyResetToken(req, res) {
     try {
@@ -1054,8 +1056,8 @@ class AuthController {
       const cooldownDuration = 60 * 1000;
 
       const tokenExpiry = 30 * 60 * 1000;
-      const lock1Minute = 1 * 60 * 1000;
-      const lock2Minutes = 2 * 60 * 1000;
+      const lock1Minute = 10 * 60 * 1000;
+      const lock2Minutes = 30 * 60 * 1000;
 
       let userToken = await UserToken.findOne({
         where: { email, type: "passwordReset" },
@@ -1117,13 +1119,25 @@ class AuthController {
         email,
         "Đặt lại mật khẩu",
         `
-            <div>
-                <h2>Đặt lại mật khẩu</h2>
-                <p>Nhấn vào link dưới đây để đặt lại mật khẩu của bạn:</p>
-                <a href="${resetLink}">Đặt lại mật khẩu</a>
-                <p>Link này sẽ hết hạn sau 30 phút.</p>
-            </div>
-        `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 30px; border-radius: 10px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+    <h2 style="color: #007bff; text-align: center;">Yêu cầu đặt lại mật khẩu</h2>
+    <p style="font-size: 15px; color: #333; text-align: center;">
+      Bạn vừa yêu cầu gửi lại liên kết đặt lại mật khẩu cho tài khoản của mình.
+    </p>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${resetLink}" target="_blank" style="background-color: #007bff; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; display: inline-block;">
+        Đặt lại mật khẩu
+      </a>
+    </div>
+    <p style="font-size: 14px; color: #555; text-align: center;">
+      Liên kết có hiệu lực trong <strong>30 phút</strong>. Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email này.
+    </p>
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
+    <p style="font-size: 13px; color: #999; text-align: center;">
+      &copy; ${new Date().getFullYear()} Homepower. Mọi quyền được bảo lưu.
+    </p>
+  </div>
+  `
       );
 
       res.status(200).json({
@@ -1195,39 +1209,56 @@ class AuthController {
       res.status(500).json({ message: "Lỗi server!" });
     }
   }
-
   static async getUserInfo(req, res) {
     try {
       const token = req.headers.authorization?.split(" ")[1];
-
       if (!token) {
-        return res.status(401).json({ message: "Không có token xác thực!" });
+        return res.status(401).json({ message: "Không có token!" });
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const userId = decoded.id;
 
-      const user = await User.findByPk(decoded.id, {
+      const user = await User.findByPk(userId, {
         attributes: [
           "id",
+          "password",
           "fullName",
           "email",
           "phone",
           "gender",
           "dateOfBirth",
           "avatarUrl",
-          "password",
           "provider",
+          "status",
+          "lastLoginAt",
         ],
         include: [
           {
             model: UserToken,
             as: "UserTokens",
-
             where: { type: "lock" },
             required: false,
             limit: 1,
             order: [["createdAt", "DESC"]],
             attributes: ["lockedUntil"],
+          },
+          {
+            model: Role,
+            as: "roles",
+            attributes: ["id", "name", "description", "canAccess"],
+            through: { attributes: [] },
+            include: [
+              {
+                model: RolePermission,
+                as: "rolePermissions",
+                attributes: ["id", "roleId", "actionId", "subjectId"],
+                include: [
+                  { model: Action, as: "action", attributes: ["key"] },
+                  { model: Subject, as: "subject", attributes: ["key"] },
+                ],
+              },
+            ],
           },
         ],
       });
@@ -1236,27 +1267,72 @@ class AuthController {
         return res.status(404).json({ message: "Người dùng không tồn tại!" });
       }
 
-      const userResponse = user.toJSON();
-      if (userResponse.dateOfBirth) {
-        const [year, month, day] = userResponse.dateOfBirth.split("-");
-        userResponse.birthDate = {
+      const userJson = user.toJSON();
+
+      if (userJson.dateOfBirth) {
+        const [year, month, day] = userJson.dateOfBirth.split("-");
+        userJson.birthDate = {
           day: day || "",
           month: month || "",
           year: year || "",
         };
       } else {
-        userResponse.birthDate = { day: "", month: "", year: "" };
+        userJson.birthDate = { day: "", month: "", year: "" };
       }
-      userResponse.hasPassword = !!userResponse.password;
-      delete userResponse.password;
-      delete userResponse.dateOfBirth;
-      userResponse.lockedUntil = userResponse.tokens?.[0]?.lockedUntil || null;
-      delete userResponse.tokens;
+      delete userJson.dateOfBirth;
 
-      res.status(200).json({ user: userResponse });
+      userJson.hasPassword = !!userJson.password;
+      delete userJson.password;
+
+      userJson.lockedUntil = userJson.UserTokens?.[0]?.lockedUntil || null;
+      delete userJson.UserTokens;
+
+      const roles = (userJson.roles || []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        canAccess: r.canAccess,
+      }));
+
+      const isAdmin = roles.some((r) => r.id === 1);
+
+      let permissions = [];
+      if (isAdmin) {
+        permissions = [{ action: "manage", subject: "all" }];
+      } else {
+        (userJson.roles || []).forEach((role) => {
+          (role.rolePermissions || []).forEach((rp) => {
+            if (rp.action && rp.subject) {
+              permissions.push({
+                action: rp.action.key,
+                subject: rp.subject.key,
+              });
+            }
+          });
+        });
+      }
+
+      // 8) Kết quả trả về
+      const userResponse = {
+        id: userJson.id,
+        email: userJson.email,
+        fullName: userJson.fullName,
+        phone: userJson.phone,
+        gender: userJson.gender,
+        avatarUrl: userJson.avatarUrl,
+        provider: userJson.provider,
+        status: userJson.status,
+        lastLoginAt: userJson.lastLoginAt,
+        birthDate: userJson.birthDate,
+        hasPassword: userJson.hasPassword,
+        lockedUntil: userJson.lockedUntil,
+        roles,
+        permissions,
+      };
+
+      return res.status(200).json({ user: userResponse });
     } catch (err) {
-      console.error("Lỗi khi lấy thông tin người dùng:", err.name, err.message);
-
+      console.error("GetUserInfo error:", err.name, err.message);
       if (
         err.name === "JsonWebTokenError" ||
         err.name === "TokenExpiredError"
@@ -1265,16 +1341,15 @@ class AuthController {
           .status(401)
           .json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
       }
-
-      res.status(500).json({
-        message: "Đã xảy ra lỗi máy chủ khi cố gắng lấy thông tin người dùng.",
-      });
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi lấy thông tin user." });
     }
   }
-
   static async updateProfile(req, res) {
     try {
       const userId = req.user?.id;
+
       if (!userId) {
         return res.status(401).json({ message: "Xác thực thất bại!" });
       }
@@ -1307,13 +1382,11 @@ class AuthController {
             const day = String(parsed.day).padStart(2, "0");
 
             const finalDate = `${year}-${month}-${day}`;
-
             user.dateOfBirth = finalDate;
           } else {
             user.dateOfBirth = null;
           }
         } catch (e) {
-          console.error("JSON parse birthDate failed:", e);
           user.dateOfBirth = null;
         }
       }
@@ -1321,6 +1394,7 @@ class AuthController {
       await user.save();
 
       const [year, month, day] = (user.dateOfBirth || "").split("-");
+
       res.status(200).json({
         message: "Cập nhật hồ sơ thành công!",
         user: {
@@ -1423,93 +1497,15 @@ class AuthController {
     }
   }
 
-  static async facebookLogin(req, res) {
-    try {
-      const { accessToken, userID } = req.body;
-      if (!accessToken || !userID)
-        return res
-          .status(400)
-          .json({ message: "Thiếu accessToken hoặc userID" });
-
-      const fbRes = await axios.get(
-        `https://graph.facebook.com/v18.0/${userID}?fields=id,name,email,picture&access_token=${accessToken}`
-      );
-
-      const { id: providerId, name, email, picture } = fbRes.data;
-      if (!email)
-        return res
-          .status(400)
-          .json({ message: "Không lấy được email từ Facebook" });
-
-      let user = await User.findOne({
-        where: { provider: "facebook", providerId },
-      });
-
-      if (!user) {
-        user = await User.findOne({ where: { email } });
-        if (user) {
-          await user.update({ provider: "facebook", providerId });
-        } else {
-          user = await User.create({
-            fullName: name,
-            email,
-            provider: "facebook",
-            providerId,
-            password: null,
-            roleId: 2,
-            status: 1,
-            isVerified: 1,
-          });
-        }
-      }
-
-      const token = jwt.sign(
-        {
-          id: user.id,
-          email: user.email,
-          roleId: user.roleId,
-        },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "None",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.status(200).json({
-        message: "Đăng nhập Facebook thành công!",
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          roleId: user.roleId,
-          status: user.status,
-        },
-      });
-    } catch (err) {
-      console.error("Facebook Login Error:", err);
-      return res.status(401).json({ message: "Đăng nhập Facebook thất bại!" });
-    }
-  }
-
   static async logout(req, res) {
     try {
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "None",
-      });
       res.status(200).json({ message: "Đăng xuất thành công!" });
     } catch (err) {
       console.error("Lỗi đăng xuất:", err);
       res.status(500).json({ message: "Lỗi server!" });
     }
   }
+
   static async changePassword(req, res) {
     try {
       const { id } = req.user;

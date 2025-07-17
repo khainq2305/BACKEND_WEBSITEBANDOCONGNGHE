@@ -1,6 +1,6 @@
 // src/cron/clearExpiredTokens.js
 const cron = require("node-cron");
-const { UserToken } = require("../../models");
+const { UserToken } = require("../models");
 const { Op } = require("sequelize");
 
 

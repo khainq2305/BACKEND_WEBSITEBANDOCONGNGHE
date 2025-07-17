@@ -2,7 +2,7 @@
 const { Province, District, Ward } = require('../../models');
 
 class ShippingController {
- 
+ 
   static async getProvinces(req, res) {
     try {
       const provinces = await Province.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC']] });
@@ -42,7 +42,7 @@ class ShippingController {
     try {
       const wards = await Ward.findAll({
         where: { districtId: district_id },
-        attributes: ['code', 'name'],
+        attributes: ['id', 'name'], // <<< ĐÃ SỬA TỪ 'code' THÀNH 'id'
         order: [['name', 'ASC']]
       });
       res.json(wards);

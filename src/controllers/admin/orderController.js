@@ -7,15 +7,36 @@ const {
   Province,
   ReturnRequest,
   RefundRequest,
+  FlashSaleItem,
   District,
+  ShippingProvider,
   Ward,
   PaymentMethod,
   OrderItem,
+  sequelize,
   Sku,
   Product
 } = require('../../models');
+const refundGateway = require('../../utils/refundGateway');
 const { Sequelize, Op } = require('sequelize');
+const returnStock = async (orderItems, t) => {
+  for (const it of orderItems) {
+    await Sku.increment('stock', {
+      by: it.quantity,
+      where: { id: it.skuId },
+      transaction: t,
+    });
 
+    const fsItem = it.Sku?.flashSaleSkus?.[0];
+    if (fsItem) {
+      await FlashSaleItem.increment('quantity', {
+        by: it.quantity,
+        where: { id: fsItem.id },
+        transaction: t,
+      });
+    }
+  }
+};
 
 class OrderController {
  static async getAll(req, res) {
@@ -50,14 +71,15 @@ class OrderController {
         include: [
           { model: Province, as: 'province', attributes: ['name'] },
           { model: District, as: 'district', attributes: ['name'] },
-          { model: Ward, as: 'ward', attributes: ['name', 'code'] }
+          { model: Ward, as: 'ward', attributes: ['name'] }
         ]
       },
       {
-        model: PaymentMethod,
-        as: 'paymentMethod',
-        attributes: ['name']
-      },
+  model: PaymentMethod,
+  as: 'paymentMethod',
+  attributes: ['name', 'code'] // 👈 thêm "code" ở đây
+}
+,
       {
         model: OrderItem,
         as: 'items',
@@ -85,16 +107,17 @@ class OrderController {
       limit: parseInt(limit),
       distinct: true
     });
-
-   const formattedOrders = rows.map((o) => ({
-  id           : o.id,
-  code         : o.orderCode,
-  customer     : o.User?.fullName || '—',
-  total        : o.totalPrice || 0,
-  status       : o.status,          // trạng thái giao hàng
-  paymentStatus: o.paymentStatus,   // 👈 thêm dòng này
-  createdAt    : o.createdAt
+const formattedOrders = rows.map((o) => ({
+  id               : o.id,
+  code             : o.orderCode,
+  customer         : o.User?.fullName || '—',
+  total            : o.totalPrice || 0,
+  status           : o.status,           // trạng thái giao hàng
+  paymentStatus    : o.paymentStatus,    // trạng thái thanh toán
+  paymentMethodCode: o.paymentMethod?.code || null, // ✅ thêm dòng này
+  createdAt        : o.createdAt
 }));
+
 
 
     return res.json({
@@ -128,14 +151,20 @@ class OrderController {
             include: [
               { model: Province, as: 'province', attributes: ['name'] },
               { model: District, as: 'district', attributes: ['name'] },
-              { model: Ward, as: 'ward', attributes: ['name', 'code'] }
+              { model: Ward, as: 'ward', attributes: ['name'] }
             ]
           },
           {
             model: PaymentMethod,
             as: 'paymentMethod',
-            attributes: ['id', 'name']
+            attributes: ['id', 'name', 'code']
           },
+          {
+  model: ShippingProvider,
+  as: 'shippingProvider',
+  attributes: ['id', 'name', 'code']
+},
+
           {
             model: OrderItem,
             as: 'items',
@@ -252,7 +281,65 @@ static async cancelOrder(req, res) {
   }
 }
 
+ static async updatePaymentStatus(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { paymentStatus } = req.body;
 
+      if (!paymentStatus) {
+        return res
+          .status(400)
+          .json({ message: 'Thiếu trạng thái thanh toán cần cập nhật' });
+      }
+
+      const order = await Order.findByPk(id, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!order) {
+        await t.rollback();
+        return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+      }
+
+      // Chỉ cho phép chuyển từ 'waiting' hoặc 'unpaid' sang 'paid'
+      // Đây là nơi bạn định nghĩa logic chuyển đổi trạng thái thanh toán thủ công.
+      if (!['waiting', 'unpaid'].includes(order.paymentStatus)) {
+        await t.rollback();
+        return res.status(400).json({
+          message: 'Không thể cập nhật trạng thái thanh toán cho đơn hàng này',
+        });
+      }
+
+      if (paymentStatus === 'paid') {
+        order.paymentStatus = 'paid';
+        // Có thể thêm logic khác ở đây nếu cần, ví dụ:
+        // Cập nhật trạng thái đơn hàng nếu nó đang ở 'processing' và bây giờ đã thanh toán
+        if (order.status === 'processing') {
+          // Bạn có thể chọn chuyển sang 'confirmed' hoặc giữ 'processing' tùy quy trình của bạn
+          // order.status = 'confirmed';
+        }
+
+        await order.save({ transaction: t });
+        await t.commit();
+        return res.json({
+          message: 'Cập nhật trạng thái thanh toán thành công',
+          paymentStatus: order.paymentStatus,
+        });
+      } else {
+        await t.rollback();
+        return res
+          .status(400)
+          .json({ message: 'Trạng thái thanh toán không hợp lệ' });
+      }
+    } catch (error) {
+      await t.rollback();
+      console.error('Lỗi khi cập nhật trạng thái thanh toán:', error);
+      return res
+        .status(500)
+        .json({ message: 'Lỗi server khi cập nhật trạng thái thanh toán' });
+    }
+  }
 static async updateStatus(req, res) {
   try {
     const { id } = req.params;
@@ -329,24 +416,77 @@ static async getReturnByOrder(req, res) {
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }
-static async updateReturnStatus(req, res) {
-  try {
-    const { id } = req.params;
-    const { status, responseNote } = req.body;
+ static async updateReturnStatus(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { status, responseNote } = req.body;
 
-    const request = await ReturnRequest.findByPk(id);
-    if (!request) return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+      // ✅ Lấy yêu cầu trả hàng + đơn + item + SKU + flashSale nếu có
+      const request = await ReturnRequest.findByPk(id, {
+        include: {
+          model: Order,
+          as: 'order',
+          include: {
+            model: OrderItem,
+            as: 'items',
+            include: {
+              model: Sku,
+              include: { model: FlashSaleItem, as: 'flashSaleSkus', required: false }
+            }
+          }
+        },
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
 
-    request.status = status;
-    request.responseNote = responseNote;
-    await request.save();
+      if (!request) {
+        await t.rollback();
+        return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+      }
 
-    return res.json({ message: 'Cập nhật trạng thái trả hàng thành công' });
-  } catch (error) {
-    console.error('Lỗi cập nhật trạng thái trả hàng:', error);
-    return res.status(500).json({ message: 'Lỗi server' });
+      // ✅ Kiểm tra trạng thái chuyển tiếp hợp lệ
+      const flow = {
+        pending: ['approved', 'rejected'],
+        approved: ['awaiting_pickup', 'pickup_booked'],
+        awaiting_pickup: ['received'],
+        pickup_booked: ['received'],
+        received: ['refunded'],
+      };
+      const next = flow[request.status] || [];
+      if (!next.includes(status)) {
+        await t.rollback();
+        return res.status(400).json({ message: `Không thể chuyển ${request.status} → ${status}` });
+      }
+
+      // ✅ Nếu chuyển sang received → hoàn kho + sinh yêu cầu hoàn tiền
+      if (status === 'received') {
+        await returnStock(request.order.items, t);
+
+   await RefundRequest.create({
+  orderId : request.orderId,
+  userId  : request.order.userId, // 👈 thêm dòng này
+  amount  : request.order.finalPrice,
+  reason  : 'Hoàn tiền thủ công',
+  status  : 'pending'
+}, { transaction: t });
+
+      }
+
+      // ✅ Cập nhật trạng thái yêu cầu
+      request.status = status;
+      request.responseNote = responseNote;
+      await request.save({ transaction: t });
+
+      await t.commit();
+      return res.json({ message: 'Cập nhật trạng thái trả hàng thành công', data: request });
+
+    } catch (error) {
+      await t.rollback();
+      console.error('[updateReturnStatus]', error);
+      return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
+    }
   }
-}
 static async getRefundByOrder(req, res) {
   try {
     const { orderId } = req.params;
@@ -362,24 +502,125 @@ static async getRefundByOrder(req, res) {
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }
+// PATCH /admin/refund-requests/:id
+// controllers/admin/orderController.js
+// ...
 static async updateRefundStatus(req, res) {
+  const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { status, responseNote } = req.body;
+    const { status, responseNote } = req.body; // 'refunded' | 'rejected'
 
-    const refund = await RefundRequest.findByPk(id);
-    if (!refund) return res.status(404).json({ message: 'Không tìm thấy yêu cầu hoàn tiền' });
+    console.log('✅ INPUT:', { id, status, responseNote });
 
+    // 1️⃣ Lấy refund + order + payment method
+    const refund = await RefundRequest.findByPk(id, {
+      include: [{
+        model: Order,
+        as: 'order',
+        include: [
+          { model: PaymentMethod, as: 'paymentMethod', attributes: ['code'] },
+          { model: ReturnRequest, as: 'returnRequest', required: false }
+        ]
+      }],
+      lock: t.LOCK.UPDATE,
+      transaction: t,
+    });
+
+    if (!refund) {
+      console.log('❌ Không tìm thấy RefundRequest');
+      return res.status(404).json({ message: 'Không tìm thấy yêu cầu hoàn tiền' });
+    }
+
+    console.log('✅ RefundRequest:', refund.toJSON());
+    console.log('✅ Order:', refund.order?.toJSON());
+    console.log('✅ PaymentMethod:', refund.order?.paymentMethod?.code);
+
+    if (refund.status === 'refunded') {
+      console.log('⚠️ Yêu cầu đã được hoàn tiền trước đó');
+      return res.status(400).json({ message: 'Yêu cầu đã được hoàn tiền trước đó' });
+    }
+
+    // 2️⃣ Nếu admin chọn trạng thái “refunded” → gọi cổng thanh toán
+    if (status === 'refunded') {
+      const payCode = refund.order.paymentMethod?.code?.toLowerCase() || '';
+      console.log('✅ payCode:', payCode);
+
+      if (['vnpay', 'momo'].includes(payCode)) {
+        const payload = {
+          orderCode: refund.order.orderCode,
+          amount: refund.amount,
+        };
+
+        if (payCode === 'momo') {
+          console.log('✅ momoTransId:', refund.order.momoTransId);
+          if (!refund.order.momoTransId) {
+            console.log('❌ Thiếu momoTransId');
+            await t.rollback();
+            return res.status(400).json({
+              message: 'Đơn hàng chưa lưu momoTransId, không thể hoàn tiền tự động',
+            });
+          }
+          payload.momoTransId = refund.order.momoTransId;
+        }
+
+// 👇 Thêm vào nếu là VNPay
+if (payCode === 'vnpay') {
+  if (!refund.order.vnpTransactionId || !refund.order.paymentTime) {
+    console.log('❌ Thiếu vnpTransactionId hoặc paymentTime');
+    await t.rollback();
+    return res.status(400).json({
+      message: 'Thiếu thông tin giao dịch VNPay, không thể hoàn tiền',
+    });
+  }
+
+  payload.vnpTransactionId = refund.order.vnpTransactionId;
+  payload.transDate = refund.order.paymentTime;
+}
+
+        console.log('🚀 Gọi refundGateway với payload:', payload);
+
+        const { ok, transId } = await refundGateway(payCode, payload);
+
+        console.log('✅ Kết quả refundGateway:', { ok, transId });
+
+        if (!ok) {
+          console.log('❌ Hoàn tiền qua cổng thanh toán thất bại');
+          await t.rollback();
+          return res.status(400).json({ message: 'Hoàn tiền qua cổng thanh toán thất bại' });
+        }
+
+        refund.gatewayTransId = transId || null;
+      }
+
+      // 3️⃣ Cập nhật Order & ReturnRequest (nếu có)
+      refund.order.paymentStatus = 'refunded';
+      await refund.order.save({ transaction: t });
+
+      if (refund.order.returnRequest) {
+        refund.order.returnRequest.status = 'refunded';
+        await refund.order.returnRequest.save({ transaction: t });
+      }
+    }
+
+    // 4️⃣ Lưu RefundRequest
     refund.status = status;
-    refund.responseNote = responseNote;
-    await refund.save();
+    refund.responseNote = responseNote || null;
+    await refund.save({ transaction: t });
 
-    return res.json({ message: 'Cập nhật trạng thái hoàn tiền thành công' });
-  } catch (error) {
-    console.error('Lỗi cập nhật trạng thái hoàn tiền:', error);
-    return res.status(500).json({ message: 'Lỗi server' });
+    console.log('✅ RefundRequest updated:', refund.toJSON());
+
+    await t.commit();
+    return res.json({ message: 'Cập nhật trạng thái hoàn tiền thành công', data: refund });
+
+  } catch (err) {
+    await t.rollback();
+    console.error('[updateRefundStatus] ❌ Lỗi:', err);
+    return res.status(500).json({ message: 'Lỗi server khi cập nhật hoàn tiền' });
   }
 }
+
+// ...
 
 }
 

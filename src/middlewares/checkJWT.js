@@ -2,7 +2,7 @@
 const { verifyToken } = require('../utils/jwtUtils');
 
 const clearAndReply = (res, msg) => {
-  // ⚠️ QUAN TRỌNG: xóa luôn cookie token
+ 
   res.clearCookie('token', {
     httpOnly: true,
     secure   : true,

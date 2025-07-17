@@ -12,8 +12,8 @@ const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
-const ReturnRequest = require("./returnRequest"); 
-
+const ReturnRequest = require("./returnRequest");
+const StockLog = require("./StockLog")
 const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
 const ProductSpec = require("./productspec.model");
@@ -37,8 +37,14 @@ const WishlistItem = require("./wishlistitemModel");
 const Wishlist = require("./wishlistModel");
 
 //
+// Shipping
+const ShippingProvider = require("./shippingProvider");
+const ShippingService = require("./shippingService");
+const ProviderProvince = require("./providerProvince");
+const ProviderDistrict = require("./providerDistrict");
+const ProviderWard = require("./providerWard");
 
-// 
+//
 const SystemSetting = require("./systemsetting");
 
 const Review = require("./reviewModel");
@@ -67,47 +73,46 @@ const Brand = require("./brandModel");
 const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
 const Product = require("./product");
-const RolePermission = require('./RolePermission')
-const Action = require('./actionModel')
-const Subject = require('./Subject')
+const RolePermission = require("./RolePermission");
+const Action = require("./actionModel");
+const Subject = require("./Subject");
 // phan quyen
 // User - Role
 User.belongsToMany(Role, {
-  through: UserRole, // 👈 sửa đây
-  foreignKey: 'userId',
-  otherKey: 'roleId'
+  through: UserRole, 
+  foreignKey: "userId",
+  otherKey: "roleId",
 });
 
 Role.belongsToMany(User, {
   through: UserRole, // 👈 sửa đây
-  foreignKey: 'roleId',
-  otherKey: 'userId'
+  foreignKey: "roleId",
+  otherKey: "userId",
 });
 
-
-  Role.hasMany(RolePermission, {
-  foreignKey: 'roleId',
-  as: 'rolePermissions'
+Role.hasMany(RolePermission, {
+  foreignKey: "roleId",
+  as: "rolePermissions",
 });
 RolePermission.belongsTo(Role, {
-  foreignKey: 'roleId',
-  as: 'role'
+  foreignKey: "roleId",
+  as: "role",
 });
 Action.hasMany(RolePermission, {
-  foreignKey: 'actionId',
-  as: 'rolePermissions'
+  foreignKey: "actionId",
+  as: "rolePermissions",
 });
 RolePermission.belongsTo(Action, {
-  foreignKey: 'actionId',
-  as: 'action'
+  foreignKey: "actionId",
+  as: "action",
 });
 Subject.hasMany(RolePermission, {
-  foreignKey: 'subjectId',
-  as: 'rolePermissions'
+  foreignKey: "subjectId",
+  as: "rolePermissions",
 });
 RolePermission.belongsTo(Subject, {
-  foreignKey: 'subjectId',
-  as: 'subject'
+  foreignKey: "subjectId",
+  as: "subject",
 });
 
 //
@@ -147,7 +152,10 @@ Post.belongsToMany(Tags, {
   otherKey: "tagId",
   as: "tags",
 });
-
+Order.belongsTo(ShippingProvider, {
+  foreignKey: "shippingProviderId",
+  as: "shippingProvider", 
+});
 Tags.belongsToMany(Post, {
   through: PostTag,
   foreignKey: "tagId",
@@ -485,11 +493,11 @@ UserAddress.belongsTo(User, { foreignKey: "userId" });
 UserAddress.belongsTo(Province, { foreignKey: "provinceId", as: "province" });
 UserAddress.belongsTo(District, { foreignKey: "districtId", as: "district" });
 UserAddress.belongsTo(Ward, {
-  foreignKey: "wardCode",
-  targetKey: "code",
+  foreignKey: "wardId", // THAY wardCode thành wardId ở đây!
+  targetKey: "id",
   as: "ward",
 });
-//
+
 Product.hasMany(ProductQuestion, { foreignKey: "productId", as: "questions" });
 ProductQuestion.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
@@ -533,8 +541,49 @@ ReturnRequest.hasOne(RefundRequest, {
   as: "refundRequest",
 });
 
+/* ======================================================
+   SHIPPING – LIÊN KẾT HÃNG  ↔  SERVICE  ↔  MAPPING VÙNG
+   ====================================================== */
 
+// Provider ↔ Service
+ShippingProvider.hasMany(ShippingService, {
+  foreignKey: "providerId",
+  as: "services",
+});
+ShippingService.belongsTo(ShippingProvider, {
+  foreignKey: "providerId",
+  as: "provider",
+});
+Category.belongsTo(Category, { as: 'parentCategory', foreignKey: 'parentId' }); 
+// Provider ↔ Province/District/Ward mapping
+ShippingProvider.hasMany(ProviderProvince, { foreignKey: "providerId" });
+ProviderProvince.belongsTo(ShippingProvider, { foreignKey: "providerId" });
 
+ShippingProvider.hasMany(ProviderDistrict, { foreignKey: "providerId" });
+ProviderDistrict.belongsTo(ShippingProvider, { foreignKey: "providerId" });
+
+ShippingProvider.hasMany(ProviderWard, { foreignKey: "providerId" });
+ProviderWard.belongsTo(ShippingProvider, { foreignKey: "providerId" });
+
+// Province/District/Ward ↔ mapping bảng gốc
+Province.hasMany(ProviderProvince, { foreignKey: "provinceId" });
+ProviderProvince.belongsTo(Province, { foreignKey: "provinceId" });
+
+District.hasMany(ProviderDistrict, { foreignKey: "districtId" });
+ProviderDistrict.belongsTo(District, { foreignKey: "districtId" });
+
+Ward.hasMany(ProviderWard, { foreignKey: "wardId" });
+ProviderWard.belongsTo(Ward, { foreignKey: "wardId" });
+StockLog.belongsTo(Sku, {
+  foreignKey: 'skuId',
+  as: 'sku'
+});
+
+Sku.hasMany(StockLog, {
+  foreignKey: 'skuId',
+  as: 'logs'
+});
+StockLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 module.exports = {
   User,
   Role,
@@ -545,10 +594,10 @@ module.exports = {
 
   ProductQuestion,
   ProductAnswer,
-
+StockLog,
   Banner,
   ProductView,
-SystemSetting,
+  SystemSetting,
   WishlistItem,
   Wishlist,
   categoryPostModel,
@@ -596,5 +645,11 @@ SystemSetting,
   RolePermission,
   Action,
   Subject,
+  ShippingProvider,
+  ShippingService,
+  ProviderProvince,
+  ProviderDistrict,
+  ProviderWard,
+
   sequelize: connection,
 };

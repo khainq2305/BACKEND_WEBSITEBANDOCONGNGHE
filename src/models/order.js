@@ -10,10 +10,31 @@ status: {
 },
 
 paymentStatus: {
-  // luồng thanh toán
-  type: DataTypes.ENUM('unpaid', 'waiting', 'paid'),
+  type: DataTypes.ENUM('unpaid', 'waiting', 'paid', 'refunded', 'processing'),
   defaultValue: 'unpaid',
 },
+vnpOrderId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã đơn VNPay được sinh ra khi thanh toán (dùng để phân biệt mỗi lần retry)',
+},
+
+  shippingProviderId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // null nếu chưa chọn (hoặc giao tay)
+    comment: 'ID hãng vận chuyển: 1=GHN, 2=GHTK, 3=J&T...'
+  },
+shippingServiceId: {
+  type: DataTypes.INTEGER,
+  allowNull: true,
+  comment: 'ID dịch vụ vận chuyển (liên kết với bảng service nếu có)'
+},
+
+  shippingLeadTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Thời gian dự kiến giao hàng (ETD)'
+  },
 
 
 orderCode: {
@@ -39,6 +60,28 @@ orderCode: {
     unique: true,
     allowNull: true,
   },
+  momoTransId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã giao dịch MoMo trả về sau thanh toán thành công'
+},
+// Trong Order model
+proofUrl: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Đường dẫn tới file chứng từ thanh toán (ảnh, PDF, ...)',
+},
+vnpTransactionId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã giao dịch VNPay trả về sau thanh toán thành công',
+},
+zaloTransId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã giao dịch ZaloPay trả về sau thanh toán thành công',
+},
+
   refundStatus: DataTypes.ENUM('none', 'requested', 'approved', 'rejected'),
   totalPrice: DataTypes.DECIMAL(10, 2),
   paymentTime: DataTypes.DATE,

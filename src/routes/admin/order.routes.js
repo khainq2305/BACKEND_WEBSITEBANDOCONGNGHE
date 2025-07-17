@@ -9,7 +9,7 @@ router.put('/returns/:id/status', OrderController.updateReturnStatus);   // ✅ 
 // Quản lý yêu cầu hoàn tiền
 router.get('/order/:orderId/refunds', OrderController.getRefundByOrder); // ✅ lấy tất cả yêu cầu hoàn tiền của đơn
 router.put('/refunds/:id/status', OrderController.updateRefundStatus);   // ✅ duyệt/trả lời yêu cầu hoàn tiền
-
+router.put('/order/:id/payment-status', OrderController.updatePaymentStatus); // ✅ THÊM DÒNG NÀY ĐỂ CẬP NHẬT TRẠNG THÁI THANH TOÁN
 // ➤ Gọi: /admin/order/list
 router.get('/order/list', OrderController.getAll);
 router.get('/order/:id', OrderController.getDetail);

@@ -65,6 +65,10 @@ const User = connection.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    receivedBirthdayVoucherYear: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
 
     lastLoginAt: {
       type: DataTypes.DATE,

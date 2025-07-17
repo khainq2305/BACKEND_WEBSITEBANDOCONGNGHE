@@ -2,14 +2,26 @@ const express = require('express');
 const router = express.Router();
 const OrderController = require('../../controllers/client/orderController');
 const {upload } = require('../../config/cloudinary');
+const bodyParser = require('body-parser');
 const { checkJWT } = require('../../middlewares/checkJWT');
+
 router.get('/user-orders', checkJWT, OrderController.getAllByUser);
+// upload chứng từ thanh toán
+router.post(
+  '/:id/proof',
+  checkJWT,
+  upload.single('proof'),
+  OrderController.uploadProof
+);
+router.post('/stripe', checkJWT, OrderController.stripePay);
+
 
 router.get('/code/:code', checkJWT, OrderController.getById);
 router.get ('/momo-callback', OrderController.momoCallback);
 router.post('/momo-callback', OrderController.momoCallback);
 // routes
 router.post('/:id/pay-again', checkJWT, OrderController.payAgain);
+router.post('/shippings/options', checkJWT , OrderController.getShippingOptions);
 
 router.post('/create', checkJWT, OrderController.createOrder);
 router.post("/momo", checkJWT, OrderController.momoPay);
@@ -23,6 +35,8 @@ router.put(
   checkJWT,
   OrderController.chooseReturnMethod
 );
+router.get('/payment-methods', OrderController.getPaymentMethods);
+
 router.put("/:id/mark-completed", checkJWT, OrderController.markAsCompleted);
 // routes/client/orderRoutes.js
 router.post(
@@ -35,7 +49,7 @@ router.post('/viettel-money', checkJWT, OrderController.viettelMoneyPay);
 router.put('/:id/cancel', checkJWT, OrderController.cancel);
 
 router.post("/generate-vietqr", OrderController.generate);
-router.post('/calculate-shipping-fee', OrderController.getShippingFee);
+// router.post('/calculate-shipping-fee', OrderController.getShippingFee);
 router.get('/lookup', OrderController.lookupOrder);
 
 router.post(

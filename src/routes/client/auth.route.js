@@ -18,7 +18,7 @@ router.post("/resend-verification-link", AuthController.resendVerificationLink);
 router.get("/check-verification-status", AuthController.checkVerificationStatus);
 router.post("/login", validateLogin, AuthController.login);
 router.post("/google", AuthController.googleLogin);
-router.post("/facebook", AuthController.facebookLogin);
+
 router.post("/forgot-password", validateForgotPassword, AuthController.forgotPassword);
 router.post("/resend-forgot-password", validateForgotPassword, AuthController.resendForgotPassword);
 router.get("/check-reset-status", AuthController.checkResetStatus);

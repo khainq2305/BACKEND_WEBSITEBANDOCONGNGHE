@@ -1,0 +1,2590 @@
+--- ÁNH XẠ TỈNH ---
+
+--- ÁNH XẠ QUẬN/HUYỆN ---
+--- DEBUG: CÁC HUYỆN ĐƯỢC KIỂM TRA ĐẶC BIỆT ---
+  VTP_District: HUYỆN ĐAN PHƯỢNG (Code: 19)
+    vs DB: 'Quận 1' (Cleaned: '1') -> Score: 0.0
+    vs DB: 'Quận 2' (Cleaned: '2') -> Score: 0.0
+    vs DB: 'Quận 3' (Cleaned: '3') -> Score: 0.0
+    vs DB: 'Quận 4' (Cleaned: '4') -> Score: 0.0
+    vs DB: 'Quận 5' (Cleaned: '5') -> Score: 0.0
+    vs DB: 'Quận 6' (Cleaned: '6') -> Score: 0.0
+    vs DB: 'Quận 7' (Cleaned: '7') -> Score: 0.0
+    vs DB: 'Quận 8' (Cleaned: '8') -> Score: 0.0
+    vs DB: 'Quận 9' (Cleaned: '9') -> Score: 0.0
+    vs DB: 'Quận 10' (Cleaned: '10') -> Score: 0.0
+    vs DB: 'Quận 11' (Cleaned: '11') -> Score: 0.0
+    vs DB: 'Quận 12' (Cleaned: '12') -> Score: 0.0
+    vs DB: 'Quận Tân Bình' (Cleaned: 'TÂN BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Quận Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 47.05882352941176
+    vs DB: 'Quận Phú Nhuận' (Cleaned: 'PHÚ NHUẬN') -> Score: 31.57894736842105
+    vs DB: 'Quận Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hóc Môn' (Cleaned: 'HÓC MÔN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Củ Chi' (Cleaned: 'CỦ CHI') -> Score: 25.0
+    vs DB: 'Quận Gò Vấp' (Cleaned: 'GÒ VẤP') -> Score: 25.0
+    vs DB: 'Quận Bình Thạnh' (Cleaned: 'BÌNH THẠNH') -> Score: 40.0
+    vs DB: 'Quận Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 11.764705882352944
+    vs DB: 'Quận Bắc Từ Liêm' (Cleaned: 'BẮC TỪ LIÊM') -> Score: 9.523809523809524 (Cùng tỉnh)
+    vs DB: 'Quận Ba Đình' (Cleaned: 'BA ĐÌNH') -> Score: 35.29411764705882 (Cùng tỉnh)
+    vs DB: 'Quận Cầu Giấy' (Cleaned: 'CẦU GIẤY') -> Score: 22.22222222222222 (Cùng tỉnh)
+    vs DB: 'Quận Đống Đa' (Cleaned: 'ĐỐNG ĐA') -> Score: 35.29411764705882 (Cùng tỉnh)
+    vs DB: 'Quận Hai Bà Trưng' (Cleaned: 'HAI BÀ TRƯNG') -> Score: 45.45454545454546 (Cùng tỉnh)
+    vs DB: 'Quận Hoàn Kiếm' (Cleaned: 'HOÀN KIẾM') -> Score: 21.052631578947366 (Cùng tỉnh)
+    vs DB: 'Quận Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 31.57894736842105 (Cùng tỉnh)
+    vs DB: 'Quận Long Biên' (Cleaned: 'LONG BIÊN') -> Score: 31.57894736842105 (Cùng tỉnh)
+    vs DB: 'Quận Tây Hồ' (Cleaned: 'TÂY HỒ') -> Score: 25.0 (Cùng tỉnh)
+    vs DB: 'Quận Thanh Xuân' (Cleaned: 'THANH XUÂN') -> Score: 40.0 (Cùng tỉnh)
+    vs DB: 'Quận Hải Châu' (Cleaned: 'HẢI CHÂU') -> Score: 22.22222222222222
+    vs DB: 'Quận Thanh Khê' (Cleaned: 'THANH KHÊ') -> Score: 42.10526315789473
+    vs DB: 'Quận Sơn Trà' (Cleaned: 'SƠN TRÀ') -> Score: 23.529411764705888
+    vs DB: 'Quận Ngũ Hành Sơn' (Cleaned: 'NGŨ HÀNH SƠN') -> Score: 36.36363636363637
+    vs DB: 'Quận Liên Chiểu' (Cleaned: 'LIÊN CHIỂU') -> Score: 30.000000000000004
+    vs DB: 'Quận Cẩm Lệ' (Cleaned: 'CẨM LỆ') -> Score: 12.5
+    vs DB: 'Huyện Bình Chánh' (Cleaned: 'BÌNH CHÁNH') -> Score: 40.0
+    vs DB: 'Huyện Nhà Bè' (Cleaned: 'NHÀ BÈ') -> Score: 25.0
+    vs DB: 'Thành phố Biên Hòa' (Cleaned: 'BIÊN HÒA') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Thủ Dầu Một' (Cleaned: 'THỦ DẦU MỘT') -> Score: 9.523809523809524
+    vs DB: 'Thành phố Dĩ An' (Cleaned: 'DĨ AN') -> Score: 26.66666666666667
+    vs DB: 'Thành phố Thuận An' (Cleaned: 'THUẬN AN') -> Score: 33.333333333333336
+    vs DB: 'Quận Hà Đông' (Cleaned: 'HÀ ĐÔNG') -> Score: 35.29411764705882 (Cùng tỉnh)
+    vs DB: 'Thành phố Vũng Tàu' (Cleaned: 'VŨNG TÀU') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Pleiku' (Cleaned: 'PLEIKU') -> Score: 12.5
+    vs DB: 'Thành phố Nha Trang' (Cleaned: 'NHA TRANG') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Đà Lạt' (Cleaned: 'ĐÀ LẠT') -> Score: 25.0
+    vs DB: 'Thành phố Buôn Ma Thuột' (Cleaned: 'BUÔN MA THUỘT') -> Score: 26.086956521739136
+    vs DB: 'Thành phố Tân An' (Cleaned: 'TÂN AN') -> Score: 37.5
+    vs DB: 'Thành phố Mỹ Tho' (Cleaned: 'MỸ THO') -> Score: 25.0
+    vs DB: 'Thành phố Bến Tre' (Cleaned: 'BẾN TRE') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Trà Vinh' (Cleaned: 'TRÀ VINH') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Vĩnh Long' (Cleaned: 'VĨNH LONG') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Long Xuyên' (Cleaned: 'LONG XUYÊN') -> Score: 30.000000000000004
+    vs DB: 'Thành phố Sóc Trăng' (Cleaned: 'SÓC TRĂNG') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Rạch Giá' (Cleaned: 'RẠCH GIÁ') -> Score: 22.22222222222222
+    vs DB: 'Quận Ninh Kiều' (Cleaned: 'NINH KIỀU') -> Score: 21.052631578947366
+    vs DB: 'Quận Bình Thủy' (Cleaned: 'BÌNH THỦY') -> Score: 31.57894736842105
+    vs DB: 'Quận Cái Răng' (Cleaned: 'CÁI RĂNG') -> Score: 33.333333333333336
+    vs DB: 'Quận Ô Môn' (Cleaned: 'Ô MÔN') -> Score: 26.66666666666667
+    vs DB: 'Quận Thốt Nốt' (Cleaned: 'THỐT NỐT') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Vĩnh Yên' (Cleaned: 'VĨNH YÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Mê Linh' (Cleaned: 'MÊ LINH') -> Score: 23.529411764705888 (Cùng tỉnh)
+    vs DB: 'Huyện Đông Anh' (Cleaned: 'ĐÔNG ANH') -> Score: 44.44444444444444 (Cùng tỉnh)
+    vs DB: 'Huyện Sóc Sơn' (Cleaned: 'SÓC SƠN') -> Score: 23.529411764705888 (Cùng tỉnh)
+    vs DB: 'Thành phố Huế' (Cleaned: 'HUẾ') -> Score: 15.384615384615385
+    vs DB: 'Quận Ngô Quyền' (Cleaned: 'NGÔ QUYỀN') -> Score: 31.57894736842105
+    vs DB: 'Quận Lê Chân' (Cleaned: 'LÊ CHÂN') -> Score: 35.29411764705882
+    vs DB: 'Quận Hồng Bàng' (Cleaned: 'HỒNG BÀNG') -> Score: 42.10526315789473
+    vs DB: 'Quận Kiến An' (Cleaned: 'KIẾN AN') -> Score: 35.29411764705882
+    vs DB: 'Quận Hải An' (Cleaned: 'HẢI AN') -> Score: 25.0
+    vs DB: 'Thành phố Hải Dương' (Cleaned: 'HẢI DƯƠNG') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Thái Bình' (Cleaned: 'THÁI BÌNH') -> Score: 21.052631578947366
+    vs DB: 'Thành phố Hà Giang' (Cleaned: 'HÀ GIANG') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Tuyên Quang' (Cleaned: 'TUYÊN QUANG') -> Score: 38.095238095238095
+    vs DB: 'Thành phố Việt Trì' (Cleaned: 'VIỆT TRÌ') -> Score: 11.111111111111116
+    vs DB: 'Thành phố Móng Cái' (Cleaned: 'MÓNG CÁI') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Hạ Long' (Cleaned: 'HẠ LONG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Nam Định' (Cleaned: 'NAM ĐỊNH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Phủ Lý' (Cleaned: 'PHỦ LÝ') -> Score: 25.0
+    vs DB: 'Thành phố Ninh Bình' (Cleaned: 'NINH BÌNH') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Thanh Hóa' (Cleaned: 'THANH HÓA') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Vinh' (Cleaned: 'VINH') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Hà Tĩnh' (Cleaned: 'HÀ TĨNH') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Đồng Hới' (Cleaned: 'ĐỒNG HỚI') -> Score: 44.44444444444444
+    vs DB: 'Thành phố Đông Hà' (Cleaned: 'ĐÔNG HÀ') -> Score: 47.05882352941176
+    vs DB: 'Thị xã Quảng Trị' (Cleaned: 'QUẢNG TRỊ') -> Score: 21.052631578947366
+    vs DB: 'Thành phố Đồng Xoài' (Cleaned: 'ĐỒNG XOÀI') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Tây Ninh' (Cleaned: 'TÂY NINH') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Gia Nghĩa' (Cleaned: 'GIA NGHĨA') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Quảng Ngãi' (Cleaned: 'QUẢNG NGÃI') -> Score: 40.0
+    vs DB: 'Thành phố Tam Kỳ' (Cleaned: 'TAM KỲ') -> Score: 25.0
+    vs DB: 'Thành phố Hội An' (Cleaned: 'HỘI AN') -> Score: 25.0
+    vs DB: 'Thành phố Thái Nguyên' (Cleaned: 'THÁI NGUYÊN') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Bắc Kạn' (Cleaned: 'BẮC KẠN') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Cao Bằng' (Cleaned: 'CAO BẰNG') -> Score: 44.44444444444444
+    vs DB: 'Thành phố Lạng Sơn' (Cleaned: 'LẠNG SƠN') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Bắc Giang' (Cleaned: 'BẮC GIANG') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Bắc Ninh' (Cleaned: 'BẮC NINH') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Vị Thanh' (Cleaned: 'VỊ THANH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Cà Mau' (Cleaned: 'CÀ MAU') -> Score: 12.5
+    vs DB: 'Thành phố Bạc Liêu' (Cleaned: 'BẠC LIÊU') -> Score: 11.111111111111116
+    vs DB: 'Thành phố Kon Tum' (Cleaned: 'KON TUM') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Quy Nhơn' (Cleaned: 'QUY NHƠN') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Tuy Hòa' (Cleaned: 'TUY HÒA') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Cam Ranh' (Cleaned: 'CAM RANH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Phan Rang – Tháp Chàm' (Cleaned: 'PHAN RANG – THÁP CHÀM') -> Score: 32.25806451612904
+    vs DB: 'Thành phố Phan Thiết' (Cleaned: 'PHAN THIẾT') -> Score: 40.0
+    vs DB: 'Thành phố Bà Rịa' (Cleaned: 'BÀ RỊA') -> Score: 12.5
+    vs DB: 'Thành phố Sa Đéc' (Cleaned: 'SA ĐÉC') -> Score: 25.0
+    vs DB: 'Thành phố Yên Bái' (Cleaned: 'YÊN BÁI') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Lai Châu' (Cleaned: 'LAI CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Điện Biên Phủ' (Cleaned: 'ĐIỆN BIÊN PHỦ') -> Score: 43.47826086956522
+    vs DB: 'Thành phố Sơn La' (Cleaned: 'SƠN LA') -> Score: 25.0
+    vs DB: 'Thành phố Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Hưng Yên' (Cleaned: 'HƯNG YÊN') -> Score: 44.44444444444444
+    vs DB: 'Thành phố Lào Cai' (Cleaned: 'LÀO CAI') -> Score: 11.764705882352944
+    vs DB: 'Thành phố Cẩm Phả' (Cleaned: 'CẨM PHẢ') -> Score: 35.29411764705882
+    vs DB: 'Thành Phố Sông Công' (Cleaned: 'SÔNG CÔNG') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Uông Bí' (Cleaned: 'UÔNG BÍ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Hòa Vang' (Cleaned: 'HÒA VANG') -> Score: 44.44444444444444
+    vs DB: 'TT Phú Mỹ - cũ' (Cleaned: 'TT PHÚ MỸ - CŨ') -> Score: 25.0
+    vs DB: 'Huyện Long Điền' (Cleaned: 'LONG ĐIỀN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Đất Đỏ' (Cleaned: 'ĐẤT ĐỎ') -> Score: 25.0
+    vs DB: 'Huyện Trảng Bom' (Cleaned: 'TRẢNG BOM') -> Score: 21.052631578947366
+    vs DB: 'Thành phố Long Khánh' (Cleaned: 'LONG KHÁNH') -> Score: 40.0
+    vs DB: 'Huyện Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 47.05882352941176
+    vs DB: 'Huyện Long Thành' (Cleaned: 'LONG THÀNH') -> Score: 40.0
+    vs DB: 'Thành phố Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Bến Cát' (Cleaned: 'BẾN CÁT') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Hương Trà' (Cleaned: 'HƯƠNG TRÀ') -> Score: 42.10526315789473
+    vs DB: 'Thị xã Hương Thủy' (Cleaned: 'HƯƠNG THỦY') -> Score: 40.0
+    vs DB: 'Huyện Xuyên Mộc' (Cleaned: 'XUYÊN MỘC') -> Score: 21.052631578947366
+    vs DB: 'Huyện Định Quán' (Cleaned: 'ĐỊNH QUÁN') -> Score: 42.10526315789473
+    vs DB: 'Thị Xã Phú Mỹ' (Cleaned: 'PHÚ MỸ') -> Score: 25.0
+    vs DB: 'Huyện Cẩm Mỹ' (Cleaned: 'CẨM MỸ') -> Score: 12.5
+    vs DB: 'Huyện Gia Lâm' (Cleaned: 'GIA LÂM') -> Score: 23.529411764705888 (Cùng tỉnh)
+    vs DB: 'Huyện Xuân Lộc' (Cleaned: 'XUÂN LỘC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Thống Nhất' (Cleaned: 'THỐNG NHẤT') -> Score: 30.000000000000004
+    vs DB: 'Quận Dương Kinh' (Cleaned: 'DƯƠNG KINH') -> Score: 30.000000000000004
+    vs DB: 'Quận Đồ Sơn' (Cleaned: 'ĐỒ SƠN') -> Score: 37.5
+    vs DB: 'Huyện Nhơn Trạch' (Cleaned: 'NHƠN TRẠCH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Đức' (Cleaned: 'CHÂU ĐỨC') -> Score: 11.111111111111116
+    vs DB: 'Huyện Thanh Trì' (Cleaned: 'THANH TRÌ') -> Score: 31.57894736842105 (Cùng tỉnh)
+    vs DB: 'Thị xã Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 23.529411764705888 (Cùng tỉnh)
+    vs DB: 'Thành phố Sầm Sơn' (Cleaned: 'SẦM SƠN') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Tam Điệp' (Cleaned: 'TAM ĐIỆP') -> Score: 33.333333333333336
+    vs DB: 'Huyện Yên Khánh' (Cleaned: 'YÊN KHÁNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Đông Hưng' (Cleaned: 'ĐÔNG HƯNG') -> Score: 73.6842105263158
+    vs DB: 'Huyện Vũ Thư' (Cleaned: 'VŨ THƯ') -> Score: 37.5
+    vs DB: 'Huyện Kim Động' (Cleaned: 'KIM ĐỘNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Thị xã Hòa Thành' (Cleaned: 'HÒA THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Đồng Phú' (Cleaned: 'ĐỒNG PHÚ') -> Score: 55.55555555555556
+    vs DB: 'Huyện Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Lai Vung' (Cleaned: 'LAI VUNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thủy Nguyên' (Cleaned: 'THỦY NGUYÊN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Nam Sách' (Cleaned: 'NAM SÁCH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Quế Võ' (Cleaned: 'QUẾ VÕ') -> Score: 12.5
+    vs DB: 'Huyện Tiên Du' (Cleaned: 'TIÊN DU') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Từ Sơn' (Cleaned: 'TỪ SƠN') -> Score: 25.0
+    vs DB: 'Huyện Đồng Hỷ' (Cleaned: 'ĐỒNG HỶ') -> Score: 47.05882352941176
+    vs DB: 'Huyện Bình Xuyên' (Cleaned: 'BÌNH XUYÊN') -> Score: 30.000000000000004
+    vs DB: 'Huyện Vĩnh Tường' (Cleaned: 'VĨNH TƯỜNG') -> Score: 50.0
+    vs DB: 'Huyện Yên Lạc' (Cleaned: 'YÊN LẠC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Duy Xuyên' (Cleaned: 'DUY XUYÊN') -> Score: 21.052631578947366
+    vs DB: 'Thị xã Điện Bàn' (Cleaned: 'ĐIỆN BÀN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Sơn Tịnh' (Cleaned: 'SƠN TỊNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tư Nghĩa' (Cleaned: 'TƯ NGHĨA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Diên Khánh' (Cleaned: 'DIÊN KHÁNH') -> Score: 40.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Chợ Gạo' (Cleaned: 'CHỢ GẠO') -> Score: 35.29411764705882
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Mỹ Xuyên' (Cleaned: 'MỸ XUYÊN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Bát Xát' (Cleaned: 'BÁT XÁT') -> Score: 11.764705882352944
+    vs DB: 'Huyện Yên Sơn' (Cleaned: 'YÊN SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Dầu Tiếng' (Cleaned: 'DẦU TIẾNG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Quảng Xương' (Cleaned: 'QUẢNG XƯƠNG') -> Score: 47.61904761904761
+    vs DB: 'Huyện Hoằng Hóa' (Cleaned: 'HOẰNG HÓA') -> Score: 31.57894736842105
+    vs DB: 'Huyện Phú Vang' (Cleaned: 'PHÚ VANG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thoại Sơn' (Cleaned: 'THOẠI SƠN') -> Score: 21.052631578947366
+    vs DB: 'Huyện Tri Tôn' (Cleaned: 'TRI TÔN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tịnh Biên' (Cleaned: 'TỊNH BIÊN') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Châu Đốc' (Cleaned: 'CHÂU ĐỐC') -> Score: 11.111111111111116
+    vs DB: 'Huyện An Phú' (Cleaned: 'AN PHÚ') -> Score: 62.5
+    vs DB: 'Thị Xã Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Châu Phú' (Cleaned: 'CHÂU PHÚ') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hiệp Hòa' (Cleaned: 'HIỆP HÒA') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lạng Giang' (Cleaned: 'LẠNG GIANG') -> Score: 40.0
+    vs DB: 'Huyện Sơn Động' (Cleaned: 'SƠN ĐỘNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Tân Yên' (Cleaned: 'TÂN YÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Việt Yên' (Cleaned: 'VIỆT YÊN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Yên Dũng' (Cleaned: 'YÊN DŨNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Yên Thế' (Cleaned: 'YÊN THẾ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Gia Bình' (Cleaned: 'GIA BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Thuận Thành' (Cleaned: 'THUẬN THÀNH') -> Score: 38.095238095238095
+    vs DB: 'Huyện Yên Phong' (Cleaned: 'YÊN PHONG') -> Score: 63.1578947368421
+    vs DB: 'Thị xã An Nhơn' (Cleaned: 'AN NHƠN') -> Score: 58.82352941176471
+    vs DB: 'Huyện Phù Cát' (Cleaned: 'PHÙ CÁT') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Hoài Nhơn' (Cleaned: 'HOÀI NHƠN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Chơn Thành' (Cleaned: 'CHƠN THÀNH') -> Score: 40.0
+    vs DB: 'Huyện Hớn Quản' (Cleaned: 'HỚN QUẢN') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Bình Long' (Cleaned: 'BÌNH LONG') -> Score: 42.10526315789473
+    vs DB: 'Thị xã Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 50.0
+    vs DB: 'Huyện Hàm Thuận Nam' (Cleaned: 'HÀM THUẬN NAM') -> Score: 26.086956521739136
+    vs DB: 'Huyện Hàm Thuận Bắc' (Cleaned: 'HÀM THUẬN BẮC') -> Score: 26.086956521739136
+    vs DB: 'Thị xã La Gi' (Cleaned: 'LA GI') -> Score: 40.0
+    vs DB: 'Huyện Đức Linh' (Cleaned: 'ĐỨC LINH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bắc Bình' (Cleaned: 'BẮC BÌNH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Tuy Phong' (Cleaned: 'TUY PHONG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Thới Bình' (Cleaned: 'THỚI BÌNH') -> Score: 21.052631578947366
+    vs DB: 'Huyện Năm Căn' (Cleaned: 'NĂM CĂN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Buôn Ðôn' (Cleaned: 'BUÔN ÐÔN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Cư M gar' (Cleaned: 'CƯ M GAR') -> Score: 22.22222222222222
+    vs DB: 'Huyện Ea H leo' (Cleaned: 'EA H LEO') -> Score: 33.333333333333336
+    vs DB: 'Huyện Krông Năng' (Cleaned: 'KRÔNG NĂNG') -> Score: 40.0
+    vs DB: 'Thị xã Buôn Hồ' (Cleaned: 'BUÔN HỒ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Krông Bông' (Cleaned: 'KRÔNG BÔNG') -> Score: 40.0
+    vs DB: 'Huyện Đắk R lấp' (Cleaned: 'ĐẮK R LẤP') -> Score: 31.57894736842105
+    vs DB: 'Huyện Đắk Glong' (Cleaned: 'ĐẮK GLONG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Đắk Mil' (Cleaned: 'ĐẮK MIL') -> Score: 23.529411764705888
+    vs DB: 'Huyện Ia Grai' (Cleaned: 'IA GRAI') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đức Cơ' (Cleaned: 'ĐỨC CƠ') -> Score: 25.0
+    vs DB: 'Huyện Chư Prông' (Cleaned: 'CHƯ PRÔNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Chư Sê' (Cleaned: 'CHƯ SÊ') -> Score: 25.0
+    vs DB: 'Huyện Phú Thiện' (Cleaned: 'PHÚ THIỆN') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Ayun Pa' (Cleaned: 'AYUN PA') -> Score: 47.05882352941176
+    vs DB: 'Huyện Ia Pa' (Cleaned: 'IA PA') -> Score: 40.0
+    vs DB: 'Thị xã An Khê' (Cleaned: 'AN KHÊ') -> Score: 50.0
+    vs DB: 'Huyện Chư Păh' (Cleaned: 'CHƯ PĂH') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Duy Tiên' (Cleaned: 'DUY TIÊN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Ba Vì' (Cleaned: 'BA VÌ') -> Score: 26.66666666666667 (Cùng tỉnh)
+    vs DB: 'Huyện Đan Phượng' (Cleaned: 'ĐAN PHƯỢNG') -> Score: 100.0 (Cùng tỉnh)
+    vs DB: 'Huyện Hoài Đức' (Cleaned: 'HOÀI ĐỨC') -> Score: 11.111111111111116 (Cùng tỉnh)
+    vs DB: 'Huyện Mỹ Đức' (Cleaned: 'MỸ ĐỨC') -> Score: 12.5 (Cùng tỉnh)
+    vs DB: 'Huyện Phúc Thọ' (Cleaned: 'PHÚC THỌ') -> Score: 22.22222222222222 (Cùng tỉnh)
+    vs DB: 'Huyện Thạch Thất' (Cleaned: 'THẠCH THẤT') -> Score: 19.999999999999996 (Cùng tỉnh)
+    vs DB: 'Huyện Thanh Oai' (Cleaned: 'THANH OAI') -> Score: 31.57894736842105 (Cùng tỉnh)
+    vs DB: 'Huyện Ứng Hòa' (Cleaned: 'ỨNG HÒA') -> Score: 35.29411764705882 (Cùng tỉnh)
+    vs DB: 'Huyện Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 37.5
+    vs DB: 'Huyện Hương Khê' (Cleaned: 'HƯƠNG KHÊ') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nghi Xuân' (Cleaned: 'NGHI XUÂN') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Hồng Lĩnh' (Cleaned: 'HỒNG LĨNH') -> Score: 31.57894736842105
+    vs DB: 'Huyện Cẩm Xuyên' (Cleaned: 'CẨM XUYÊN') -> Score: 21.052631578947366
+    vs DB: 'Huyện Bình Giang' (Cleaned: 'BÌNH GIANG') -> Score: 40.0
+    vs DB: 'Huyện Cẩm Giàng' (Cleaned: 'CẨM GIÀNG') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Kinh Môn' (Cleaned: 'KINH MÔN') -> Score: 33.333333333333336
+    vs DB: 'Huyện An Dương' (Cleaned: 'AN DƯƠNG') -> Score: 66.66666666666667
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 37.5
+    vs DB: 'Huyện Tiên Lãng' (Cleaned: 'TIÊN LÃNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Vĩnh Bảo' (Cleaned: 'VĨNH BẢO') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Ngã Bảy' (Cleaned: 'NGÃ BẢY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phụng Hiệp' (Cleaned: 'PHỤNG HIỆP') -> Score: 40.0
+    vs DB: 'Huyện Ân Thi' (Cleaned: 'ÂN THI') -> Score: 37.5
+    vs DB: 'Huyện Khoái Châu' (Cleaned: 'KHOÁI CHÂU') -> Score: 19.999999999999996
+    vs DB: 'Thị xã Mỹ Hào' (Cleaned: 'MỸ HÀO') -> Score: 25.0
+    vs DB: 'Huyện Yên Mỹ' (Cleaned: 'YÊN MỸ') -> Score: 25.0
+    vs DB: 'Huyện Vạn Ninh' (Cleaned: 'VẠN NINH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hòn Đất' (Cleaned: 'HÒN ĐẤT') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tân Hiệp' (Cleaned: 'TÂN HIỆP') -> Score: 33.333333333333336
+    vs DB: 'Huyện Giồng Riềng' (Cleaned: 'GIỒNG RIỀNG') -> Score: 38.095238095238095
+    vs DB: 'Huyện An Biên' (Cleaned: 'AN BIÊN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Kon Plông' (Cleaned: 'KON PLÔNG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Đắk Hà' (Cleaned: 'ĐẮK HÀ') -> Score: 37.5
+    vs DB: 'Huyện Đơn Dương' (Cleaned: 'ĐƠN DƯƠNG') -> Score: 63.1578947368421
+    vs DB: 'Huyện Đức Trọng' (Cleaned: 'ĐỨC TRỌNG') -> Score: 42.10526315789473
+    vs DB: 'Thành phố Bảo Lộc' (Cleaned: 'BẢO LỘC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 11.764705882352944
+    vs DB: 'Huyện Hải Hậu' (Cleaned: 'HẢI HẬU') -> Score: 23.529411764705888
+    vs DB: 'Huyện Ý Yên' (Cleaned: 'Ý YÊN') -> Score: 26.66666666666667
+    vs DB: 'Thị xã Cửa Lò' (Cleaned: 'CỬA LÒ') -> Score: 25.0
+    vs DB: 'Huyện Đô Lương' (Cleaned: 'ĐÔ LƯƠNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện Anh Sơn' (Cleaned: 'ANH SƠN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Tân Kỳ' (Cleaned: 'TÂN KỲ') -> Score: 25.0
+    vs DB: 'Huyện Yên Thành' (Cleaned: 'YÊN THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Diễn Châu' (Cleaned: 'DIỄN CHÂU') -> Score: 31.57894736842105
+    vs DB: 'Huyện Quỳnh Lưu' (Cleaned: 'QUỲNH LƯU') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Thái Hòa' (Cleaned: 'THÁI HÒA') -> Score: 22.22222222222222
+    vs DB: 'Huyện Nghĩa Đàn' (Cleaned: 'NGHĨA ĐÀN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Quỳ Hợp' (Cleaned: 'QUỲ HỢP') -> Score: 35.29411764705882
+    vs DB: 'Huyện Con Cuông' (Cleaned: 'CON CUÔNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nghi Lộc' (Cleaned: 'NGHI LỘC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Ninh Sơn' (Cleaned: 'NINH SƠN') -> Score: 33.333333333333336
+    vs DB: 'Thị Xã Sông Cầu' (Cleaned: 'SÔNG CẦU') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lệ Thủy' (Cleaned: 'LỆ THỦY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bố Trạch' (Cleaned: 'BỐ TRẠCH') -> Score: 22.22222222222222
+    vs DB: 'Thị xã Ba Đồn' (Cleaned: 'BA ĐỒN') -> Score: 37.5
+    vs DB: 'Huyện Hướng Hóa' (Cleaned: 'HƯỚNG HÓA') -> Score: 42.10526315789473
+    vs DB: 'Huyện Vĩnh Linh' (Cleaned: 'VĨNH LINH') -> Score: 31.57894736842105
+    vs DB: 'Huyện Tân Biên' (Cleaned: 'TÂN BIÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Dương Minh Châu' (Cleaned: 'DƯƠNG MINH CHÂU') -> Score: 24.0
+    vs DB: 'Huyện Bến Cầu' (Cleaned: 'BẾN CẦU') -> Score: 23.529411764705888
+    vs DB: 'Huyện Gò Dầu' (Cleaned: 'GÒ DẦU') -> Score: 12.5
+    vs DB: 'Huyện Hưng Hà' (Cleaned: 'HƯNG HÀ') -> Score: 47.05882352941176
+    vs DB: 'Huyện Quỳnh Phụ' (Cleaned: 'QUỲNH PHỤ') -> Score: 42.10526315789473
+    vs DB: 'Huyện Thái Thụy' (Cleaned: 'THÁI THỤY') -> Score: 21.052631578947366
+    vs DB: 'Thị Xã Nghi Sơn' (Cleaned: 'NGHI SƠN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Như Xuân' (Cleaned: 'NHƯ XUÂN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thường Xuân' (Cleaned: 'THƯỜNG XUÂN') -> Score: 38.095238095238095
+    vs DB: 'Huyện Thọ Xuân' (Cleaned: 'THỌ XUÂN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Ngọc Lặc' (Cleaned: 'NGỌC LẶC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Yên Định' (Cleaned: 'YÊN ĐỊNH') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Bỉm Sơn' (Cleaned: 'BỈM SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Hà Trung' (Cleaned: 'HÀ TRUNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Mường Lát' (Cleaned: 'MƯỜNG LÁT') -> Score: 31.57894736842105
+    vs DB: 'Huyện Quan Hóa' (Cleaned: 'QUAN HÓA') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thạch Thành' (Cleaned: 'THẠCH THÀNH') -> Score: 28.57142857142857
+    vs DB: 'Huyện Vĩnh Lộc' (Cleaned: 'VĨNH LỘC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Phú Lộc' (Cleaned: 'PHÚ LỘC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Krông Ana' (Cleaned: 'KRÔNG ANA') -> Score: 31.57894736842105
+    vs DB: 'Huyện A Lưới' (Cleaned: 'A LƯỚI') -> Score: 37.5
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 37.5
+    vs DB: 'Huyện Ba Bể' (Cleaned: 'BA BỂ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Ba Tri' (Cleaned: 'BA TRI') -> Score: 25.0
+    vs DB: 'Huyện Bạch Thông' (Cleaned: 'BẠCH THÔNG') -> Score: 40.0
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 11.764705882352944
+    vs DB: 'Huyện Bảo Yên' (Cleaned: 'BẢO YÊN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bắc Hà' (Cleaned: 'BẮC HÀ') -> Score: 25.0
+    vs DB: 'Huyện Bắc Quang' (Cleaned: 'BẮC QUANG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Bến Lức' (Cleaned: 'BẾN LỨC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bình Đại' (Cleaned: 'BÌNH ĐẠI') -> Score: 22.22222222222222
+    vs DB: 'Huyện Bình Liêu' (Cleaned: 'BÌNH LIÊU') -> Score: 21.052631578947366
+    vs DB: 'Huyện Bình Lục' (Cleaned: 'BÌNH LỤC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Bình Sơn' (Cleaned: 'BÌNH SƠN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bù Đăng' (Cleaned: 'BÙ ĐĂNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Cái Bè' (Cleaned: 'CÁI BÈ') -> Score: 12.5
+    vs DB: 'Huyện Cái Nước' (Cleaned: 'CÁI NƯỚC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Cam Lâm' (Cleaned: 'CAM LÂM') -> Score: 23.529411764705888
+    vs DB: 'Huyện Cam Lộ' (Cleaned: 'CAM LỘ') -> Score: 25.0
+    vs DB: 'Huyện Cao Lộc' (Cleaned: 'CAO LỘC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Cẩm Khê' (Cleaned: 'CẨM KHÊ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Cần Đước' (Cleaned: 'CẦN ĐƯỚC') -> Score: 33.333333333333336
+    vs DB: 'Huyện Cần Giuộc' (Cleaned: 'CẦN GIUỘC') -> Score: 31.57894736842105
+    vs DB: 'Huyện Cầu Ngang' (Cleaned: 'CẦU NGANG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Châu Thành A' (Cleaned: 'CHÂU THÀNH A') -> Score: 27.27272727272727
+    vs DB: 'Huyện Chợ Đồn' (Cleaned: 'CHỢ ĐỒN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Chương Mỹ' (Cleaned: 'CHƯƠNG MỸ') -> Score: 42.10526315789473 (Cùng tỉnh)
+    vs DB: 'Huyện Đà Bắc' (Cleaned: 'ĐÀ BẮC') -> Score: 25.0
+    vs DB: 'Huyện Đại Lộc' (Cleaned: 'ĐẠI LỘC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đại Từ' (Cleaned: 'ĐẠI TỪ') -> Score: 25.0
+    vs DB: 'Huyện Đam Rông' (Cleaned: 'ĐAM RÔNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện đảo Vân Đồn' (Cleaned: 'ĐẢO VÂN ĐỒN') -> Score: 38.095238095238095
+    vs DB: 'Huyện Đắk Glei' (Cleaned: 'ĐẮK GLEI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Đầm Dơi' (Cleaned: 'ĐẦM DƠI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Điện Biên' (Cleaned: 'ĐIỆN BIÊN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Định Hóa' (Cleaned: 'ĐỊNH HÓA') -> Score: 44.44444444444444
+    vs DB: 'Huyện Đoan Hùng' (Cleaned: 'ĐOAN HÙNG') -> Score: 73.6842105263158
+    vs DB: 'Huyện Đông Hải' (Cleaned: 'ĐÔNG HẢI') -> Score: 44.44444444444444
+    vs DB: 'Huyện Đông Sơn' (Cleaned: 'ĐÔNG SƠN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Đồng Văn' (Cleaned: 'ĐỒNG VĂN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Đức Hòa' (Cleaned: 'ĐỨC HÒA') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Đức Phổ' (Cleaned: 'ĐỨC PHỔ') -> Score: 47.05882352941176
+    vs DB: 'Huyện Ea Kar' (Cleaned: 'EA KAR') -> Score: 25.0
+    vs DB: 'Huyện Gò Công Đông' (Cleaned: 'GÒ CÔNG ĐÔNG') -> Score: 36.36363636363637
+    vs DB: 'Huyện Gò Công Tây' (Cleaned: 'GÒ CÔNG TÂY') -> Score: 28.57142857142857
+    vs DB: 'Huyện Gia Lộc' (Cleaned: 'GIA LỘC') -> Score: 23.529411764705888
+    vs DB: 'Thị Xã Giá Rai' (Cleaned: 'GIÁ RAI') -> Score: 11.764705882352944
+    vs DB: 'Huyện Gio Linh' (Cleaned: 'GIO LINH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Giồng Trôm' (Cleaned: 'GIỒNG TRÔM') -> Score: 19.999999999999996
+    vs DB: 'Huyện Hạ Hòa' (Cleaned: 'HẠ HÒA') -> Score: 25.0
+    vs DB: 'Huyện Hà Quảng' (Cleaned: 'HÀ QUẢNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hải Hà' (Cleaned: 'HẢI HÀ') -> Score: 25.0
+    vs DB: 'Huyện Hàm Yên' (Cleaned: 'HÀM YÊN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Hậu Lộc' (Cleaned: 'HẬU LỘC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Hòa An' (Cleaned: 'HÒA AN') -> Score: 37.5
+    vs DB: 'Huyện Hoa Lư' (Cleaned: 'HOA LƯ') -> Score: 37.5
+    vs DB: 'Huyện Hoàng Su Phì' (Cleaned: 'HOÀNG SU PHÌ') -> Score: 36.36363636363637
+    vs DB: 'Huyện Hồng Dân' (Cleaned: 'HỒNG DÂN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hưng Nguyên' (Cleaned: 'HƯNG NGUYÊN') -> Score: 38.095238095238095
+    vs DB: 'Huyện Hữu Lũng' (Cleaned: 'HỮU LŨNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Kế Sách' (Cleaned: 'KẾ SÁCH') -> Score: 23.529411764705888
+    vs DB: 'Huyện Kiên Lương' (Cleaned: 'KIÊN LƯƠNG') -> Score: 50.0
+    vs DB: 'Huyện Kiến Xương' (Cleaned: 'KIẾN XƯƠNG') -> Score: 50.0
+    vs DB: 'Huyện Kim Bảng' (Cleaned: 'KIM BẢNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Kim Thành' (Cleaned: 'KIM THÀNH') -> Score: 31.57894736842105
+    vs DB: 'Huyện Krông Pắc' (Cleaned: 'KRÔNG PẮC') -> Score: 31.57894736842105
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 25.0
+    vs DB: 'Huyện Lạc Dương' (Cleaned: 'LẠC DƯƠNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Lâm Bình' (Cleaned: 'LÂM BÌNH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lâm Hà' (Cleaned: 'LÂM HÀ') -> Score: 25.0
+    vs DB: 'Huyện Lâm Thao' (Cleaned: 'LÂM THAO') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lập Thạch' (Cleaned: 'LẬP THẠCH') -> Score: 21.052631578947366
+    vs DB: 'Huyện Lấp Vò' (Cleaned: 'LẤP VÒ') -> Score: 12.5
+    vs DB: 'Huyện Long Hồ' (Cleaned: 'LONG HỒ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Lộc Bình' (Cleaned: 'LỘC BÌNH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lộc Ninh' (Cleaned: 'LỘC NINH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Lục Nam' (Cleaned: 'LỤC NAM') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lục Ngạn' (Cleaned: 'LỤC NGẠN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Lục Yên' (Cleaned: 'LỤC YÊN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lương Sơn' (Cleaned: 'LƯƠNG SƠN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Lương Tài' (Cleaned: 'LƯƠNG TÀI') -> Score: 31.57894736842105
+    vs DB: 'Huyện Lý Nhân' (Cleaned: 'LÝ NHÂN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Mai Sơn' (Cleaned: 'MAI SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Mèo Vạc' (Cleaned: 'MÈO VẠC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Mỏ Cày Bắc' (Cleaned: 'MỎ CÀY BẮC') -> Score: 9.999999999999998
+    vs DB: 'Huyện Mỏ Cày Nam' (Cleaned: 'MỎ CÀY NAM') -> Score: 19.999999999999996
+    vs DB: 'Huyện Mộc Châu' (Cleaned: 'MỘC CHÂU') -> Score: 22.22222222222222
+    vs DB: 'Huyện Mù Cang Chải' (Cleaned: 'MÙ CANG CHẢI') -> Score: 36.36363636363637
+    vs DB: 'Huyện Mường Chà' (Cleaned: 'MƯỜNG CHÀ') -> Score: 31.57894736842105
+    vs DB: 'Huyện Mường Nhé' (Cleaned: 'MƯỜNG NHÉ') -> Score: 31.57894736842105
+    vs DB: 'Huyện Mường Tè' (Cleaned: 'MƯỜNG TÈ') -> Score: 33.333333333333336
+    vs DB: 'Huyện Mỹ Lộc' (Cleaned: 'MỸ LỘC') -> Score: 12.5
+    vs DB: 'Huyện Na Hang' (Cleaned: 'NA HANG') -> Score: 58.82352941176471
+    vs DB: 'Huyện Nam Trực' (Cleaned: 'NAM TRỰC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Nậm Nhùn' (Cleaned: 'NẬM NHÙN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Ninh Hải' (Cleaned: 'NINH HẢI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Ninh Phước' (Cleaned: 'NINH PHƯỚC') -> Score: 50.0
+    vs DB: 'Huyện Núi Thành' (Cleaned: 'NÚI THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nghĩa Hành' (Cleaned: 'NGHĨA HÀNH') -> Score: 40.0
+    vs DB: 'Huyện Phong Thổ' (Cleaned: 'PHONG THỔ') -> Score: 42.10526315789473
+    vs DB: 'Thị xã Phổ Yên' (Cleaned: 'PHỔ YÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Phú Bình' (Cleaned: 'PHÚ BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phú Giáo' (Cleaned: 'PHÚ GIÁO') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phú Hòa' (Cleaned: 'PHÚ HÒA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phù Ninh' (Cleaned: 'PHÙ NINH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phú Ninh' (Cleaned: 'PHÚ NINH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phù Yên' (Cleaned: 'PHÙ YÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Phục Hòa' (Cleaned: 'PHỤC HÒA') -> Score: 22.22222222222222
+    vs DB: 'Huyện Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 50.0
+    vs DB: 'Huyện Quản Bạ' (Cleaned: 'QUẢN BẠ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Quan Sơn' (Cleaned: 'QUAN SƠN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Quang Bình' (Cleaned: 'QUANG BÌNH') -> Score: 40.0
+    vs DB: 'Huyện Quảng Ninh' (Cleaned: 'QUẢNG NINH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Quế Sơn' (Cleaned: 'QUẾ SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Quốc Oai' (Cleaned: 'QUỐC OAI') -> Score: 11.111111111111116 (Cùng tỉnh)
+    vs DB: 'Thị xã Sa Pa' (Cleaned: 'SA PA') -> Score: 40.0
+    vs DB: 'Huyện Sìn Hồ' (Cleaned: 'SÌN HỒ') -> Score: 37.5
+    vs DB: 'Huyện Sông Mã' (Cleaned: 'SÔNG MÃ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tam Bình' (Cleaned: 'TAM BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tam Dương' (Cleaned: 'TAM DƯƠNG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Tam Đường' (Cleaned: 'TAM ĐƯỜNG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Tánh Linh' (Cleaned: 'TÁNH LINH') -> Score: 31.57894736842105
+    vs DB: 'Huyện Tân Hồng' (Cleaned: 'TÂN HỒNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện Tân Lạc' (Cleaned: 'TÂN LẠC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tân Sơn' (Cleaned: 'TÂN SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Tân Trụ' (Cleaned: 'TÂN TRỤ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tiên Lữ' (Cleaned: 'TIÊN LỮ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tiên Yên' (Cleaned: 'TIÊN YÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tiểu Cần' (Cleaned: 'TIỂU CẦN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Tủa Chùa' (Cleaned: 'TỦA CHÙA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tuần Giáo' (Cleaned: 'TUẦN GIÁO') -> Score: 31.57894736842105
+    vs DB: 'Huyện Tuy Phước' (Cleaned: 'TUY PHƯỚC') -> Score: 42.10526315789473
+    vs DB: 'Huyện Thạch Hà' (Cleaned: 'THẠCH HÀ') -> Score: 22.22222222222222
+    vs DB: 'Huyện Than Uyên' (Cleaned: 'THAN UYÊN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Thanh Bình' (Cleaned: 'THANH BÌNH') -> Score: 40.0
+    vs DB: 'Huyện Thanh Liêm' (Cleaned: 'THANH LIÊM') -> Score: 30.000000000000004
+    vs DB: 'Huyện Thạnh Phú' (Cleaned: 'THẠNH PHÚ') -> Score: 42.10526315789473
+    vs DB: 'Huyện Thanh Sơn' (Cleaned: 'THANH SƠN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Tháp Mười' (Cleaned: 'THÁP MƯỜI') -> Score: 21.052631578947366
+    vs DB: 'Huyện Thủ Thừa' (Cleaned: 'THỦ THỪA') -> Score: 22.22222222222222
+    vs DB: 'Huyện Thuận Châu' (Cleaned: 'THUẬN CHÂU') -> Score: 30.000000000000004
+    vs DB: 'Huyện Trà Cú' (Cleaned: 'TRÀ CÚ') -> Score: 12.5
+    vs DB: 'Huyện Trà Ôn' (Cleaned: 'TRÀ ÔN') -> Score: 25.0
+    vs DB: 'Thị xã Trảng Bàng' (Cleaned: 'TRẢNG BÀNG') -> Score: 40.0
+    vs DB: 'Huyện Tràng Định' (Cleaned: 'TRÀNG ĐỊNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Trần Đề' (Cleaned: 'TRẦN ĐỀ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Trần Văn Thời' (Cleaned: 'TRẦN VĂN THỜI') -> Score: 26.086956521739136
+    vs DB: 'Huyện Trấn Yên' (Cleaned: 'TRẤN YÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Triệu Phong' (Cleaned: 'TRIỆU PHONG') -> Score: 47.61904761904761
+    vs DB: 'Huyện Trùng Khánh' (Cleaned: 'TRÙNG KHÁNH') -> Score: 38.095238095238095
+    vs DB: 'Huyện U Minh' (Cleaned: 'U MINH') -> Score: 25.0
+    vs DB: 'Huyện Văn Bàn' (Cleaned: 'VĂN BÀN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Văn Chấn' (Cleaned: 'VĂN CHẤN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Văn Giang' (Cleaned: 'VĂN GIANG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Văn Lâm' (Cleaned: 'VĂN LÂM') -> Score: 23.529411764705888
+    vs DB: 'Huyện Văn Yên' (Cleaned: 'VĂN YÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Vị Thuỷ' (Cleaned: 'VỊ THUỶ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Vĩnh Cửu' (Cleaned: 'VĨNH CỬU') -> Score: 22.22222222222222
+    vs DB: 'Huyện Vĩnh Lợi' (Cleaned: 'VĨNH LỢI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Võ Nhai' (Cleaned: 'VÕ NHAI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Xín Mần' (Cleaned: 'XÍN MẦN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Yên Minh' (Cleaned: 'YÊN MINH') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Bình Minh' (Cleaned: 'BÌNH MINH') -> Score: 31.57894736842105
+    vs DB: 'Thị Xã Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Chí Linh' (Cleaned: 'CHÍ LINH') -> Score: 22.22222222222222
+    vs DB: 'Thị xã Gò Công' (Cleaned: 'GÒ CÔNG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Hà Tiên' (Cleaned: 'HÀ TIÊN') -> Score: 23.529411764705888
+    vs DB: 'Thành Phố Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 44.44444444444444
+    vs DB: 'Thị xã Mường Lay' (Cleaned: 'MƯỜNG LAY') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Ninh Hòa' (Cleaned: 'NINH HÒA') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Ngã Năm' (Cleaned: 'NGÃ NĂM') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Nghĩa Lộ' (Cleaned: 'NGHĨA LỘ') -> Score: 22.22222222222222
+    vs DB: 'Thị xã Phú Thọ' (Cleaned: 'PHÚ THỌ') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Phúc Yên' (Cleaned: 'PHÚC YÊN') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Quảng Yên' (Cleaned: 'QUẢNG YÊN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Bá Thước' (Cleaned: 'BÁ THƯỚC') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bảo Thắng' (Cleaned: 'BẢO THẮNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Bắc Mê' (Cleaned: 'BẮC MÊ') -> Score: 12.5
+    vs DB: 'Huyện Bắc Trà My' (Cleaned: 'BẮC TRÀ MY') -> Score: 9.999999999999998
+    vs DB: 'Huyện Bắc Yên' (Cleaned: 'BẮC YÊN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Càng Long' (Cleaned: 'CÀNG LONG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Cao Phong' (Cleaned: 'CAO PHONG') -> Score: 63.1578947368421
+    vs DB: 'Huyện Cần Giờ' (Cleaned: 'CẦN GIỜ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Cầu Kè' (Cleaned: 'CẦU KÈ') -> Score: 12.5
+    vs DB: 'Huyện Cù Lao Dung' (Cleaned: 'CÙ LAO DUNG') -> Score: 38.095238095238095
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Chư Pưh' (Cleaned: 'CHƯ PƯH') -> Score: 35.29411764705882
+    vs DB: 'Huyện Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 31.57894736842105
+    vs DB: 'Huyện Đạ Huoai' (Cleaned: 'ĐẠ HUOAI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Đa Krông' (Cleaned: 'ĐA KRÔNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện Đạ Tẻh' (Cleaned: 'ĐẠ TẺH') -> Score: 37.5
+    vs DB: 'Huyện đảo Bạch Long Vĩ' (Cleaned: 'ĐẢO BẠCH LONG VĨ') -> Score: 38.46153846153846
+    vs DB: 'Huyện đảo Cát Hải' (Cleaned: 'ĐẢO CÁT HẢI') -> Score: 28.57142857142857
+    vs DB: 'Huyện đảo Cô Tô' (Cleaned: 'ĐẢO CÔ TÔ') -> Score: 21.052631578947366
+    vs DB: 'Huyện đảo Cồn Cỏ' (Cleaned: 'ĐẢO CỒN CỎ') -> Score: 30.000000000000004
+    vs DB: 'Huyện đảo Côn Đảo' (Cleaned: 'ĐẢO CÔN ĐẢO') -> Score: 28.57142857142857
+    vs DB: 'Huyện đảo Hoàng Sa' (Cleaned: 'ĐẢO HOÀNG SA') -> Score: 45.45454545454546
+    vs DB: 'Huyện đảo Kiên Hải' (Cleaned: 'ĐẢO KIÊN HẢI') -> Score: 36.36363636363637
+    vs DB: 'Huyện đảo Lý Sơn' (Cleaned: 'ĐẢO LÝ SƠN') -> Score: 30.000000000000004
+    vs DB: 'Thành phố Phú Quốc' (Cleaned: 'PHÚ QUỐC') -> Score: 22.22222222222222
+    vs DB: 'Huyện đảo Phú Quý' (Cleaned: 'ĐẢO PHÚ QUÝ') -> Score: 38.095238095238095
+    vs DB: 'Huyện đảo Trường Sa' (Cleaned: 'ĐẢO TRƯỜNG SA') -> Score: 43.47826086956522
+    vs DB: 'Huyện Đắk Đoa' (Cleaned: 'ĐẮK ĐOA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đắk Pơ' (Cleaned: 'ĐẮK PƠ') -> Score: 37.5
+    vs DB: 'Huyện Đắk Song' (Cleaned: 'ĐẮK SONG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Đắk Tô' (Cleaned: 'ĐẮK TÔ') -> Score: 25.0
+    vs DB: 'Huyện Điện Biên Đông' (Cleaned: 'ĐIỆN BIÊN ĐÔNG') -> Score: 41.666666666666664
+    vs DB: 'Huyện Đông Giang' (Cleaned: 'ĐÔNG GIANG') -> Score: 50.0
+    vs DB: 'Huyện Đức Huệ' (Cleaned: 'ĐỨC HUỆ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Ea Súp' (Cleaned: 'EA SÚP') -> Score: 37.5
+    vs DB: 'Huyện Gò Quao' (Cleaned: 'GÒ QUAO') -> Score: 11.764705882352944
+    vs DB: 'Huyện Giang Thành' (Cleaned: 'GIANG THÀNH') -> Score: 47.61904761904761
+    vs DB: 'Huyện Hải Lăng' (Cleaned: 'HẢI LĂNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hiệp Đức' (Cleaned: 'HIỆP ĐỨC') -> Score: 11.111111111111116
+    vs DB: 'Huyện Hoài Ân' (Cleaned: 'HOÀI ÂN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Kbang' (Cleaned: 'KBANG') -> Score: 40.0
+    vs DB: 'Huyện Kim Bôi' (Cleaned: 'KIM BÔI') -> Score: 11.764705882352944
+    vs DB: 'Huyện Kon Rẫy' (Cleaned: 'KON RẪY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Kông Chro' (Cleaned: 'KÔNG CHRO') -> Score: 31.57894736842105
+    vs DB: 'Huyện Krông Búk' (Cleaned: 'KRÔNG BÚK') -> Score: 21.052631578947366
+    vs DB: 'Huyện Krông Nô' (Cleaned: 'KRÔNG NÔ') -> Score: 33.333333333333336
+    vs DB: 'Huyện Krông Pa' (Cleaned: 'KRÔNG PA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Lạc Sơn' (Cleaned: 'LẠC SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lạc Thủy' (Cleaned: 'LẠC THỦY') -> Score: 22.22222222222222
+    vs DB: 'Huyện Long Phú' (Cleaned: 'LONG PHÚ') -> Score: 44.44444444444444
+    vs DB: 'Huyện Mai Châu' (Cleaned: 'MAI CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Mang Thít' (Cleaned: 'MANG THÍT') -> Score: 42.10526315789473
+    vs DB: 'Huyện Mang Yang' (Cleaned: 'MANG YANG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Minh Long' (Cleaned: 'MINH LONG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Mường Ảng' (Cleaned: 'MƯỜNG ẢNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Mường Khương' (Cleaned: 'MƯỜNG KHƯƠNG') -> Score: 54.54545454545454
+    vs DB: 'Huyện Mỹ Tú' (Cleaned: 'MỸ TÚ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Nam Giang' (Cleaned: 'NAM GIANG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nam Trà My' (Cleaned: 'NAM TRÀ MY') -> Score: 19.999999999999996
+    vs DB: 'Huyện Nậm Pồ' (Cleaned: 'NẬM PỒ') -> Score: 37.5
+    vs DB: 'Huyện Nông Cống' (Cleaned: 'NÔNG CỐNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nông Sơn' (Cleaned: 'NÔNG SƠN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Ngọc Hiển' (Cleaned: 'NGỌC HIỂN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Ngọc Hồi' (Cleaned: 'NGỌC HỒI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Như Thanh' (Cleaned: 'NHƯ THANH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 40.0
+    vs DB: 'Huyện Phù Cừ' (Cleaned: 'PHÙ CỪ') -> Score: 25.0
+    vs DB: 'Huyện Phú Lương' (Cleaned: 'PHÚ LƯƠNG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Phước Sơn' (Cleaned: 'PHƯỚC SƠN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Quỳnh Nhai' (Cleaned: 'QUỲNH NHAI') -> Score: 30.000000000000004
+    vs DB: 'Huyện Sa Thầy' (Cleaned: 'SA THẦY') -> Score: 35.29411764705882
+    vs DB: 'Huyện Sông Hinh' (Cleaned: 'SÔNG HINH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Sơn Hà' (Cleaned: 'SƠN HÀ') -> Score: 37.5
+    vs DB: 'Huyện Sơn Hòa' (Cleaned: 'SƠN HÒA') -> Score: 35.29411764705882
+    vs DB: 'Huyện Tân Phú Đông' (Cleaned: 'TÂN PHÚ ĐÔNG') -> Score: 54.54545454545454
+    vs DB: 'Huyện Tây Giang' (Cleaned: 'TÂY GIANG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Tây Trà' (Cleaned: 'TÂY TRÀ') -> Score: 11.764705882352944
+    vs DB: 'Huyện Tiên Phước' (Cleaned: 'TIÊN PHƯỚC') -> Score: 50.0
+    vs DB: 'Huyện Tu Mơ Rông' (Cleaned: 'TU MƠ RÔNG') -> Score: 30.000000000000004
+    vs DB: 'Huyện Tuy Đức' (Cleaned: 'TUY ĐỨC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Thanh Thủy' (Cleaned: 'THANH THỦY') -> Score: 40.0
+    vs DB: 'Huyện Thạnh Trị' (Cleaned: 'THẠNH TRỊ') -> Score: 21.052631578947366
+    vs DB: 'Huyện Thăng Bình' (Cleaned: 'THĂNG BÌNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Trạm Tấu' (Cleaned: 'TRẠM TẤU') -> Score: 11.111111111111116
+    vs DB: 'Huyện Triệu Sơn' (Cleaned: 'TRIỆU SƠN') -> Score: 21.052631578947366
+    vs DB: 'Huyện U Minh Thượng' (Cleaned: 'U MINH THƯỢNG') -> Score: 60.86956521739131
+    vs DB: 'Huyện Vân Hồ' (Cleaned: 'VÂN HỒ') -> Score: 37.5
+    vs DB: 'Huyện Vị Xuyên' (Cleaned: 'VỊ XUYÊN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 40.0
+    vs DB: 'Huyện Vĩnh Thuận' (Cleaned: 'VĨNH THUẬN') -> Score: 40.0
+    vs DB: 'Huyện Vũng Liêm' (Cleaned: 'VŨNG LIÊM') -> Score: 21.052631578947366
+    vs DB: 'Huyện Si Ma Cai' (Cleaned: 'SI MA CAI') -> Score: 21.052631578947366
+    vs DB: 'Huyện Yên Bình' (Cleaned: 'YÊN BÌNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Yên Châu' (Cleaned: 'YÊN CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Yên Lập' (Cleaned: 'YÊN LẬP') -> Score: 35.29411764705882
+    vs DB: 'Huyện Yên Thủy' (Cleaned: 'YÊN THỦY') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Vĩnh Châu' (Cleaned: 'VĨNH CHÂU') -> Score: 31.57894736842105
+    vs DB: 'Huyện An Minh' (Cleaned: 'AN MINH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Ba Chẽ' (Cleaned: 'BA CHẼ') -> Score: 37.5
+    vs DB: 'Huyện Ba Tơ' (Cleaned: 'BA TƠ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Bác Ái' (Cleaned: 'BÁC ÁI') -> Score: 12.5
+    vs DB: 'Huyện Bảo Lạc' (Cleaned: 'BẢO LẠC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Bàu Bàng' (Cleaned: 'BÀU BÀNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bắc Sơn' (Cleaned: 'BẮC SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bắc Tân Uyên' (Cleaned: 'BẮC TÂN UYÊN') -> Score: 27.27272727272727
+    vs DB: 'Huyện Bình Gia' (Cleaned: 'BÌNH GIA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bù Đốp' (Cleaned: 'BÙ ĐỐP') -> Score: 25.0
+    vs DB: 'Huyện Bù Gia Mập' (Cleaned: 'BÙ GIA MẬP') -> Score: 30.000000000000004
+    vs DB: 'Huyện Can Lộc' (Cleaned: 'CAN LỘC') -> Score: 35.29411764705882
+    vs DB: 'Huyện Cát Tiên' (Cleaned: 'CÁT TIÊN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Cẩm Thủy' (Cleaned: 'CẨM THỦY') -> Score: 22.22222222222222
+    vs DB: 'Huyện Cờ Đỏ' (Cleaned: 'CỜ ĐỎ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Cư Jút' (Cleaned: 'CƯ JÚT') -> Score: 12.5
+    vs DB: 'Huyện Cư Kuin' (Cleaned: 'CƯ KUIN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Chi Lăng' (Cleaned: 'CHI LĂNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Chiêm Hóa' (Cleaned: 'CHIÊM HÓA') -> Score: 21.052631578947366
+    vs DB: 'Huyện Chợ Lách' (Cleaned: 'CHỢ LÁCH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Di Linh' (Cleaned: 'DI LINH') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đầm Hà' (Cleaned: 'ĐẦM HÀ') -> Score: 37.5
+    vs DB: 'Huyện Đình Lập' (Cleaned: 'ĐÌNH LẬP') -> Score: 44.44444444444444
+    vs DB: 'Thị xã Đông Hòa' (Cleaned: 'ĐÔNG HÒA') -> Score: 44.44444444444444
+    vs DB: 'Thị xã Đông Triều' (Cleaned: 'ĐÔNG TRIỀU') -> Score: 30.000000000000004
+    vs DB: 'Huyện Đồng Xuân' (Cleaned: 'ĐỒNG XUÂN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Đức Thọ' (Cleaned: 'ĐỨC THỌ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Gia Viễn' (Cleaned: 'GIA VIỄN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Giao Thủy' (Cleaned: 'GIAO THỦY') -> Score: 31.57894736842105
+    vs DB: 'Huyện Hạ Lang' (Cleaned: 'HẠ LANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Hàm Tân' (Cleaned: 'HÀM TÂN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Hoành Bồ' (Cleaned: 'HOÀNH BỒ') -> Score: 22.22222222222222
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 44.44444444444444
+    vs DB: 'Huyện Hương Sơn' (Cleaned: 'HƯƠNG SƠN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Kiến Thụy' (Cleaned: 'KIẾN THỤY') -> Score: 31.57894736842105
+    vs DB: 'Huyện Kim Sơn' (Cleaned: 'KIM SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 25.0
+    vs DB: 'Huyện Khánh Sơn' (Cleaned: 'KHÁNH SƠN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Khánh Vĩnh' (Cleaned: 'KHÁNH VĨNH') -> Score: 30.000000000000004
+    vs DB: 'Huyện Lang Chánh' (Cleaned: 'LANG CHÁNH') -> Score: 50.0
+    vs DB: 'Huyện Lắk' (Cleaned: 'LẮK') -> Score: 0.0
+    vs DB: 'Thị xã Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lộc Hà' (Cleaned: 'LỘC HÀ') -> Score: 25.0
+    vs DB: 'Huyện Minh Hóa' (Cleaned: 'MINH HÓA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Mộ Đức' (Cleaned: 'MỘ ĐỨC') -> Score: 12.5
+    vs DB: 'Huyện Mộc Hóa' (Cleaned: 'MỘC HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Mường La' (Cleaned: 'MƯỜNG LA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Na Rì' (Cleaned: 'NA RÌ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Nam Đàn' (Cleaned: 'NAM ĐÀN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Nam Đông' (Cleaned: 'NAM ĐÔNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Ninh Giang' (Cleaned: 'NINH GIANG') -> Score: 40.0
+    vs DB: 'Huyện Nga Sơn' (Cleaned: 'NGA SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Ngân Sơn' (Cleaned: 'NGÂN SƠN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Nghĩa Hưng' (Cleaned: 'NGHĨA HƯNG') -> Score: 60.0
+    vs DB: 'Huyện Nguyên Bình' (Cleaned: 'NGUYÊN BÌNH') -> Score: 28.57142857142857
+    vs DB: 'Huyện Nho Quan' (Cleaned: 'NHO QUAN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Pác Nặm' (Cleaned: 'PÁC NẶM') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 40.0
+    vs DB: 'Huyện Phù Mỹ' (Cleaned: 'PHÙ MỸ') -> Score: 25.0
+    vs DB: 'Huyện Phú Xuyên' (Cleaned: 'PHÚ XUYÊN') -> Score: 31.57894736842105 (Cùng tỉnh)
+    vs DB: 'Huyện Quảng Điền' (Cleaned: 'QUẢNG ĐIỀN') -> Score: 30.000000000000004
+    vs DB: 'Huyện Quảng Trạch' (Cleaned: 'QUẢNG TRẠCH') -> Score: 28.57142857142857
+    vs DB: 'Huyện Quảng Uyên' (Cleaned: 'QUẢNG UYÊN') -> Score: 30.000000000000004
+    vs DB: 'Huyện Quế Phong' (Cleaned: 'QUẾ PHONG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Quỳ Châu' (Cleaned: 'QUỲ CHÂU') -> Score: 22.22222222222222
+    vs DB: 'Huyện Sông Lô' (Cleaned: 'SÔNG LÔ') -> Score: 23.529411764705888
+    vs DB: 'huyện Sốp Cộp' (Cleaned: 'SỐP CỘP') -> Score: 23.529411764705888
+    vs DB: 'Huyện Sơn Dương' (Cleaned: 'SƠN DƯƠNG') -> Score: 52.63157894736843
+    vs DB: 'Huyện Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tam Đảo' (Cleaned: 'TAM ĐẢO') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Tân Hưng' (Cleaned: 'TÂN HƯNG') -> Score: 66.66666666666667
+    vs DB: 'Huyện Tân Phước' (Cleaned: 'TÂN PHƯỚC') -> Score: 52.63157894736843
+    vs DB: 'Huyện Tân Thạnh' (Cleaned: 'TÂN THẠNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Tây Hòa' (Cleaned: 'TÂY HÒA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tây Sơn' (Cleaned: 'TÂY SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tiền Hải' (Cleaned: 'TIỀN HẢI') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tuy An' (Cleaned: 'TUY AN') -> Score: 25.0
+    vs DB: 'Huyện Tuyên Hóa' (Cleaned: 'TUYÊN HÓA') -> Score: 31.57894736842105
+    vs DB: 'Huyện Tứ Kỳ' (Cleaned: 'TỨ KỲ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Tương Dương' (Cleaned: 'TƯƠNG DƯƠNG') -> Score: 47.61904761904761
+    vs DB: 'Huyện Thạch An' (Cleaned: 'THẠCH AN') -> Score: 22.22222222222222
+    vs DB: 'Huyện Thanh Ba' (Cleaned: 'THANH BA') -> Score: 33.333333333333336
+    vs DB: 'Huyện Thanh Chương' (Cleaned: 'THANH CHƯƠNG') -> Score: 63.63636363636363
+    vs DB: 'Huyện Thanh Hà' (Cleaned: 'THANH HÀ') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thạnh Hóa' (Cleaned: 'THẠNH HÓA') -> Score: 31.57894736842105
+    vs DB: 'Huyện Thanh Miện' (Cleaned: 'THANH MIỆN') -> Score: 40.0
+    vs DB: 'Huyện Thiệu Hóa' (Cleaned: 'THIỆU HÓA') -> Score: 21.052631578947366
+    vs DB: 'Huyện Thông Nông' (Cleaned: 'THÔNG NÔNG') -> Score: 40.0
+    vs DB: 'Huyện Thới Lai' (Cleaned: 'THỚI LAI') -> Score: 11.111111111111116
+    vs DB: 'Huyện Thuận Bắc' (Cleaned: 'THUẬN BẮC') -> Score: 21.052631578947366
+    vs DB: 'Huyện Thuận Nam' (Cleaned: 'THUẬN NAM') -> Score: 31.57894736842105
+    vs DB: 'Huyện Thường Tín' (Cleaned: 'THƯỜNG TÍN') -> Score: 40.0 (Cùng tỉnh)
+    vs DB: 'Huyện Trà Bồng' (Cleaned: 'TRÀ BỒNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Trà Lĩnh' (Cleaned: 'TRÀ LĨNH') -> Score: 22.22222222222222
+    vs DB: 'Huyện Trực Ninh' (Cleaned: 'TRỰC NINH') -> Score: 21.052631578947366
+    vs DB: 'Huyện Văn Lãng' (Cleaned: 'VĂN LÃNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Văn Quan' (Cleaned: 'VĂN QUAN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Vân Canh' (Cleaned: 'VÂN CANH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Vĩnh Hưng' (Cleaned: 'VĨNH HƯNG') -> Score: 63.1578947368421
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 40.0
+    vs DB: 'Huyện Vụ Bản' (Cleaned: 'VỤ BẢN') -> Score: 25.0
+    vs DB: 'Huyện Vũ Quang' (Cleaned: 'VŨ QUANG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Xuân Trường' (Cleaned: 'XUÂN TRƯỜNG') -> Score: 47.61904761904761
+    vs DB: 'Huyện Yên Mô' (Cleaned: 'YÊN MÔ') -> Score: 25.0
+    vs DB: 'Thị xã Kiến Tường' (Cleaned: 'KIẾN TƯỜNG') -> Score: 50.0
+    vs DB: 'Huyện M Đrắk' (Cleaned: 'M ĐRẮK') -> Score: 12.5
+    vs DB: 'Quận Nam Từ Liêm' (Cleaned: 'NAM TỪ LIÊM') -> Score: 19.047619047619047 (Cùng tỉnh)
+    vs DB: 'Thị xã Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 37.5
+    vs DB: 'Thị xã Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 31.57894736842105
+    vs DB: 'Huyện Phú Riềng' (Cleaned: 'PHÚ RIỀNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Ia H Drai' (Cleaned: 'IA H DRAI') -> Score: 31.57894736842105
+    vs DB: 'Quận Đặc Biệt' (Cleaned: 'ĐẶC BIỆT') -> Score: 22.22222222222222
+    vs DB: 'Huyện Quảng Hòa' (Cleaned: 'QUẢNG HÒA') -> Score: 31.57894736842105
+    vs DB: 'Thành Phố Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 44.44444444444444
+    vs DB: 'Thị xã Chũ' (Cleaned: 'CHŨ') -> Score: 15.384615384615385
+    vs DB: 'Quận Thuận Hóa' (Cleaned: 'THUẬN HÓA') -> Score: 31.57894736842105
+    vs DB: 'Quận Phú Xuân' (Cleaned: 'PHÚ XUÂN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Long Đất' (Cleaned: 'LONG ĐẤT') -> Score: 22.22222222222222
+  VTP_District: QUẬN 12 (Code: 40)
+    vs DB: 'Quận 1' (Cleaned: '1') -> Score: 66.66666666666667 (Cùng tỉnh)
+    vs DB: 'Quận 2' (Cleaned: '2') -> Score: 66.66666666666667 (Cùng tỉnh)
+    vs DB: 'Quận 3' (Cleaned: '3') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 4' (Cleaned: '4') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 5' (Cleaned: '5') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 6' (Cleaned: '6') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 7' (Cleaned: '7') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 8' (Cleaned: '8') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 9' (Cleaned: '9') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 10' (Cleaned: '10') -> Score: 50.0 (Cùng tỉnh)
+    vs DB: 'Quận 11' (Cleaned: '11') -> Score: 50.0 (Cùng tỉnh)
+    vs DB: 'Quận 12' (Cleaned: '12') -> Score: 100.0 (Cùng tỉnh)
+    vs DB: 'Quận Tân Bình' (Cleaned: 'TÂN BÌNH') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Phú Nhuận' (Cleaned: 'PHÚ NHUẬN') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Huyện Hóc Môn' (Cleaned: 'HÓC MÔN') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Huyện Củ Chi' (Cleaned: 'CỦ CHI') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Gò Vấp' (Cleaned: 'GÒ VẤP') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Bình Thạnh' (Cleaned: 'BÌNH THẠNH') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Bắc Từ Liêm' (Cleaned: 'BẮC TỪ LIÊM') -> Score: 0.0
+    vs DB: 'Quận Ba Đình' (Cleaned: 'BA ĐÌNH') -> Score: 0.0
+    vs DB: 'Quận Cầu Giấy' (Cleaned: 'CẦU GIẤY') -> Score: 0.0
+    vs DB: 'Quận Đống Đa' (Cleaned: 'ĐỐNG ĐA') -> Score: 0.0
+    vs DB: 'Quận Hai Bà Trưng' (Cleaned: 'HAI BÀ TRƯNG') -> Score: 0.0
+    vs DB: 'Quận Hoàn Kiếm' (Cleaned: 'HOÀN KIẾM') -> Score: 0.0
+    vs DB: 'Quận Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 0.0
+    vs DB: 'Quận Long Biên' (Cleaned: 'LONG BIÊN') -> Score: 0.0
+    vs DB: 'Quận Tây Hồ' (Cleaned: 'TÂY HỒ') -> Score: 0.0
+    vs DB: 'Quận Thanh Xuân' (Cleaned: 'THANH XUÂN') -> Score: 0.0
+    vs DB: 'Quận Hải Châu' (Cleaned: 'HẢI CHÂU') -> Score: 0.0
+    vs DB: 'Quận Thanh Khê' (Cleaned: 'THANH KHÊ') -> Score: 0.0
+    vs DB: 'Quận Sơn Trà' (Cleaned: 'SƠN TRÀ') -> Score: 0.0
+    vs DB: 'Quận Ngũ Hành Sơn' (Cleaned: 'NGŨ HÀNH SƠN') -> Score: 0.0
+    vs DB: 'Quận Liên Chiểu' (Cleaned: 'LIÊN CHIỂU') -> Score: 0.0
+    vs DB: 'Quận Cẩm Lệ' (Cleaned: 'CẨM LỆ') -> Score: 0.0
+    vs DB: 'Huyện Bình Chánh' (Cleaned: 'BÌNH CHÁNH') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Huyện Nhà Bè' (Cleaned: 'NHÀ BÈ') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Thành phố Biên Hòa' (Cleaned: 'BIÊN HÒA') -> Score: 0.0
+    vs DB: 'Thành phố Thủ Dầu Một' (Cleaned: 'THỦ DẦU MỘT') -> Score: 0.0
+    vs DB: 'Thành phố Dĩ An' (Cleaned: 'DĨ AN') -> Score: 0.0
+    vs DB: 'Thành phố Thuận An' (Cleaned: 'THUẬN AN') -> Score: 0.0
+    vs DB: 'Quận Hà Đông' (Cleaned: 'HÀ ĐÔNG') -> Score: 0.0
+    vs DB: 'Thành phố Vũng Tàu' (Cleaned: 'VŨNG TÀU') -> Score: 0.0
+    vs DB: 'Thành phố Pleiku' (Cleaned: 'PLEIKU') -> Score: 0.0
+    vs DB: 'Thành phố Nha Trang' (Cleaned: 'NHA TRANG') -> Score: 0.0
+    vs DB: 'Thành phố Đà Lạt' (Cleaned: 'ĐÀ LẠT') -> Score: 0.0
+    vs DB: 'Thành phố Buôn Ma Thuột' (Cleaned: 'BUÔN MA THUỘT') -> Score: 0.0
+    vs DB: 'Thành phố Tân An' (Cleaned: 'TÂN AN') -> Score: 0.0
+    vs DB: 'Thành phố Mỹ Tho' (Cleaned: 'MỸ THO') -> Score: 0.0
+    vs DB: 'Thành phố Bến Tre' (Cleaned: 'BẾN TRE') -> Score: 0.0
+    vs DB: 'Thành phố Trà Vinh' (Cleaned: 'TRÀ VINH') -> Score: 0.0
+    vs DB: 'Thành phố Vĩnh Long' (Cleaned: 'VĨNH LONG') -> Score: 0.0
+    vs DB: 'Thành phố Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 0.0
+    vs DB: 'Thành phố Long Xuyên' (Cleaned: 'LONG XUYÊN') -> Score: 0.0
+    vs DB: 'Thành phố Sóc Trăng' (Cleaned: 'SÓC TRĂNG') -> Score: 0.0
+    vs DB: 'Thành phố Rạch Giá' (Cleaned: 'RẠCH GIÁ') -> Score: 0.0
+    vs DB: 'Quận Ninh Kiều' (Cleaned: 'NINH KIỀU') -> Score: 0.0
+    vs DB: 'Quận Bình Thủy' (Cleaned: 'BÌNH THỦY') -> Score: 0.0
+    vs DB: 'Quận Cái Răng' (Cleaned: 'CÁI RĂNG') -> Score: 0.0
+    vs DB: 'Quận Ô Môn' (Cleaned: 'Ô MÔN') -> Score: 0.0
+    vs DB: 'Quận Thốt Nốt' (Cleaned: 'THỐT NỐT') -> Score: 0.0
+    vs DB: 'Thành phố Vĩnh Yên' (Cleaned: 'VĨNH YÊN') -> Score: 0.0
+    vs DB: 'Huyện Mê Linh' (Cleaned: 'MÊ LINH') -> Score: 0.0
+    vs DB: 'Huyện Đông Anh' (Cleaned: 'ĐÔNG ANH') -> Score: 0.0
+    vs DB: 'Huyện Sóc Sơn' (Cleaned: 'SÓC SƠN') -> Score: 0.0
+    vs DB: 'Thành phố Huế' (Cleaned: 'HUẾ') -> Score: 0.0
+    vs DB: 'Quận Ngô Quyền' (Cleaned: 'NGÔ QUYỀN') -> Score: 0.0
+    vs DB: 'Quận Lê Chân' (Cleaned: 'LÊ CHÂN') -> Score: 0.0
+    vs DB: 'Quận Hồng Bàng' (Cleaned: 'HỒNG BÀNG') -> Score: 0.0
+    vs DB: 'Quận Kiến An' (Cleaned: 'KIẾN AN') -> Score: 0.0
+    vs DB: 'Quận Hải An' (Cleaned: 'HẢI AN') -> Score: 0.0
+    vs DB: 'Thành phố Hải Dương' (Cleaned: 'HẢI DƯƠNG') -> Score: 0.0
+    vs DB: 'Thành phố Thái Bình' (Cleaned: 'THÁI BÌNH') -> Score: 0.0
+    vs DB: 'Thành phố Hà Giang' (Cleaned: 'HÀ GIANG') -> Score: 0.0
+    vs DB: 'Thành phố Tuyên Quang' (Cleaned: 'TUYÊN QUANG') -> Score: 0.0
+    vs DB: 'Thành phố Việt Trì' (Cleaned: 'VIỆT TRÌ') -> Score: 0.0
+    vs DB: 'Thành phố Móng Cái' (Cleaned: 'MÓNG CÁI') -> Score: 0.0
+    vs DB: 'Thành phố Hạ Long' (Cleaned: 'HẠ LONG') -> Score: 0.0
+    vs DB: 'Thành phố Nam Định' (Cleaned: 'NAM ĐỊNH') -> Score: 0.0
+    vs DB: 'Thành phố Phủ Lý' (Cleaned: 'PHỦ LÝ') -> Score: 0.0
+    vs DB: 'Thành phố Ninh Bình' (Cleaned: 'NINH BÌNH') -> Score: 0.0
+    vs DB: 'Thành phố Thanh Hóa' (Cleaned: 'THANH HÓA') -> Score: 0.0
+    vs DB: 'Thành phố Vinh' (Cleaned: 'VINH') -> Score: 0.0
+    vs DB: 'Thành phố Hà Tĩnh' (Cleaned: 'HÀ TĨNH') -> Score: 0.0
+    vs DB: 'Thành phố Đồng Hới' (Cleaned: 'ĐỒNG HỚI') -> Score: 0.0
+    vs DB: 'Thành phố Đông Hà' (Cleaned: 'ĐÔNG HÀ') -> Score: 0.0
+    vs DB: 'Thị xã Quảng Trị' (Cleaned: 'QUẢNG TRỊ') -> Score: 0.0
+    vs DB: 'Thành phố Đồng Xoài' (Cleaned: 'ĐỒNG XOÀI') -> Score: 0.0
+    vs DB: 'Thành phố Tây Ninh' (Cleaned: 'TÂY NINH') -> Score: 0.0
+    vs DB: 'Thành phố Gia Nghĩa' (Cleaned: 'GIA NGHĨA') -> Score: 0.0
+    vs DB: 'Thành phố Quảng Ngãi' (Cleaned: 'QUẢNG NGÃI') -> Score: 0.0
+    vs DB: 'Thành phố Tam Kỳ' (Cleaned: 'TAM KỲ') -> Score: 0.0
+    vs DB: 'Thành phố Hội An' (Cleaned: 'HỘI AN') -> Score: 0.0
+    vs DB: 'Thành phố Thái Nguyên' (Cleaned: 'THÁI NGUYÊN') -> Score: 0.0
+    vs DB: 'Thành phố Bắc Kạn' (Cleaned: 'BẮC KẠN') -> Score: 0.0
+    vs DB: 'Thành phố Cao Bằng' (Cleaned: 'CAO BẰNG') -> Score: 0.0
+    vs DB: 'Thành phố Lạng Sơn' (Cleaned: 'LẠNG SƠN') -> Score: 0.0
+    vs DB: 'Thành phố Bắc Giang' (Cleaned: 'BẮC GIANG') -> Score: 0.0
+    vs DB: 'Thành phố Bắc Ninh' (Cleaned: 'BẮC NINH') -> Score: 0.0
+    vs DB: 'Thành phố Vị Thanh' (Cleaned: 'VỊ THANH') -> Score: 0.0
+    vs DB: 'Thành phố Cà Mau' (Cleaned: 'CÀ MAU') -> Score: 0.0
+    vs DB: 'Thành phố Bạc Liêu' (Cleaned: 'BẠC LIÊU') -> Score: 0.0
+    vs DB: 'Thành phố Kon Tum' (Cleaned: 'KON TUM') -> Score: 0.0
+    vs DB: 'Thành phố Quy Nhơn' (Cleaned: 'QUY NHƠN') -> Score: 0.0
+    vs DB: 'Thành phố Tuy Hòa' (Cleaned: 'TUY HÒA') -> Score: 0.0
+    vs DB: 'Thành phố Cam Ranh' (Cleaned: 'CAM RANH') -> Score: 0.0
+    vs DB: 'Thành phố Phan Rang – Tháp Chàm' (Cleaned: 'PHAN RANG – THÁP CHÀM') -> Score: 0.0
+    vs DB: 'Thành phố Phan Thiết' (Cleaned: 'PHAN THIẾT') -> Score: 0.0
+    vs DB: 'Thành phố Bà Rịa' (Cleaned: 'BÀ RỊA') -> Score: 0.0
+    vs DB: 'Thành phố Sa Đéc' (Cleaned: 'SA ĐÉC') -> Score: 0.0
+    vs DB: 'Thành phố Yên Bái' (Cleaned: 'YÊN BÁI') -> Score: 0.0
+    vs DB: 'Thành phố Lai Châu' (Cleaned: 'LAI CHÂU') -> Score: 0.0
+    vs DB: 'Thành phố Điện Biên Phủ' (Cleaned: 'ĐIỆN BIÊN PHỦ') -> Score: 0.0
+    vs DB: 'Thành phố Sơn La' (Cleaned: 'SƠN LA') -> Score: 0.0
+    vs DB: 'Thành phố Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 0.0
+    vs DB: 'Thành phố Hưng Yên' (Cleaned: 'HƯNG YÊN') -> Score: 0.0
+    vs DB: 'Thành phố Lào Cai' (Cleaned: 'LÀO CAI') -> Score: 0.0
+    vs DB: 'Thành phố Cẩm Phả' (Cleaned: 'CẨM PHẢ') -> Score: 0.0
+    vs DB: 'Thành Phố Sông Công' (Cleaned: 'SÔNG CÔNG') -> Score: 0.0
+    vs DB: 'Thành phố Uông Bí' (Cleaned: 'UÔNG BÍ') -> Score: 0.0
+    vs DB: 'Huyện Hòa Vang' (Cleaned: 'HÒA VANG') -> Score: 0.0
+    vs DB: 'TT Phú Mỹ - cũ' (Cleaned: 'TT PHÚ MỸ - CŨ') -> Score: 0.0
+    vs DB: 'Huyện Long Điền' (Cleaned: 'LONG ĐIỀN') -> Score: 0.0
+    vs DB: 'Huyện Đất Đỏ' (Cleaned: 'ĐẤT ĐỎ') -> Score: 0.0
+    vs DB: 'Huyện Trảng Bom' (Cleaned: 'TRẢNG BOM') -> Score: 0.0
+    vs DB: 'Thành phố Long Khánh' (Cleaned: 'LONG KHÁNH') -> Score: 0.0
+    vs DB: 'Huyện Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 0.0
+    vs DB: 'Huyện Long Thành' (Cleaned: 'LONG THÀNH') -> Score: 0.0
+    vs DB: 'Thành phố Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 0.0
+    vs DB: 'Thị xã Bến Cát' (Cleaned: 'BẾN CÁT') -> Score: 0.0
+    vs DB: 'Thị xã Hương Trà' (Cleaned: 'HƯƠNG TRÀ') -> Score: 0.0
+    vs DB: 'Thị xã Hương Thủy' (Cleaned: 'HƯƠNG THỦY') -> Score: 0.0
+    vs DB: 'Huyện Xuyên Mộc' (Cleaned: 'XUYÊN MỘC') -> Score: 0.0
+    vs DB: 'Huyện Định Quán' (Cleaned: 'ĐỊNH QUÁN') -> Score: 0.0
+    vs DB: 'Thị Xã Phú Mỹ' (Cleaned: 'PHÚ MỸ') -> Score: 0.0
+    vs DB: 'Huyện Cẩm Mỹ' (Cleaned: 'CẨM MỸ') -> Score: 0.0
+    vs DB: 'Huyện Gia Lâm' (Cleaned: 'GIA LÂM') -> Score: 0.0
+    vs DB: 'Huyện Xuân Lộc' (Cleaned: 'XUÂN LỘC') -> Score: 0.0
+    vs DB: 'Huyện Thống Nhất' (Cleaned: 'THỐNG NHẤT') -> Score: 0.0
+    vs DB: 'Quận Dương Kinh' (Cleaned: 'DƯƠNG KINH') -> Score: 0.0
+    vs DB: 'Quận Đồ Sơn' (Cleaned: 'ĐỒ SƠN') -> Score: 0.0
+    vs DB: 'Huyện Nhơn Trạch' (Cleaned: 'NHƠN TRẠCH') -> Score: 0.0
+    vs DB: 'Huyện Châu Đức' (Cleaned: 'CHÂU ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Thanh Trì' (Cleaned: 'THANH TRÌ') -> Score: 0.0
+    vs DB: 'Thị xã Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 0.0
+    vs DB: 'Thành phố Sầm Sơn' (Cleaned: 'SẦM SƠN') -> Score: 0.0
+    vs DB: 'Thành phố Tam Điệp' (Cleaned: 'TAM ĐIỆP') -> Score: 0.0
+    vs DB: 'Huyện Yên Khánh' (Cleaned: 'YÊN KHÁNH') -> Score: 0.0
+    vs DB: 'Huyện Đông Hưng' (Cleaned: 'ĐÔNG HƯNG') -> Score: 0.0
+    vs DB: 'Huyện Vũ Thư' (Cleaned: 'VŨ THƯ') -> Score: 0.0
+    vs DB: 'Huyện Kim Động' (Cleaned: 'KIM ĐỘNG') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Thị xã Hòa Thành' (Cleaned: 'HÒA THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Đồng Phú' (Cleaned: 'ĐỒNG PHÚ') -> Score: 0.0
+    vs DB: 'Huyện Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 0.0
+    vs DB: 'Huyện Lai Vung' (Cleaned: 'LAI VUNG') -> Score: 0.0
+    vs DB: 'Huyện Thủy Nguyên' (Cleaned: 'THỦY NGUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Nam Sách' (Cleaned: 'NAM SÁCH') -> Score: 0.0
+    vs DB: 'Huyện Quế Võ' (Cleaned: 'QUẾ VÕ') -> Score: 0.0
+    vs DB: 'Huyện Tiên Du' (Cleaned: 'TIÊN DU') -> Score: 0.0
+    vs DB: 'Thị xã Từ Sơn' (Cleaned: 'TỪ SƠN') -> Score: 0.0
+    vs DB: 'Huyện Đồng Hỷ' (Cleaned: 'ĐỒNG HỶ') -> Score: 0.0
+    vs DB: 'Huyện Bình Xuyên' (Cleaned: 'BÌNH XUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Tường' (Cleaned: 'VĨNH TƯỜNG') -> Score: 0.0
+    vs DB: 'Huyện Yên Lạc' (Cleaned: 'YÊN LẠC') -> Score: 0.0
+    vs DB: 'Huyện Duy Xuyên' (Cleaned: 'DUY XUYÊN') -> Score: 0.0
+    vs DB: 'Thị xã Điện Bàn' (Cleaned: 'ĐIỆN BÀN') -> Score: 0.0
+    vs DB: 'Huyện Sơn Tịnh' (Cleaned: 'SƠN TỊNH') -> Score: 0.0
+    vs DB: 'Huyện Tư Nghĩa' (Cleaned: 'TƯ NGHĨA') -> Score: 0.0
+    vs DB: 'Huyện Diên Khánh' (Cleaned: 'DIÊN KHÁNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Chợ Gạo' (Cleaned: 'CHỢ GẠO') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Mỹ Xuyên' (Cleaned: 'MỸ XUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Bát Xát' (Cleaned: 'BÁT XÁT') -> Score: 0.0
+    vs DB: 'Huyện Yên Sơn' (Cleaned: 'YÊN SƠN') -> Score: 0.0
+    vs DB: 'Huyện Dầu Tiếng' (Cleaned: 'DẦU TIẾNG') -> Score: 0.0
+    vs DB: 'Huyện Quảng Xương' (Cleaned: 'QUẢNG XƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Hoằng Hóa' (Cleaned: 'HOẰNG HÓA') -> Score: 0.0
+    vs DB: 'Huyện Phú Vang' (Cleaned: 'PHÚ VANG') -> Score: 0.0
+    vs DB: 'Huyện Thoại Sơn' (Cleaned: 'THOẠI SƠN') -> Score: 0.0
+    vs DB: 'Huyện Tri Tôn' (Cleaned: 'TRI TÔN') -> Score: 0.0
+    vs DB: 'Huyện Tịnh Biên' (Cleaned: 'TỊNH BIÊN') -> Score: 0.0
+    vs DB: 'Thành phố Châu Đốc' (Cleaned: 'CHÂU ĐỐC') -> Score: 0.0
+    vs DB: 'Huyện An Phú' (Cleaned: 'AN PHÚ') -> Score: 0.0
+    vs DB: 'Thị Xã Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 0.0
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 0.0
+    vs DB: 'Huyện Châu Phú' (Cleaned: 'CHÂU PHÚ') -> Score: 0.0
+    vs DB: 'Huyện Hiệp Hòa' (Cleaned: 'HIỆP HÒA') -> Score: 0.0
+    vs DB: 'Huyện Lạng Giang' (Cleaned: 'LẠNG GIANG') -> Score: 0.0
+    vs DB: 'Huyện Sơn Động' (Cleaned: 'SƠN ĐỘNG') -> Score: 0.0
+    vs DB: 'Huyện Tân Yên' (Cleaned: 'TÂN YÊN') -> Score: 0.0
+    vs DB: 'Huyện Việt Yên' (Cleaned: 'VIỆT YÊN') -> Score: 0.0
+    vs DB: 'Huyện Yên Dũng' (Cleaned: 'YÊN DŨNG') -> Score: 0.0
+    vs DB: 'Huyện Yên Thế' (Cleaned: 'YÊN THẾ') -> Score: 0.0
+    vs DB: 'Huyện Gia Bình' (Cleaned: 'GIA BÌNH') -> Score: 0.0
+    vs DB: 'Thị xã Thuận Thành' (Cleaned: 'THUẬN THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Yên Phong' (Cleaned: 'YÊN PHONG') -> Score: 0.0
+    vs DB: 'Thị xã An Nhơn' (Cleaned: 'AN NHƠN') -> Score: 0.0
+    vs DB: 'Huyện Phù Cát' (Cleaned: 'PHÙ CÁT') -> Score: 0.0
+    vs DB: 'Thị xã Hoài Nhơn' (Cleaned: 'HOÀI NHƠN') -> Score: 0.0
+    vs DB: 'Huyện Chơn Thành' (Cleaned: 'CHƠN THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Hớn Quản' (Cleaned: 'HỚN QUẢN') -> Score: 0.0
+    vs DB: 'Thị xã Bình Long' (Cleaned: 'BÌNH LONG') -> Score: 0.0
+    vs DB: 'Thị xã Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 0.0
+    vs DB: 'Huyện Hàm Thuận Nam' (Cleaned: 'HÀM THUẬN NAM') -> Score: 0.0
+    vs DB: 'Huyện Hàm Thuận Bắc' (Cleaned: 'HÀM THUẬN BẮC') -> Score: 0.0
+    vs DB: 'Thị xã La Gi' (Cleaned: 'LA GI') -> Score: 0.0
+    vs DB: 'Huyện Đức Linh' (Cleaned: 'ĐỨC LINH') -> Score: 0.0
+    vs DB: 'Huyện Bắc Bình' (Cleaned: 'BẮC BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Tuy Phong' (Cleaned: 'TUY PHONG') -> Score: 0.0
+    vs DB: 'Huyện Thới Bình' (Cleaned: 'THỚI BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Năm Căn' (Cleaned: 'NĂM CĂN') -> Score: 0.0
+    vs DB: 'Huyện Buôn Ðôn' (Cleaned: 'BUÔN ÐÔN') -> Score: 0.0
+    vs DB: 'Huyện Cư M gar' (Cleaned: 'CƯ M GAR') -> Score: 0.0
+    vs DB: 'Huyện Ea H leo' (Cleaned: 'EA H LEO') -> Score: 0.0
+    vs DB: 'Huyện Krông Năng' (Cleaned: 'KRÔNG NĂNG') -> Score: 0.0
+    vs DB: 'Thị xã Buôn Hồ' (Cleaned: 'BUÔN HỒ') -> Score: 0.0
+    vs DB: 'Huyện Krông Bông' (Cleaned: 'KRÔNG BÔNG') -> Score: 0.0
+    vs DB: 'Huyện Đắk R lấp' (Cleaned: 'ĐẮK R LẤP') -> Score: 0.0
+    vs DB: 'Huyện Đắk Glong' (Cleaned: 'ĐẮK GLONG') -> Score: 0.0
+    vs DB: 'Huyện Đắk Mil' (Cleaned: 'ĐẮK MIL') -> Score: 0.0
+    vs DB: 'Huyện Ia Grai' (Cleaned: 'IA GRAI') -> Score: 0.0
+    vs DB: 'Huyện Đức Cơ' (Cleaned: 'ĐỨC CƠ') -> Score: 0.0
+    vs DB: 'Huyện Chư Prông' (Cleaned: 'CHƯ PRÔNG') -> Score: 0.0
+    vs DB: 'Huyện Chư Sê' (Cleaned: 'CHƯ SÊ') -> Score: 0.0
+    vs DB: 'Huyện Phú Thiện' (Cleaned: 'PHÚ THIỆN') -> Score: 0.0
+    vs DB: 'Thị xã Ayun Pa' (Cleaned: 'AYUN PA') -> Score: 0.0
+    vs DB: 'Huyện Ia Pa' (Cleaned: 'IA PA') -> Score: 0.0
+    vs DB: 'Thị xã An Khê' (Cleaned: 'AN KHÊ') -> Score: 0.0
+    vs DB: 'Huyện Chư Păh' (Cleaned: 'CHƯ PĂH') -> Score: 0.0
+    vs DB: 'Thị xã Duy Tiên' (Cleaned: 'DUY TIÊN') -> Score: 0.0
+    vs DB: 'Huyện Ba Vì' (Cleaned: 'BA VÌ') -> Score: 0.0
+    vs DB: 'Huyện Đan Phượng' (Cleaned: 'ĐAN PHƯỢNG') -> Score: 0.0
+    vs DB: 'Huyện Hoài Đức' (Cleaned: 'HOÀI ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Mỹ Đức' (Cleaned: 'MỸ ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Phúc Thọ' (Cleaned: 'PHÚC THỌ') -> Score: 0.0
+    vs DB: 'Huyện Thạch Thất' (Cleaned: 'THẠCH THẤT') -> Score: 0.0
+    vs DB: 'Huyện Thanh Oai' (Cleaned: 'THANH OAI') -> Score: 0.0
+    vs DB: 'Huyện Ứng Hòa' (Cleaned: 'ỨNG HÒA') -> Score: 0.0
+    vs DB: 'Huyện Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 0.0
+    vs DB: 'Huyện Hương Khê' (Cleaned: 'HƯƠNG KHÊ') -> Score: 0.0
+    vs DB: 'Huyện Nghi Xuân' (Cleaned: 'NGHI XUÂN') -> Score: 0.0
+    vs DB: 'Thị xã Hồng Lĩnh' (Cleaned: 'HỒNG LĨNH') -> Score: 0.0
+    vs DB: 'Huyện Cẩm Xuyên' (Cleaned: 'CẨM XUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Bình Giang' (Cleaned: 'BÌNH GIANG') -> Score: 0.0
+    vs DB: 'Huyện Cẩm Giàng' (Cleaned: 'CẨM GIÀNG') -> Score: 0.0
+    vs DB: 'Thị xã Kinh Môn' (Cleaned: 'KINH MÔN') -> Score: 0.0
+    vs DB: 'Huyện An Dương' (Cleaned: 'AN DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 0.0
+    vs DB: 'Huyện Tiên Lãng' (Cleaned: 'TIÊN LÃNG') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Bảo' (Cleaned: 'VĨNH BẢO') -> Score: 0.0
+    vs DB: 'Thành phố Ngã Bảy' (Cleaned: 'NGÃ BẢY') -> Score: 0.0
+    vs DB: 'Huyện Phụng Hiệp' (Cleaned: 'PHỤNG HIỆP') -> Score: 0.0
+    vs DB: 'Huyện Ân Thi' (Cleaned: 'ÂN THI') -> Score: 0.0
+    vs DB: 'Huyện Khoái Châu' (Cleaned: 'KHOÁI CHÂU') -> Score: 0.0
+    vs DB: 'Thị xã Mỹ Hào' (Cleaned: 'MỸ HÀO') -> Score: 0.0
+    vs DB: 'Huyện Yên Mỹ' (Cleaned: 'YÊN MỸ') -> Score: 0.0
+    vs DB: 'Huyện Vạn Ninh' (Cleaned: 'VẠN NINH') -> Score: 0.0
+    vs DB: 'Huyện Hòn Đất' (Cleaned: 'HÒN ĐẤT') -> Score: 0.0
+    vs DB: 'Huyện Tân Hiệp' (Cleaned: 'TÂN HIỆP') -> Score: 0.0
+    vs DB: 'Huyện Giồng Riềng' (Cleaned: 'GIỒNG RIỀNG') -> Score: 0.0
+    vs DB: 'Huyện An Biên' (Cleaned: 'AN BIÊN') -> Score: 0.0
+    vs DB: 'Huyện Kon Plông' (Cleaned: 'KON PLÔNG') -> Score: 0.0
+    vs DB: 'Huyện Đắk Hà' (Cleaned: 'ĐẮK HÀ') -> Score: 0.0
+    vs DB: 'Huyện Đơn Dương' (Cleaned: 'ĐƠN DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Đức Trọng' (Cleaned: 'ĐỨC TRỌNG') -> Score: 0.0
+    vs DB: 'Thành phố Bảo Lộc' (Cleaned: 'BẢO LỘC') -> Score: 0.0
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 0.0
+    vs DB: 'Huyện Hải Hậu' (Cleaned: 'HẢI HẬU') -> Score: 0.0
+    vs DB: 'Huyện Ý Yên' (Cleaned: 'Ý YÊN') -> Score: 0.0
+    vs DB: 'Thị xã Cửa Lò' (Cleaned: 'CỬA LÒ') -> Score: 0.0
+    vs DB: 'Huyện Đô Lương' (Cleaned: 'ĐÔ LƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Anh Sơn' (Cleaned: 'ANH SƠN') -> Score: 0.0
+    vs DB: 'Huyện Tân Kỳ' (Cleaned: 'TÂN KỲ') -> Score: 0.0
+    vs DB: 'Huyện Yên Thành' (Cleaned: 'YÊN THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Diễn Châu' (Cleaned: 'DIỄN CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Quỳnh Lưu' (Cleaned: 'QUỲNH LƯU') -> Score: 0.0
+    vs DB: 'Thị xã Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 0.0
+    vs DB: 'Thị xã Thái Hòa' (Cleaned: 'THÁI HÒA') -> Score: 0.0
+    vs DB: 'Huyện Nghĩa Đàn' (Cleaned: 'NGHĨA ĐÀN') -> Score: 0.0
+    vs DB: 'Huyện Quỳ Hợp' (Cleaned: 'QUỲ HỢP') -> Score: 0.0
+    vs DB: 'Huyện Con Cuông' (Cleaned: 'CON CUÔNG') -> Score: 0.0
+    vs DB: 'Huyện Nghi Lộc' (Cleaned: 'NGHI LỘC') -> Score: 0.0
+    vs DB: 'Huyện Ninh Sơn' (Cleaned: 'NINH SƠN') -> Score: 0.0
+    vs DB: 'Thị Xã Sông Cầu' (Cleaned: 'SÔNG CẦU') -> Score: 0.0
+    vs DB: 'Huyện Lệ Thủy' (Cleaned: 'LỆ THỦY') -> Score: 0.0
+    vs DB: 'Huyện Bố Trạch' (Cleaned: 'BỐ TRẠCH') -> Score: 0.0
+    vs DB: 'Thị xã Ba Đồn' (Cleaned: 'BA ĐỒN') -> Score: 0.0
+    vs DB: 'Huyện Hướng Hóa' (Cleaned: 'HƯỚNG HÓA') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Linh' (Cleaned: 'VĨNH LINH') -> Score: 0.0
+    vs DB: 'Huyện Tân Biên' (Cleaned: 'TÂN BIÊN') -> Score: 0.0
+    vs DB: 'Huyện Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Dương Minh Châu' (Cleaned: 'DƯƠNG MINH CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Bến Cầu' (Cleaned: 'BẾN CẦU') -> Score: 0.0
+    vs DB: 'Huyện Gò Dầu' (Cleaned: 'GÒ DẦU') -> Score: 0.0
+    vs DB: 'Huyện Hưng Hà' (Cleaned: 'HƯNG HÀ') -> Score: 0.0
+    vs DB: 'Huyện Quỳnh Phụ' (Cleaned: 'QUỲNH PHỤ') -> Score: 0.0
+    vs DB: 'Huyện Thái Thụy' (Cleaned: 'THÁI THỤY') -> Score: 0.0
+    vs DB: 'Thị Xã Nghi Sơn' (Cleaned: 'NGHI SƠN') -> Score: 0.0
+    vs DB: 'Huyện Như Xuân' (Cleaned: 'NHƯ XUÂN') -> Score: 0.0
+    vs DB: 'Huyện Thường Xuân' (Cleaned: 'THƯỜNG XUÂN') -> Score: 0.0
+    vs DB: 'Huyện Thọ Xuân' (Cleaned: 'THỌ XUÂN') -> Score: 0.0
+    vs DB: 'Huyện Ngọc Lặc' (Cleaned: 'NGỌC LẶC') -> Score: 0.0
+    vs DB: 'Huyện Yên Định' (Cleaned: 'YÊN ĐỊNH') -> Score: 0.0
+    vs DB: 'Thị xã Bỉm Sơn' (Cleaned: 'BỈM SƠN') -> Score: 0.0
+    vs DB: 'Huyện Hà Trung' (Cleaned: 'HÀ TRUNG') -> Score: 0.0
+    vs DB: 'Huyện Mường Lát' (Cleaned: 'MƯỜNG LÁT') -> Score: 0.0
+    vs DB: 'Huyện Quan Hóa' (Cleaned: 'QUAN HÓA') -> Score: 0.0
+    vs DB: 'Huyện Thạch Thành' (Cleaned: 'THẠCH THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Lộc' (Cleaned: 'VĨNH LỘC') -> Score: 0.0
+    vs DB: 'Huyện Phú Lộc' (Cleaned: 'PHÚ LỘC') -> Score: 0.0
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 0.0
+    vs DB: 'Huyện Krông Ana' (Cleaned: 'KRÔNG ANA') -> Score: 0.0
+    vs DB: 'Huyện A Lưới' (Cleaned: 'A LƯỚI') -> Score: 0.0
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 0.0
+    vs DB: 'Huyện Ba Bể' (Cleaned: 'BA BỂ') -> Score: 0.0
+    vs DB: 'Huyện Ba Tri' (Cleaned: 'BA TRI') -> Score: 0.0
+    vs DB: 'Huyện Bạch Thông' (Cleaned: 'BẠCH THÔNG') -> Score: 0.0
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 0.0
+    vs DB: 'Huyện Bảo Yên' (Cleaned: 'BẢO YÊN') -> Score: 0.0
+    vs DB: 'Huyện Bắc Hà' (Cleaned: 'BẮC HÀ') -> Score: 0.0
+    vs DB: 'Huyện Bắc Quang' (Cleaned: 'BẮC QUANG') -> Score: 0.0
+    vs DB: 'Huyện Bến Lức' (Cleaned: 'BẾN LỨC') -> Score: 0.0
+    vs DB: 'Huyện Bình Đại' (Cleaned: 'BÌNH ĐẠI') -> Score: 0.0
+    vs DB: 'Huyện Bình Liêu' (Cleaned: 'BÌNH LIÊU') -> Score: 0.0
+    vs DB: 'Huyện Bình Lục' (Cleaned: 'BÌNH LỤC') -> Score: 0.0
+    vs DB: 'Huyện Bình Sơn' (Cleaned: 'BÌNH SƠN') -> Score: 0.0
+    vs DB: 'Huyện Bù Đăng' (Cleaned: 'BÙ ĐĂNG') -> Score: 0.0
+    vs DB: 'Huyện Cái Bè' (Cleaned: 'CÁI BÈ') -> Score: 0.0
+    vs DB: 'Huyện Cái Nước' (Cleaned: 'CÁI NƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Cam Lâm' (Cleaned: 'CAM LÂM') -> Score: 0.0
+    vs DB: 'Huyện Cam Lộ' (Cleaned: 'CAM LỘ') -> Score: 0.0
+    vs DB: 'Huyện Cao Lộc' (Cleaned: 'CAO LỘC') -> Score: 0.0
+    vs DB: 'Huyện Cẩm Khê' (Cleaned: 'CẨM KHÊ') -> Score: 0.0
+    vs DB: 'Huyện Cần Đước' (Cleaned: 'CẦN ĐƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Cần Giuộc' (Cleaned: 'CẦN GIUỘC') -> Score: 0.0
+    vs DB: 'Huyện Cầu Ngang' (Cleaned: 'CẦU NGANG') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành A' (Cleaned: 'CHÂU THÀNH A') -> Score: 0.0
+    vs DB: 'Huyện Chợ Đồn' (Cleaned: 'CHỢ ĐỒN') -> Score: 0.0
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 0.0
+    vs DB: 'Huyện Chương Mỹ' (Cleaned: 'CHƯƠNG MỸ') -> Score: 0.0
+    vs DB: 'Huyện Đà Bắc' (Cleaned: 'ĐÀ BẮC') -> Score: 0.0
+    vs DB: 'Huyện Đại Lộc' (Cleaned: 'ĐẠI LỘC') -> Score: 0.0
+    vs DB: 'Huyện Đại Từ' (Cleaned: 'ĐẠI TỪ') -> Score: 0.0
+    vs DB: 'Huyện Đam Rông' (Cleaned: 'ĐAM RÔNG') -> Score: 0.0
+    vs DB: 'Huyện đảo Vân Đồn' (Cleaned: 'ĐẢO VÂN ĐỒN') -> Score: 0.0
+    vs DB: 'Huyện Đắk Glei' (Cleaned: 'ĐẮK GLEI') -> Score: 0.0
+    vs DB: 'Huyện Đầm Dơi' (Cleaned: 'ĐẦM DƠI') -> Score: 0.0
+    vs DB: 'Huyện Điện Biên' (Cleaned: 'ĐIỆN BIÊN') -> Score: 0.0
+    vs DB: 'Huyện Định Hóa' (Cleaned: 'ĐỊNH HÓA') -> Score: 0.0
+    vs DB: 'Huyện Đoan Hùng' (Cleaned: 'ĐOAN HÙNG') -> Score: 0.0
+    vs DB: 'Huyện Đông Hải' (Cleaned: 'ĐÔNG HẢI') -> Score: 0.0
+    vs DB: 'Huyện Đông Sơn' (Cleaned: 'ĐÔNG SƠN') -> Score: 0.0
+    vs DB: 'Huyện Đồng Văn' (Cleaned: 'ĐỒNG VĂN') -> Score: 0.0
+    vs DB: 'Huyện Đức Hòa' (Cleaned: 'ĐỨC HÒA') -> Score: 0.0
+    vs DB: 'Thị xã Đức Phổ' (Cleaned: 'ĐỨC PHỔ') -> Score: 0.0
+    vs DB: 'Huyện Ea Kar' (Cleaned: 'EA KAR') -> Score: 0.0
+    vs DB: 'Huyện Gò Công Đông' (Cleaned: 'GÒ CÔNG ĐÔNG') -> Score: 0.0
+    vs DB: 'Huyện Gò Công Tây' (Cleaned: 'GÒ CÔNG TÂY') -> Score: 0.0
+    vs DB: 'Huyện Gia Lộc' (Cleaned: 'GIA LỘC') -> Score: 0.0
+    vs DB: 'Thị Xã Giá Rai' (Cleaned: 'GIÁ RAI') -> Score: 0.0
+    vs DB: 'Huyện Gio Linh' (Cleaned: 'GIO LINH') -> Score: 0.0
+    vs DB: 'Huyện Giồng Trôm' (Cleaned: 'GIỒNG TRÔM') -> Score: 0.0
+    vs DB: 'Huyện Hạ Hòa' (Cleaned: 'HẠ HÒA') -> Score: 0.0
+    vs DB: 'Huyện Hà Quảng' (Cleaned: 'HÀ QUẢNG') -> Score: 0.0
+    vs DB: 'Huyện Hải Hà' (Cleaned: 'HẢI HÀ') -> Score: 0.0
+    vs DB: 'Huyện Hàm Yên' (Cleaned: 'HÀM YÊN') -> Score: 0.0
+    vs DB: 'Huyện Hậu Lộc' (Cleaned: 'HẬU LỘC') -> Score: 0.0
+    vs DB: 'Huyện Hòa An' (Cleaned: 'HÒA AN') -> Score: 0.0
+    vs DB: 'Huyện Hoa Lư' (Cleaned: 'HOA LƯ') -> Score: 0.0
+    vs DB: 'Huyện Hoàng Su Phì' (Cleaned: 'HOÀNG SU PHÌ') -> Score: 0.0
+    vs DB: 'Huyện Hồng Dân' (Cleaned: 'HỒNG DÂN') -> Score: 0.0
+    vs DB: 'Huyện Hưng Nguyên' (Cleaned: 'HƯNG NGUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Hữu Lũng' (Cleaned: 'HỮU LŨNG') -> Score: 0.0
+    vs DB: 'Huyện Kế Sách' (Cleaned: 'KẾ SÁCH') -> Score: 0.0
+    vs DB: 'Huyện Kiên Lương' (Cleaned: 'KIÊN LƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Kiến Xương' (Cleaned: 'KIẾN XƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Kim Bảng' (Cleaned: 'KIM BẢNG') -> Score: 0.0
+    vs DB: 'Huyện Kim Thành' (Cleaned: 'KIM THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Krông Pắc' (Cleaned: 'KRÔNG PẮC') -> Score: 0.0
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 0.0
+    vs DB: 'Huyện Lạc Dương' (Cleaned: 'LẠC DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Lâm Bình' (Cleaned: 'LÂM BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Lâm Hà' (Cleaned: 'LÂM HÀ') -> Score: 0.0
+    vs DB: 'Huyện Lâm Thao' (Cleaned: 'LÂM THAO') -> Score: 0.0
+    vs DB: 'Huyện Lập Thạch' (Cleaned: 'LẬP THẠCH') -> Score: 0.0
+    vs DB: 'Huyện Lấp Vò' (Cleaned: 'LẤP VÒ') -> Score: 0.0
+    vs DB: 'Huyện Long Hồ' (Cleaned: 'LONG HỒ') -> Score: 0.0
+    vs DB: 'Huyện Lộc Bình' (Cleaned: 'LỘC BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Lộc Ninh' (Cleaned: 'LỘC NINH') -> Score: 0.0
+    vs DB: 'Huyện Lục Nam' (Cleaned: 'LỤC NAM') -> Score: 0.0
+    vs DB: 'Huyện Lục Ngạn' (Cleaned: 'LỤC NGẠN') -> Score: 0.0
+    vs DB: 'Huyện Lục Yên' (Cleaned: 'LỤC YÊN') -> Score: 0.0
+    vs DB: 'Huyện Lương Sơn' (Cleaned: 'LƯƠNG SƠN') -> Score: 0.0
+    vs DB: 'Huyện Lương Tài' (Cleaned: 'LƯƠNG TÀI') -> Score: 0.0
+    vs DB: 'Huyện Lý Nhân' (Cleaned: 'LÝ NHÂN') -> Score: 0.0
+    vs DB: 'Huyện Mai Sơn' (Cleaned: 'MAI SƠN') -> Score: 0.0
+    vs DB: 'Huyện Mèo Vạc' (Cleaned: 'MÈO VẠC') -> Score: 0.0
+    vs DB: 'Huyện Mỏ Cày Bắc' (Cleaned: 'MỎ CÀY BẮC') -> Score: 0.0
+    vs DB: 'Huyện Mỏ Cày Nam' (Cleaned: 'MỎ CÀY NAM') -> Score: 0.0
+    vs DB: 'Huyện Mộc Châu' (Cleaned: 'MỘC CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Mù Cang Chải' (Cleaned: 'MÙ CANG CHẢI') -> Score: 0.0
+    vs DB: 'Huyện Mường Chà' (Cleaned: 'MƯỜNG CHÀ') -> Score: 0.0
+    vs DB: 'Huyện Mường Nhé' (Cleaned: 'MƯỜNG NHÉ') -> Score: 0.0
+    vs DB: 'Huyện Mường Tè' (Cleaned: 'MƯỜNG TÈ') -> Score: 0.0
+    vs DB: 'Huyện Mỹ Lộc' (Cleaned: 'MỸ LỘC') -> Score: 0.0
+    vs DB: 'Huyện Na Hang' (Cleaned: 'NA HANG') -> Score: 0.0
+    vs DB: 'Huyện Nam Trực' (Cleaned: 'NAM TRỰC') -> Score: 0.0
+    vs DB: 'Huyện Nậm Nhùn' (Cleaned: 'NẬM NHÙN') -> Score: 0.0
+    vs DB: 'Huyện Ninh Hải' (Cleaned: 'NINH HẢI') -> Score: 0.0
+    vs DB: 'Huyện Ninh Phước' (Cleaned: 'NINH PHƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Núi Thành' (Cleaned: 'NÚI THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Nghĩa Hành' (Cleaned: 'NGHĨA HÀNH') -> Score: 0.0
+    vs DB: 'Huyện Phong Thổ' (Cleaned: 'PHONG THỔ') -> Score: 0.0
+    vs DB: 'Thị xã Phổ Yên' (Cleaned: 'PHỔ YÊN') -> Score: 0.0
+    vs DB: 'Huyện Phú Bình' (Cleaned: 'PHÚ BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Phú Giáo' (Cleaned: 'PHÚ GIÁO') -> Score: 0.0
+    vs DB: 'Huyện Phú Hòa' (Cleaned: 'PHÚ HÒA') -> Score: 0.0
+    vs DB: 'Huyện Phù Ninh' (Cleaned: 'PHÙ NINH') -> Score: 0.0
+    vs DB: 'Huyện Phú Ninh' (Cleaned: 'PHÚ NINH') -> Score: 0.0
+    vs DB: 'Huyện Phù Yên' (Cleaned: 'PHÙ YÊN') -> Score: 0.0
+    vs DB: 'Huyện Phục Hòa' (Cleaned: 'PHỤC HÒA') -> Score: 0.0
+    vs DB: 'Huyện Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 0.0
+    vs DB: 'Huyện Quản Bạ' (Cleaned: 'QUẢN BẠ') -> Score: 0.0
+    vs DB: 'Huyện Quan Sơn' (Cleaned: 'QUAN SƠN') -> Score: 0.0
+    vs DB: 'Huyện Quang Bình' (Cleaned: 'QUANG BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Quảng Ninh' (Cleaned: 'QUẢNG NINH') -> Score: 0.0
+    vs DB: 'Huyện Quế Sơn' (Cleaned: 'QUẾ SƠN') -> Score: 0.0
+    vs DB: 'Huyện Quốc Oai' (Cleaned: 'QUỐC OAI') -> Score: 0.0
+    vs DB: 'Thị xã Sa Pa' (Cleaned: 'SA PA') -> Score: 0.0
+    vs DB: 'Huyện Sìn Hồ' (Cleaned: 'SÌN HỒ') -> Score: 0.0
+    vs DB: 'Huyện Sông Mã' (Cleaned: 'SÔNG MÃ') -> Score: 0.0
+    vs DB: 'Huyện Tam Bình' (Cleaned: 'TAM BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Tam Dương' (Cleaned: 'TAM DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Tam Đường' (Cleaned: 'TAM ĐƯỜNG') -> Score: 0.0
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 0.0
+    vs DB: 'Huyện Tánh Linh' (Cleaned: 'TÁNH LINH') -> Score: 0.0
+    vs DB: 'Huyện Tân Hồng' (Cleaned: 'TÂN HỒNG') -> Score: 0.0
+    vs DB: 'Huyện Tân Lạc' (Cleaned: 'TÂN LẠC') -> Score: 0.0
+    vs DB: 'Huyện Tân Sơn' (Cleaned: 'TÂN SƠN') -> Score: 0.0
+    vs DB: 'Huyện Tân Trụ' (Cleaned: 'TÂN TRỤ') -> Score: 0.0
+    vs DB: 'Huyện Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 0.0
+    vs DB: 'Huyện Tiên Lữ' (Cleaned: 'TIÊN LỮ') -> Score: 0.0
+    vs DB: 'Huyện Tiên Yên' (Cleaned: 'TIÊN YÊN') -> Score: 0.0
+    vs DB: 'Huyện Tiểu Cần' (Cleaned: 'TIỂU CẦN') -> Score: 0.0
+    vs DB: 'Huyện Tủa Chùa' (Cleaned: 'TỦA CHÙA') -> Score: 0.0
+    vs DB: 'Huyện Tuần Giáo' (Cleaned: 'TUẦN GIÁO') -> Score: 0.0
+    vs DB: 'Huyện Tuy Phước' (Cleaned: 'TUY PHƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Thạch Hà' (Cleaned: 'THẠCH HÀ') -> Score: 0.0
+    vs DB: 'Huyện Than Uyên' (Cleaned: 'THAN UYÊN') -> Score: 0.0
+    vs DB: 'Huyện Thanh Bình' (Cleaned: 'THANH BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Thanh Liêm' (Cleaned: 'THANH LIÊM') -> Score: 0.0
+    vs DB: 'Huyện Thạnh Phú' (Cleaned: 'THẠNH PHÚ') -> Score: 0.0
+    vs DB: 'Huyện Thanh Sơn' (Cleaned: 'THANH SƠN') -> Score: 0.0
+    vs DB: 'Huyện Tháp Mười' (Cleaned: 'THÁP MƯỜI') -> Score: 0.0
+    vs DB: 'Huyện Thủ Thừa' (Cleaned: 'THỦ THỪA') -> Score: 0.0
+    vs DB: 'Huyện Thuận Châu' (Cleaned: 'THUẬN CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Trà Cú' (Cleaned: 'TRÀ CÚ') -> Score: 0.0
+    vs DB: 'Huyện Trà Ôn' (Cleaned: 'TRÀ ÔN') -> Score: 0.0
+    vs DB: 'Thị xã Trảng Bàng' (Cleaned: 'TRẢNG BÀNG') -> Score: 0.0
+    vs DB: 'Huyện Tràng Định' (Cleaned: 'TRÀNG ĐỊNH') -> Score: 0.0
+    vs DB: 'Huyện Trần Đề' (Cleaned: 'TRẦN ĐỀ') -> Score: 0.0
+    vs DB: 'Huyện Trần Văn Thời' (Cleaned: 'TRẦN VĂN THỜI') -> Score: 0.0
+    vs DB: 'Huyện Trấn Yên' (Cleaned: 'TRẤN YÊN') -> Score: 0.0
+    vs DB: 'Huyện Triệu Phong' (Cleaned: 'TRIỆU PHONG') -> Score: 0.0
+    vs DB: 'Huyện Trùng Khánh' (Cleaned: 'TRÙNG KHÁNH') -> Score: 0.0
+    vs DB: 'Huyện U Minh' (Cleaned: 'U MINH') -> Score: 0.0
+    vs DB: 'Huyện Văn Bàn' (Cleaned: 'VĂN BÀN') -> Score: 0.0
+    vs DB: 'Huyện Văn Chấn' (Cleaned: 'VĂN CHẤN') -> Score: 0.0
+    vs DB: 'Huyện Văn Giang' (Cleaned: 'VĂN GIANG') -> Score: 0.0
+    vs DB: 'Huyện Văn Lâm' (Cleaned: 'VĂN LÂM') -> Score: 0.0
+    vs DB: 'Huyện Văn Yên' (Cleaned: 'VĂN YÊN') -> Score: 0.0
+    vs DB: 'Huyện Vị Thuỷ' (Cleaned: 'VỊ THUỶ') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Cửu' (Cleaned: 'VĨNH CỬU') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Lợi' (Cleaned: 'VĨNH LỢI') -> Score: 0.0
+    vs DB: 'Huyện Võ Nhai' (Cleaned: 'VÕ NHAI') -> Score: 0.0
+    vs DB: 'Huyện Xín Mần' (Cleaned: 'XÍN MẦN') -> Score: 0.0
+    vs DB: 'Huyện Yên Minh' (Cleaned: 'YÊN MINH') -> Score: 0.0
+    vs DB: 'Thị xã Bình Minh' (Cleaned: 'BÌNH MINH') -> Score: 0.0
+    vs DB: 'Thị Xã Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 0.0
+    vs DB: 'Thành phố Chí Linh' (Cleaned: 'CHÍ LINH') -> Score: 0.0
+    vs DB: 'Thị xã Gò Công' (Cleaned: 'GÒ CÔNG') -> Score: 0.0
+    vs DB: 'Thành phố Hà Tiên' (Cleaned: 'HÀ TIÊN') -> Score: 0.0
+    vs DB: 'Thành Phố Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 0.0
+    vs DB: 'Thị xã Mường Lay' (Cleaned: 'MƯỜNG LAY') -> Score: 0.0
+    vs DB: 'Thị xã Ninh Hòa' (Cleaned: 'NINH HÒA') -> Score: 0.0
+    vs DB: 'Thị xã Ngã Năm' (Cleaned: 'NGÃ NĂM') -> Score: 0.0
+    vs DB: 'Thị xã Nghĩa Lộ' (Cleaned: 'NGHĨA LỘ') -> Score: 0.0
+    vs DB: 'Thị xã Phú Thọ' (Cleaned: 'PHÚ THỌ') -> Score: 0.0
+    vs DB: 'Thành phố Phúc Yên' (Cleaned: 'PHÚC YÊN') -> Score: 0.0
+    vs DB: 'Thị xã Quảng Yên' (Cleaned: 'QUẢNG YÊN') -> Score: 0.0
+    vs DB: 'Huyện Bá Thước' (Cleaned: 'BÁ THƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Bảo Thắng' (Cleaned: 'BẢO THẮNG') -> Score: 0.0
+    vs DB: 'Huyện Bắc Mê' (Cleaned: 'BẮC MÊ') -> Score: 0.0
+    vs DB: 'Huyện Bắc Trà My' (Cleaned: 'BẮC TRÀ MY') -> Score: 0.0
+    vs DB: 'Huyện Bắc Yên' (Cleaned: 'BẮC YÊN') -> Score: 0.0
+    vs DB: 'Huyện Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 0.0
+    vs DB: 'Huyện Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 0.0
+    vs DB: 'Huyện Càng Long' (Cleaned: 'CÀNG LONG') -> Score: 0.0
+    vs DB: 'Huyện Cao Phong' (Cleaned: 'CAO PHONG') -> Score: 0.0
+    vs DB: 'Huyện Cần Giờ' (Cleaned: 'CẦN GIỜ') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Huyện Cầu Kè' (Cleaned: 'CẦU KÈ') -> Score: 0.0
+    vs DB: 'Huyện Cù Lao Dung' (Cleaned: 'CÙ LAO DUNG') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Chư Pưh' (Cleaned: 'CHƯ PƯH') -> Score: 0.0
+    vs DB: 'Huyện Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 0.0
+    vs DB: 'Huyện Đạ Huoai' (Cleaned: 'ĐẠ HUOAI') -> Score: 0.0
+    vs DB: 'Huyện Đa Krông' (Cleaned: 'ĐA KRÔNG') -> Score: 0.0
+    vs DB: 'Huyện Đạ Tẻh' (Cleaned: 'ĐẠ TẺH') -> Score: 0.0
+    vs DB: 'Huyện đảo Bạch Long Vĩ' (Cleaned: 'ĐẢO BẠCH LONG VĨ') -> Score: 0.0
+    vs DB: 'Huyện đảo Cát Hải' (Cleaned: 'ĐẢO CÁT HẢI') -> Score: 0.0
+    vs DB: 'Huyện đảo Cô Tô' (Cleaned: 'ĐẢO CÔ TÔ') -> Score: 0.0
+    vs DB: 'Huyện đảo Cồn Cỏ' (Cleaned: 'ĐẢO CỒN CỎ') -> Score: 0.0
+    vs DB: 'Huyện đảo Côn Đảo' (Cleaned: 'ĐẢO CÔN ĐẢO') -> Score: 0.0
+    vs DB: 'Huyện đảo Hoàng Sa' (Cleaned: 'ĐẢO HOÀNG SA') -> Score: 0.0
+    vs DB: 'Huyện đảo Kiên Hải' (Cleaned: 'ĐẢO KIÊN HẢI') -> Score: 0.0
+    vs DB: 'Huyện đảo Lý Sơn' (Cleaned: 'ĐẢO LÝ SƠN') -> Score: 0.0
+    vs DB: 'Thành phố Phú Quốc' (Cleaned: 'PHÚ QUỐC') -> Score: 0.0
+    vs DB: 'Huyện đảo Phú Quý' (Cleaned: 'ĐẢO PHÚ QUÝ') -> Score: 0.0
+    vs DB: 'Huyện đảo Trường Sa' (Cleaned: 'ĐẢO TRƯỜNG SA') -> Score: 0.0
+    vs DB: 'Huyện Đắk Đoa' (Cleaned: 'ĐẮK ĐOA') -> Score: 0.0
+    vs DB: 'Huyện Đắk Pơ' (Cleaned: 'ĐẮK PƠ') -> Score: 0.0
+    vs DB: 'Huyện Đắk Song' (Cleaned: 'ĐẮK SONG') -> Score: 0.0
+    vs DB: 'Huyện Đắk Tô' (Cleaned: 'ĐẮK TÔ') -> Score: 0.0
+    vs DB: 'Huyện Điện Biên Đông' (Cleaned: 'ĐIỆN BIÊN ĐÔNG') -> Score: 0.0
+    vs DB: 'Huyện Đông Giang' (Cleaned: 'ĐÔNG GIANG') -> Score: 0.0
+    vs DB: 'Huyện Đức Huệ' (Cleaned: 'ĐỨC HUỆ') -> Score: 0.0
+    vs DB: 'Huyện Ea Súp' (Cleaned: 'EA SÚP') -> Score: 0.0
+    vs DB: 'Huyện Gò Quao' (Cleaned: 'GÒ QUAO') -> Score: 0.0
+    vs DB: 'Huyện Giang Thành' (Cleaned: 'GIANG THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Hải Lăng' (Cleaned: 'HẢI LĂNG') -> Score: 0.0
+    vs DB: 'Huyện Hiệp Đức' (Cleaned: 'HIỆP ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Hoài Ân' (Cleaned: 'HOÀI ÂN') -> Score: 0.0
+    vs DB: 'Huyện Kbang' (Cleaned: 'KBANG') -> Score: 0.0
+    vs DB: 'Huyện Kim Bôi' (Cleaned: 'KIM BÔI') -> Score: 0.0
+    vs DB: 'Huyện Kon Rẫy' (Cleaned: 'KON RẪY') -> Score: 0.0
+    vs DB: 'Huyện Kông Chro' (Cleaned: 'KÔNG CHRO') -> Score: 0.0
+    vs DB: 'Huyện Krông Búk' (Cleaned: 'KRÔNG BÚK') -> Score: 0.0
+    vs DB: 'Huyện Krông Nô' (Cleaned: 'KRÔNG NÔ') -> Score: 0.0
+    vs DB: 'Huyện Krông Pa' (Cleaned: 'KRÔNG PA') -> Score: 0.0
+    vs DB: 'Huyện Lạc Sơn' (Cleaned: 'LẠC SƠN') -> Score: 0.0
+    vs DB: 'Huyện Lạc Thủy' (Cleaned: 'LẠC THỦY') -> Score: 0.0
+    vs DB: 'Huyện Long Phú' (Cleaned: 'LONG PHÚ') -> Score: 0.0
+    vs DB: 'Huyện Mai Châu' (Cleaned: 'MAI CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Mang Thít' (Cleaned: 'MANG THÍT') -> Score: 0.0
+    vs DB: 'Huyện Mang Yang' (Cleaned: 'MANG YANG') -> Score: 0.0
+    vs DB: 'Huyện Minh Long' (Cleaned: 'MINH LONG') -> Score: 0.0
+    vs DB: 'Huyện Mường Ảng' (Cleaned: 'MƯỜNG ẢNG') -> Score: 0.0
+    vs DB: 'Huyện Mường Khương' (Cleaned: 'MƯỜNG KHƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Mỹ Tú' (Cleaned: 'MỸ TÚ') -> Score: 0.0
+    vs DB: 'Huyện Nam Giang' (Cleaned: 'NAM GIANG') -> Score: 0.0
+    vs DB: 'Huyện Nam Trà My' (Cleaned: 'NAM TRÀ MY') -> Score: 0.0
+    vs DB: 'Huyện Nậm Pồ' (Cleaned: 'NẬM PỒ') -> Score: 0.0
+    vs DB: 'Huyện Nông Cống' (Cleaned: 'NÔNG CỐNG') -> Score: 0.0
+    vs DB: 'Huyện Nông Sơn' (Cleaned: 'NÔNG SƠN') -> Score: 0.0
+    vs DB: 'Huyện Ngọc Hiển' (Cleaned: 'NGỌC HIỂN') -> Score: 0.0
+    vs DB: 'Huyện Ngọc Hồi' (Cleaned: 'NGỌC HỒI') -> Score: 0.0
+    vs DB: 'Huyện Như Thanh' (Cleaned: 'NHƯ THANH') -> Score: 0.0
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 0.0
+    vs DB: 'Huyện Phù Cừ' (Cleaned: 'PHÙ CỪ') -> Score: 0.0
+    vs DB: 'Huyện Phú Lương' (Cleaned: 'PHÚ LƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Phước Sơn' (Cleaned: 'PHƯỚC SƠN') -> Score: 0.0
+    vs DB: 'Huyện Quỳnh Nhai' (Cleaned: 'QUỲNH NHAI') -> Score: 0.0
+    vs DB: 'Huyện Sa Thầy' (Cleaned: 'SA THẦY') -> Score: 0.0
+    vs DB: 'Huyện Sông Hinh' (Cleaned: 'SÔNG HINH') -> Score: 0.0
+    vs DB: 'Huyện Sơn Hà' (Cleaned: 'SƠN HÀ') -> Score: 0.0
+    vs DB: 'Huyện Sơn Hòa' (Cleaned: 'SƠN HÒA') -> Score: 0.0
+    vs DB: 'Huyện Tân Phú Đông' (Cleaned: 'TÂN PHÚ ĐÔNG') -> Score: 0.0
+    vs DB: 'Huyện Tây Giang' (Cleaned: 'TÂY GIANG') -> Score: 0.0
+    vs DB: 'Huyện Tây Trà' (Cleaned: 'TÂY TRÀ') -> Score: 0.0
+    vs DB: 'Huyện Tiên Phước' (Cleaned: 'TIÊN PHƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Tu Mơ Rông' (Cleaned: 'TU MƠ RÔNG') -> Score: 0.0
+    vs DB: 'Huyện Tuy Đức' (Cleaned: 'TUY ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Thanh Thủy' (Cleaned: 'THANH THỦY') -> Score: 0.0
+    vs DB: 'Huyện Thạnh Trị' (Cleaned: 'THẠNH TRỊ') -> Score: 0.0
+    vs DB: 'Huyện Thăng Bình' (Cleaned: 'THĂNG BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Trạm Tấu' (Cleaned: 'TRẠM TẤU') -> Score: 0.0
+    vs DB: 'Huyện Triệu Sơn' (Cleaned: 'TRIỆU SƠN') -> Score: 0.0
+    vs DB: 'Huyện U Minh Thượng' (Cleaned: 'U MINH THƯỢNG') -> Score: 0.0
+    vs DB: 'Huyện Vân Hồ' (Cleaned: 'VÂN HỒ') -> Score: 0.0
+    vs DB: 'Huyện Vị Xuyên' (Cleaned: 'VỊ XUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Thuận' (Cleaned: 'VĨNH THUẬN') -> Score: 0.0
+    vs DB: 'Huyện Vũng Liêm' (Cleaned: 'VŨNG LIÊM') -> Score: 0.0
+    vs DB: 'Huyện Si Ma Cai' (Cleaned: 'SI MA CAI') -> Score: 0.0
+    vs DB: 'Huyện Yên Bình' (Cleaned: 'YÊN BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Yên Châu' (Cleaned: 'YÊN CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Yên Lập' (Cleaned: 'YÊN LẬP') -> Score: 0.0
+    vs DB: 'Huyện Yên Thủy' (Cleaned: 'YÊN THỦY') -> Score: 0.0
+    vs DB: 'Thị xã Vĩnh Châu' (Cleaned: 'VĨNH CHÂU') -> Score: 0.0
+    vs DB: 'Huyện An Minh' (Cleaned: 'AN MINH') -> Score: 0.0
+    vs DB: 'Huyện Ba Chẽ' (Cleaned: 'BA CHẼ') -> Score: 0.0
+    vs DB: 'Huyện Ba Tơ' (Cleaned: 'BA TƠ') -> Score: 0.0
+    vs DB: 'Huyện Bác Ái' (Cleaned: 'BÁC ÁI') -> Score: 0.0
+    vs DB: 'Huyện Bảo Lạc' (Cleaned: 'BẢO LẠC') -> Score: 0.0
+    vs DB: 'Huyện Bàu Bàng' (Cleaned: 'BÀU BÀNG') -> Score: 0.0
+    vs DB: 'Huyện Bắc Sơn' (Cleaned: 'BẮC SƠN') -> Score: 0.0
+    vs DB: 'Huyện Bắc Tân Uyên' (Cleaned: 'BẮC TÂN UYÊN') -> Score: 0.0
+    vs DB: 'Huyện Bình Gia' (Cleaned: 'BÌNH GIA') -> Score: 0.0
+    vs DB: 'Huyện Bù Đốp' (Cleaned: 'BÙ ĐỐP') -> Score: 0.0
+    vs DB: 'Huyện Bù Gia Mập' (Cleaned: 'BÙ GIA MẬP') -> Score: 0.0
+    vs DB: 'Huyện Can Lộc' (Cleaned: 'CAN LỘC') -> Score: 0.0
+    vs DB: 'Huyện Cát Tiên' (Cleaned: 'CÁT TIÊN') -> Score: 0.0
+    vs DB: 'Huyện Cẩm Thủy' (Cleaned: 'CẨM THỦY') -> Score: 0.0
+    vs DB: 'Huyện Cờ Đỏ' (Cleaned: 'CỜ ĐỎ') -> Score: 0.0
+    vs DB: 'Huyện Cư Jút' (Cleaned: 'CƯ JÚT') -> Score: 0.0
+    vs DB: 'Huyện Cư Kuin' (Cleaned: 'CƯ KUIN') -> Score: 0.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 0.0
+    vs DB: 'Huyện Chi Lăng' (Cleaned: 'CHI LĂNG') -> Score: 0.0
+    vs DB: 'Huyện Chiêm Hóa' (Cleaned: 'CHIÊM HÓA') -> Score: 0.0
+    vs DB: 'Huyện Chợ Lách' (Cleaned: 'CHỢ LÁCH') -> Score: 0.0
+    vs DB: 'Huyện Di Linh' (Cleaned: 'DI LINH') -> Score: 0.0
+    vs DB: 'Huyện Đầm Hà' (Cleaned: 'ĐẦM HÀ') -> Score: 0.0
+    vs DB: 'Huyện Đình Lập' (Cleaned: 'ĐÌNH LẬP') -> Score: 0.0
+    vs DB: 'Thị xã Đông Hòa' (Cleaned: 'ĐÔNG HÒA') -> Score: 0.0
+    vs DB: 'Thị xã Đông Triều' (Cleaned: 'ĐÔNG TRIỀU') -> Score: 0.0
+    vs DB: 'Huyện Đồng Xuân' (Cleaned: 'ĐỒNG XUÂN') -> Score: 0.0
+    vs DB: 'Huyện Đức Thọ' (Cleaned: 'ĐỨC THỌ') -> Score: 0.0
+    vs DB: 'Huyện Gia Viễn' (Cleaned: 'GIA VIỄN') -> Score: 0.0
+    vs DB: 'Huyện Giao Thủy' (Cleaned: 'GIAO THỦY') -> Score: 0.0
+    vs DB: 'Huyện Hạ Lang' (Cleaned: 'HẠ LANG') -> Score: 0.0
+    vs DB: 'Huyện Hàm Tân' (Cleaned: 'HÀM TÂN') -> Score: 0.0
+    vs DB: 'Huyện Hoành Bồ' (Cleaned: 'HOÀNH BỒ') -> Score: 0.0
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 0.0
+    vs DB: 'Huyện Hương Sơn' (Cleaned: 'HƯƠNG SƠN') -> Score: 0.0
+    vs DB: 'Huyện Kiến Thụy' (Cleaned: 'KIẾN THỤY') -> Score: 0.0
+    vs DB: 'Huyện Kim Sơn' (Cleaned: 'KIM SƠN') -> Score: 0.0
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 0.0
+    vs DB: 'Huyện Khánh Sơn' (Cleaned: 'KHÁNH SƠN') -> Score: 0.0
+    vs DB: 'Huyện Khánh Vĩnh' (Cleaned: 'KHÁNH VĨNH') -> Score: 0.0
+    vs DB: 'Huyện Lang Chánh' (Cleaned: 'LANG CHÁNH') -> Score: 0.0
+    vs DB: 'Huyện Lắk' (Cleaned: 'LẮK') -> Score: 0.0
+    vs DB: 'Thị xã Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 0.0
+    vs DB: 'Huyện Lộc Hà' (Cleaned: 'LỘC HÀ') -> Score: 0.0
+    vs DB: 'Huyện Minh Hóa' (Cleaned: 'MINH HÓA') -> Score: 0.0
+    vs DB: 'Huyện Mộ Đức' (Cleaned: 'MỘ ĐỨC') -> Score: 0.0
+    vs DB: 'Huyện Mộc Hóa' (Cleaned: 'MỘC HÓA') -> Score: 0.0
+    vs DB: 'Huyện Mường La' (Cleaned: 'MƯỜNG LA') -> Score: 0.0
+    vs DB: 'Huyện Na Rì' (Cleaned: 'NA RÌ') -> Score: 0.0
+    vs DB: 'Huyện Nam Đàn' (Cleaned: 'NAM ĐÀN') -> Score: 0.0
+    vs DB: 'Huyện Nam Đông' (Cleaned: 'NAM ĐÔNG') -> Score: 0.0
+    vs DB: 'Huyện Ninh Giang' (Cleaned: 'NINH GIANG') -> Score: 0.0
+    vs DB: 'Huyện Nga Sơn' (Cleaned: 'NGA SƠN') -> Score: 0.0
+    vs DB: 'Huyện Ngân Sơn' (Cleaned: 'NGÂN SƠN') -> Score: 0.0
+    vs DB: 'Huyện Nghĩa Hưng' (Cleaned: 'NGHĨA HƯNG') -> Score: 0.0
+    vs DB: 'Huyện Nguyên Bình' (Cleaned: 'NGUYÊN BÌNH') -> Score: 0.0
+    vs DB: 'Huyện Nho Quan' (Cleaned: 'NHO QUAN') -> Score: 0.0
+    vs DB: 'Huyện Pác Nặm' (Cleaned: 'PÁC NẶM') -> Score: 0.0
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 0.0
+    vs DB: 'Huyện Phù Mỹ' (Cleaned: 'PHÙ MỸ') -> Score: 0.0
+    vs DB: 'Huyện Phú Xuyên' (Cleaned: 'PHÚ XUYÊN') -> Score: 0.0
+    vs DB: 'Huyện Quảng Điền' (Cleaned: 'QUẢNG ĐIỀN') -> Score: 0.0
+    vs DB: 'Huyện Quảng Trạch' (Cleaned: 'QUẢNG TRẠCH') -> Score: 0.0
+    vs DB: 'Huyện Quảng Uyên' (Cleaned: 'QUẢNG UYÊN') -> Score: 0.0
+    vs DB: 'Huyện Quế Phong' (Cleaned: 'QUẾ PHONG') -> Score: 0.0
+    vs DB: 'Huyện Quỳ Châu' (Cleaned: 'QUỲ CHÂU') -> Score: 0.0
+    vs DB: 'Huyện Sông Lô' (Cleaned: 'SÔNG LÔ') -> Score: 0.0
+    vs DB: 'huyện Sốp Cộp' (Cleaned: 'SỐP CỘP') -> Score: 0.0
+    vs DB: 'Huyện Sơn Dương' (Cleaned: 'SƠN DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 0.0
+    vs DB: 'Huyện Tam Đảo' (Cleaned: 'TAM ĐẢO') -> Score: 0.0
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 0.0
+    vs DB: 'Huyện Tân Hưng' (Cleaned: 'TÂN HƯNG') -> Score: 0.0
+    vs DB: 'Huyện Tân Phước' (Cleaned: 'TÂN PHƯỚC') -> Score: 0.0
+    vs DB: 'Huyện Tân Thạnh' (Cleaned: 'TÂN THẠNH') -> Score: 0.0
+    vs DB: 'Huyện Tây Hòa' (Cleaned: 'TÂY HÒA') -> Score: 0.0
+    vs DB: 'Huyện Tây Sơn' (Cleaned: 'TÂY SƠN') -> Score: 0.0
+    vs DB: 'Huyện Tiền Hải' (Cleaned: 'TIỀN HẢI') -> Score: 0.0
+    vs DB: 'Huyện Tuy An' (Cleaned: 'TUY AN') -> Score: 0.0
+    vs DB: 'Huyện Tuyên Hóa' (Cleaned: 'TUYÊN HÓA') -> Score: 0.0
+    vs DB: 'Huyện Tứ Kỳ' (Cleaned: 'TỨ KỲ') -> Score: 0.0
+    vs DB: 'Huyện Tương Dương' (Cleaned: 'TƯƠNG DƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Thạch An' (Cleaned: 'THẠCH AN') -> Score: 0.0
+    vs DB: 'Huyện Thanh Ba' (Cleaned: 'THANH BA') -> Score: 0.0
+    vs DB: 'Huyện Thanh Chương' (Cleaned: 'THANH CHƯƠNG') -> Score: 0.0
+    vs DB: 'Huyện Thanh Hà' (Cleaned: 'THANH HÀ') -> Score: 0.0
+    vs DB: 'Huyện Thạnh Hóa' (Cleaned: 'THẠNH HÓA') -> Score: 0.0
+    vs DB: 'Huyện Thanh Miện' (Cleaned: 'THANH MIỆN') -> Score: 0.0
+    vs DB: 'Huyện Thiệu Hóa' (Cleaned: 'THIỆU HÓA') -> Score: 0.0
+    vs DB: 'Huyện Thông Nông' (Cleaned: 'THÔNG NÔNG') -> Score: 0.0
+    vs DB: 'Huyện Thới Lai' (Cleaned: 'THỚI LAI') -> Score: 0.0
+    vs DB: 'Huyện Thuận Bắc' (Cleaned: 'THUẬN BẮC') -> Score: 0.0
+    vs DB: 'Huyện Thuận Nam' (Cleaned: 'THUẬN NAM') -> Score: 0.0
+    vs DB: 'Huyện Thường Tín' (Cleaned: 'THƯỜNG TÍN') -> Score: 0.0
+    vs DB: 'Huyện Trà Bồng' (Cleaned: 'TRÀ BỒNG') -> Score: 0.0
+    vs DB: 'Huyện Trà Lĩnh' (Cleaned: 'TRÀ LĨNH') -> Score: 0.0
+    vs DB: 'Huyện Trực Ninh' (Cleaned: 'TRỰC NINH') -> Score: 0.0
+    vs DB: 'Huyện Văn Lãng' (Cleaned: 'VĂN LÃNG') -> Score: 0.0
+    vs DB: 'Huyện Văn Quan' (Cleaned: 'VĂN QUAN') -> Score: 0.0
+    vs DB: 'Huyện Vân Canh' (Cleaned: 'VÂN CANH') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Hưng' (Cleaned: 'VĨNH HƯNG') -> Score: 0.0
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 0.0
+    vs DB: 'Huyện Vụ Bản' (Cleaned: 'VỤ BẢN') -> Score: 0.0
+    vs DB: 'Huyện Vũ Quang' (Cleaned: 'VŨ QUANG') -> Score: 0.0
+    vs DB: 'Huyện Xuân Trường' (Cleaned: 'XUÂN TRƯỜNG') -> Score: 0.0
+    vs DB: 'Huyện Yên Mô' (Cleaned: 'YÊN MÔ') -> Score: 0.0
+    vs DB: 'Thị xã Kiến Tường' (Cleaned: 'KIẾN TƯỜNG') -> Score: 0.0
+    vs DB: 'Huyện M Đrắk' (Cleaned: 'M ĐRẮK') -> Score: 0.0
+    vs DB: 'Quận Nam Từ Liêm' (Cleaned: 'NAM TỪ LIÊM') -> Score: 0.0
+    vs DB: 'Thị xã Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 0.0
+    vs DB: 'Thị xã Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 0.0
+    vs DB: 'Huyện Phú Riềng' (Cleaned: 'PHÚ RIỀNG') -> Score: 0.0
+    vs DB: 'Huyện Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 0.0
+    vs DB: 'Huyện Ia H Drai' (Cleaned: 'IA H DRAI') -> Score: 0.0
+    vs DB: 'Quận Đặc Biệt' (Cleaned: 'ĐẶC BIỆT') -> Score: 0.0
+    vs DB: 'Huyện Quảng Hòa' (Cleaned: 'QUẢNG HÒA') -> Score: 0.0
+    vs DB: 'Thành Phố Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 0.0
+    vs DB: 'Thị xã Chũ' (Cleaned: 'CHŨ') -> Score: 0.0
+    vs DB: 'Quận Thuận Hóa' (Cleaned: 'THUẬN HÓA') -> Score: 0.0
+    vs DB: 'Quận Phú Xuân' (Cleaned: 'PHÚ XUÂN') -> Score: 0.0
+    vs DB: 'Huyện Long Đất' (Cleaned: 'LONG ĐẤT') -> Score: 0.0
+  VTP_District: QUẬN BÌNH TÂN (Code: 46)
+    vs DB: 'Quận 1' (Cleaned: '1') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 2' (Cleaned: '2') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 3' (Cleaned: '3') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 4' (Cleaned: '4') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 5' (Cleaned: '5') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 6' (Cleaned: '6') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 7' (Cleaned: '7') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 8' (Cleaned: '8') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 9' (Cleaned: '9') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 10' (Cleaned: '10') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 11' (Cleaned: '11') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận 12' (Cleaned: '12') -> Score: 0.0 (Cùng tỉnh)
+    vs DB: 'Quận Tân Bình' (Cleaned: 'TÂN BÌNH') -> Score: 50.0 (Cùng tỉnh)
+    vs DB: 'Quận Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 40.0 (Cùng tỉnh)
+    vs DB: 'Quận Phú Nhuận' (Cleaned: 'PHÚ NHUẬN') -> Score: 35.29411764705882 (Cùng tỉnh)
+    vs DB: 'Quận Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 100.0 (Cùng tỉnh)
+    vs DB: 'Huyện Hóc Môn' (Cleaned: 'HÓC MÔN') -> Score: 40.0 (Cùng tỉnh)
+    vs DB: 'Huyện Củ Chi' (Cleaned: 'CỦ CHI') -> Score: 14.28571428571429 (Cùng tỉnh)
+    vs DB: 'Quận Gò Vấp' (Cleaned: 'GÒ VẤP') -> Score: 14.28571428571429 (Cùng tỉnh)
+    vs DB: 'Quận Bình Thạnh' (Cleaned: 'BÌNH THẠNH') -> Score: 77.77777777777779 (Cùng tỉnh)
+    vs DB: 'Quận Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 26.66666666666667 (Cùng tỉnh)
+    vs DB: 'Quận Bắc Từ Liêm' (Cleaned: 'BẮC TỪ LIÊM') -> Score: 31.57894736842105
+    vs DB: 'Quận Ba Đình' (Cleaned: 'BA ĐÌNH') -> Score: 53.333333333333336
+    vs DB: 'Quận Cầu Giấy' (Cleaned: 'CẦU GIẤY') -> Score: 12.5
+    vs DB: 'Quận Đống Đa' (Cleaned: 'ĐỐNG ĐA') -> Score: 26.66666666666667
+    vs DB: 'Quận Hai Bà Trưng' (Cleaned: 'HAI BÀ TRƯNG') -> Score: 40.0
+    vs DB: 'Quận Hoàn Kiếm' (Cleaned: 'HOÀN KIẾM') -> Score: 23.529411764705888
+    vs DB: 'Quận Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 23.529411764705888
+    vs DB: 'Quận Long Biên' (Cleaned: 'LONG BIÊN') -> Score: 35.29411764705882
+    vs DB: 'Quận Tây Hồ' (Cleaned: 'TÂY HỒ') -> Score: 28.57142857142857
+    vs DB: 'Quận Thanh Xuân' (Cleaned: 'THANH XUÂN') -> Score: 55.55555555555556
+    vs DB: 'Quận Hải Châu' (Cleaned: 'HẢI CHÂU') -> Score: 37.5
+    vs DB: 'Quận Thanh Khê' (Cleaned: 'THANH KHÊ') -> Score: 35.29411764705882
+    vs DB: 'Quận Sơn Trà' (Cleaned: 'SƠN TRÀ') -> Score: 40.0
+    vs DB: 'Quận Ngũ Hành Sơn' (Cleaned: 'NGŨ HÀNH SƠN') -> Score: 40.0
+    vs DB: 'Quận Liên Chiểu' (Cleaned: 'LIÊN CHIỂU') -> Score: 22.22222222222222
+    vs DB: 'Quận Cẩm Lệ' (Cleaned: 'CẨM LỆ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Bình Chánh' (Cleaned: 'BÌNH CHÁNH') -> Score: 66.66666666666667 (Cùng tỉnh)
+    vs DB: 'Huyện Nhà Bè' (Cleaned: 'NHÀ BÈ') -> Score: 42.85714285714286 (Cùng tỉnh)
+    vs DB: 'Thành phố Biên Hòa' (Cleaned: 'BIÊN HÒA') -> Score: 37.5
+    vs DB: 'Thành phố Thủ Dầu Một' (Cleaned: 'THỦ DẦU MỘT') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Dĩ An' (Cleaned: 'DĨ AN') -> Score: 30.76923076923077
+    vs DB: 'Thành phố Thuận An' (Cleaned: 'THUẬN AN') -> Score: 37.5
+    vs DB: 'Quận Hà Đông' (Cleaned: 'HÀ ĐÔNG') -> Score: 40.0
+    vs DB: 'Thành phố Vũng Tàu' (Cleaned: 'VŨNG TÀU') -> Score: 37.5
+    vs DB: 'Thành phố Pleiku' (Cleaned: 'PLEIKU') -> Score: 0.0
+    vs DB: 'Thành phố Nha Trang' (Cleaned: 'NHA TRANG') -> Score: 58.82352941176471
+    vs DB: 'Thành phố Đà Lạt' (Cleaned: 'ĐÀ LẠT') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Buôn Ma Thuột' (Cleaned: 'BUÔN MA THUỘT') -> Score: 38.095238095238095
+    vs DB: 'Thành phố Tân An' (Cleaned: 'TÂN AN') -> Score: 42.85714285714286
+    vs DB: 'Thành phố Mỹ Tho' (Cleaned: 'MỸ THO') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Bến Tre' (Cleaned: 'BẾN TRE') -> Score: 53.333333333333336
+    vs DB: 'Thành phố Trà Vinh' (Cleaned: 'TRÀ VINH') -> Score: 25.0
+    vs DB: 'Thành phố Vĩnh Long' (Cleaned: 'VĨNH LONG') -> Score: 47.05882352941176
+    vs DB: 'Thành phố Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 25.0
+    vs DB: 'Thành phố Long Xuyên' (Cleaned: 'LONG XUYÊN') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Sóc Trăng' (Cleaned: 'SÓC TRĂNG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Rạch Giá' (Cleaned: 'RẠCH GIÁ') -> Score: 25.0
+    vs DB: 'Quận Ninh Kiều' (Cleaned: 'NINH KIỀU') -> Score: 35.29411764705882
+    vs DB: 'Quận Bình Thủy' (Cleaned: 'BÌNH THỦY') -> Score: 70.58823529411764
+    vs DB: 'Quận Cái Răng' (Cleaned: 'CÁI RĂNG') -> Score: 25.0
+    vs DB: 'Quận Ô Môn' (Cleaned: 'Ô MÔN') -> Score: 30.76923076923077
+    vs DB: 'Quận Thốt Nốt' (Cleaned: 'THỐT NỐT') -> Score: 37.5
+    vs DB: 'Thành phố Vĩnh Yên' (Cleaned: 'VĨNH YÊN') -> Score: 50.0
+    vs DB: 'Huyện Mê Linh' (Cleaned: 'MÊ LINH') -> Score: 26.66666666666667
+    vs DB: 'Huyện Đông Anh' (Cleaned: 'ĐÔNG ANH') -> Score: 37.5
+    vs DB: 'Huyện Sóc Sơn' (Cleaned: 'SÓC SƠN') -> Score: 26.66666666666667
+    vs DB: 'Thành phố Huế' (Cleaned: 'HUẾ') -> Score: 18.181818181818176
+    vs DB: 'Quận Ngô Quyền' (Cleaned: 'NGÔ QUYỀN') -> Score: 35.29411764705882
+    vs DB: 'Quận Lê Chân' (Cleaned: 'LÊ CHÂN') -> Score: 40.0
+    vs DB: 'Quận Hồng Bàng' (Cleaned: 'HỒNG BÀNG') -> Score: 35.29411764705882
+    vs DB: 'Quận Kiến An' (Cleaned: 'KIẾN AN') -> Score: 40.0
+    vs DB: 'Quận Hải An' (Cleaned: 'HẢI AN') -> Score: 42.85714285714286
+    vs DB: 'Thành phố Hải Dương' (Cleaned: 'HẢI DƯƠNG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Thái Bình' (Cleaned: 'THÁI BÌNH') -> Score: 47.05882352941176
+    vs DB: 'Thành phố Hà Giang' (Cleaned: 'HÀ GIANG') -> Score: 37.5
+    vs DB: 'Thành phố Tuyên Quang' (Cleaned: 'TUYÊN QUANG') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Việt Trì' (Cleaned: 'VIỆT TRÌ') -> Score: 25.0
+    vs DB: 'Thành phố Móng Cái' (Cleaned: 'MÓNG CÁI') -> Score: 25.0
+    vs DB: 'Thành phố Hạ Long' (Cleaned: 'HẠ LONG') -> Score: 40.0
+    vs DB: 'Thành phố Nam Định' (Cleaned: 'NAM ĐỊNH') -> Score: 37.5
+    vs DB: 'Thành phố Phủ Lý' (Cleaned: 'PHỦ LÝ') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Ninh Bình' (Cleaned: 'NINH BÌNH') -> Score: 47.05882352941176
+    vs DB: 'Thành phố Thanh Hóa' (Cleaned: 'THANH HÓA') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Vinh' (Cleaned: 'VINH') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Hà Tĩnh' (Cleaned: 'HÀ TĨNH') -> Score: 53.333333333333336
+    vs DB: 'Thành phố Đồng Hới' (Cleaned: 'ĐỒNG HỚI') -> Score: 25.0
+    vs DB: 'Thành phố Đông Hà' (Cleaned: 'ĐÔNG HÀ') -> Score: 26.66666666666667
+    vs DB: 'Thị xã Quảng Trị' (Cleaned: 'QUẢNG TRỊ') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Đồng Xoài' (Cleaned: 'ĐỒNG XOÀI') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Tây Ninh' (Cleaned: 'TÂY NINH') -> Score: 37.5
+    vs DB: 'Thành phố Gia Nghĩa' (Cleaned: 'GIA NGHĨA') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Quảng Ngãi' (Cleaned: 'QUẢNG NGÃI') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Tam Kỳ' (Cleaned: 'TAM KỲ') -> Score: 14.28571428571429
+    vs DB: 'Thành phố Hội An' (Cleaned: 'HỘI AN') -> Score: 42.85714285714286
+    vs DB: 'Thành phố Thái Nguyên' (Cleaned: 'THÁI NGUYÊN') -> Score: 31.57894736842105
+    vs DB: 'Thành phố Bắc Kạn' (Cleaned: 'BẮC KẠN') -> Score: 40.0
+    vs DB: 'Thành phố Cao Bằng' (Cleaned: 'CAO BẰNG') -> Score: 25.0
+    vs DB: 'Thành phố Lạng Sơn' (Cleaned: 'LẠNG SƠN') -> Score: 37.5
+    vs DB: 'Thành phố Bắc Giang' (Cleaned: 'BẮC GIANG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Bắc Ninh' (Cleaned: 'BẮC NINH') -> Score: 37.5
+    vs DB: 'Thành phố Vị Thanh' (Cleaned: 'VỊ THANH') -> Score: 37.5
+    vs DB: 'Thành phố Cà Mau' (Cleaned: 'CÀ MAU') -> Score: 14.28571428571429
+    vs DB: 'Thành phố Bạc Liêu' (Cleaned: 'BẠC LIÊU') -> Score: 25.0
+    vs DB: 'Thành phố Kon Tum' (Cleaned: 'KON TUM') -> Score: 40.0
+    vs DB: 'Thành phố Quy Nhơn' (Cleaned: 'QUY NHƠN') -> Score: 37.5
+    vs DB: 'Thành phố Tuy Hòa' (Cleaned: 'TUY HÒA') -> Score: 13.33333333333333
+    vs DB: 'Thành phố Cam Ranh' (Cleaned: 'CAM RANH') -> Score: 25.0
+    vs DB: 'Thành phố Phan Rang – Tháp Chàm' (Cleaned: 'PHAN RANG – THÁP CHÀM') -> Score: 20.68965517241379
+    vs DB: 'Thành phố Phan Thiết' (Cleaned: 'PHAN THIẾT') -> Score: 33.333333333333336
+    vs DB: 'Thành phố Bà Rịa' (Cleaned: 'BÀ RỊA') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Sa Đéc' (Cleaned: 'SA ĐÉC') -> Score: 14.28571428571429
+    vs DB: 'Thành phố Yên Bái' (Cleaned: 'YÊN BÁI') -> Score: 26.66666666666667
+    vs DB: 'Thành phố Lai Châu' (Cleaned: 'LAI CHÂU') -> Score: 25.0
+    vs DB: 'Thành phố Điện Biên Phủ' (Cleaned: 'ĐIỆN BIÊN PHỦ') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Sơn La' (Cleaned: 'SƠN LA') -> Score: 28.57142857142857
+    vs DB: 'Thành phố Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 50.0
+    vs DB: 'Thành phố Hưng Yên' (Cleaned: 'HƯNG YÊN') -> Score: 37.5
+    vs DB: 'Thành phố Lào Cai' (Cleaned: 'LÀO CAI') -> Score: 13.33333333333333
+    vs DB: 'Thành phố Cẩm Phả' (Cleaned: 'CẨM PHẢ') -> Score: 13.33333333333333
+    vs DB: 'Thành Phố Sông Công' (Cleaned: 'SÔNG CÔNG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Uông Bí' (Cleaned: 'UÔNG BÍ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Hòa Vang' (Cleaned: 'HÒA VANG') -> Score: 37.5
+    vs DB: 'TT Phú Mỹ - cũ' (Cleaned: 'TT PHÚ MỸ - CŨ') -> Score: 18.181818181818176
+    vs DB: 'Huyện Long Điền' (Cleaned: 'LONG ĐIỀN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đất Đỏ' (Cleaned: 'ĐẤT ĐỎ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Trảng Bom' (Cleaned: 'TRẢNG BOM') -> Score: 23.529411764705888
+    vs DB: 'Thành phố Long Khánh' (Cleaned: 'LONG KHÁNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tân Phú' (Cleaned: 'TÂN PHÚ') -> Score: 40.0
+    vs DB: 'Huyện Long Thành' (Cleaned: 'LONG THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Thành phố Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 37.5
+    vs DB: 'Thị xã Bến Cát' (Cleaned: 'BẾN CÁT') -> Score: 53.333333333333336
+    vs DB: 'Thị xã Hương Trà' (Cleaned: 'HƯƠNG TRÀ') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Hương Thủy' (Cleaned: 'HƯƠNG THỦY') -> Score: 33.333333333333336
+    vs DB: 'Huyện Xuyên Mộc' (Cleaned: 'XUYÊN MỘC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Định Quán' (Cleaned: 'ĐỊNH QUÁN') -> Score: 47.05882352941176
+    vs DB: 'Thị Xã Phú Mỹ' (Cleaned: 'PHÚ MỸ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Cẩm Mỹ' (Cleaned: 'CẨM MỸ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Gia Lâm' (Cleaned: 'GIA LÂM') -> Score: 26.66666666666667
+    vs DB: 'Huyện Xuân Lộc' (Cleaned: 'XUÂN LỘC') -> Score: 25.0
+    vs DB: 'Huyện Thống Nhất' (Cleaned: 'THỐNG NHẤT') -> Score: 33.333333333333336
+    vs DB: 'Quận Dương Kinh' (Cleaned: 'DƯƠNG KINH') -> Score: 33.333333333333336
+    vs DB: 'Quận Đồ Sơn' (Cleaned: 'ĐỒ SƠN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Nhơn Trạch' (Cleaned: 'NHƠN TRẠCH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Đức' (Cleaned: 'CHÂU ĐỨC') -> Score: 25.0
+    vs DB: 'Huyện Thanh Trì' (Cleaned: 'THANH TRÌ') -> Score: 47.05882352941176
+    vs DB: 'Thị xã Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 53.333333333333336
+    vs DB: 'Thành phố Sầm Sơn' (Cleaned: 'SẦM SƠN') -> Score: 26.66666666666667
+    vs DB: 'Thành phố Tam Điệp' (Cleaned: 'TAM ĐIỆP') -> Score: 12.5
+    vs DB: 'Huyện Yên Khánh' (Cleaned: 'YÊN KHÁNH') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đông Hưng' (Cleaned: 'ĐÔNG HƯNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Vũ Thư' (Cleaned: 'VŨ THƯ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Kim Động' (Cleaned: 'KIM ĐỘNG') -> Score: 25.0
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Thị xã Hòa Thành' (Cleaned: 'HÒA THÀNH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Đồng Phú' (Cleaned: 'ĐỒNG PHÚ') -> Score: 25.0
+    vs DB: 'Huyện Hòa Bình' (Cleaned: 'HÒA BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Cao Lãnh' (Cleaned: 'CAO LÃNH') -> Score: 25.0
+    vs DB: 'Huyện Lai Vung' (Cleaned: 'LAI VUNG') -> Score: 25.0
+    vs DB: 'Huyện Thủy Nguyên' (Cleaned: 'THỦY NGUYÊN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Nam Sách' (Cleaned: 'NAM SÁCH') -> Score: 25.0
+    vs DB: 'Huyện Quế Võ' (Cleaned: 'QUẾ VÕ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Tiên Du' (Cleaned: 'TIÊN DU') -> Score: 26.66666666666667
+    vs DB: 'Thị xã Từ Sơn' (Cleaned: 'TỪ SƠN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Đồng Hỷ' (Cleaned: 'ĐỒNG HỶ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Bình Xuyên' (Cleaned: 'BÌNH XUYÊN') -> Score: 66.66666666666667
+    vs DB: 'Huyện Vĩnh Tường' (Cleaned: 'VĨNH TƯỜNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện Yên Lạc' (Cleaned: 'YÊN LẠC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Duy Xuyên' (Cleaned: 'DUY XUYÊN') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Điện Bàn' (Cleaned: 'ĐIỆN BÀN') -> Score: 37.5
+    vs DB: 'Huyện Sơn Tịnh' (Cleaned: 'SƠN TỊNH') -> Score: 50.0
+    vs DB: 'Huyện Tư Nghĩa' (Cleaned: 'TƯ NGHĨA') -> Score: 25.0
+    vs DB: 'Huyện Diên Khánh' (Cleaned: 'DIÊN KHÁNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Chợ Gạo' (Cleaned: 'CHỢ GẠO') -> Score: 26.66666666666667
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Mỹ Xuyên' (Cleaned: 'MỸ XUYÊN') -> Score: 25.0
+    vs DB: 'Huyện Bát Xát' (Cleaned: 'BÁT XÁT') -> Score: 40.0
+    vs DB: 'Huyện Yên Sơn' (Cleaned: 'YÊN SƠN') -> Score: 40.0
+    vs DB: 'Huyện Dầu Tiếng' (Cleaned: 'DẦU TIẾNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Quảng Xương' (Cleaned: 'QUẢNG XƯƠNG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Hoằng Hóa' (Cleaned: 'HOẰNG HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phú Vang' (Cleaned: 'PHÚ VANG') -> Score: 37.5
+    vs DB: 'Huyện Thoại Sơn' (Cleaned: 'THOẠI SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Tri Tôn' (Cleaned: 'TRI TÔN') -> Score: 40.0
+    vs DB: 'Huyện Tịnh Biên' (Cleaned: 'TỊNH BIÊN') -> Score: 47.05882352941176
+    vs DB: 'Thành phố Châu Đốc' (Cleaned: 'CHÂU ĐỐC') -> Score: 25.0
+    vs DB: 'Huyện An Phú' (Cleaned: 'AN PHÚ') -> Score: 28.57142857142857
+    vs DB: 'Thị Xã Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 37.5
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 66.66666666666667
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 26.66666666666667
+    vs DB: 'Huyện Châu Phú' (Cleaned: 'CHÂU PHÚ') -> Score: 25.0
+    vs DB: 'Huyện Hiệp Hòa' (Cleaned: 'HIỆP HÒA') -> Score: 25.0
+    vs DB: 'Huyện Lạng Giang' (Cleaned: 'LẠNG GIANG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Sơn Động' (Cleaned: 'SƠN ĐỘNG') -> Score: 37.5
+    vs DB: 'Huyện Tân Yên' (Cleaned: 'TÂN YÊN') -> Score: 40.0
+    vs DB: 'Huyện Việt Yên' (Cleaned: 'VIỆT YÊN') -> Score: 25.0
+    vs DB: 'Huyện Yên Dũng' (Cleaned: 'YÊN DŨNG') -> Score: 37.5
+    vs DB: 'Huyện Yên Thế' (Cleaned: 'YÊN THẾ') -> Score: 40.0
+    vs DB: 'Huyện Gia Bình' (Cleaned: 'GIA BÌNH') -> Score: 50.0
+    vs DB: 'Thị xã Thuận Thành' (Cleaned: 'THUẬN THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Yên Phong' (Cleaned: 'YÊN PHONG') -> Score: 35.29411764705882
+    vs DB: 'Thị xã An Nhơn' (Cleaned: 'AN NHƠN') -> Score: 40.0
+    vs DB: 'Huyện Phù Cát' (Cleaned: 'PHÙ CÁT') -> Score: 40.0
+    vs DB: 'Thị xã Hoài Nhơn' (Cleaned: 'HOÀI NHƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Chơn Thành' (Cleaned: 'CHƠN THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Hớn Quản' (Cleaned: 'HỚN QUẢN') -> Score: 37.5
+    vs DB: 'Thị xã Bình Long' (Cleaned: 'BÌNH LONG') -> Score: 70.58823529411764
+    vs DB: 'Thị xã Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hàm Thuận Nam' (Cleaned: 'HÀM THUẬN NAM') -> Score: 38.095238095238095
+    vs DB: 'Huyện Hàm Thuận Bắc' (Cleaned: 'HÀM THUẬN BẮC') -> Score: 38.095238095238095
+    vs DB: 'Thị xã La Gi' (Cleaned: 'LA GI') -> Score: 15.384615384615385
+    vs DB: 'Huyện Đức Linh' (Cleaned: 'ĐỨC LINH') -> Score: 25.0
+    vs DB: 'Huyện Bắc Bình' (Cleaned: 'BẮC BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Tuy Phong' (Cleaned: 'TUY PHONG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Thới Bình' (Cleaned: 'THỚI BÌNH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Năm Căn' (Cleaned: 'NĂM CĂN') -> Score: 40.0
+    vs DB: 'Huyện Buôn Ðôn' (Cleaned: 'BUÔN ÐÔN') -> Score: 50.0
+    vs DB: 'Huyện Cư M gar' (Cleaned: 'CƯ M GAR') -> Score: 12.5
+    vs DB: 'Huyện Ea H leo' (Cleaned: 'EA H LEO') -> Score: 25.0
+    vs DB: 'Huyện Krông Năng' (Cleaned: 'KRÔNG NĂNG') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Buôn Hồ' (Cleaned: 'BUÔN HỒ') -> Score: 40.0
+    vs DB: 'Huyện Krông Bông' (Cleaned: 'KRÔNG BÔNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Đắk R lấp' (Cleaned: 'ĐẮK R LẤP') -> Score: 11.764705882352944
+    vs DB: 'Huyện Đắk Glong' (Cleaned: 'ĐẮK GLONG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đắk Mil' (Cleaned: 'ĐẮK MIL') -> Score: 13.33333333333333
+    vs DB: 'Huyện Ia Grai' (Cleaned: 'IA GRAI') -> Score: 13.33333333333333
+    vs DB: 'Huyện Đức Cơ' (Cleaned: 'ĐỨC CƠ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Chư Prông' (Cleaned: 'CHƯ PRÔNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Chư Sê' (Cleaned: 'CHƯ SÊ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Phú Thiện' (Cleaned: 'PHÚ THIỆN') -> Score: 47.05882352941176
+    vs DB: 'Thị xã Ayun Pa' (Cleaned: 'AYUN PA') -> Score: 26.66666666666667
+    vs DB: 'Huyện Ia Pa' (Cleaned: 'IA PA') -> Score: 15.384615384615385
+    vs DB: 'Thị xã An Khê' (Cleaned: 'AN KHÊ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Chư Păh' (Cleaned: 'CHƯ PĂH') -> Score: 26.66666666666667
+    vs DB: 'Thị xã Duy Tiên' (Cleaned: 'DUY TIÊN') -> Score: 37.5
+    vs DB: 'Huyện Ba Vì' (Cleaned: 'BA VÌ') -> Score: 30.76923076923077
+    vs DB: 'Huyện Đan Phượng' (Cleaned: 'ĐAN PHƯỢNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hoài Đức' (Cleaned: 'HOÀI ĐỨC') -> Score: 25.0
+    vs DB: 'Huyện Mỹ Đức' (Cleaned: 'MỸ ĐỨC') -> Score: 14.28571428571429
+    vs DB: 'Huyện Phúc Thọ' (Cleaned: 'PHÚC THỌ') -> Score: 37.5
+    vs DB: 'Huyện Thạch Thất' (Cleaned: 'THẠCH THẤT') -> Score: 33.333333333333336
+    vs DB: 'Huyện Thanh Oai' (Cleaned: 'THANH OAI') -> Score: 35.29411764705882
+    vs DB: 'Huyện Ứng Hòa' (Cleaned: 'ỨNG HÒA') -> Score: 26.66666666666667
+    vs DB: 'Huyện Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 28.57142857142857
+    vs DB: 'Huyện Hương Khê' (Cleaned: 'HƯƠNG KHÊ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Nghi Xuân' (Cleaned: 'NGHI XUÂN') -> Score: 58.82352941176471
+    vs DB: 'Thị xã Hồng Lĩnh' (Cleaned: 'HỒNG LĨNH') -> Score: 35.29411764705882
+    vs DB: 'Huyện Cẩm Xuyên' (Cleaned: 'CẨM XUYÊN') -> Score: 23.529411764705888
+    vs DB: 'Huyện Bình Giang' (Cleaned: 'BÌNH GIANG') -> Score: 66.66666666666667
+    vs DB: 'Huyện Cẩm Giàng' (Cleaned: 'CẨM GIÀNG') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Kinh Môn' (Cleaned: 'KINH MÔN') -> Score: 50.0
+    vs DB: 'Huyện An Dương' (Cleaned: 'AN DƯƠNG') -> Score: 37.5
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 28.57142857142857
+    vs DB: 'Huyện Tiên Lãng' (Cleaned: 'TIÊN LÃNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Vĩnh Bảo' (Cleaned: 'VĨNH BẢO') -> Score: 37.5
+    vs DB: 'Thành phố Ngã Bảy' (Cleaned: 'NGÃ BẢY') -> Score: 26.66666666666667
+    vs DB: 'Huyện Phụng Hiệp' (Cleaned: 'PHỤNG HIỆP') -> Score: 22.22222222222222
+    vs DB: 'Huyện Ân Thi' (Cleaned: 'ÂN THI') -> Score: 42.85714285714286
+    vs DB: 'Huyện Khoái Châu' (Cleaned: 'KHOÁI CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Thị xã Mỹ Hào' (Cleaned: 'MỸ HÀO') -> Score: 14.28571428571429
+    vs DB: 'Huyện Yên Mỹ' (Cleaned: 'YÊN MỸ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Vạn Ninh' (Cleaned: 'VẠN NINH') -> Score: 37.5
+    vs DB: 'Huyện Hòn Đất' (Cleaned: 'HÒN ĐẤT') -> Score: 40.0
+    vs DB: 'Huyện Tân Hiệp' (Cleaned: 'TÂN HIỆP') -> Score: 37.5
+    vs DB: 'Huyện Giồng Riềng' (Cleaned: 'GIỒNG RIỀNG') -> Score: 31.57894736842105
+    vs DB: 'Huyện An Biên' (Cleaned: 'AN BIÊN') -> Score: 40.0
+    vs DB: 'Huyện Kon Plông' (Cleaned: 'KON PLÔNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đắk Hà' (Cleaned: 'ĐẮK HÀ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Đơn Dương' (Cleaned: 'ĐƠN DƯƠNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đức Trọng' (Cleaned: 'ĐỨC TRỌNG') -> Score: 35.29411764705882
+    vs DB: 'Thành phố Bảo Lộc' (Cleaned: 'BẢO LỘC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 40.0
+    vs DB: 'Huyện Hải Hậu' (Cleaned: 'HẢI HẬU') -> Score: 26.66666666666667
+    vs DB: 'Huyện Ý Yên' (Cleaned: 'Ý YÊN') -> Score: 30.76923076923077
+    vs DB: 'Thị xã Cửa Lò' (Cleaned: 'CỬA LÒ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Đô Lương' (Cleaned: 'ĐÔ LƯƠNG') -> Score: 25.0
+    vs DB: 'Huyện Anh Sơn' (Cleaned: 'ANH SƠN') -> Score: 53.333333333333336
+    vs DB: 'Huyện Tân Kỳ' (Cleaned: 'TÂN KỲ') -> Score: 42.85714285714286
+    vs DB: 'Huyện Yên Thành' (Cleaned: 'YÊN THÀNH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Diễn Châu' (Cleaned: 'DIỄN CHÂU') -> Score: 35.29411764705882
+    vs DB: 'Huyện Quỳnh Lưu' (Cleaned: 'QUỲNH LƯU') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Hoàng Mai' (Cleaned: 'HOÀNG MAI') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Thái Hòa' (Cleaned: 'THÁI HÒA') -> Score: 25.0
+    vs DB: 'Huyện Nghĩa Đàn' (Cleaned: 'NGHĨA ĐÀN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Quỳ Hợp' (Cleaned: 'QUỲ HỢP') -> Score: 13.33333333333333
+    vs DB: 'Huyện Con Cuông' (Cleaned: 'CON CUÔNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Nghi Lộc' (Cleaned: 'NGHI LỘC') -> Score: 37.5
+    vs DB: 'Huyện Ninh Sơn' (Cleaned: 'NINH SƠN') -> Score: 50.0
+    vs DB: 'Thị Xã Sông Cầu' (Cleaned: 'SÔNG CẦU') -> Score: 25.0
+    vs DB: 'Huyện Lệ Thủy' (Cleaned: 'LỆ THỦY') -> Score: 26.66666666666667
+    vs DB: 'Huyện Bố Trạch' (Cleaned: 'BỐ TRẠCH') -> Score: 37.5
+    vs DB: 'Thị xã Ba Đồn' (Cleaned: 'BA ĐỒN') -> Score: 42.85714285714286
+    vs DB: 'Huyện Hướng Hóa' (Cleaned: 'HƯỚNG HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Vĩnh Linh' (Cleaned: 'VĨNH LINH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Tân Biên' (Cleaned: 'TÂN BIÊN') -> Score: 37.5
+    vs DB: 'Huyện Tân Châu' (Cleaned: 'TÂN CHÂU') -> Score: 37.5
+    vs DB: 'Huyện Dương Minh Châu' (Cleaned: 'DƯƠNG MINH CHÂU') -> Score: 34.78260869565217
+    vs DB: 'Huyện Bến Cầu' (Cleaned: 'BẾN CẦU') -> Score: 40.0
+    vs DB: 'Huyện Gò Dầu' (Cleaned: 'GÒ DẦU') -> Score: 14.28571428571429
+    vs DB: 'Huyện Hưng Hà' (Cleaned: 'HƯNG HÀ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Quỳnh Phụ' (Cleaned: 'QUỲNH PHỤ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Thái Thụy' (Cleaned: 'THÁI THỤY') -> Score: 35.29411764705882
+    vs DB: 'Thị Xã Nghi Sơn' (Cleaned: 'NGHI SƠN') -> Score: 50.0
+    vs DB: 'Huyện Như Xuân' (Cleaned: 'NHƯ XUÂN') -> Score: 62.5
+    vs DB: 'Huyện Thường Xuân' (Cleaned: 'THƯỜNG XUÂN') -> Score: 42.10526315789473
+    vs DB: 'Huyện Thọ Xuân' (Cleaned: 'THỌ XUÂN') -> Score: 50.0
+    vs DB: 'Huyện Ngọc Lặc' (Cleaned: 'NGỌC LẶC') -> Score: 25.0
+    vs DB: 'Huyện Yên Định' (Cleaned: 'YÊN ĐỊNH') -> Score: 37.5
+    vs DB: 'Thị xã Bỉm Sơn' (Cleaned: 'BỈM SƠN') -> Score: 40.0
+    vs DB: 'Huyện Hà Trung' (Cleaned: 'HÀ TRUNG') -> Score: 50.0
+    vs DB: 'Huyện Mường Lát' (Cleaned: 'MƯỜNG LÁT') -> Score: 35.29411764705882
+    vs DB: 'Huyện Quan Hóa' (Cleaned: 'QUAN HÓA') -> Score: 25.0
+    vs DB: 'Huyện Thạch Thành' (Cleaned: 'THẠCH THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Vĩnh Lộc' (Cleaned: 'VĨNH LỘC') -> Score: 37.5
+    vs DB: 'Huyện Phú Lộc' (Cleaned: 'PHÚ LỘC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Phú Tân' (Cleaned: 'PHÚ TÂN') -> Score: 66.66666666666667
+    vs DB: 'Huyện Krông Ana' (Cleaned: 'KRÔNG ANA') -> Score: 35.29411764705882
+    vs DB: 'Huyện A Lưới' (Cleaned: 'A LƯỚI') -> Score: 14.28571428571429
+    vs DB: 'Huyện An Lão' (Cleaned: 'AN LÃO') -> Score: 28.57142857142857
+    vs DB: 'Huyện Ba Bể' (Cleaned: 'BA BỂ') -> Score: 30.76923076923077
+    vs DB: 'Huyện Ba Tri' (Cleaned: 'BA TRI') -> Score: 42.85714285714286
+    vs DB: 'Huyện Bạch Thông' (Cleaned: 'BẠCH THÔNG') -> Score: 55.55555555555556
+    vs DB: 'Huyện Bảo Lâm' (Cleaned: 'BẢO LÂM') -> Score: 40.0
+    vs DB: 'Huyện Bảo Yên' (Cleaned: 'BẢO YÊN') -> Score: 40.0
+    vs DB: 'Huyện Bắc Hà' (Cleaned: 'BẮC HÀ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Bắc Quang' (Cleaned: 'BẮC QUANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Bến Lức' (Cleaned: 'BẾN LỨC') -> Score: 40.0
+    vs DB: 'Huyện Bình Đại' (Cleaned: 'BÌNH ĐẠI') -> Score: 62.5
+    vs DB: 'Huyện Bình Liêu' (Cleaned: 'BÌNH LIÊU') -> Score: 58.82352941176471
+    vs DB: 'Huyện Bình Lục' (Cleaned: 'BÌNH LỤC') -> Score: 62.5
+    vs DB: 'Huyện Bình Sơn' (Cleaned: 'BÌNH SƠN') -> Score: 75.0
+    vs DB: 'Huyện Bù Đăng' (Cleaned: 'BÙ ĐĂNG') -> Score: 40.0
+    vs DB: 'Huyện Cái Bè' (Cleaned: 'CÁI BÈ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Cái Nước' (Cleaned: 'CÁI NƯỚC') -> Score: 25.0
+    vs DB: 'Huyện Cam Lâm' (Cleaned: 'CAM LÂM') -> Score: 26.66666666666667
+    vs DB: 'Huyện Cam Lộ' (Cleaned: 'CAM LỘ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Cao Lộc' (Cleaned: 'CAO LỘC') -> Score: 13.33333333333333
+    vs DB: 'Huyện Cẩm Khê' (Cleaned: 'CẨM KHÊ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Cần Đước' (Cleaned: 'CẦN ĐƯỚC') -> Score: 25.0
+    vs DB: 'Huyện Cần Giuộc' (Cleaned: 'CẦN GIUỘC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Cầu Ngang' (Cleaned: 'CẦU NGANG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Châu Thành A' (Cleaned: 'CHÂU THÀNH A') -> Score: 40.0
+    vs DB: 'Huyện Chợ Đồn' (Cleaned: 'CHỢ ĐỒN') -> Score: 40.0
+    vs DB: 'Huyện Chợ Mới' (Cleaned: 'CHỢ MỚI') -> Score: 26.66666666666667
+    vs DB: 'Huyện Chương Mỹ' (Cleaned: 'CHƯƠNG MỸ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đà Bắc' (Cleaned: 'ĐÀ BẮC') -> Score: 14.28571428571429
+    vs DB: 'Huyện Đại Lộc' (Cleaned: 'ĐẠI LỘC') -> Score: 13.33333333333333
+    vs DB: 'Huyện Đại Từ' (Cleaned: 'ĐẠI TỪ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Đam Rông' (Cleaned: 'ĐAM RÔNG') -> Score: 25.0
+    vs DB: 'Huyện đảo Vân Đồn' (Cleaned: 'ĐẢO VÂN ĐỒN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Đắk Glei' (Cleaned: 'ĐẮK GLEI') -> Score: 12.5
+    vs DB: 'Huyện Đầm Dơi' (Cleaned: 'ĐẦM DƠI') -> Score: 13.33333333333333
+    vs DB: 'Huyện Điện Biên' (Cleaned: 'ĐIỆN BIÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Định Hóa' (Cleaned: 'ĐỊNH HÓA') -> Score: 37.5
+    vs DB: 'Huyện Đoan Hùng' (Cleaned: 'ĐOAN HÙNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Đông Hải' (Cleaned: 'ĐÔNG HẢI') -> Score: 25.0
+    vs DB: 'Huyện Đông Sơn' (Cleaned: 'ĐÔNG SƠN') -> Score: 37.5
+    vs DB: 'Huyện Đồng Văn' (Cleaned: 'ĐỒNG VĂN') -> Score: 37.5
+    vs DB: 'Huyện Đức Hòa' (Cleaned: 'ĐỨC HÒA') -> Score: 13.33333333333333
+    vs DB: 'Thị xã Đức Phổ' (Cleaned: 'ĐỨC PHỔ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Ea Kar' (Cleaned: 'EA KAR') -> Score: 14.28571428571429
+    vs DB: 'Huyện Gò Công Đông' (Cleaned: 'GÒ CÔNG ĐÔNG') -> Score: 30.000000000000004
+    vs DB: 'Huyện Gò Công Tây' (Cleaned: 'GÒ CÔNG TÂY') -> Score: 42.10526315789473
+    vs DB: 'Huyện Gia Lộc' (Cleaned: 'GIA LỘC') -> Score: 13.33333333333333
+    vs DB: 'Thị Xã Giá Rai' (Cleaned: 'GIÁ RAI') -> Score: 13.33333333333333
+    vs DB: 'Huyện Gio Linh' (Cleaned: 'GIO LINH') -> Score: 25.0
+    vs DB: 'Huyện Giồng Trôm' (Cleaned: 'GIỒNG TRÔM') -> Score: 33.333333333333336
+    vs DB: 'Huyện Hạ Hòa' (Cleaned: 'HẠ HÒA') -> Score: 28.57142857142857
+    vs DB: 'Huyện Hà Quảng' (Cleaned: 'HÀ QUẢNG') -> Score: 37.5
+    vs DB: 'Huyện Hải Hà' (Cleaned: 'HẢI HÀ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Hàm Yên' (Cleaned: 'HÀM YÊN') -> Score: 40.0
+    vs DB: 'Huyện Hậu Lộc' (Cleaned: 'HẬU LỘC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Hòa An' (Cleaned: 'HÒA AN') -> Score: 42.85714285714286
+    vs DB: 'Huyện Hoa Lư' (Cleaned: 'HOA LƯ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Hoàng Su Phì' (Cleaned: 'HOÀNG SU PHÌ') -> Score: 19.999999999999996
+    vs DB: 'Huyện Hồng Dân' (Cleaned: 'HỒNG DÂN') -> Score: 50.0
+    vs DB: 'Huyện Hưng Nguyên' (Cleaned: 'HƯNG NGUYÊN') -> Score: 31.57894736842105
+    vs DB: 'Huyện Hữu Lũng' (Cleaned: 'HỮU LŨNG') -> Score: 37.5
+    vs DB: 'Huyện Kế Sách' (Cleaned: 'KẾ SÁCH') -> Score: 13.33333333333333
+    vs DB: 'Huyện Kiên Lương' (Cleaned: 'KIÊN LƯƠNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Kiến Xương' (Cleaned: 'KIẾN XƯƠNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Kim Bảng' (Cleaned: 'KIM BẢNG') -> Score: 25.0
+    vs DB: 'Huyện Kim Thành' (Cleaned: 'KIM THÀNH') -> Score: 35.29411764705882
+    vs DB: 'Huyện Krông Pắc' (Cleaned: 'KRÔNG PẮC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Lạc Dương' (Cleaned: 'LẠC DƯƠNG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lâm Bình' (Cleaned: 'LÂM BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Lâm Hà' (Cleaned: 'LÂM HÀ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Lâm Thao' (Cleaned: 'LÂM THAO') -> Score: 25.0
+    vs DB: 'Huyện Lập Thạch' (Cleaned: 'LẬP THẠCH') -> Score: 23.529411764705888
+    vs DB: 'Huyện Lấp Vò' (Cleaned: 'LẤP VÒ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Long Hồ' (Cleaned: 'LONG HỒ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Lộc Bình' (Cleaned: 'LỘC BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Lộc Ninh' (Cleaned: 'LỘC NINH') -> Score: 25.0
+    vs DB: 'Huyện Lục Nam' (Cleaned: 'LỤC NAM') -> Score: 26.66666666666667
+    vs DB: 'Huyện Lục Ngạn' (Cleaned: 'LỤC NGẠN') -> Score: 25.0
+    vs DB: 'Huyện Lục Yên' (Cleaned: 'LỤC YÊN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Lương Sơn' (Cleaned: 'LƯƠNG SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Lương Tài' (Cleaned: 'LƯƠNG TÀI') -> Score: 35.29411764705882
+    vs DB: 'Huyện Lý Nhân' (Cleaned: 'LÝ NHÂN') -> Score: 53.333333333333336
+    vs DB: 'Huyện Mai Sơn' (Cleaned: 'MAI SƠN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Mèo Vạc' (Cleaned: 'MÈO VẠC') -> Score: 13.33333333333333
+    vs DB: 'Huyện Mỏ Cày Bắc' (Cleaned: 'MỎ CÀY BẮC') -> Score: 11.111111111111116
+    vs DB: 'Huyện Mỏ Cày Nam' (Cleaned: 'MỎ CÀY NAM') -> Score: 22.22222222222222
+    vs DB: 'Huyện Mộc Châu' (Cleaned: 'MỘC CHÂU') -> Score: 25.0
+    vs DB: 'Huyện Mù Cang Chải' (Cleaned: 'MÙ CANG CHẢI') -> Score: 19.999999999999996
+    vs DB: 'Huyện Mường Chà' (Cleaned: 'MƯỜNG CHÀ') -> Score: 23.529411764705888
+    vs DB: 'Huyện Mường Nhé' (Cleaned: 'MƯỜNG NHÉ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Mường Tè' (Cleaned: 'MƯỜNG TÈ') -> Score: 37.5
+    vs DB: 'Huyện Mỹ Lộc' (Cleaned: 'MỸ LỘC') -> Score: 14.28571428571429
+    vs DB: 'Huyện Na Hang' (Cleaned: 'NA HANG') -> Score: 40.0
+    vs DB: 'Huyện Nam Trực' (Cleaned: 'NAM TRỰC') -> Score: 37.5
+    vs DB: 'Huyện Nậm Nhùn' (Cleaned: 'NẬM NHÙN') -> Score: 37.5
+    vs DB: 'Huyện Ninh Hải' (Cleaned: 'NINH HẢI') -> Score: 37.5
+    vs DB: 'Huyện Ninh Phước' (Cleaned: 'NINH PHƯỚC') -> Score: 33.333333333333336
+    vs DB: 'Huyện Núi Thành' (Cleaned: 'NÚI THÀNH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Nghĩa Hành' (Cleaned: 'NGHĨA HÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Phong Thổ' (Cleaned: 'PHONG THỔ') -> Score: 35.29411764705882
+    vs DB: 'Thị xã Phổ Yên' (Cleaned: 'PHỔ YÊN') -> Score: 40.0
+    vs DB: 'Huyện Phú Bình' (Cleaned: 'PHÚ BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Phú Giáo' (Cleaned: 'PHÚ GIÁO') -> Score: 25.0
+    vs DB: 'Huyện Phú Hòa' (Cleaned: 'PHÚ HÒA') -> Score: 26.66666666666667
+    vs DB: 'Huyện Phù Ninh' (Cleaned: 'PHÙ NINH') -> Score: 37.5
+    vs DB: 'Huyện Phú Ninh' (Cleaned: 'PHÚ NINH') -> Score: 37.5
+    vs DB: 'Huyện Phù Yên' (Cleaned: 'PHÙ YÊN') -> Score: 40.0
+    vs DB: 'Huyện Phục Hòa' (Cleaned: 'PHỤC HÒA') -> Score: 25.0
+    vs DB: 'Huyện Phước Long' (Cleaned: 'PHƯỚC LONG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Quản Bạ' (Cleaned: 'QUẢN BẠ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Quan Sơn' (Cleaned: 'QUAN SƠN') -> Score: 37.5
+    vs DB: 'Huyện Quang Bình' (Cleaned: 'QUANG BÌNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Quảng Ninh' (Cleaned: 'QUẢNG NINH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Quế Sơn' (Cleaned: 'QUẾ SƠN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Quốc Oai' (Cleaned: 'QUỐC OAI') -> Score: 12.5
+    vs DB: 'Thị xã Sa Pa' (Cleaned: 'SA PA') -> Score: 15.384615384615385
+    vs DB: 'Huyện Sìn Hồ' (Cleaned: 'SÌN HỒ') -> Score: 42.85714285714286
+    vs DB: 'Huyện Sông Mã' (Cleaned: 'SÔNG MÃ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Tam Bình' (Cleaned: 'TAM BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Tam Dương' (Cleaned: 'TAM DƯƠNG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tam Đường' (Cleaned: 'TAM ĐƯỜNG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 25.0
+    vs DB: 'Huyện Tánh Linh' (Cleaned: 'TÁNH LINH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Tân Hồng' (Cleaned: 'TÂN HỒNG') -> Score: 37.5
+    vs DB: 'Huyện Tân Lạc' (Cleaned: 'TÂN LẠC') -> Score: 40.0
+    vs DB: 'Huyện Tân Sơn' (Cleaned: 'TÂN SƠN') -> Score: 40.0
+    vs DB: 'Huyện Tân Trụ' (Cleaned: 'TÂN TRỤ') -> Score: 40.0
+    vs DB: 'Huyện Tân Uyên' (Cleaned: 'TÂN UYÊN') -> Score: 37.5
+    vs DB: 'Huyện Tiên Lữ' (Cleaned: 'TIÊN LỮ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Tiên Yên' (Cleaned: 'TIÊN YÊN') -> Score: 37.5
+    vs DB: 'Huyện Tiểu Cần' (Cleaned: 'TIỂU CẦN') -> Score: 25.0
+    vs DB: 'Huyện Tủa Chùa' (Cleaned: 'TỦA CHÙA') -> Score: 12.5
+    vs DB: 'Huyện Tuần Giáo' (Cleaned: 'TUẦN GIÁO') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tuy Phước' (Cleaned: 'TUY PHƯỚC') -> Score: 11.764705882352944
+    vs DB: 'Huyện Thạch Hà' (Cleaned: 'THẠCH HÀ') -> Score: 25.0
+    vs DB: 'Huyện Than Uyên' (Cleaned: 'THAN UYÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Thanh Bình' (Cleaned: 'THANH BÌNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thanh Liêm' (Cleaned: 'THANH LIÊM') -> Score: 33.333333333333336
+    vs DB: 'Huyện Thạnh Phú' (Cleaned: 'THẠNH PHÚ') -> Score: 35.29411764705882
+    vs DB: 'Huyện Thanh Sơn' (Cleaned: 'THANH SƠN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Tháp Mười' (Cleaned: 'THÁP MƯỜI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Thủ Thừa' (Cleaned: 'THỦ THỪA') -> Score: 37.5
+    vs DB: 'Huyện Thuận Châu' (Cleaned: 'THUẬN CHÂU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Trà Cú' (Cleaned: 'TRÀ CÚ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Trà Ôn' (Cleaned: 'TRÀ ÔN') -> Score: 28.57142857142857
+    vs DB: 'Thị xã Trảng Bàng' (Cleaned: 'TRẢNG BÀNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Tràng Định' (Cleaned: 'TRÀNG ĐỊNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Trần Đề' (Cleaned: 'TRẦN ĐỀ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Trần Văn Thời' (Cleaned: 'TRẦN VĂN THỜI') -> Score: 28.57142857142857
+    vs DB: 'Huyện Trấn Yên' (Cleaned: 'TRẤN YÊN') -> Score: 37.5
+    vs DB: 'Huyện Triệu Phong' (Cleaned: 'TRIỆU PHONG') -> Score: 21.052631578947366
+    vs DB: 'Huyện Trùng Khánh' (Cleaned: 'TRÙNG KHÁNH') -> Score: 31.57894736842105
+    vs DB: 'Huyện U Minh' (Cleaned: 'U MINH') -> Score: 28.57142857142857
+    vs DB: 'Huyện Văn Bàn' (Cleaned: 'VĂN BÀN') -> Score: 40.0
+    vs DB: 'Huyện Văn Chấn' (Cleaned: 'VĂN CHẤN') -> Score: 37.5
+    vs DB: 'Huyện Văn Giang' (Cleaned: 'VĂN GIANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Văn Lâm' (Cleaned: 'VĂN LÂM') -> Score: 40.0
+    vs DB: 'Huyện Văn Yên' (Cleaned: 'VĂN YÊN') -> Score: 40.0
+    vs DB: 'Huyện Vị Thuỷ' (Cleaned: 'VỊ THUỶ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Vĩnh Cửu' (Cleaned: 'VĨNH CỬU') -> Score: 37.5
+    vs DB: 'Huyện Vĩnh Lợi' (Cleaned: 'VĨNH LỢI') -> Score: 37.5
+    vs DB: 'Huyện Võ Nhai' (Cleaned: 'VÕ NHAI') -> Score: 26.66666666666667
+    vs DB: 'Huyện Xín Mần' (Cleaned: 'XÍN MẦN') -> Score: 40.0
+    vs DB: 'Huyện Yên Minh' (Cleaned: 'YÊN MINH') -> Score: 37.5
+    vs DB: 'Thị xã Bình Minh' (Cleaned: 'BÌNH MINH') -> Score: 70.58823529411764
+    vs DB: 'Thị Xã Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 13.33333333333333
+    vs DB: 'Thành phố Chí Linh' (Cleaned: 'CHÍ LINH') -> Score: 37.5
+    vs DB: 'Thị xã Gò Công' (Cleaned: 'GÒ CÔNG') -> Score: 26.66666666666667
+    vs DB: 'Thành phố Hà Tiên' (Cleaned: 'HÀ TIÊN') -> Score: 53.333333333333336
+    vs DB: 'Thành Phố Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 37.5
+    vs DB: 'Thị xã Mường Lay' (Cleaned: 'MƯỜNG LAY') -> Score: 23.529411764705888
+    vs DB: 'Thị xã Ninh Hòa' (Cleaned: 'NINH HÒA') -> Score: 37.5
+    vs DB: 'Thị xã Ngã Năm' (Cleaned: 'NGÃ NĂM') -> Score: 40.0
+    vs DB: 'Thị xã Nghĩa Lộ' (Cleaned: 'NGHĨA LỘ') -> Score: 37.5
+    vs DB: 'Thị xã Phú Thọ' (Cleaned: 'PHÚ THỌ') -> Score: 40.0
+    vs DB: 'Thành phố Phúc Yên' (Cleaned: 'PHÚC YÊN') -> Score: 37.5
+    vs DB: 'Thị xã Quảng Yên' (Cleaned: 'QUẢNG YÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Bá Thước' (Cleaned: 'BÁ THƯỚC') -> Score: 37.5
+    vs DB: 'Huyện Bảo Thắng' (Cleaned: 'BẢO THẮNG') -> Score: 47.05882352941176
+    vs DB: 'Huyện Bắc Mê' (Cleaned: 'BẮC MÊ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Bắc Trà My' (Cleaned: 'BẮC TRÀ MY') -> Score: 33.333333333333336
+    vs DB: 'Huyện Bắc Yên' (Cleaned: 'BẮC YÊN') -> Score: 40.0
+    vs DB: 'Huyện Bình Tân' (Cleaned: 'BÌNH TÂN') -> Score: 100.0
+    vs DB: 'Huyện Cai Lậy' (Cleaned: 'CAI LẬY') -> Score: 13.33333333333333
+    vs DB: 'Huyện Càng Long' (Cleaned: 'CÀNG LONG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Cao Phong' (Cleaned: 'CAO PHONG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Cần Giờ' (Cleaned: 'CẦN GIỜ') -> Score: 26.66666666666667 (Cùng tỉnh)
+    vs DB: 'Huyện Cầu Kè' (Cleaned: 'CẦU KÈ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Cù Lao Dung' (Cleaned: 'CÙ LAO DUNG') -> Score: 21.052631578947366
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Chư Pưh' (Cleaned: 'CHƯ PƯH') -> Score: 26.66666666666667
+    vs DB: 'Huyện Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Đạ Huoai' (Cleaned: 'ĐẠ HUOAI') -> Score: 12.5
+    vs DB: 'Huyện Đa Krông' (Cleaned: 'ĐA KRÔNG') -> Score: 25.0
+    vs DB: 'Huyện Đạ Tẻh' (Cleaned: 'ĐẠ TẺH') -> Score: 28.57142857142857
+    vs DB: 'Huyện đảo Bạch Long Vĩ' (Cleaned: 'ĐẢO BẠCH LONG VĨ') -> Score: 33.333333333333336
+    vs DB: 'Huyện đảo Cát Hải' (Cleaned: 'ĐẢO CÁT HẢI') -> Score: 21.052631578947366
+    vs DB: 'Huyện đảo Cô Tô' (Cleaned: 'ĐẢO CÔ TÔ') -> Score: 23.529411764705888
+    vs DB: 'Huyện đảo Cồn Cỏ' (Cleaned: 'ĐẢO CỒN CỎ') -> Score: 22.22222222222222
+    vs DB: 'Huyện đảo Côn Đảo' (Cleaned: 'ĐẢO CÔN ĐẢO') -> Score: 21.052631578947366
+    vs DB: 'Huyện đảo Hoàng Sa' (Cleaned: 'ĐẢO HOÀNG SA') -> Score: 19.999999999999996
+    vs DB: 'Huyện đảo Kiên Hải' (Cleaned: 'ĐẢO KIÊN HẢI') -> Score: 19.999999999999996
+    vs DB: 'Huyện đảo Lý Sơn' (Cleaned: 'ĐẢO LÝ SƠN') -> Score: 22.22222222222222
+    vs DB: 'Thành phố Phú Quốc' (Cleaned: 'PHÚ QUỐC') -> Score: 25.0
+    vs DB: 'Huyện đảo Phú Quý' (Cleaned: 'ĐẢO PHÚ QUÝ') -> Score: 21.052631578947366
+    vs DB: 'Huyện đảo Trường Sa' (Cleaned: 'ĐẢO TRƯỜNG SA') -> Score: 28.57142857142857
+    vs DB: 'Huyện Đắk Đoa' (Cleaned: 'ĐẮK ĐOA') -> Score: 13.33333333333333
+    vs DB: 'Huyện Đắk Pơ' (Cleaned: 'ĐẮK PƠ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Đắk Song' (Cleaned: 'ĐẮK SONG') -> Score: 25.0
+    vs DB: 'Huyện Đắk Tô' (Cleaned: 'ĐẮK TÔ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Điện Biên Đông' (Cleaned: 'ĐIỆN BIÊN ĐÔNG') -> Score: 36.36363636363637
+    vs DB: 'Huyện Đông Giang' (Cleaned: 'ĐÔNG GIANG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Đức Huệ' (Cleaned: 'ĐỨC HUỆ') -> Score: 13.33333333333333
+    vs DB: 'Huyện Ea Súp' (Cleaned: 'EA SÚP') -> Score: 14.28571428571429
+    vs DB: 'Huyện Gò Quao' (Cleaned: 'GÒ QUAO') -> Score: 13.33333333333333
+    vs DB: 'Huyện Giang Thành' (Cleaned: 'GIANG THÀNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Hải Lăng' (Cleaned: 'HẢI LĂNG') -> Score: 37.5
+    vs DB: 'Huyện Hiệp Đức' (Cleaned: 'HIỆP ĐỨC') -> Score: 25.0
+    vs DB: 'Huyện Hoài Ân' (Cleaned: 'HOÀI ÂN') -> Score: 53.333333333333336
+    vs DB: 'Huyện Kbang' (Cleaned: 'KBANG') -> Score: 30.76923076923077
+    vs DB: 'Huyện Kim Bôi' (Cleaned: 'KIM BÔI') -> Score: 13.33333333333333
+    vs DB: 'Huyện Kon Rẫy' (Cleaned: 'KON RẪY') -> Score: 26.66666666666667
+    vs DB: 'Huyện Kông Chro' (Cleaned: 'KÔNG CHRO') -> Score: 23.529411764705888
+    vs DB: 'Huyện Krông Búk' (Cleaned: 'KRÔNG BÚK') -> Score: 23.529411764705888
+    vs DB: 'Huyện Krông Nô' (Cleaned: 'KRÔNG NÔ') -> Score: 37.5
+    vs DB: 'Huyện Krông Pa' (Cleaned: 'KRÔNG PA') -> Score: 25.0
+    vs DB: 'Huyện Lạc Sơn' (Cleaned: 'LẠC SƠN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Lạc Thủy' (Cleaned: 'LẠC THỦY') -> Score: 25.0
+    vs DB: 'Huyện Long Phú' (Cleaned: 'LONG PHÚ') -> Score: 25.0
+    vs DB: 'Huyện Mai Châu' (Cleaned: 'MAI CHÂU') -> Score: 25.0
+    vs DB: 'Huyện Mang Thít' (Cleaned: 'MANG THÍT') -> Score: 35.29411764705882
+    vs DB: 'Huyện Mang Yang' (Cleaned: 'MANG YANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Minh Long' (Cleaned: 'MINH LONG') -> Score: 47.05882352941176
+    vs DB: 'Huyện Mường Ảng' (Cleaned: 'MƯỜNG ẢNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Mường Khương' (Cleaned: 'MƯỜNG KHƯƠNG') -> Score: 30.000000000000004
+    vs DB: 'Huyện Mỹ Tú' (Cleaned: 'MỸ TÚ') -> Score: 30.76923076923077
+    vs DB: 'Huyện Nam Giang' (Cleaned: 'NAM GIANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Nam Trà My' (Cleaned: 'NAM TRÀ MY') -> Score: 33.333333333333336
+    vs DB: 'Huyện Nậm Pồ' (Cleaned: 'NẬM PỒ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Nông Cống' (Cleaned: 'NÔNG CỐNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Nông Sơn' (Cleaned: 'NÔNG SƠN') -> Score: 37.5
+    vs DB: 'Huyện Ngọc Hiển' (Cleaned: 'NGỌC HIỂN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Ngọc Hồi' (Cleaned: 'NGỌC HỒI') -> Score: 25.0
+    vs DB: 'Huyện Như Thanh' (Cleaned: 'NHƯ THANH') -> Score: 58.82352941176471
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phù Cừ' (Cleaned: 'PHÙ CỪ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Phú Lương' (Cleaned: 'PHÚ LƯƠNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Phước Sơn' (Cleaned: 'PHƯỚC SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Quỳnh Nhai' (Cleaned: 'QUỲNH NHAI') -> Score: 44.44444444444444
+    vs DB: 'Huyện Sa Thầy' (Cleaned: 'SA THẦY') -> Score: 26.66666666666667
+    vs DB: 'Huyện Sông Hinh' (Cleaned: 'SÔNG HINH') -> Score: 35.29411764705882
+    vs DB: 'Huyện Sơn Hà' (Cleaned: 'SƠN HÀ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Sơn Hòa' (Cleaned: 'SƠN HÒA') -> Score: 26.66666666666667
+    vs DB: 'Huyện Tân Phú Đông' (Cleaned: 'TÂN PHÚ ĐÔNG') -> Score: 40.0
+    vs DB: 'Huyện Tây Giang' (Cleaned: 'TÂY GIANG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Tây Trà' (Cleaned: 'TÂY TRÀ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Tiên Phước' (Cleaned: 'TIÊN PHƯỚC') -> Score: 22.22222222222222
+    vs DB: 'Huyện Tu Mơ Rông' (Cleaned: 'TU MƠ RÔNG') -> Score: 22.22222222222222
+    vs DB: 'Huyện Tuy Đức' (Cleaned: 'TUY ĐỨC') -> Score: 13.33333333333333
+    vs DB: 'Huyện Thanh Thủy' (Cleaned: 'THANH THỦY') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thạnh Trị' (Cleaned: 'THẠNH TRỊ') -> Score: 47.05882352941176
+    vs DB: 'Huyện Thăng Bình' (Cleaned: 'THĂNG BÌNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Trạm Tấu' (Cleaned: 'TRẠM TẤU') -> Score: 25.0
+    vs DB: 'Huyện Triệu Sơn' (Cleaned: 'TRIỆU SƠN') -> Score: 23.529411764705888
+    vs DB: 'Huyện U Minh Thượng' (Cleaned: 'U MINH THƯỢNG') -> Score: 47.61904761904761
+    vs DB: 'Huyện Vân Hồ' (Cleaned: 'VÂN HỒ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Vị Xuyên' (Cleaned: 'VỊ XUYÊN') -> Score: 25.0
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 55.55555555555556
+    vs DB: 'Huyện Vĩnh Thuận' (Cleaned: 'VĨNH THUẬN') -> Score: 55.55555555555556
+    vs DB: 'Huyện Vũng Liêm' (Cleaned: 'VŨNG LIÊM') -> Score: 23.529411764705888
+    vs DB: 'Huyện Si Ma Cai' (Cleaned: 'SI MA CAI') -> Score: 11.764705882352944
+    vs DB: 'Huyện Yên Bình' (Cleaned: 'YÊN BÌNH') -> Score: 50.0
+    vs DB: 'Huyện Yên Châu' (Cleaned: 'YÊN CHÂU') -> Score: 37.5
+    vs DB: 'Huyện Yên Lập' (Cleaned: 'YÊN LẬP') -> Score: 26.66666666666667
+    vs DB: 'Huyện Yên Thủy' (Cleaned: 'YÊN THỦY') -> Score: 37.5
+    vs DB: 'Thị xã Vĩnh Châu' (Cleaned: 'VĨNH CHÂU') -> Score: 47.05882352941176
+    vs DB: 'Huyện An Minh' (Cleaned: 'AN MINH') -> Score: 40.0
+    vs DB: 'Huyện Ba Chẽ' (Cleaned: 'BA CHẼ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Ba Tơ' (Cleaned: 'BA TƠ') -> Score: 46.15384615384615
+    vs DB: 'Huyện Bác Ái' (Cleaned: 'BÁC ÁI') -> Score: 28.57142857142857
+    vs DB: 'Huyện Bảo Lạc' (Cleaned: 'BẢO LẠC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Bàu Bàng' (Cleaned: 'BÀU BÀNG') -> Score: 37.5
+    vs DB: 'Huyện Bắc Sơn' (Cleaned: 'BẮC SƠN') -> Score: 40.0
+    vs DB: 'Huyện Bắc Tân Uyên' (Cleaned: 'BẮC TÂN UYÊN') -> Score: 50.0
+    vs DB: 'Huyện Bình Gia' (Cleaned: 'BÌNH GIA') -> Score: 62.5
+    vs DB: 'Huyện Bù Đốp' (Cleaned: 'BÙ ĐỐP') -> Score: 28.57142857142857
+    vs DB: 'Huyện Bù Gia Mập' (Cleaned: 'BÙ GIA MẬP') -> Score: 22.22222222222222
+    vs DB: 'Huyện Can Lộc' (Cleaned: 'CAN LỘC') -> Score: 26.66666666666667
+    vs DB: 'Huyện Cát Tiên' (Cleaned: 'CÁT TIÊN') -> Score: 37.5
+    vs DB: 'Huyện Cẩm Thủy' (Cleaned: 'CẨM THỦY') -> Score: 25.0
+    vs DB: 'Huyện Cờ Đỏ' (Cleaned: 'CỜ ĐỎ') -> Score: 15.384615384615385
+    vs DB: 'Huyện Cư Jút' (Cleaned: 'CƯ JÚT') -> Score: 28.57142857142857
+    vs DB: 'Huyện Cư Kuin' (Cleaned: 'CƯ KUIN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Châu Thành' (Cleaned: 'CHÂU THÀNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Chi Lăng' (Cleaned: 'CHI LĂNG') -> Score: 37.5
+    vs DB: 'Huyện Chiêm Hóa' (Cleaned: 'CHIÊM HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Chợ Lách' (Cleaned: 'CHỢ LÁCH') -> Score: 25.0
+    vs DB: 'Huyện Di Linh' (Cleaned: 'DI LINH') -> Score: 26.66666666666667
+    vs DB: 'Huyện Đầm Hà' (Cleaned: 'ĐẦM HÀ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Đình Lập' (Cleaned: 'ĐÌNH LẬP') -> Score: 50.0
+    vs DB: 'Thị xã Đông Hòa' (Cleaned: 'ĐÔNG HÒA') -> Score: 25.0
+    vs DB: 'Thị xã Đông Triều' (Cleaned: 'ĐÔNG TRIỀU') -> Score: 33.333333333333336
+    vs DB: 'Huyện Đồng Xuân' (Cleaned: 'ĐỒNG XUÂN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Đức Thọ' (Cleaned: 'ĐỨC THỌ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Gia Viễn' (Cleaned: 'GIA VIỄN') -> Score: 25.0
+    vs DB: 'Huyện Giao Thủy' (Cleaned: 'GIAO THỦY') -> Score: 23.529411764705888
+    vs DB: 'Huyện Hạ Lang' (Cleaned: 'HẠ LANG') -> Score: 40.0
+    vs DB: 'Huyện Hàm Tân' (Cleaned: 'HÀM TÂN') -> Score: 66.66666666666667
+    vs DB: 'Huyện Hoành Bồ' (Cleaned: 'HOÀNH BỒ') -> Score: 37.5
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 37.5
+    vs DB: 'Huyện Hương Sơn' (Cleaned: 'HƯƠNG SƠN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Kiến Thụy' (Cleaned: 'KIẾN THỤY') -> Score: 35.29411764705882
+    vs DB: 'Huyện Kim Sơn' (Cleaned: 'KIM SƠN') -> Score: 26.66666666666667
+    vs DB: 'Huyện Kỳ Sơn' (Cleaned: 'KỲ SƠN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Khánh Sơn' (Cleaned: 'KHÁNH SƠN') -> Score: 47.05882352941176
+    vs DB: 'Huyện Khánh Vĩnh' (Cleaned: 'KHÁNH VĨNH') -> Score: 44.44444444444444
+    vs DB: 'Huyện Lang Chánh' (Cleaned: 'LANG CHÁNH') -> Score: 33.333333333333336
+    vs DB: 'Huyện Lắk' (Cleaned: 'LẮK') -> Score: 0.0
+    vs DB: 'Thị xã Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Lộc Hà' (Cleaned: 'LỘC HÀ') -> Score: 14.28571428571429
+    vs DB: 'Huyện Minh Hóa' (Cleaned: 'MINH HÓA') -> Score: 37.5
+    vs DB: 'Huyện Mộ Đức' (Cleaned: 'MỘ ĐỨC') -> Score: 14.28571428571429
+    vs DB: 'Huyện Mộc Hóa' (Cleaned: 'MỘC HÓA') -> Score: 13.33333333333333
+    vs DB: 'Huyện Mường La' (Cleaned: 'MƯỜNG LA') -> Score: 25.0
+    vs DB: 'Huyện Na Rì' (Cleaned: 'NA RÌ') -> Score: 30.76923076923077
+    vs DB: 'Huyện Nam Đàn' (Cleaned: 'NAM ĐÀN') -> Score: 40.0
+    vs DB: 'Huyện Nam Đông' (Cleaned: 'NAM ĐÔNG') -> Score: 37.5
+    vs DB: 'Huyện Ninh Giang' (Cleaned: 'NINH GIANG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Nga Sơn' (Cleaned: 'NGA SƠN') -> Score: 40.0
+    vs DB: 'Huyện Ngân Sơn' (Cleaned: 'NGÂN SƠN') -> Score: 37.5
+    vs DB: 'Huyện Nghĩa Hưng' (Cleaned: 'NGHĨA HƯNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện Nguyên Bình' (Cleaned: 'NGUYÊN BÌNH') -> Score: 42.10526315789473
+    vs DB: 'Huyện Nho Quan' (Cleaned: 'NHO QUAN') -> Score: 50.0
+    vs DB: 'Huyện Pác Nặm' (Cleaned: 'PÁC NẶM') -> Score: 26.66666666666667
+    vs DB: 'Huyện Phong Điền' (Cleaned: 'PHONG ĐIỀN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Phù Mỹ' (Cleaned: 'PHÙ MỸ') -> Score: 28.57142857142857
+    vs DB: 'Huyện Phú Xuyên' (Cleaned: 'PHÚ XUYÊN') -> Score: 35.29411764705882
+    vs DB: 'Huyện Quảng Điền' (Cleaned: 'QUẢNG ĐIỀN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Quảng Trạch' (Cleaned: 'QUẢNG TRẠCH') -> Score: 31.57894736842105
+    vs DB: 'Huyện Quảng Uyên' (Cleaned: 'QUẢNG UYÊN') -> Score: 33.333333333333336
+    vs DB: 'Huyện Quế Phong' (Cleaned: 'QUẾ PHONG') -> Score: 23.529411764705888
+    vs DB: 'Huyện Quỳ Châu' (Cleaned: 'QUỲ CHÂU') -> Score: 25.0
+    vs DB: 'Huyện Sông Lô' (Cleaned: 'SÔNG LÔ') -> Score: 26.66666666666667
+    vs DB: 'huyện Sốp Cộp' (Cleaned: 'SỐP CỘP') -> Score: 13.33333333333333
+    vs DB: 'Huyện Sơn Dương' (Cleaned: 'SƠN DƯƠNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Sơn Tây' (Cleaned: 'SƠN TÂY') -> Score: 53.333333333333336
+    vs DB: 'Huyện Tam Đảo' (Cleaned: 'TAM ĐẢO') -> Score: 13.33333333333333
+    vs DB: 'Huyện Tam Nông' (Cleaned: 'TAM NÔNG') -> Score: 25.0
+    vs DB: 'Huyện Tân Hưng' (Cleaned: 'TÂN HƯNG') -> Score: 37.5
+    vs DB: 'Huyện Tân Phước' (Cleaned: 'TÂN PHƯỚC') -> Score: 35.29411764705882
+    vs DB: 'Huyện Tân Thạnh' (Cleaned: 'TÂN THẠNH') -> Score: 47.05882352941176
+    vs DB: 'Huyện Tây Hòa' (Cleaned: 'TÂY HÒA') -> Score: 26.66666666666667
+    vs DB: 'Huyện Tây Sơn' (Cleaned: 'TÂY SƠN') -> Score: 40.0
+    vs DB: 'Huyện Tiền Hải' (Cleaned: 'TIỀN HẢI') -> Score: 25.0
+    vs DB: 'Huyện Tuy An' (Cleaned: 'TUY AN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Tuyên Hóa' (Cleaned: 'TUYÊN HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Tứ Kỳ' (Cleaned: 'TỨ KỲ') -> Score: 15.384615384615385
+    vs DB: 'Huyện Tương Dương' (Cleaned: 'TƯƠNG DƯƠNG') -> Score: 31.57894736842105
+    vs DB: 'Huyện Thạch An' (Cleaned: 'THẠCH AN') -> Score: 37.5
+    vs DB: 'Huyện Thanh Ba' (Cleaned: 'THANH BA') -> Score: 37.5
+    vs DB: 'Huyện Thanh Chương' (Cleaned: 'THANH CHƯƠNG') -> Score: 40.0
+    vs DB: 'Huyện Thanh Hà' (Cleaned: 'THANH HÀ') -> Score: 37.5
+    vs DB: 'Huyện Thạnh Hóa' (Cleaned: 'THẠNH HÓA') -> Score: 35.29411764705882
+    vs DB: 'Huyện Thanh Miện' (Cleaned: 'THANH MIỆN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Thiệu Hóa' (Cleaned: 'THIỆU HÓA') -> Score: 23.529411764705888
+    vs DB: 'Huyện Thông Nông' (Cleaned: 'THÔNG NÔNG') -> Score: 33.333333333333336
+    vs DB: 'Huyện Thới Lai' (Cleaned: 'THỚI LAI') -> Score: 25.0
+    vs DB: 'Huyện Thuận Bắc' (Cleaned: 'THUẬN BẮC') -> Score: 23.529411764705888
+    vs DB: 'Huyện Thuận Nam' (Cleaned: 'THUẬN NAM') -> Score: 35.29411764705882
+    vs DB: 'Huyện Thường Tín' (Cleaned: 'THƯỜNG TÍN') -> Score: 44.44444444444444
+    vs DB: 'Huyện Trà Bồng' (Cleaned: 'TRÀ BỒNG') -> Score: 25.0
+    vs DB: 'Huyện Trà Lĩnh' (Cleaned: 'TRÀ LĨNH') -> Score: 25.0
+    vs DB: 'Huyện Trực Ninh' (Cleaned: 'TRỰC NINH') -> Score: 23.529411764705888
+    vs DB: 'Huyện Văn Lãng' (Cleaned: 'VĂN LÃNG') -> Score: 37.5
+    vs DB: 'Huyện Văn Quan' (Cleaned: 'VĂN QUAN') -> Score: 37.5
+    vs DB: 'Huyện Vân Canh' (Cleaned: 'VÂN CANH') -> Score: 37.5
+    vs DB: 'Huyện Vĩnh Hưng' (Cleaned: 'VĨNH HƯNG') -> Score: 47.05882352941176
+    vs DB: 'Huyện Vĩnh Thạnh' (Cleaned: 'VĨNH THẠNH') -> Score: 55.55555555555556
+    vs DB: 'Huyện Vụ Bản' (Cleaned: 'VỤ BẢN') -> Score: 28.57142857142857
+    vs DB: 'Huyện Vũ Quang' (Cleaned: 'VŨ QUANG') -> Score: 25.0
+    vs DB: 'Huyện Xuân Trường' (Cleaned: 'XUÂN TRƯỜNG') -> Score: 42.10526315789473
+    vs DB: 'Huyện Yên Mô' (Cleaned: 'YÊN MÔ') -> Score: 28.57142857142857
+    vs DB: 'Thị xã Kiến Tường' (Cleaned: 'KIẾN TƯỜNG') -> Score: 44.44444444444444
+    vs DB: 'Huyện M Đrắk' (Cleaned: 'M ĐRẮK') -> Score: 14.28571428571429
+    vs DB: 'Quận Nam Từ Liêm' (Cleaned: 'NAM TỪ LIÊM') -> Score: 31.57894736842105
+    vs DB: 'Thị xã Kỳ Anh' (Cleaned: 'KỲ ANH') -> Score: 28.57142857142857
+    vs DB: 'Thị xã Duyên Hải' (Cleaned: 'DUYÊN HẢI') -> Score: 23.529411764705888
+    vs DB: 'Huyện Phú Riềng' (Cleaned: 'PHÚ RIỀNG') -> Score: 35.29411764705882
+    vs DB: 'Huyện Long Mỹ' (Cleaned: 'LONG MỸ') -> Score: 26.66666666666667
+    vs DB: 'Huyện Ia H Drai' (Cleaned: 'IA H DRAI') -> Score: 23.529411764705888
+    vs DB: 'Quận Đặc Biệt' (Cleaned: 'ĐẶC BIỆT') -> Score: 25.0
+    vs DB: 'Huyện Quảng Hòa' (Cleaned: 'QUẢNG HÒA') -> Score: 23.529411764705888
+    vs DB: 'Thành Phố Thủ Đức' (Cleaned: 'THỦ ĐỨC') -> Score: 26.66666666666667 (Cùng tỉnh)
+    vs DB: 'Huyện Hồng Ngự' (Cleaned: 'HỒNG NGỰ') -> Score: 37.5
+    vs DB: 'Thị xã Chũ' (Cleaned: 'CHŨ') -> Score: 18.181818181818176
+    vs DB: 'Quận Thuận Hóa' (Cleaned: 'THUẬN HÓA') -> Score: 23.529411764705888
+    vs DB: 'Quận Phú Xuân' (Cleaned: 'PHÚ XUÂN') -> Score: 50.0
+    vs DB: 'Huyện Long Đất' (Cleaned: 'LONG ĐẤT') -> Score: 37.5
+--- KẾT THÚC DEBUG ĐẶC BIỆT ---
+[Quận/Huyện][OK] Gắn 'THI XÃ PHÚ THỌ' (VTP ID: 267) cho 'Thị xã Phú Thọ' (DB ID: 2064) (score=66.66666666666667)
+
+--- ÁNH XẠ XÃ/PHƯỜNG ---
+[Phường/Xã][OK] Gắn 'XÃ CHÈM' (VTP ID: 574) cho 'Xã Ch'ơm' (DB ID: 15278) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'ĐẢO GIỮA' (VTP ID: 1240) cho 'Xã Bản Giang' (DB ID: 12962) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'ĐÁ CHIM YẾN' (VTP ID: 1237) cho 'Xã Hải Yến' (DB ID: 14659) (score=80.0)
+[Phường/Xã][OK] Gắn 'ĐẢO CÂY' (VTP ID: 1231) cho 'Phường Cầu Mây' (DB ID: 12077) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'ĐẢO BẮC' (VTP ID: 1228) cho 'Thị trấn Bắc Hà' (DB ID: 12098) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'ĐÁ LỒI' (VTP ID: 1227) cho 'Thị trấn Lim' (DB ID: 14125) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THI TRẤN CHỢ GẠO' (VTP ID: 1348) (score=59.25925925925925)
+ Gợi ý gần đúng:
+    - 'THIỆU TRUNG' (Cleaned: 'THIỆU TRUNG') -> Score: 59.25925925925925
+    - 'THÁI THƯỢNG' (Cleaned: 'THÁI THƯỢNG') -> Score: 59.25925925925925
+    - 'THIỆN TRUNG' (Cleaned: 'THIỆN TRUNG') -> Score: 59.25925925925925
+    - 'HẢI TRẠCH' (Cleaned: 'HẢI TRẠCH') -> Score: 56.00000000000001
+    - 'HẢI TRUNG' (Cleaned: 'HẢI TRUNG') -> Score: 56.00000000000001
+    - 'TRI TRUNG' (Cleaned: 'TRI TRUNG') -> Score: 56.00000000000001
+    - 'TRẦN HƯNG ĐẠO' (Cleaned: 'TRẦN HƯNG ĐẠO') -> Score: 55.172413793103445
+    - 'TRẦN HƯNG ĐẠO' (Cleaned: 'TRẦN HƯNG ĐẠO') -> Score: 55.172413793103445
+    - 'TRẦN HƯNG ĐẠO' (Cleaned: 'TRẦN HƯNG ĐẠO') -> Score: 55.172413793103445
+    - 'TRẦN HƯNG ĐẠO' (Cleaned: 'TRẦN HƯNG ĐẠO') -> Score: 55.172413793103445
+[Phường/Xã][OK] Gắn 'THỊ XÃ CÁI LẬY' (VTP ID: 1471) cho 'Thị trấn Ia Ly' (DB ID: 22451) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'THỊ XÃ TỪ SƠN' (VTP ID: 1943) cho 'Xã Tam Sơn' (DB ID: 14101) (score=76.92307692307692)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN TỨ BÓNG' (VTP ID: 2094) cho 'Xã Tứ Cường' (DB ID: 19523) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'XÃ QUÁN GỎI' (VTP ID: 2175) cho 'Phường Quán Triều' (DB ID: 15228) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'XÃ TRẠM BÓNG' (VTP ID: 2217) cho 'Thị trấn KBang' (DB ID: 22402) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'XÃ KỲ CÔI' (VTP ID: 2230) cho 'Xã Kỳ Lợi' (DB ID: 16299) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'CỤM CN CHÂU SƠN' (VTP ID: 2487) cho 'Phường Châu Sơn' (DB ID: 18117) (score=69.56521739130434)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN RỊA' (VTP ID: 16995) cho 'Xã Bản Rịa' (DB ID: 19101) (score=100.0)
+[Phường/Xã][OK] Gắn 'KCN GIÁN KHẨU' (VTP ID: 3193) cho 'Xã Nà Hẩu' (DB ID: 13103) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN NGÓ' (VTP ID: 3212) cho 'Phường Bến Gót' (DB ID: 18862) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TRẤN TRẤN CỐC PÀI' (VTP ID: 3340) (score=58.33333333333333)
+ Gợi ý gần đúng:
+    - 'TẤN TÀI' (Cleaned: 'TẤN TÀI') -> Score: 58.33333333333333
+    - 'CỐC PÀI' (Cleaned: 'CỐC PÀI') -> Score: 58.33333333333333
+    - 'TRẤN NINH' (Cleaned: 'TRẤN NINH') -> Score: 53.84615384615385
+    - 'TRƯNG TRẮC' (Cleaned: 'TRƯNG TRẮC') -> Score: 51.85185185185186
+    - 'TRUNG TRỰC' (Cleaned: 'TRUNG TRỰC') -> Score: 51.85185185185186
+    - 'TRƯNG TRẮC' (Cleaned: 'TRƯNG TRẮC') -> Score: 51.85185185185186
+    - 'NT TRẦN PHÚ' (Cleaned: 'NT TRẦN PHÚ') -> Score: 50.0
+    - 'TÂN TRI' (Cleaned: 'TÂN TRI') -> Score: 50.0
+    - 'TRUNG TRẠCH' (Cleaned: 'TRUNG TRẠCH') -> Score: 50.0
+    - 'TRẤN YÊN' (Cleaned: 'TRẤN YÊN') -> Score: 48.0
+[Phường/Xã][OK] Gắn 'KHU THƯƠNG MẠI KIM THÀNH' (VTP ID: 3672) cho 'Xã Hưng Thành' (DB ID: 13799) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ CỐC LY- BẮC HÀ' (VTP ID: 3750) (score=60.0)
+ Gợi ý gần đúng:
+    - 'CỐC LY' (Cleaned: 'CỐC LY') -> Score: 60.0
+    - 'BẮC HÀ' (Cleaned: 'BẮC HÀ') -> Score: 60.0
+    - 'BẮC HÀ' (Cleaned: 'BẮC HÀ') -> Score: 60.0
+    - 'BẮC HÀ' (Cleaned: 'BẮC HÀ') -> Score: 60.0
+    - 'CHI LĂNG BẮC' (Cleaned: 'CHI LĂNG BẮC') -> Score: 53.84615384615385
+    - 'BẮC THÀNH' (Cleaned: 'BẮC THÀNH') -> Score: 52.17391304347826
+    - 'LỘC HÀ' (Cleaned: 'LỘC HÀ') -> Score: 50.0
+    - 'LỘC HÀ' (Cleaned: 'LỘC HÀ') -> Score: 50.0
+    - 'CAM AN BẮC' (Cleaned: 'CAM AN BẮC') -> Score: 50.0
+    - 'TÂN LỘC BẮC' (Cleaned: 'TÂN LỘC BẮC') -> Score: 48.0
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THỊ TRẤN BA BỂ (CHỢ RÃ)' (VTP ID: 3953) (score=57.14285714285714)
+ Gợi ý gần đúng:
+    - 'BA BÍCH' (Cleaned: 'BA BÍCH') -> Score: 57.14285714285714
+    - 'BA CHẼ' (Cleaned: 'BA CHẼ') -> Score: 50.0
+    - 'BA CHÙA' (Cleaned: 'BA CHÙA') -> Score: 47.61904761904761
+    - 'BA CHÚC' (Cleaned: 'BA CHÚC') -> Score: 47.61904761904761
+    - 'NHA BÍCH' (Cleaned: 'NHA BÍCH') -> Score: 45.45454545454546
+    - 'NGA BẠCH' (Cleaned: 'NGA BẠCH') -> Score: 45.45454545454546
+    - 'PHAN BỘI CHÂU' (Cleaned: 'PHAN BỘI CHÂU') -> Score: 44.44444444444444
+    - 'BIỂN BẠCH' (Cleaned: 'BIỂN BẠCH') -> Score: 43.47826086956522
+    - 'AN BÌNH A' (Cleaned: 'AN BÌNH A') -> Score: 43.47826086956522
+    - 'AN BÌNH B' (Cleaned: 'AN BÌNH B') -> Score: 43.47826086956522
+[Phường/Xã][OK] Gắn 'TT HUYỆN PẮC NẶM' (VTP ID: 3983) cho 'Xã Pắc Ngà' (DB ID: 12655) (score=71.42857142857143)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THỊ TRẤN CHÈ NÔNG TRƯỜNG THÁI BÌNH' (VTP ID: 4158) (score=64.86486486486487)
+ Gợi ý gần đúng:
+    - 'NT THÁI BÌNH' (Cleaned: 'NT THÁI BÌNH') -> Score: 64.86486486486487
+    - 'NGUYỄN THÁI BÌNH' (Cleaned: 'NGUYỄN THÁI BÌNH') -> Score: 63.41463414634146
+    - 'NÔNG TRƯỜNG VIỆT LÂM' (Cleaned: 'NÔNG TRƯỜNG VIỆT LÂM') -> Score: 62.22222222222222
+    - 'NÔNG TRƯỜNG' (Cleaned: 'NÔNG TRƯỜNG') -> Score: 61.111111111111114
+    - 'NÔNG TRƯỜNG' (Cleaned: 'NÔNG TRƯỜNG') -> Score: 61.111111111111114
+    - 'CƯỜNG THỊNH' (Cleaned: 'CƯỜNG THỊNH') -> Score: 55.55555555555556
+    - 'ĐÔNG HƯNG THUẬN' (Cleaned: 'ĐÔNG HƯNG THUẬN') -> Score: 55.00000000000001
+    - 'HOẰNG TRƯỜNG' (Cleaned: 'HOẰNG TRƯỜNG') -> Score: 54.054054054054056
+    - 'THƯỜNG THẠNH' (Cleaned: 'THƯỜNG THẠNH') -> Score: 54.054054054054056
+    - 'PHONG DƯƠNG TIẾN' (Cleaned: 'PHONG DƯƠNG TIẾN') -> Score: 53.65853658536586
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ LIỆT MUỘI' (VTP ID: 5635) (score=58.82352941176471)
+ Gợi ý gần đúng:
+    - 'LIÊN HỘI' (Cleaned: 'LIÊN HỘI') -> Score: 58.82352941176471
+    - 'VIỆT CHU' (Cleaned: 'VIỆT CHU') -> Score: 58.82352941176471
+    - 'VIỆT LÂM' (Cleaned: 'VIỆT LÂM') -> Score: 58.82352941176471
+    - 'VIỆT HẢI' (Cleaned: 'VIỆT HẢI') -> Score: 58.82352941176471
+    - 'LỆ MỸ' (Cleaned: 'LỆ MỸ') -> Score: 57.14285714285714
+    - 'LIÊN MINH' (Cleaned: 'LIÊN MINH') -> Score: 55.55555555555556
+    - 'VIỆT TIẾN' (Cleaned: 'VIỆT TIẾN') -> Score: 55.55555555555556
+    - 'VIỆT KHÁI' (Cleaned: 'VIỆT KHÁI') -> Score: 55.55555555555556
+    - 'VIỆT TIẾN' (Cleaned: 'VIỆT TIẾN') -> Score: 55.55555555555556
+    - 'LIÊN MINH' (Cleaned: 'LIÊN MINH') -> Score: 55.55555555555556
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TK NÀ SẢN' (VTP ID: 5688) (score=62.5)
+ Gợi ý gần đúng:
+    - 'NÀN SÁN' (Cleaned: 'NÀN SÁN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+    - 'TRÀ SƠN' (Cleaned: 'TRÀ SƠN') -> Score: 62.5
+    - 'TRÀ SƠN' (Cleaned: 'TRÀ SƠN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+    - 'TÀO SƠN' (Cleaned: 'TÀO SƠN') -> Score: 62.5
+    - 'TÂN SƠN' (Cleaned: 'TÂN SƠN') -> Score: 62.5
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TK CHÈ ĐEN' (VTP ID: 5771) (score=63.1578947368421)
+ Gợi ý gần đúng:
+    - 'THẠCH ĐẠN' (Cleaned: 'THẠCH ĐẠN') -> Score: 63.1578947368421
+    - 'CHIỀNG ĐEN' (Cleaned: 'CHIỀNG ĐEN') -> Score: 60.0
+    - 'THẠCH ĐỈNH' (Cleaned: 'THẠCH ĐỈNH') -> Score: 60.0
+    - 'THẠCH ĐIỀN' (Cleaned: 'THẠCH ĐIỀN') -> Score: 60.0
+    - 'THẠCH ĐỒNG' (Cleaned: 'THẠCH ĐỒNG') -> Score: 60.0
+    - 'THẠCH ĐỒNG' (Cleaned: 'THẠCH ĐỒNG') -> Score: 60.0
+    - 'THẠCH ĐỊNH' (Cleaned: 'THẠCH ĐỊNH') -> Score: 60.0
+    - 'THẠCH ĐỒNG' (Cleaned: 'THẠCH ĐỒNG') -> Score: 60.0
+    - 'TÚC ĐÁN' (Cleaned: 'TÚC ĐÁN') -> Score: 58.82352941176471
+    - 'THÈN SIN' (Cleaned: 'THÈN SIN') -> Score: 55.55555555555556
+[Phường/Xã][OK] Gắn 'THỊ TRẤN NGÃ BA MÔI' (VTP ID: 6209) cho 'Xã Làng Mô' (DB ID: 12982) (score=80.0)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN LƯU VỆ' (VTP ID: 6208) cho 'Xã Lạc Vệ' (DB ID: 14120) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TRỊ TRẤN NHỒI' (VTP ID: 6261) (score=63.63636363636363)
+ Gợi ý gần đúng:
+    - 'TRẤN NINH' (Cleaned: 'TRẤN NINH') -> Score: 63.63636363636363
+    - 'NT TRẦN PHÚ' (Cleaned: 'NT TRẦN PHÚ') -> Score: 58.33333333333333
+    - 'TRẦN HỢI' (Cleaned: 'TRẦN HỢI') -> Score: 57.14285714285714
+    - 'TRẤN YÊN' (Cleaned: 'TRẤN YÊN') -> Score: 57.14285714285714
+    - 'TỊNH ẤN ĐÔNG' (Cleaned: 'TỊNH ẤN ĐÔNG') -> Score: 56.00000000000001
+    - 'CÁT TRINH' (Cleaned: 'CÁT TRINH') -> Score: 54.54545454545454
+    - 'TRẦN THỚI' (Cleaned: 'TRẦN THỚI') -> Score: 54.54545454545454
+    - 'TỨC TRANH' (Cleaned: 'TỨC TRANH') -> Score: 54.54545454545454
+    - 'TRUNG HỘI' (Cleaned: 'TRUNG HỘI') -> Score: 54.54545454545454
+    - 'TRÀ THANH' (Cleaned: 'TRÀ THANH') -> Score: 54.54545454545454
+[Phường/Xã][OK] Gắn 'THI TRẤN LANG CHÁNH' (VTP ID: 6279) cho 'Thị trấn Lang Chánh' (DB ID: 17223) (score=68.96551724137932)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN NGÃ BA MÔI' (VTP ID: 21519) cho 'Xã Làng Mô' (DB ID: 12982) (score=80.0)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN GIẮT' (VTP ID: 6336) cho 'Thị trấn Cầu Giát' (DB ID: 16943) (score=75.0)
+[Phường/Xã][OK] Gắn 'XÃ TẾ ĐỘ' (VTP ID: 6347) cho 'Xã Tiến Bộ' (DB ID: 18974) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'THI TRẤN BÃI TRÀNH' (VTP ID: 6440) cho 'Xã Bãi Trành' (DB ID: 17652) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THỊ TRẤN ĐÒ LÈN' (VTP ID: 6497) (score=61.53846153846154)
+ Gợi ý gần đúng:
+    - 'TÀ LÈNG' (Cleaned: 'TÀ LÈNG') -> Score: 61.53846153846154
+    - 'TẢ LÈNG' (Cleaned: 'TẢ LÈNG') -> Score: 61.53846153846154
+    - 'ĐỨC LÂN' (Cleaned: 'ĐỨC LÂN') -> Score: 61.53846153846154
+    - 'ĐẠ LONG' (Cleaned: 'ĐẠ LONG') -> Score: 61.53846153846154
+    - 'ĐÀ LOAN' (Cleaned: 'ĐÀ LOAN') -> Score: 61.53846153846154
+    - 'ĐẠO LONG' (Cleaned: 'ĐẠO LONG') -> Score: 57.14285714285714
+    - 'ĐẮK LONG' (Cleaned: 'ĐẮK LONG') -> Score: 57.14285714285714
+    - 'ĐĂK LONG' (Cleaned: 'ĐĂK LONG') -> Score: 57.14285714285714
+    - 'ĐẮK LONG' (Cleaned: 'ĐẮK LONG') -> Score: 57.14285714285714
+    - 'ĐỨC LONG' (Cleaned: 'ĐỨC LONG') -> Score: 57.14285714285714
+[Phường/Xã][OK] Gắn 'THỊ TRẤN NÔNG TRƯỜNG THỐNG NHẤT' (VTP ID: 6602) cho 'Thị Trấn Nông Trường' (DB ID: 12744) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'NGÃ BA CHÈ' (VTP ID: 6702) cho 'Thị trấn Chờ' (DB ID: 14067) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'THỊ XÃ KỲ ANH' (VTP ID: 7452) cho 'Xã Kỳ Khang' (DB ID: 16580) (score=71.42857142857143)
+[Phường/Xã][OK] Gắn 'THỊ XÃ KỲ ANH' (VTP ID: 7464) cho 'Xã Kỳ Khang' (DB ID: 16580) (score=71.42857142857143)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'PHƯỜNG ĐỒNG SƠN (TIỂU KHU 8-11)' (VTP ID: 7567) (score=50.0)
+ Gợi ý gần đúng:
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 50.0
+    - 'ĐỒNG NAI THƯỢNG' (Cleaned: 'ĐỒNG NAI THƯỢNG') -> Score: 46.15384615384615
+    - 'ĐỒNG NAI THƯỢNG' (Cleaned: 'ĐỒNG NAI THƯỢNG') -> Score: 46.15384615384615
+    - 'ĐÔNG HƯNG THUẬN' (Cleaned: 'ĐÔNG HƯNG THUẬN') -> Score: 46.15384615384615
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'PHƯỜNG ĐỒNG SƠN (TIỂU KHU 1 - 7)' (VTP ID: 7557) (score=48.484848484848484)
+ Gợi ý gần đúng:
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG SƠN' (Cleaned: 'ĐỒNG SƠN') -> Score: 48.484848484848484
+    - 'ĐỒNG NAI THƯỢNG' (Cleaned: 'ĐỒNG NAI THƯỢNG') -> Score: 44.99999999999999
+    - 'ĐỒNG NAI THƯỢNG' (Cleaned: 'ĐỒNG NAI THƯỢNG') -> Score: 44.99999999999999
+    - 'ĐÔNG HƯNG THUẬN' (Cleaned: 'ĐÔNG HƯNG THUẬN') -> Score: 44.99999999999999
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'CỒN CỎ' (VTP ID: 7743) (score=57.14285714285714)
+ Gợi ý gần đúng:
+    - 'CỜ ĐỎ' (Cleaned: 'CỜ ĐỎ') -> Score: 57.14285714285714
+    - 'CỜ ĐỎ' (Cleaned: 'CỜ ĐỎ') -> Score: 57.14285714285714
+    - 'ĐỎ' (Cleaned: 'ĐỎ') -> Score: 50.0
+    - 'CẦM' (Cleaned: 'CẦM') -> Score: 40.0
+    - 'CÁI' (Cleaned: 'CÁI') -> Score: 40.0
+    - 'CHỜ' (Cleaned: 'CHỜ') -> Score: 40.0
+    - 'CHŨ' (Cleaned: 'CHŨ') -> Score: 40.0
+    - 'CHŨ' (Cleaned: 'CHŨ') -> Score: 40.0
+    - 'CẤN' (Cleaned: 'CẤN') -> Score: 40.0
+    - 'CHU' (Cleaned: 'CHU') -> Score: 40.0
+[Phường/Xã][OK] Gắn 'PHƯỜNG ĐÚC' (VTP ID: 7956) cho 'Xã Húc' (DB ID: 16106) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ G'RY' (VTP ID: 8095) (score=54.54545454545454)
+ Gợi ý gần đúng:
+    - 'GIA RAY' (Cleaned: 'GIA RAY') -> Score: 54.54545454545454
+    - 'GLAR' (Cleaned: 'GLAR') -> Score: 50.0
+    - 'SÔNG RAY' (Cleaned: 'SÔNG RAY') -> Score: 50.0
+    - 'TR'HY' (Cleaned: 'TR'HY') -> Score: 44.44444444444444
+    - 'GA RI' (Cleaned: 'GA RI') -> Score: 44.44444444444444
+    - 'D'RAN' (Cleaned: 'D'RAN') -> Score: 44.44444444444444
+    - 'NGA MY' (Cleaned: 'NGA MY') -> Score: 40.0
+    - 'TRÀ MY' (Cleaned: 'TRÀ MY') -> Score: 40.0
+    - 'NGA MY' (Cleaned: 'NGA MY') -> Score: 40.0
+    - 'NGUYÊN' (Cleaned: 'NGUYÊN') -> Score: 40.0
+[Phường/Xã][OK] Gắn 'THỊ TRẤN HUYỆN TRÀ BỒNG' (VTP ID: 8314) cho 'Xã Trà Bình' (DB ID: 15505) (score=75.0)
+[Phường/Xã][OK] Gắn 'THỊ TRẤN GÒ GĂNG' (VTP ID: 8567) cho 'Xã Ia Grăng' (DB ID: 22543) (score=66.66666666666667)
+[Phường/Xã][OK] Gắn 'XÃ MO RAY' (VTP ID: 8843) cho 'Xã Mô Rai' (DB ID: 13588) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THỊ TRẤN NHƠN HOÀ - H. CHƯ PƯH' (VTP ID: 9128) (score=55.172413793103445)
+ Gợi ý gần đúng:
+    - 'NHƠN HOÀ' (Cleaned: 'NHƠN HOÀ') -> Score: 55.172413793103445
+    - 'NHƠN HOÀ' (Cleaned: 'NHƠN HOÀ') -> Score: 55.172413793103445
+    - 'NHƠN HOÀ' (Cleaned: 'NHƠN HOÀ') -> Score: 55.172413793103445
+    - 'VĨNH HOÀ PHÚ' (Cleaned: 'VĨNH HOÀ PHÚ') -> Score: 54.54545454545454
+    - 'THÀO CHƯ PHÌN' (Cleaned: 'THÀO CHƯ PHÌN') -> Score: 52.94117647058824
+    - 'NHƠN THÀNH' (Cleaned: 'NHƠN THÀNH') -> Score: 51.61290322580645
+    - 'NHƠN HÒA LẬP' (Cleaned: 'NHƠN HÒA LẬP') -> Score: 48.484848484848484
+    - 'NHƠN PHÚ' (Cleaned: 'NHƠN PHÚ') -> Score: 48.275862068965516
+    - 'NHÂN HOÀ' (Cleaned: 'NHÂN HOÀ') -> Score: 48.275862068965516
+    - 'NHƠN PHÚ' (Cleaned: 'NHƠN PHÚ') -> Score: 48.275862068965516
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TRUNG TÂM HUYỆN KRÔNG BU'K' (VTP ID: 9158) (score=61.904761904761905)
+ Gợi ý gần đúng:
+    - 'TRUNG THÀNH ĐÔNG' (Cleaned: 'TRUNG THÀNH ĐÔNG') -> Score: 61.904761904761905
+    - 'TÂN THUẬN ĐÔNG' (Cleaned: 'TÂN THUẬN ĐÔNG') -> Score: 55.00000000000001
+    - 'TÂN THUẬN ĐÔNG' (Cleaned: 'TÂN THUẬN ĐÔNG') -> Score: 55.00000000000001
+    - 'TRUNG THƯỢNG' (Cleaned: 'TRUNG THƯỢNG') -> Score: 52.63157894736843
+    - 'TRUNG THU' (Cleaned: 'TRUNG THU') -> Score: 51.42857142857142
+    - 'TRUNG TÂM' (Cleaned: 'TRUNG TÂM') -> Score: 51.42857142857142
+    - 'TRUNG TÂM' (Cleaned: 'TRUNG TÂM') -> Score: 51.42857142857142
+    - 'TRUNG MÔN' (Cleaned: 'TRUNG MÔN') -> Score: 51.42857142857142
+    - 'TUNG CHUNG PHỐ' (Cleaned: 'TUNG CHUNG PHỐ') -> Score: 50.0
+    - 'TRUNG HƯNG' (Cleaned: 'TRUNG HƯNG') -> Score: 50.0
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ CUEBUOR' (VTP ID: 9228) (score=55.55555555555556)
+ Gợi ý gần đúng:
+    - 'PA CHEO' (Cleaned: 'PA CHEO') -> Score: 55.55555555555556
+    - 'A BUNG' (Cleaned: 'A BUNG') -> Score: 47.05882352941176
+    - 'AN CẦU' (Cleaned: 'AN CẦU') -> Score: 47.05882352941176
+    - 'AN CỰU' (Cleaned: 'AN CỰU') -> Score: 47.05882352941176
+    - 'AN CỰU' (Cleaned: 'AN CỰU') -> Score: 47.05882352941176
+    - 'EA WER' (Cleaned: 'EA WER') -> Score: 47.05882352941176
+    - 'EA BAR' (Cleaned: 'EA BAR') -> Score: 47.05882352941176
+    - 'XA DUNG' (Cleaned: 'XA DUNG') -> Score: 44.44444444444444
+    - 'HUA BUM' (Cleaned: 'HUA BUM') -> Score: 44.44444444444444
+    - 'AN CHÂU' (Cleaned: 'AN CHÂU') -> Score: 44.44444444444444
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ HÒA PHÚ' (VTP ID: 9227) (score=52.17391304347826)
+ Gợi ý gần đúng:
+    - 'AN HÒA HẢI' (Cleaned: 'AN HÒA HẢI') -> Score: 52.17391304347826
+    - 'CAO PHẠ' (Cleaned: 'CAO PHẠ') -> Score: 50.0
+    - 'HÒA PHÚ' (Cleaned: 'HÒA PHÚ') -> Score: 50.0
+    - 'HÒA PHÚ' (Cleaned: 'HÒA PHÚ') -> Score: 50.0
+    - 'HÒA HẬU' (Cleaned: 'HÒA HẬU') -> Score: 50.0
+    - 'NAM HOA' (Cleaned: 'NAM HOA') -> Score: 50.0
+    - 'HÀO PHÚ' (Cleaned: 'HÀO PHÚ') -> Score: 50.0
+    - 'HÒA PHÚ' (Cleaned: 'HÒA PHÚ') -> Score: 50.0
+    - 'HÒA PHÚ' (Cleaned: 'HÒA PHÚ') -> Score: 50.0
+    - 'HÒA PHÚ' (Cleaned: 'HÒA PHÚ') -> Score: 50.0
+[Phường/Xã][OK] Gắn 'TRUNG TÂM HUYỆN BUÔN ĐÔN' (VTP ID: 9272) cho 'Xã Trung Thành Đông' (DB ID: 21102) (score=65.0)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'TRUNG TÂM HUYỆN CƯ KUIN' (VTP ID: 9331) (score=56.41025641025641)
+ Gợi ý gần đúng:
+    - 'NGUYỄN CƯ TRINH' (Cleaned: 'NGUYỄN CƯ TRINH') -> Score: 56.41025641025641
+    - 'TRUNG THƯỢNG' (Cleaned: 'TRUNG THƯỢNG') -> Score: 55.55555555555556
+    - 'TRUNG NGUYÊN' (Cleaned: 'TRUNG NGUYÊN') -> Score: 55.55555555555556
+    - 'TRUNG PHÚC CƯỜNG' (Cleaned: 'TRUNG PHÚC CƯỜNG') -> Score: 55.00000000000001
+    - 'TRUNG THÀNH ĐÔNG' (Cleaned: 'TRUNG THÀNH ĐÔNG') -> Score: 55.00000000000001
+    - 'TRUNG THU' (Cleaned: 'TRUNG THU') -> Score: 54.54545454545454
+    - 'TRUNG TÂM' (Cleaned: 'TRUNG TÂM') -> Score: 54.54545454545454
+    - 'TRUNG TÂM' (Cleaned: 'TRUNG TÂM') -> Score: 54.54545454545454
+    - 'TRUNG YÊN' (Cleaned: 'TRUNG YÊN') -> Score: 54.54545454545454
+    - 'TRUNG HƯNG' (Cleaned: 'TRUNG HƯNG') -> Score: 52.94117647058824
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ MADAGUOIL' (VTP ID: 9408) (score=63.1578947368421)
+ Gợi ý gần đúng:
+    - 'MA ĐA GUÔI' (Cleaned: 'MA ĐA GUÔI') -> Score: 63.1578947368421
+    - 'MA ĐA GUÔI' (Cleaned: 'MA ĐA GUÔI') -> Score: 63.1578947368421
+    - 'MA QUAI' (Cleaned: 'MA QUAI') -> Score: 50.0
+    - 'MAI SAO' (Cleaned: 'MAI SAO') -> Score: 50.0
+    - 'MAI LẠP' (Cleaned: 'MAI LẠP') -> Score: 50.0
+    - 'NA NGOI' (Cleaned: 'NA NGOI') -> Score: 50.0
+    - 'MAI LÂM' (Cleaned: 'MAI LÂM') -> Score: 50.0
+    - 'MAI LÂM' (Cleaned: 'MAI LÂM') -> Score: 50.0
+    - 'MAI LONG' (Cleaned: 'MAI LONG') -> Score: 47.05882352941176
+    - 'DANG' (Cleaned: 'DANG') -> Score: 46.15384615384615
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'THỊ TRẤN MADAGOIL' (VTP ID: 9403) (score=55.55555555555556)
+ Gợi ý gần đúng:
+    - 'MA ĐA GUÔI' (Cleaned: 'MA ĐA GUÔI') -> Score: 55.55555555555556
+    - 'MA ĐA GUÔI' (Cleaned: 'MA ĐA GUÔI') -> Score: 55.55555555555556
+    - 'MA QUAI' (Cleaned: 'MA QUAI') -> Score: 53.333333333333336
+    - 'MAI SAO' (Cleaned: 'MAI SAO') -> Score: 53.333333333333336
+    - 'MAI LẠP' (Cleaned: 'MAI LẠP') -> Score: 53.333333333333336
+    - 'NA NGOI' (Cleaned: 'NA NGOI') -> Score: 53.333333333333336
+    - 'MAI LÂM' (Cleaned: 'MAI LÂM') -> Score: 53.333333333333336
+    - 'MAI LÂM' (Cleaned: 'MAI LÂM') -> Score: 53.333333333333336
+    - 'MAI LONG' (Cleaned: 'MAI LONG') -> Score: 50.0
+    - 'DANG' (Cleaned: 'DANG') -> Score: 50.0
+[Phường/Xã][OK] Gắn 'THỊ TRẤN ĐRAN' (VTP ID: 9481) cho 'Thị trấn D'Ran' (DB ID: 22188) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÁ ĐẮK Ơ' (VTP ID: 9671) (score=62.5)
+ Gợi ý gần đúng:
+    - 'ĐẮK PHƠI' (Cleaned: 'ĐẮK PHƠI') -> Score: 62.5
+    - 'ĐĂK Ơ' (Cleaned: 'ĐĂK Ơ') -> Score: 61.53846153846154
+    - 'ĐẮK RƠ WA' (Cleaned: 'ĐẮK RƠ WA') -> Score: 58.82352941176471
+    - 'ĐẮK NA' (Cleaned: 'ĐẮK NA') -> Score: 57.14285714285714
+    - 'ĐẮK HÀ' (Cleaned: 'ĐẮK HÀ') -> Score: 57.14285714285714
+    - 'ĐẮK XÚ' (Cleaned: 'ĐẮK XÚ') -> Score: 57.14285714285714
+    - 'ĐẮK TÔ' (Cleaned: 'ĐẮK TÔ') -> Score: 57.14285714285714
+    - 'ĐẮK UI' (Cleaned: 'ĐẮK UI') -> Score: 57.14285714285714
+    - 'ĐẮK LA' (Cleaned: 'ĐẮK LA') -> Score: 57.14285714285714
+    - 'ĐẮK HÀ' (Cleaned: 'ĐẮK HÀ') -> Score: 57.14285714285714
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KCN BÀU XÉO' (VTP ID: 9883) (score=57.14285714285714)
+ Gợi ý gần đúng:
+    - 'BÀU ĐỒN' (Cleaned: 'BÀU ĐỒN') -> Score: 57.14285714285714
+    - 'BÀU CẠN' (Cleaned: 'BÀU CẠN') -> Score: 57.14285714285714
+    - 'BÀU LÂM' (Cleaned: 'BÀU LÂM') -> Score: 57.14285714285714
+    - 'BÀU CẠN' (Cleaned: 'BÀU CẠN') -> Score: 57.14285714285714
+    - 'BÀU SEN' (Cleaned: 'BÀU SEN') -> Score: 57.14285714285714
+    - 'BÀU HÀM' (Cleaned: 'BÀU HÀM') -> Score: 57.14285714285714
+    - 'BÀU NĂNG' (Cleaned: 'BÀU NĂNG') -> Score: 53.333333333333336
+    - 'BÀN LONG' (Cleaned: 'BÀN LONG') -> Score: 53.333333333333336
+    - 'BÀU TRÂM' (Cleaned: 'BÀU TRÂM') -> Score: 53.333333333333336
+    - 'BỬU LONG' (Cleaned: 'BỬU LONG') -> Score: 53.333333333333336
+[Phường/Xã][OK] Gắn 'XÃ GIA KIỆM (THỊ TRẤN GIA KIỆM)' (VTP ID: 9904) cho 'Xã Gia Kiệm' (DB ID: 22789) (score=100.0)
+[Phường/Xã][OK] Gắn 'KCN DỆT MAY' (VTP ID: 9944) cho 'Xã Ta Ma' (DB ID: 12838) (score=66.66666666666667)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KCN VINATEX TÂN TẠO' (VTP ID: 9943) (score=63.63636363636363)
+ Gợi ý gần đúng:
+    - 'TÂN TẠO' (Cleaned: 'TÂN TẠO') -> Score: 63.63636363636363
+    - 'VINH TÂN' (Cleaned: 'VINH TÂN') -> Score: 60.86956521739131
+    - 'GIA TÂN 3' (Cleaned: 'GIA TÂN 3') -> Score: 58.33333333333333
+    - 'GIA TÂN 2' (Cleaned: 'GIA TÂN 2') -> Score: 58.33333333333333
+    - 'GIA TÂN 1' (Cleaned: 'GIA TÂN 1') -> Score: 58.33333333333333
+    - 'TÂN TẠO A' (Cleaned: 'TÂN TẠO A') -> Score: 58.33333333333333
+    - 'NAM TÂN' (Cleaned: 'NAM TÂN') -> Score: 54.54545454545454
+    - 'NGA TÂN' (Cleaned: 'NGA TÂN') -> Score: 54.54545454545454
+    - 'GIA TÂN' (Cleaned: 'GIA TÂN') -> Score: 54.54545454545454
+    - 'GIA TÂN' (Cleaned: 'GIA TÂN') -> Score: 54.54545454545454
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KCN AMATA' (VTP ID: 9979) (score=60.0)
+ Gợi ý gần đúng:
+    - 'TA MA' (Cleaned: 'TA MA') -> Score: 60.0
+    - 'YA MA' (Cleaned: 'YA MA') -> Score: 60.0
+    - 'NAM THANH' (Cleaned: 'NAM THANH') -> Score: 57.14285714285714
+    - 'TAM THANH' (Cleaned: 'TAM THANH') -> Score: 57.14285714285714
+    - 'TAM THANH' (Cleaned: 'TAM THANH') -> Score: 57.14285714285714
+    - 'TAM THANH' (Cleaned: 'TAM THANH') -> Score: 57.14285714285714
+    - 'CAM THANH' (Cleaned: 'CAM THANH') -> Score: 57.14285714285714
+    - 'NAM THANH' (Cleaned: 'NAM THANH') -> Score: 57.14285714285714
+    - 'TAM THANH' (Cleaned: 'TAM THANH') -> Score: 57.14285714285714
+    - 'TAM THANH' (Cleaned: 'TAM THANH') -> Score: 57.14285714285714
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KCN LỘC AN - BÌNH SƠN' (VTP ID: 10050) (score=64.0)
+ Gợi ý gần đúng:
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'LỘC BÌNH' (Cleaned: 'LỘC BÌNH') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'BÌNH SƠN' (Cleaned: 'BÌNH SƠN') -> Score: 64.0
+    - 'LỘC BÌNH' (Cleaned: 'LỘC BÌNH') -> Score: 64.0
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'XÃ VÕ ĐẮC' (VTP ID: 10121) (score=61.53846153846154)
+ Gợi ý gần đúng:
+    - 'VĂN ĐỨC' (Cleaned: 'VĂN ĐỨC') -> Score: 61.53846153846154
+    - 'VĂN ĐỨC' (Cleaned: 'VĂN ĐỨC') -> Score: 61.53846153846154
+    - 'VÕ CƯỜNG' (Cleaned: 'VÕ CƯỜNG') -> Score: 57.14285714285714
+    - 'VÕ XU' (Cleaned: 'VÕ XU') -> Score: 54.54545454545454
+    - 'VÕ LAO' (Cleaned: 'VÕ LAO') -> Score: 50.0
+    - 'ĐÀ BẮC' (Cleaned: 'ĐÀ BẮC') -> Score: 50.0
+    - 'MỸ ĐỨC' (Cleaned: 'MỸ ĐỨC') -> Score: 50.0
+    - 'ÂN ĐỨC' (Cleaned: 'ÂN ĐỨC') -> Score: 50.0
+    - 'MỘ ĐỨC' (Cleaned: 'MỘ ĐỨC') -> Score: 50.0
+    - 'KỲ BẮC' (Cleaned: 'KỲ BẮC') -> Score: 50.0
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'ẤP LÒ BOM' (VTP ID: 11133) (score=61.53846153846154)
+ Gợi ý gần đúng:
+    - 'LAO BẢO' (Cleaned: 'LAO BẢO') -> Score: 61.53846153846154
+    - 'LỘC BẢO' (Cleaned: 'LỘC BẢO') -> Score: 61.53846153846154
+    - 'LIÊN BÃO' (Cleaned: 'LIÊN BÃO') -> Score: 57.14285714285714
+    - 'LIÊN BẢO' (Cleaned: 'LIÊN BẢO') -> Score: 57.14285714285714
+    - 'LIÊN BẢO' (Cleaned: 'LIÊN BẢO') -> Score: 57.14285714285714
+    - 'LỆ MỸ' (Cleaned: 'LỆ MỸ') -> Score: 54.54545454545454
+    - 'AL BÁ' (Cleaned: 'AL BÁ') -> Score: 54.54545454545454
+    - 'TRẢNG BOM' (Cleaned: 'TRẢNG BOM') -> Score: 53.333333333333336
+    - 'BO' (Cleaned: 'BO') -> Score: 50.0
+    - 'BO' (Cleaned: 'BO') -> Score: 50.0
+[Phường/Xã][OK] Gắn 'KÊNH TÁM THƯỚC' (VTP ID: 11129) cho 'Xã Tam Phước' (DB ID: 15388) (score=77.77777777777779)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'ẤP CƯ XÁ MẠC THIÊN TỨ' (VTP ID: 11128) (score=59.25925925925925)
+ Gợi ý gần đúng:
+    - 'CÁI CHIÊN' (Cleaned: 'CÁI CHIÊN') -> Score: 59.25925925925925
+    - 'CÁT TIÊN' (Cleaned: 'CÁT TIÊN') -> Score: 53.84615384615385
+    - 'CÁT TIÊN' (Cleaned: 'CÁT TIÊN') -> Score: 53.84615384615385
+    - 'THIÊN TÔN' (Cleaned: 'THIÊN TÔN') -> Score: 51.85185185185186
+    - 'THIÊN ĐỨC' (Cleaned: 'THIÊN ĐỨC') -> Score: 51.85185185185186
+    - 'CAM THỊNH TÂY' (Cleaned: 'CAM THỊNH TÂY') -> Score: 51.61290322580645
+    - 'XUÂN THIÊN' (Cleaned: 'XUÂN THIÊN') -> Score: 50.0
+    - 'NGÁN CHIÊN' (Cleaned: 'NGÁN CHIÊN') -> Score: 50.0
+    - 'CHƯ A THAI' (Cleaned: 'CHƯ A THAI') -> Score: 50.0
+    - 'KHÂM THIÊN' (Cleaned: 'KHÂM THIÊN') -> Score: 50.0
+[Phường/Xã][OK] Gắn 'NGÃ BA BA HÒN' (VTP ID: 11127) cho 'Xã Ba Khan' (DB ID: 12370) (score=76.92307692307692)
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KHU CÔNG NGHIỆP SẢN XUẤT XI MĂNG' (VTP ID: 11121) (score=56.00000000000001)
+ Gợi ý gần đúng:
+    - 'SẢNG TỦNG' (Cleaned: 'SẢNG TỦNG') -> Score: 56.00000000000001
+    - 'TÊ XĂNG' (Cleaned: 'TÊ XĂNG') -> Score: 52.17391304347826
+    - 'PHAN SI PĂNG' (Cleaned: 'PHAN SI PĂNG') -> Score: 50.0
+    - 'SƠN XUÂN' (Cleaned: 'SƠN XUÂN') -> Score: 50.0
+    - 'SƠN TINH' (Cleaned: 'SƠN TINH') -> Score: 50.0
+    - 'SƠN DUNG' (Cleaned: 'SƠN DUNG') -> Score: 50.0
+    - 'SUỐI NGÔ' (Cleaned: 'SUỐI NGÔ') -> Score: 50.0
+    - 'HẢI LĂNG' (Cleaned: 'HẢI LĂNG') -> Score: 50.0
+    - 'SƠN TIẾN' (Cleaned: 'SƠN TIẾN') -> Score: 50.0
+    - 'AN THÁI ĐÔNG' (Cleaned: 'AN THÁI ĐÔNG') -> Score: 50.0
+[Phường/Xã][??] Không tìm được phường/xã phù hợp cho 'KHU CÔNG NGHIỆP CẢNG CÁ TẮC CẬU' (VTP ID: 11145) (score=58.33333333333333)
+ Gợi ý gần đúng:
+    - 'QUẢNG CÁT' (Cleaned: 'QUẢNG CÁT') -> Score: 58.33333333333333
+    - 'CÁI TẮC' (Cleaned: 'CÁI TẮC') -> Score: 54.54545454545454
+    - 'ĐÔNG CÁC' (Cleaned: 'ĐÔNG CÁC') -> Score: 52.17391304347826
+    - 'NGỌC CHÂU' (Cleaned: 'NGỌC CHÂU') -> Score: 50.0
+    - 'TRÀNG CÁC' (Cleaned: 'TRÀNG CÁC') -> Score: 50.0
+    - 'QUẢNG CHU' (Cleaned: 'QUẢNG CHU') -> Score: 50.0
+    - 'NGHI CÔNG BẮC' (Cleaned: 'NGHI CÔNG BẮC') -> Score: 50.0
+    - 'HOẰNG CÁT' (Cleaned: 'HOẰNG CÁT') -> Score: 50.0
+    - 'NGỌC CHÂU' (Cleaned: 'NGỌC CHÂU') -> Score: 50.0
+    - 'TRÀNG CÁT' (Cleaned: 'TRÀNG CÁT') -> Score: 50.0
+[Phường/Xã][OK] Gắn 'CỒN CÙ' (VTP ID: 11270) cho 'Thị trấn Chợ Chùa' (DB ID: 15592) (score=66.66666666666667)
+

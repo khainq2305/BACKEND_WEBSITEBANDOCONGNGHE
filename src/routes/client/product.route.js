@@ -6,7 +6,7 @@ const { getProductsByCategory } = require('../../controllers/client/productContr
 router.get('/product/related', ProductController.getRelatedProducts); 
 router.get('/', getProductsByCategory);
 ;
-
+router.get('/product/compare-ids', ProductController.getCompareByIds); // THÊM DÒNG NÀY
 router.get('/product/:slug', ProductController.getProductDetailBySlug);
 
 module.exports = router;

@@ -1,55 +1,76 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const authRoutes = require('./auth.route');
-const shippingRoutes = require('./shipping.routes');
-const userAddressRoutes = require('./userAddress.route'); 
-const productRoutes = require('./product.route'); 
-const cartRoutes = require('./cart.route'); 
-const highlightedCategoryRoutes = require('./highlightedCategory.route');
-const orderRoutes = require('./order.routes'); 
-const categoryRoutes = require('./category.route'); 
-const searchRoutes = require('./search.routes');
-const sectionClientRoutes = require('./sectionClient.route'); 
-const brandRoutes = require('./brand.route');
-const wishlistRoutes = require('./wishlist.routes');
-const couponRoutes = require('./coupon.route');
-const sliderRoutes = require('./banner.routes');  
-const reviewRoutes = require('./review.routes'); 
-const flashSaleRoutes = require('./flashSale.routes');
-const postRoutes = require('./post.route')
-const productViewRoutes = require('./productView.routes');
-const productQuestionRoutes = require('./productQuestion.route');
-const systemSettingRoutes = require('./systemSetting.routes');
+const authRoutes = require("./auth.route");
+const shippingRoutes = require("./shipping.routes");
+const userAddressRoutes = require("./userAddress.route");
+const productRoutes = require("./product.route");
+const cartRoutes = require("./cart.route");
+const highlightedCategoryRoutes = require("./highlightedCategory.route");
+const orderRoutes = require("./order.routes");
+const categoryRoutes = require("./category.route");
+const searchRoutes = require("./search.routes");
+const sectionClientRoutes = require("./sectionClient.route");
+const brandRoutes = require("./brand.route");
+const wishlistRoutes = require("./wishlist.routes");
+const couponRoutes = require("./coupon.route");
+const sliderRoutes = require("./banner.routes");
+const reviewRoutes = require("./review.routes");
+const flashSaleRoutes = require("./flashSale.routes");
+const postRoutes = require("./post.route");
+const productViewRoutes = require("./productView.routes");
+const productQuestionRoutes = require("./productQuestion.route");
+const systemSettingRoutes = require("./systemSetting.routes");
+const recommendationRoutes = require("./recommendationRoutes");
 
-router.use('/productviews', productViewRoutes); 
-router.post('/payment/momo-callback',      require('../../controllers/client/orderController').momoCallback);
-router.get ('/payment/momo-callback',      require('../../controllers/client/orderController').momoCallback);
+router.use("/productviews", productViewRoutes);
+router.post(
+  "/payment/momo-callback",
+  require("../../controllers/client/orderController").momoCallback
+);
+router.get(
+  "/payment/momo-callback",
+  require("../../controllers/client/orderController").momoCallback
+);
+router.post(
+  "/payment/zalopay-callback",
+  require("../../controllers/client/orderController").zaloCallback
+);
+router.get(
+  "/payment/zalopay-callback",
+  require("../../controllers/client/orderController").zaloCallback
+);
 
-router.post('/payment/vnpay-callback',     require('../../controllers/client/orderController').vnpayCallback);
-router.get ('/payment/vnpay-callback',     require('../../controllers/client/orderController').vnpayCallback);
-
-const chatboxRoutes = require('./chatbox.routes');   // 👈 THÊM DÒNG NÀY
-router.use('/', sliderRoutes);             
-router.use('/tin-noi-bat', postRoutes);
-router.use('/', flashSaleRoutes);  
-router.use('/', searchRoutes);
-router.use('/api/client/categories', categoryRoutes);
-router.use('/', highlightedCategoryRoutes);
-router.use('/orders', orderRoutes);
-router.use('/', sectionClientRoutes); 
-router.use('/wishlist', wishlistRoutes); 
-router.use('/api/client/brands', brandRoutes);
-router.use('/', authRoutes);
-router.use('/shipping', shippingRoutes);
-router.use('/user-address', userAddressRoutes); 
-router.use('/', productRoutes);
-router.use('/chatbox', chatboxRoutes);              // 👈 GẮN VÀO ĐÂY
-router.use('/cart', cartRoutes); 
-router.use('/system-settings', systemSettingRoutes); 
-router.use('/review', reviewRoutes);
-router.use('/', couponRoutes);
-router.use('/notifications', require('./notificationClient.route'));
-router.use('/product-questions', productQuestionRoutes);
+router.post(
+  "/payment/vnpay-callback",
+  require("../../controllers/client/orderController").vnpayCallback
+);
+router.get(
+  "/payment/vnpay-callback",
+  require("../../controllers/client/orderController").vnpayCallback
+);
+router.use("/recommendations", recommendationRoutes);
+const chatboxRoutes = require("./chatbox.routes");
+router.use("/", sliderRoutes);
+router.use("/tin-noi-bat", postRoutes);
+router.use("/", flashSaleRoutes);
+router.use("/", searchRoutes);
+router.use("/api/client/categories", categoryRoutes);
+router.use("/", highlightedCategoryRoutes);
+router.use("/orders", orderRoutes);
+router.use("/", sectionClientRoutes);
+router.use("/wishlist", wishlistRoutes);
+router.use("/api/client/brands", brandRoutes);
+router.use("/", authRoutes);
+router.use("/shipping", shippingRoutes);
+router.use("/user-address", userAddressRoutes);
+router.use("/", productRoutes);
+router.use("/chatbox", chatboxRoutes); // 👈 GẮN VÀO ĐÂY
+router.use("/cart", cartRoutes);
+router.use("/system-settings", systemSettingRoutes);
+router.use("/review", reviewRoutes);
+router.use("/", couponRoutes);
+router.use("/notifications", require("./notificationClient.route"));
+router.use("/product-questions", productQuestionRoutes);
 
 module.exports = router;

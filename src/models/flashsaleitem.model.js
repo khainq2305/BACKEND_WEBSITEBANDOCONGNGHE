@@ -11,6 +11,11 @@ const FlashSaleItem = sequelize.define('FlashSaleItem', {
   maxPerUser: { type: DataTypes.INTEGER, allowNull: true },
    sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
+  originalQuantity: {
+  type: DataTypes.INTEGER,
+  allowNull: true, // Cho phép null ban đầu để tránh lỗi nếu chưa cập nhật
+},
+
   note: { type: DataTypes.STRING, allowNull: true },
 }, {
   tableName: 'flashsaleitems',
