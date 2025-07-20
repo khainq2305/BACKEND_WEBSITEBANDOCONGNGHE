@@ -59,6 +59,12 @@ const Notification = sequelize.define("Notification", {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  //thêm trong db (bell admin)
+  createdBy: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+
 },{
   tableName: "notifications",
   timestamps: true,

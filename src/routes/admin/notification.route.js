@@ -8,9 +8,14 @@ const {
   createNotificationValidator,
   updateNotificationValidator,
 } = require("../../validations/notificationValidator");
+router.get('/by-role', checkJWT, attachUserDetail, NotificationController.getByRole);
 
+router.use(checkJWT);
+router.use(attachUserDetail);
+router.use(authorize("notification"))
 router.get("/", NotificationController.getAll);
 router.post("/delete-many", NotificationController.deleteMany);
+router.get('/slug/:slug', NotificationController.getBySlug);
 
 router.get("/:id", NotificationController.getById);
 
