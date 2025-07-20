@@ -25,6 +25,9 @@ const notificationUserRoutes = require('./notificationUser.route');
 const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
 const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
+const spinRewardRoutes = require('./spinReward.routes');
+const spinHistoryRoutes = require('./spinHistory.routes'); 
+
 const authRouters = require('./auth.route')
 const systemSettingRoutes = require('./systemSetting.routes');
 const paymentMethodRoutes          = require('./paymentMethodRoutes');
@@ -60,4 +63,7 @@ router.use('/shipping-providers', shippingProviderRoutes);
 router.use('/reviews', reviewRoutes); 
 router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 
+router.use('/spin-rewards', spinRewardRoutes); 
+router.use('/spin-history', spinHistoryRoutes); 
+
 module.exports = router;
