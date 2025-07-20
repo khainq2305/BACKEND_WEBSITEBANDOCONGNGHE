@@ -67,6 +67,26 @@ const Product = require("./product");
 const RolePermission = require('./RolePermission')
 const Action = require('./actionModel')
 const Subject = require('./Subject')
+
+// Mini Game
+const SpinReward = require("./spinRewardModel");
+const UserSpin = require("./userSpinModel");
+const SpinHistory = require("./spinHistoryModel");
+
+
+// Mini Game
+User.hasMany(UserSpin, { foreignKey: "user_id", as: "spins" });
+UserSpin.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+User.hasMany(SpinHistory, { foreignKey: "user_id", as: "spinHistories" });
+SpinHistory.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+SpinReward.hasMany(SpinHistory, { foreignKey: "reward_id", as: "histories" });
+SpinHistory.belongsTo(SpinReward, { foreignKey: "reward_id", as: "reward" });
+
+SpinReward.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
+Coupon.hasMany(SpinReward, { foreignKey: "couponId", as: "rewards" });
+
 // phan quyen
 // User - Role
 User.belongsToMany(Role, {
@@ -593,5 +613,8 @@ module.exports = {
   RolePermission,
   Action,
   Subject,
+  SpinReward,
+  UserSpin,
+  SpinHistory,
   sequelize: connection,
 };
