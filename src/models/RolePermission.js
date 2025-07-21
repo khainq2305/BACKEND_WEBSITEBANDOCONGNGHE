@@ -24,7 +24,7 @@ const RolePermission = sequelize.define(
   type: DataTypes.TEXT,
   allowNull: true,
 },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },

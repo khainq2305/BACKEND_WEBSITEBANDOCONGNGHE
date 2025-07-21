@@ -13,7 +13,7 @@ const redirectUrl = process.env.MOMO_REDIRECT_URL;
  * -------------------------------------------------- */
 async function createPaymentLink({ orderId, amount, orderInfo }) {
   
-  const ipnUrl      ='https://e9d44c4ad23e.ngrok-free.app/payment/momo-callback';
+  const ipnUrl      ='https://437361babf31.ngrok-free.app/payment/momo-callback';
    const requestType = 'captureWallet'; // ✅ Flow QR MoMo Wallet
   const requestId   = `${orderId}-${Date.now()}`;
   const extraData   = '';
@@ -67,6 +67,7 @@ async function createPaymentLink({ orderId, amount, orderInfo }) {
  *    - Nếu bạn muốn refund một phần, bổ sung transactionType = 02/03...
  * -------------------------------------------------- */
 async function refund({ orderCode, amount, momoTransId, description = '' }) {
+  
   if (!momoTransId) throw new Error('Thiếu momoTransId – không thể hoàn tiền');
 
   const requestId = `${orderCode}-RF-${Date.now()}`;
@@ -95,12 +96,28 @@ async function refund({ orderCode, amount, momoTransId, description = '' }) {
     signature,
     lang: 'vi'
   };
+console.log('[🟠 MoMo REFUND PAYLOAD]', {
+  orderCode,
+  amount,
+  momoTransId,
+  requestId,
+  orderId
+});
 
+try {
   const { data } = await axios.post(
     'https://test-payment.momo.vn/v2/gateway/api/refund',
     payload,
     { headers: { 'Content-Type': 'application/json' } }
   );
+
+  console.log('[🔴 MoMo REFUND RESPONSE]', data);
+  return data;
+
+} catch (error) {
+  console.error('[❌ MoMo REFUND ERROR]', error?.response?.data || error.message || error);
+  throw error; // để đẩy lỗi ra ngoài nếu cần rollback
+}
 
   return data;
 }

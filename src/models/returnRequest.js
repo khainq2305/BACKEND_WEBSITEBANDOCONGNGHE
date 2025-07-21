@@ -15,6 +15,12 @@ const ReturnRequest = sequelize.define('ReturnRequest', {
     allowNull: true,
     comment: 'Danh sách URL ảnh, ngăn cách bằng dấu ,'
   },
+  returnCode: {
+  type: DataTypes.STRING,
+  unique: true,
+  allowNull: false
+}
+,
   evidenceVideos: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -25,7 +31,11 @@ const ReturnRequest = sequelize.define('ReturnRequest', {
     allowNull: true,
     comment: 'Mô tả chi tiết lý do trả hàng',
   },
-
+deadlineChooseReturnMethod: {
+  type: DataTypes.DATE,
+  allowNull: true,
+  comment: 'Hạn cuối để người dùng chọn phương thức trả hàng sau khi được duyệt',
+},
   // ✅ MỚI: Phương thức gửi hàng hoàn
   returnMethod: {
     type: DataTypes.ENUM('ghn_pickup', 'self_send'),

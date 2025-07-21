@@ -22,32 +22,35 @@ const productViewRoutes = require("./productView.routes");
 const productQuestionRoutes = require("./productQuestion.route");
 const systemSettingRoutes = require("./systemSetting.routes");
 const recommendationRoutes = require("./recommendationRoutes");
+const returnRefundRoutes = require("./returnRefundRoutes"); 
+const userPointRoutes = require('./userPoint.Routes'); // 👈 Tên file router bạn sẽ tạo (ví dụ userPoint.routes.js)
 
+const paymentRoutes = require("./payment.routes"); // Thêm dòng này
 router.use("/productviews", productViewRoutes);
 router.post(
   "/payment/momo-callback",
-  require("../../controllers/client/orderController").momoCallback
+  require("../../controllers/client/paymentController").momoCallback
 );
 router.get(
   "/payment/momo-callback",
-  require("../../controllers/client/orderController").momoCallback
+  require("../../controllers/client/paymentController").momoCallback
 );
 router.post(
   "/payment/zalopay-callback",
-  require("../../controllers/client/orderController").zaloCallback
+  require("../../controllers/client/paymentController").zaloCallback
 );
 router.get(
   "/payment/zalopay-callback",
-  require("../../controllers/client/orderController").zaloCallback
+  require("../../controllers/client/paymentController").zaloCallback
 );
-
+router.use("/return-refund", returnRefundRoutes); 
 router.post(
   "/payment/vnpay-callback",
-  require("../../controllers/client/orderController").vnpayCallback
+  require("../../controllers/client/paymentController").vnpayCallback
 );
 router.get(
   "/payment/vnpay-callback",
-  require("../../controllers/client/orderController").vnpayCallback
+  require("../../controllers/client/paymentController").vnpayCallback
 );
 router.use("/recommendations", recommendationRoutes);
 const chatboxRoutes = require("./chatbox.routes");
@@ -55,6 +58,8 @@ router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);
 router.use("/", flashSaleRoutes);
 router.use("/", searchRoutes);
+router.use('/points', userPointRoutes); // 👈 VÀ DÒNG NÀY
+router.use("/payment", paymentRoutes); // Thêm dòng này để kết nối payment.routes.js
 router.use("/api/client/categories", categoryRoutes);
 router.use("/", highlightedCategoryRoutes);
 router.use("/orders", orderRoutes);

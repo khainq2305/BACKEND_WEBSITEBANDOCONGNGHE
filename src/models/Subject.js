@@ -11,11 +11,11 @@ const sequelize = require('../config/database');
     },
     description: {
       type: DataTypes.TEXT
-    }
+    },
+    createdAt: {type: DataTypes.DATE},
   }, {
     tableName: 'subjects',
     timestamps: true,
-    createdAt: 'created_at',
     updatedAt: false
   });
 module.exports = Subject

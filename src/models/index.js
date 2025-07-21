@@ -22,6 +22,7 @@ const ProductQuestion = require("./productQuestionModel");
 const ProductAnswer = require("./productanswer.model");
 const UserRole = require("./userRole");
 const HomeSectionCategory = require("./homeSectionCategory.model");
+const UserPoint = require("./UserPoint");
 
 //
 const HomeSection = require("./homeSection");
@@ -57,6 +58,7 @@ const PaymentMethod = require("./paymentMethod");
 const PaymentTransaction = require("./paymentTransaction");
 //
 const SearchHistory = require("./searchHistory");
+const ReturnRequestItem = require("./returnRequestItem");
 
 const Coupon = require("./coupon");
 const CouponUser = require("./couponuser");
@@ -113,6 +115,23 @@ Subject.hasMany(RolePermission, {
 RolePermission.belongsTo(Subject, {
   foreignKey: "subjectId",
   as: "subject",
+});
+ReturnRequest.hasMany(ReturnRequestItem, {
+  foreignKey: "returnRequestId",
+  as: "items",
+});
+ReturnRequestItem.belongsTo(ReturnRequest, {
+  foreignKey: "returnRequestId",
+  as: "returnRequest",
+});
+
+Sku.hasMany(ReturnRequestItem, {
+  foreignKey: "skuId",
+  as: "returnItems",
+});
+ReturnRequestItem.belongsTo(Sku, {
+  foreignKey: "skuId",
+  as: "sku",
 });
 
 //
@@ -583,6 +602,12 @@ Sku.hasMany(StockLog, {
   foreignKey: 'skuId',
   as: 'logs'
 });
+User.hasMany(UserPoint, { foreignKey: "userId", as: "points" });
+UserPoint.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+Order.hasMany(UserPoint, { foreignKey: "orderId", as: "pointLogs" });
+UserPoint.belongsTo(Order, { foreignKey: "orderId", as: "order" });
+
 StockLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 module.exports = {
   User,
@@ -609,6 +634,7 @@ StockLog,
   CouponUser,
   CouponCategory,
   SearchHistory,
+  UserPoint,
   Notification,
   NotificationUser,
   CouponItem,
@@ -641,6 +667,8 @@ StockLog,
   PaymentTransaction,
   Coupon,
   Product,
+    ReturnRequestItem,
+
   UserToken,
   RolePermission,
   Action,

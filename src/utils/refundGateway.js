@@ -1,6 +1,9 @@
 const vnpay = require('../services/client/vnpayService');
 const momo  = require('../services/client/momoService');
 const zalopay = require('../services/client/zalopayService'); // ⬅️ THÊM DÒNG NÀY
+const Stripe = require('stripe');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
 module.exports = async function refundGateway(gateway, payload) {
   switch (gateway) {
 
@@ -36,6 +39,43 @@ module.exports = async function refundGateway(gateway, payload) {
 };
 
     }
+case 'stripe': {
+  console.log('[refundGateway] Gọi Stripe refund:', payload);
+
+  const { stripePaymentIntentId, amount } = payload;
+
+  if (!stripePaymentIntentId) {
+    console.error('[refundGateway] ❌ Thiếu stripePaymentIntentId');
+    return {
+      ok      : false,
+      transId : null,
+      rawResp : { code: 'missing_intent_id', message: 'Missing stripePaymentIntentId' },
+    };
+  }
+
+  try {
+    const refund = await stripe.refunds.create({
+      payment_intent: stripePaymentIntentId,
+      amount: Math.round(Number(amount)), // VND nếu account là VND
+      reason: 'requested_by_customer',
+    });
+
+    console.log('[refundGateway] Stripe trả về:', refund);
+
+    return {
+      ok      : refund?.status === 'succeeded',
+      transId : refund?.id || null,
+      rawResp : refund,
+    };
+  } catch (err) {
+    console.error('[refundGateway] ❌ Stripe REFUND ERROR:', err);
+    return {
+      ok      : false,
+      transId : null,
+      rawResp : err?.raw || err.message,
+    };
+  }
+}
 
     /* ─────────────────────── MoMo ──────────────────────── */
     case 'momo': {
@@ -48,7 +88,8 @@ module.exports = async function refundGateway(gateway, payload) {
       const resp = await momo.refund({
         orderCode   : payload.orderCode,
         momoTransId : payload.momoTransId,
-        amount      : payload.amount,
+     amount: Number(payload.amount), // ← Ép kiểu đúng
+
         user        : 'admin',
       });
 
@@ -61,34 +102,50 @@ module.exports = async function refundGateway(gateway, payload) {
       };
     }
   case 'zalopay': {
-      console.log('[refundGateway] Gọi ZaloPay refund:', payload);
+  console.log('[refundGateway] Gọi ZaloPay refund:', payload);
 
-      const { app_trans_id, zp_trans_id, amount } = payload;
+  const { app_trans_id, zp_trans_id, amount } = payload;
 
-      if (!app_trans_id || !zp_trans_id) {
-        console.error('[refundGateway] ❌ Thiếu app_trans_id hoặc zp_trans_id cho ZaloPay');
-        return {
-          ok      : false,
-          transId : null,
-          rawResp : { code: -1, message: 'Missing app_trans_id or zp_trans_id' }
-        };
-      }
+  // Kiểm tra dữ liệu đầu vào
+  if (!app_trans_id || !zp_trans_id || !amount) {
+    console.error('[refundGateway] ❌ Thiếu dữ liệu ZaloPay');
+    return {
+      ok      : false,
+      transId : null,
+      rawResp : { code: -1, message: 'Thiếu app_trans_id, zp_trans_id hoặc amount' },
+    };
+  }
 
-      const resp = await zalopay.refund({
-        app_trans_id,
-        zp_trans_id,
-        amount,
-        user: 'admin',
-      });
+  // Làm tròn số tiền và ép kiểu chắc chắn
+  const roundedAmount = Math.round(Number(amount));
 
-      console.log('[refundGateway] ZaloPay trả về:', resp);
+  try {
+    // Gọi service refund
+    const resp = await zalopay.refund({
+      app_trans_id,
+      zp_trans_id,
+      amount: roundedAmount,
+      description: 'Hoan tien', // Đảm bảo description không có kí tự đặc biệt
+      user: 'admin',
+    });
 
-      return {
-        ok      : resp?.return_code === 1, // ZaloPay: 1 = success
-        transId : resp?.zp_trans_id || null,
-        rawResp : resp,
-      };
-    }
+    console.log('[refundGateway] ZaloPay trả về:', resp);
+
+    return {
+      ok      : resp?.return_code === 1,
+      transId : resp?.refund_id || resp?.m_refund_id || null,
+      rawResp : resp,
+    };
+  } catch (err) {
+    console.error('[refundGateway] ❌ ZaloPay REFUND ERROR:', err);
+    return {
+      ok      : false,
+      transId : null,
+      rawResp : err?.response?.data || err.message,
+    };
+  }
+}
+
     /* ───────────────────── Gateway khác ─────────────────── */
     default: {
       console.error(`[refundGateway] ❌ Không hỗ trợ gateway: ${gateway}`);

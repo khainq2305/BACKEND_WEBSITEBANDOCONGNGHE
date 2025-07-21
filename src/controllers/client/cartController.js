@@ -320,352 +320,268 @@ class CartController {
   }
 
   static async getCart(req, res) {
-    try {
-      const userId = req.user.id;
-      console.log(`--- [getCart] Bắt đầu lấy giỏ hàng cho userId: ${userId} ---`);
+  try {
+    const userId = req.user.id;
+    console.log(`--- [getCart] Bắt đầu lấy giỏ hàng cho userId: ${userId} ---`);
 
-      // LẤY TẤT CẢ DỮ LIỆU FLASH SALE ĐANG HOẠT ĐỘNG TRƯỚC VỚI CÁC THÔNG TIN CẦN THIẾT
-      const now = new Date();
-      const allActiveFlashSales = await FlashSale.findAll({
-        where: {
-          isActive: true,
-          deletedAt: null,
-          startTime: { [Op.lte]: now },
-          endTime: { [Op.gte]: now },
-        },
-        include: [
-          {
-            model: FlashSaleItem,
-            as: "flashSaleItems",
-            required: false,
-            attributes: [
-              "id",
-              "flashSaleId",
-              "skuId",
-              "salePrice",
-              "quantity",
-              "maxPerUser",
-            ],
-            include: [
-              {
-                model: Sku,
-                as: "sku",
-                attributes: [
-                  "id",
-                  "skuCode",
-                  "price",
-                  "originalPrice",
-                  "stock",
-                  "productId",
-                ],
-                include: [
-                  { model: Product, as: "product", attributes: ["categoryId"] },
-                ],
-              },
-            ],
-          },
-          {
-            model: FlashSaleCategory,
-            as: "categories",
-            required: false,
-            include: [
-              {
-                model: FlashSale,
-                as: "flashSale",
-                attributes: ["endTime"],
-                required: false,
-              },
-            ],
-          },
-        ],
-      });
-      console.log(`[getCart] Tìm thấy ${allActiveFlashSales.length} tổng số Flash Sale đang hoạt động.`);
-
-      const allActiveFlashSaleItemsMap = new Map();
-      const allActiveCategoryDealsMap = new Map();
-
-      for (const saleEvent of allActiveFlashSales) {
-        const saleEndTime = saleEvent.endTime;
-        const saleId = saleEvent.id;
-
-        for (const fsi of saleEvent.flashSaleItems || []) {
-          const skuInFsi = fsi.sku;
-          if (!skuInFsi) continue;
-          const skuIdInFsi = skuInFsi.id;
-          const flashItemSalePrice = parseFloat(fsi.salePrice);
-          const flashLimit = fsi.quantity;
-
-          const soldForThisItem = await OrderItem.sum('quantity', {
-            where: {
-              flashSaleId: saleId,
-              skuId: skuIdInFsi,
+    const now = new Date();
+    const allActiveFlashSales = await FlashSale.findAll({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        startTime: { [Op.lte]: now },
+        endTime: { [Op.gte]: now },
+      },
+      include: [
+        {
+          model: FlashSaleItem,
+          as: "flashSaleItems",
+          required: false,
+          attributes: ["id", "flashSaleId", "skuId", "salePrice", "quantity", "maxPerUser"],
+          include: [
+            {
+              model: Sku,
+              as: "sku",
+              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
+              include: [{ model: Product, as: "product", attributes: ["categoryId"] }],
             },
-            include: [{
-              model: Order,
-              as: 'order',
-              where: {
-                status: { [Op.in]: ['completed', 'delivered'] }
-              },
-              attributes: [],
-              required: true
-            }]
-          }) || 0;
+          ],
+        },
+        {
+          model: FlashSaleCategory,
+          as: "categories",
+          required: false,
+          include: [
+            {
+              model: FlashSale,
+              as: "flashSale",
+              attributes: ["endTime"],
+              required: false,
+            },
+          ],
+        },
+      ],
+    });
 
-          const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
+    const allActiveFlashSaleItemsMap = new Map();
+    const allActiveCategoryDealsMap = new Map();
 
-          if (!isSoldOutForThisItem) {
-            if (
-              !allActiveFlashSaleItemsMap.has(skuIdInFsi) ||
-              flashItemSalePrice <
-                allActiveFlashSaleItemsMap.get(skuIdInFsi).salePrice
-            ) {
-              allActiveFlashSaleItemsMap.set(skuIdInFsi, {
-                salePrice: flashItemSalePrice,
-                quantity: flashLimit,
-                soldQuantity: soldForThisItem,
-                maxPerUser: fsi.maxPerUser,
-                flashSaleId: saleId,
-                flashSaleEndTime: saleEndTime,
-              });
-            }
+    for (const saleEvent of allActiveFlashSales) {
+      const saleEndTime = saleEvent.endTime;
+      const saleId = saleEvent.id;
+
+      for (const fsi of saleEvent.flashSaleItems || []) {
+        const skuInFsi = fsi.sku;
+        if (!skuInFsi) continue;
+
+        const skuIdInFsi = skuInFsi.id;
+        const flashItemSalePrice = parseFloat(fsi.salePrice);
+        const flashLimit = fsi.quantity;
+
+        const soldForThisItem = await OrderItem.sum("quantity", {
+          where: { flashSaleId: saleId, skuId: skuIdInFsi },
+          include: [{
+            model: Order,
+            as: "order",
+            where: { status: { [Op.in]: ["completed", "delivered"] } },
+            required: true,
+            attributes: [],
+          }],
+        }) || 0;
+
+        const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
+
+        if (!isSoldOutForThisItem) {
+          const existing = allActiveFlashSaleItemsMap.get(skuIdInFsi);
+          if (!existing || flashItemSalePrice < existing.salePrice) {
+            allActiveFlashSaleItemsMap.set(skuIdInFsi, {
+              salePrice: flashItemSalePrice,
+              quantity: flashLimit,
+              soldQuantity: soldForThisItem,
+              maxPerUser: fsi.maxPerUser,
+              flashSaleId: saleId,
+              flashSaleEndTime: saleEndTime,
+            });
           }
         }
+      }
 
-        (saleEvent.categories || []).forEach((fsc) => {
-          const categoryId = fsc.categoryId;
-          if (!allActiveCategoryDealsMap.has(categoryId)) {
-            allActiveCategoryDealsMap.set(categoryId, []);
-          }
-          allActiveCategoryDealsMap.get(categoryId).push({
-            discountType: fsc.discountType,
-            discountValue: fsc.discountValue,
-            priority: fsc.priority,
-            endTime: saleEndTime,
-            flashSaleId: saleId,
-            flashSaleCategoryId: fsc.id,
-          });
+      (saleEvent.categories || []).forEach((fsc) => {
+        const categoryId = fsc.categoryId;
+        if (!allActiveCategoryDealsMap.has(categoryId)) {
+          allActiveCategoryDealsMap.set(categoryId, []);
+        }
+        allActiveCategoryDealsMap.get(categoryId).push({
+          discountType: fsc.discountType,
+          discountValue: fsc.discountValue,
+          priority: fsc.priority,
+          endTime: saleEndTime,
+          flashSaleId: saleId,
+          flashSaleCategoryId: fsc.id,
         });
-      }
-      console.log(`[getCart] allActiveFlashSaleItemsMap (Item tốt nhất cho từng SKU đang còn suất): ${allActiveFlashSaleItemsMap.size} entries`);
-      console.log(`[getCart] allActiveCategoryDealsMap (Tất cả deals category cho từng Category ID đang hoạt động): ${allActiveCategoryDealsMap.size} entries`);
-
-
-      const cart = await Cart.findOne({
-        where: { userId },
-        include: [
-          {
-            model: CartItem,
-            include: [
-              {
-                model: Sku,
-                attributes: [
-                  "id",
-                  "skuCode",
-                  "price",
-                  "originalPrice",
-                  "stock",
-                  "productId",
-                ],
-                include: [
-                  {
-                    model: Product,
-                    as: "product",
-                    attributes: [
-                      "id",
-                      "name",
-                      "slug",
-                      "thumbnail",
-                      "categoryId",
-                    ],
-                  },
-                  {
-                    model: ProductMedia,
-                    as: "ProductMedia",
-                    attributes: ["mediaUrl"],
-                  },
-                  {
-                    model: SkuVariantValue,
-                    as: "variantValues",
-                    include: [
-                      {
-                        model: VariantValue,
-                        as: "variantValue",
-                        include: [
-                          {
-                            model: Variant,
-                            as: "variant",
-                            attributes: ["name"],
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
       });
+    }
 
-      if (!cart || !cart.CartItems) {
-        console.log(`[getCart] Giỏ hàng cho userId ${userId} trống hoặc không tồn tại.`);
-        return res.status(200).json({ cartItems: [] });
-      }
-      console.log(`[getCart] Tìm thấy ${cart.CartItems.length} sản phẩm trong giỏ hàng.`);
-
-
-      const formattedItems = await Promise.all(
-        cart.CartItems.map(async (ci) => {
-          const sku = ci.Sku;
-          const product = sku.product;
-
-          // Prepare skuData to pass to helper
-          const skuDataForHelper = {
-            ...sku.toJSON(), // Convert to JSON to get plain data
-            Product: { category: { id: product?.categoryId } }, // Attach category for helper
-          };
-
-          // Use processSkuPrices to calculate price
-          const priceResults = processSkuPrices(
-            skuDataForHelper,
-            allActiveFlashSaleItemsMap,
-            allActiveCategoryDealsMap
-          );
-          console.log(`[getCart] SKU ${sku.id} - Kết quả tính giá từ helper:`, {
-            price: priceResults.price,
-            originalPrice: priceResults.originalPrice,
-            flashSaleInfo: priceResults.flashSaleInfo ? { ...priceResults.flashSaleInfo, flashSaleEndTime: priceResults.flashSaleInfo.flashSaleEndTime?.toISOString() } : null
-          });
-
-
-          // Calculate previously ordered quantity for Flash Sale (if applicable)
-          let previousOrderedQty = 0;
-          if (
-            priceResults.flashSaleInfo &&
-            priceResults.flashSaleInfo.type === "item"
-          ) {
-            const userOrders = await Order.findAll({
-              attributes: ['id'],
-              where: {
-                userId,
-                status: { [Op.ne]: "cancelled" },
-              },
-            });
-            const userOrderIds = userOrders.map(order => order.id);
-
-            previousOrderedQty =
-              (await OrderItem.sum("quantity", {
-                where: {
-                  skuId: sku.id,
-                  flashSaleId: priceResults.flashSaleInfo.flashSaleId,
-                  orderId: { [Op.in]: userOrderIds },
+    const cart = await Cart.findOne({
+      where: { userId },
+      include: [
+        {
+          model: CartItem,
+          include: [
+            {
+              model: Sku,
+              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
+              include: [
+                {
+                  model: Product,
+                  as: "product",
+                  attributes: ["id", "name", "slug", "thumbnail", "categoryId"],
                 },
-              })) || 0;
-            console.log(`[getCart] SKU ${sku.id} - Số lượng đã đặt hàng trước đó (không cancelled) bởi user ${userId} trong flash sale này: ${previousOrderedQty}`);
+                { model: ProductMedia, as: "ProductMedia", attributes: ["mediaUrl"] },
+                {
+                  model: SkuVariantValue,
+                  as: "variantValues",
+                  include: [
+                    {
+                      model: VariantValue,
+                      as: "variantValue",
+                      include: [
+                        { model: Variant, as: "variant", attributes: ["name"] },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!cart || !cart.CartItems) {
+      return res.status(200).json({ cartItems: [], totalAmount: 0, rewardPoints: 0 });
+    }
+
+    const formattedItems = await Promise.all(
+      cart.CartItems.map(async (ci) => {
+        const sku = ci.Sku;
+        const product = sku.product;
+        const skuDataForHelper = {
+          ...sku.toJSON(),
+          Product: { category: { id: product?.categoryId } },
+        };
+
+        const priceResults = processSkuPrices(
+          skuDataForHelper,
+          allActiveFlashSaleItemsMap,
+          allActiveCategoryDealsMap
+        );
+
+        let previousOrderedQty = 0;
+        if (priceResults.flashSaleInfo?.type === "item") {
+          const userOrders = await Order.findAll({
+            attributes: ["id"],
+            where: { userId, status: { [Op.ne]: "cancelled" } },
+          });
+          const userOrderIds = userOrders.map((o) => o.id);
+
+          previousOrderedQty = await OrderItem.sum("quantity", {
+            where: {
+              skuId: sku.id,
+              flashSaleId: priceResults.flashSaleInfo.flashSaleId,
+              orderId: { [Op.in]: userOrderIds },
+            },
+          }) || 0;
+        }
+
+        let finalPrice = priceResults.price;
+        if (!finalPrice || finalPrice <= 0) finalPrice = sku.originalPrice || sku.price;
+
+        let originalPriceForDisplay = priceResults.originalPrice;
+        let flashNotice = "";
+        let isFlashSaleApplied = false;
+
+        if (priceResults.flashSaleInfo?.type === "item") {
+          const flashSaleLimitPerUser = priceResults.flashSaleInfo.maxPerUser || Infinity;
+          const totalQuantityIncludingCart = ci.quantity + previousOrderedQty;
+
+          if (totalQuantityIncludingCart > flashSaleLimitPerUser) {
+            flashNotice = `Sản phẩm giới hạn ${flashSaleLimitPerUser} suất/người.`;
+            finalPrice = sku.originalPrice || sku.price;
+            originalPriceForDisplay = finalPrice;
+            isFlashSaleApplied = false;
+          } else {
+            isFlashSaleApplied = true;
           }
 
-          // Determine final price and Flash Sale notice
-          let finalPrice = priceResults.price;
-          if (!finalPrice || finalPrice <= 0) {
-  finalPrice = sku.originalPrice || sku.price;
+          const remaining = (priceResults.flashSaleInfo.quantity || Infinity) - (priceResults.flashSaleInfo.soldQuantity || 0);
+          if (ci.quantity > remaining) {
+            flashNotice += ` Chỉ còn ${remaining} suất Flash Sale.`;
+            finalPrice = sku.originalPrice || sku.price;
+            originalPriceForDisplay = finalPrice;
+            isFlashSaleApplied = false;
+          }
+        } else if (priceResults.flashSaleInfo?.type === "category") {
+          isFlashSaleApplied = true;
+        }
+
+        return {
+          id: ci.id,
+          skuId: sku.id,
+          productName: product?.name || "",
+          productSlug: product?.slug || "",
+          image: sku.ProductMedia?.[0]?.mediaUrl || product?.thumbnail || null,
+          quantity: ci.quantity,
+          isSelected: ci.isSelected,
+          stock: sku.stock || 0,
+          variantValues: (sku.variantValues || []).map((v) => ({
+            variant: v.variantValue?.variant?.name,
+            value: v.variantValue?.value,
+          })),
+          originalPrice: originalPriceForDisplay,
+          price: finalPrice,
+          finalPrice: finalPrice,
+          lineTotal: finalPrice * ci.quantity,
+          flashSaleInfo: priceResults.flashSaleInfo,
+          flashNotice,
+          isFlashSaleApplied,
+        };
+      })
+    );
+
+    const totalAmount = formattedItems.reduce((sum, item) => {
+      return sum + (item.isSelected ? item.lineTotal : 0);
+    }, 0);
+
+   const couponCode = req.query.couponCode || null;
+let discountAmount = 0;
+
+if (couponCode) {
+  const res = await couponService.applyCoupon({
+    code: couponCode,
+    skuIds: formattedItems.filter(i => i.isSelected).map(i => i.skuId),
+    orderTotal: totalAmount,
+  });
+
+  if (res?.isValid && res?.coupon?.discountAmount) {
+    discountAmount = parseFloat(res.coupon.discountAmount);
+  }
 }
 
-          let originalPriceForDisplay = priceResults.originalPrice; // Original price for strikethrough display
-          let flashNotice = "";
-          let isFlashSaleApplied = false;
+const payablePrice = Math.max(0, totalAmount - discountAmount);
+const rewardPoints = Math.floor(payablePrice / 4000);
 
-          if (
-            priceResults.flashSaleInfo &&
-            priceResults.flashSaleInfo.type === "item"
-          ) {
-            console.log(`[getCart] SKU ${sku.id} đang nằm trong Flash Sale loại ITEM.`);
-            const flashSaleLimitPerUser =
-              priceResults.flashSaleInfo.maxPerUser || Infinity;
-            const totalQuantityIncludingCart = ci.quantity + previousOrderedQty;
-            console.log(`[getCart] SKU ${sku.id} - Giới hạn Flash Sale/người: ${flashSaleLimitPerUser}, Tổng số lượng (trong giỏ + đã đặt): ${totalQuantityIncludingCart}`);
-
-
-            // Check per-user limit for flash sale
-            if (totalQuantityIncludingCart > flashSaleLimitPerUser) {
-              flashNotice = `Sản phẩm này có giới hạn Flash Sale là ${flashSaleLimitPerUser} suất/người. Số lượng bạn chọn (${ci.quantity}) cộng với đã mua (${previousOrderedQty}) là ${totalQuantityIncludingCart} đã vượt giới hạn. Giá sẽ được tính theo giá gốc.`;
-              finalPrice = sku.originalPrice || sku.price; // Revert to base price if limit exceeded
-              originalPriceForDisplay = sku.originalPrice || sku.price; // Adjust original price for display if price reverted
-              isFlashSaleApplied = false;
-              console.log(`[getCart] SKU ${sku.id} - VI PHẠM: Vượt giới hạn Flash Sale/người. flashNotice: ${flashNotice}`);
-            } else {
-              isFlashSaleApplied = true;
-            }
-
-            // Check overall remaining flash sale stock (only if per-user limit is not already exceeded)
-            const remainingFlashSaleStock =
-              (priceResults.flashSaleInfo.quantity || Infinity) -
-              (priceResults.flashSaleInfo.soldQuantity || 0);
-            console.log(`[getCart] SKU ${sku.id} - Flash Sale - Giới hạn deal: ${priceResults.flashSaleInfo.quantity}, Đã bán: ${priceResults.flashSaleInfo.soldQuantity}, Còn lại: ${remainingFlashSaleStock}`);
-
-            if (ci.quantity > remainingFlashSaleStock) { // Logic này đã đúng trong getCart
-              flashNotice =
-                (flashNotice ? flashNotice + " " : "") +
-                `Chỉ còn ${remainingFlashSaleStock} suất Flash Sale cho sản phẩm này. Phần vượt sẽ tính giá gốc.`;
-              finalPrice = sku.originalPrice || sku.price; // Revert to base price if global stock exceeded
-              originalPriceForDisplay = sku.originalPrice || sku.price; // Adjust original price for display if price reverted
-              isFlashSaleApplied = false;
-              console.log(`[getCart] SKU ${sku.id} - VI PHẠM: Vượt giới hạn tổng deal Flash Sale. flashNotice: ${flashNotice}`);
-            }
-          } else if (
-            priceResults.flashSaleInfo &&
-            priceResults.flashSaleInfo.type === "category"
-          ) {
-            isFlashSaleApplied = true; // Category deal always applies if active
-            console.log(`[getCart] SKU ${sku.id} đang nằm trong Flash Sale loại CATEGORY.`);
-          } else {
-            console.log(`[getCart] SKU ${sku.id} không nằm trong Flash Sale hoặc Flash Sale đã hết hạn/không hoạt động.`);
-          }
-
-          console.log(`[getCart] SKU ${sku.id} - Giá cuối cùng: ${finalPrice}, Giá gốc hiển thị: ${originalPriceForDisplay}, Thông báo Flash: "${flashNotice}", Áp dụng Flash Sale: ${isFlashSaleApplied}`);
-
-          return {
-            id: ci.id,
-            skuId: sku.id,
-            productName: product?.name || "",
-            productSlug: product?.slug || "",
-            image:
-              sku.ProductMedia?.[0]?.mediaUrl || product?.thumbnail || null,
-
-            quantity: ci.quantity,
-            isSelected: ci.isSelected,
-            stock: sku.stock || 0, // SKU stock
-
-            variantValues: (sku.variantValues || []).map((v) => ({
-              variant: v.variantValue?.variant?.name,
-              value: v.variantValue?.value,
-            })),
-
-            // Price calculated from helper
-            originalPrice: originalPriceForDisplay, // Original price for strikethrough (potentially adjusted)
-            price: finalPrice, // Final price (could be Flash Sale or original, adjusted)
-            finalPrice: finalPrice, // Keep this name for clarity in cart
-            lineTotal: finalPrice * ci.quantity, // Total for this line item
-
-            flashSaleInfo: priceResults.flashSaleInfo, // Detailed Flash Sale info
-            flashNotice: flashNotice, // Flash Sale limit notice
-            isFlashSaleApplied: isFlashSaleApplied, // Flag if Flash Sale was applied
-          };
-        })
-      );
-
-      // Calculate total cart amount
-      const totalAmount = formattedItems.reduce((sum, item) => {
-        return sum + (item.isSelected ? item.lineTotal : 0);
-      }, 0);
-      console.log(`[getCart] Tổng tiền giỏ hàng: ${totalAmount}`);
-      console.log(`--- [getCart] Hoàn tất lấy giỏ hàng cho userId: ${userId} ---`);
-
-      return res.status(200).json({ cartItems: formattedItems, totalAmount });
-    } catch (err) {
-      console.error("Lỗi lấy giỏ hàng:", err);
-      return res.status(500).json({ message: "Lỗi server" });
-    }
+    return res.status(200).json({
+      cartItems: formattedItems,
+      totalAmount,
+      rewardPoints,
+    });
+  } catch (err) {
+    console.error("Lỗi lấy giỏ hàng:", err);
+    return res.status(500).json({ message: "Lỗi server" });
   }
+}
+
 
   static async updateQuantity(req, res) {
     try {

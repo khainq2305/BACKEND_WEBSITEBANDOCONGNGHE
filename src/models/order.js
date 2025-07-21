@@ -81,6 +81,18 @@ zaloTransId: {
   allowNull: true,
   comment: 'Mã giao dịch ZaloPay trả về sau thanh toán thành công',
 },
+zaloAppTransId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã app_trans_id của ZaloPay dùng để hoàn tiền',
+},
+
+stripePaymentIntentId: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'ID của Stripe PaymentIntent dùng để hoàn tiền'
+},
+
 
   refundStatus: DataTypes.ENUM('none', 'requested', 'approved', 'rejected'),
   totalPrice: DataTypes.DECIMAL(10, 2),

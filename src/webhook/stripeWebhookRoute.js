@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bodyParser = require('body-parser');
-const OrderController = require('../controllers/client/orderController');
+const OrderController = require('../controllers/client/paymentController');
 
 router.post(
   '/stripe/webhook',

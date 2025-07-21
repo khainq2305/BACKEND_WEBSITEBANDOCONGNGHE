@@ -1,4 +1,6 @@
+
 const permissionService = require('../../services/admin/permission.service');
+
 
 class PermissionController {
     async getAllSubject(req, res, next) {
@@ -38,6 +40,7 @@ class PermissionController {
                 data: matrix
             });
         } catch (err) {
+            console.error('Lỗi khi lấy ma trận quyền:', err.message);
             next(err);
         }
     }

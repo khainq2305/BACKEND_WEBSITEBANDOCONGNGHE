@@ -68,7 +68,13 @@ const User = connection.define(
     receivedBirthdayVoucherYear: {
       type: DataTypes.INTEGER,
       allowNull: true,
-    },
+    },rewardPoints: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  defaultValue: 0,
+  comment: "Số điểm tích lũy của người dùng",
+},
+
 
     lastLoginAt: {
       type: DataTypes.DATE,

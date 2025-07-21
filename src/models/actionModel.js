@@ -14,7 +14,6 @@ const Action = sequelize.define(
   {
     tableName: "actions",
     timestamps: true,
-    createdAt: "created_at",
     updatedAt: false,
   }
 );

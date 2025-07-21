@@ -81,8 +81,7 @@ async function getGhnCodesFromLocalDb({ province, district, ward }) {
         throw new Error('GHN Service: DB chưa kết nối hoặc kết nối lỗi.');
     }
 
-    // Lấy providerId của GHN. Có thể cần query từ bảng ShippingProvider để lấy ID của 'ghn' nếu không cố định.
-    const GHN_PROVIDER_ID = 1; // ⭐ QUAN TRỌNG: Đảm bảo ID này đúng với bảng `shipping_providers` cho GHN
+    const GHN_PROVIDER_ID = 1;
 
     let localProvId = null;
     let localDistId = null;
@@ -91,122 +90,142 @@ async function getGhnCodesFromLocalDb({ province, district, ward }) {
     let ghnDistId = null;
     let ghnWardCode = null;
 
-    // --- Tra cứu Province (Lấy ID tỉnh nội bộ và ID GHN) ---
+    // ───────────── TỈNH ─────────────
+    const provinceInput = String(province || '');
     let provRes;
-    const initialProvinceName = String(province || '');
-    if (typeof province === 'number') { // Nếu truyền ID tỉnh nội bộ
+    if (typeof province === 'number') {
+        console.log(`[GHN DEBUG] Tra tỉnh theo ID: ${province}`);
         [provRes] = await dbConnection.query(
-            `SELECT pp.providerProvinceCode, pp.provinceId FROM providerprovinces pp WHERE pp.providerId = ? AND pp.provinceId = ?`,
+            `SELECT pp.providerProvinceCode, pp.provinceId 
+             FROM providerprovinces pp 
+             WHERE pp.providerId = ? AND pp.provinceId = ? LIMIT 1`,
             [GHN_PROVIDER_ID, province]
         );
-    } else { // Nếu truyền tên tỉnh nội bộ (string) - CHỈ DÙNG TÊN GỐC
+    } else {
+        console.log(`[GHN DEBUG] Tra tỉnh theo tên: ${provinceInput}`);
         [provRes] = await dbConnection.query(
-            `SELECT pp.providerProvinceCode, pp.provinceId FROM providerprovinces pp JOIN provinces p ON pp.provinceId = p.id WHERE pp.providerId = ? AND p.name = ?`,
-            [GHN_PROVIDER_ID, initialProvinceName]
+            `SELECT pp.providerProvinceCode, pp.provinceId 
+             FROM providerprovinces pp 
+             JOIN provinces p ON pp.provinceId = p.id 
+             WHERE pp.providerId = ? AND p.name = ? LIMIT 1`,
+            [GHN_PROVIDER_ID, provinceInput]
         );
-        // KHÔNG SỬ DỤNG normalizedName Ở ĐÂY
     }
+
     if (provRes && provRes.length > 0) {
         ghnProvId = provRes[0].providerProvinceCode;
         localProvId = provRes[0].provinceId;
     } else {
-        console.error(`GHN: Không tìm thấy mã tỉnh cho '${initialProvinceName}' (hoặc ID: ${province}) trong DB.`);
-        throw new Error(`GHN: Không tìm thấy mã tỉnh cho '${initialProvinceName}' trong DB.`);
+        console.error(`GHN: Không tìm thấy mã tỉnh cho '${provinceInput}' (ID: ${province}) trong DB.`);
+        throw new Error(`GHN: Không tìm thấy mã tỉnh cho '${provinceInput}' trong DB.`);
     }
 
-    // --- Tra cứu District (Lấy ID huyện nội bộ và ID GHN) ---
+    // ───────────── HUYỆN ─────────────
+    const districtInput = String(district || '');
     let distRes;
-    const initialDistrictName = String(district || '');
-    if (typeof district === 'number') { // Nếu truyền ID huyện nội bộ
+    if (typeof district === 'number') {
+        console.log(`[GHN DEBUG] Tra huyện theo ID: ${district}`);
         [distRes] = await dbConnection.query(
-            `SELECT pd.providerDistrictCode, pd.districtId FROM providerdistricts pd WHERE pd.providerId = ? AND pd.districtId = ? AND pd.provinceId = ?`,
+            `SELECT pd.providerDistrictCode, pd.districtId 
+             FROM providerdistricts pd 
+             WHERE pd.providerId = ? AND pd.districtId = ? AND pd.provinceId = ? LIMIT 1`,
             [GHN_PROVIDER_ID, district, localProvId]
         );
-    } else { // Nếu truyền tên huyện nội bộ (string) - CHỈ DÙNG TÊN GỐC
+    } else {
+        console.log(`[GHN DEBUG] Tra huyện theo tên: ${districtInput}`);
         [distRes] = await dbConnection.query(
-            `SELECT pd.providerDistrictCode, pd.districtId FROM providerdistricts pd JOIN districts d ON pd.districtId = d.id WHERE pd.providerId = ? AND d.name = ? AND pd.provinceId = ?`,
-            [GHN_PROVIDER_ID, initialDistrictName, localProvId]
+            `SELECT pd.providerDistrictCode, pd.districtId 
+             FROM providerdistricts pd 
+             JOIN districts d ON pd.districtId = d.id 
+             WHERE pd.providerId = ? AND d.name = ? AND pd.provinceId = ? LIMIT 1`,
+            [GHN_PROVIDER_ID, districtInput, localProvId]
         );
-        // KHÔNG SỬ DỤNG normalizedName Ở ĐÂY
     }
+
     if (distRes && distRes.length > 0) {
         ghnDistId = distRes[0].providerDistrictCode;
         localDistId = distRes[0].districtId;
     } else {
-        console.error(`GHN: Không tìm thấy mã huyện cho '${initialDistrictName}' (tỉnh ${initialProvinceName}) trong DB.`);
-        throw new Error(`GHN: Không tìm thấy mã huyện cho '${initialDistrictName}' (tỉnh ${initialProvinceName}) trong DB.`);
+        console.error(`GHN: Không tìm thấy mã huyện cho '${districtInput}' (tỉnh ${provinceInput}) trong DB.`);
+        throw new Error(`GHN: Không tìm thấy mã huyện cho '${districtInput}' trong DB.`);
     }
 
-    // --- Tra cứu Ward (Lấy mã xã GHN - có thể null) ---
-    if (ward) { // Chỉ tra cứu nếu có truyền ward
+    // ───────────── XÃ ─────────────
+    if (ward) {
+        const wardInput = String(ward || '');
         let wardRes;
-        const initialWardName = String(ward || '');
-        if (typeof ward === 'number') { // Nếu truyền ID xã nội bộ
+        if (typeof ward === 'number') {
+            console.log(`[GHN DEBUG] Tra xã theo ID: ${ward}`);
             [wardRes] = await dbConnection.query(
-                `SELECT pw.providerWardCode FROM providerwards pw WHERE pw.providerId = ? AND pw.wardId = ? AND pw.districtId = ?`,
+                `SELECT pw.providerWardCode 
+                 FROM providerwards pw 
+                 WHERE pw.providerId = ? AND pw.wardId = ? AND pw.districtId = ? LIMIT 1`,
                 [GHN_PROVIDER_ID, ward, localDistId]
             );
-        } else { // Nếu truyền tên xã nội bộ (string) - CHỈ DÙNG TÊN GỐC
+        } else {
+            console.log(`[GHN DEBUG] Tra xã theo tên: ${wardInput}`);
             [wardRes] = await dbConnection.query(
-                `SELECT pw.providerWardCode FROM providerwards pw JOIN wards w ON pw.wardId = w.id WHERE pw.providerId = ? AND w.name = ? AND pw.districtId = ?`,
-                [GHN_PROVIDER_ID, initialWardName, localDistId]
+                `SELECT pw.providerWardCode 
+                 FROM providerwards pw 
+                 JOIN wards w ON pw.wardId = w.id 
+                 WHERE pw.providerId = ? AND w.name = ? AND pw.districtId = ? LIMIT 1`,
+                [GHN_PROVIDER_ID, wardInput, localDistId]
             );
-            // KHÔNG SỬ DỤNG normalizedName Ở ĐÂY
         }
+
         if (wardRes && wardRes.length > 0) {
             ghnWardCode = wardRes[0].providerWardCode;
         } else {
-            console.warn(`GHN: Không tìm thấy mã xã cho '${initialWardName}' (huyện ${initialDistrictName}, tỉnh ${initialProvinceName}) trong DB. Có thể ảnh hưởng đến phí.`);
+            console.warn(`GHN: Không tìm thấy mã xã cho '${wardInput}' (huyện ${districtInput}, tỉnh ${provinceInput}) trong DB.`);
         }
     }
 
     console.log(`[GHN DB Mapping] Mapped codes: GHN Prov ID: ${ghnProvId}, GHN Dist ID: ${ghnDistId}, GHN Ward Code: ${ghnWardCode || 'N/A'}`);
-    return { ghnProvId, ghnDistId, ghnWardCode };
+
+    return {
+        ghnProvId,
+        ghnDistId,
+        ghnWardCode,
+    };
 }
+
 
 
 /* ------------------------------------------------------------------ *
  * 2️⃣ Service mặc định – lấy service_id (Cho tuyến FROM_SHOP -> TO_CUSTOMER)
  * ------------------------------------------------------------------ */
-async function getDefaultService({ toProvince, toDistrict }) {
-    // Lấy GHN IDs từ DB cục bộ
-    const { ghnProvId: pid, ghnDistId: did } = await getGhnCodesFromLocalDb({
-        province: toProvince,
-        district: toDistrict,
-        ward: null // Không cần ward cho getDefaultService
-    });
-
-    if (!pid || !did) {
-        console.error(`[GHN getDefaultService] Lỗi: Không tìm thấy mã tỉnh/huyện GHN từ DB cho địa chỉ nhận. Tỉnh nhận: ${toProvince}, Huyện nhận: ${toDistrict}`);
-        throw new Error('GHN: Không tìm thấy mã tỉnh/huyện từ DB cho địa chỉ nhận.');
+async function getDefaultService({ toDistrict }) {
+    if (!toDistrict) {
+        throw new Error('GHN: Thiếu mã huyện nhận để tra service');
     }
 
     try {
         const payload = {
             shop_id: Number(GHN_SHOP_ID),
-            from_district: Number(SHOP_DISTRICT_CODE), // Lấy SHOP_DISTRICT_CODE từ .env
-            to_district: Number(did),
+            from_district: Number(SHOP_DISTRICT_CODE), // mã GHN của shop
+            to_district: Number(toDistrict), // Đã là GHN code, không cần mapping
         };
-        console.log('[GHN getDefaultService] Request Payload:', JSON.stringify(payload, null, 2));
+        console.log('[GHN getDefaultService] Request Payload:', payload);
 
         const { data } = await axios.post(
             'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services',
             payload,
             { headers, timeout: 5000 }
         );
-        console.log('[GHN getDefaultService] Response Data:', JSON.stringify(data, null, 2));
+        console.log('[GHN getDefaultService] Response Data:', data);
 
         if (!data?.data?.length) {
-            console.error('[GHN getDefaultService] Phản hồi API không chứa dịch vụ nào:', JSON.stringify(data, null, 2));
             throw new Error('GHN: Không tìm thấy dịch vụ khả dụng.');
         }
 
-        return data?.data?.[0]?.service_id || null;
-    } catch (error) {
-        console.error('[GHN getDefaultService API error]', error?.response?.data || error.message);
-        throw new Error(`GHN: Lỗi khi lấy dịch vụ mặc định: ${error?.response?.data?.message || error.message}`);
+     return data.data[0].service_type_id; // ✅ Đúng
+
+    } catch (err) {
+        console.error('[GHN getDefaultService API error]', err?.response?.data || err.message);
+        throw new Error(`GHN: Lỗi khi lấy dịch vụ mặc định: ${err?.response?.data?.message || err.message}`);
     }
 }
+
 
 /* ------------------------------------------------------------------ *
  * 3️⃣ Fee & Lead-time (Cho tuyến FROM_SHOP -> TO_CUSTOMER)
@@ -402,110 +421,105 @@ if (!leadTime) {
  * 4️⃣ Book Pickup (Tạo vận đơn lấy hàng)
  * ------------------------------------------------------------------ */
 async function bookPickup(payload) {
-    const {
-        from_name, from_phone, from_address, from_ward_id, from_district_id, from_province_id, // Nhận ID nội bộ của địa chỉ khách
-        to_name, to_phone, to_address, to_ward_code, to_district_id, to_province_id, // Nhận mã GHN của shop (hoặc sẽ map)
-        weight, length, width, height,
-        client_order_code, content,
-    } = payload;
+  const {
+    from_name,
+    from_phone,
+    from_address,
+    from_ward_code,       // ✅ mapping sẵn, không còn từ ID nữa
+    from_district_id,     // ✅ mapping sẵn, là GHN District ID
+    to_name,
+    to_phone,
+    to_address,
+    to_ward_code,
+    to_district_id,
+    weight,
+    length,
+    width,
+    height,
+    client_order_code,
+    content,
+  } = payload;
 
-    // Lấy mã GHN của địa chỉ lấy hàng (của khách) từ ID nội bộ
-    const { ghnDistrictId: fromDistrictGhnCode, ghnWardCode: fromWardGhnCode } = await getGhnCodesFromLocalDb({
-        province: from_province_id,
-        district: from_district_id,
-        ward: from_ward_id,
+  // 🔄 Lấy service_type_id cho tuyến vận chuyển (KH đến SHOP)
+  let serviceTypeId;
+  try {
+    serviceTypeId = await getDefaultService({
+      toProvince: null, // ✅ Không cần nếu chỉ dùng district
+      toDistrict: from_district_id, // GHN district code đã mapping
     });
 
-    if (isNaN(fromDistrictGhnCode) || !fromWardGhnCode) { // Mã huyện phải là số, mã phường/xã không undefined
-        throw new Error(`GHN: Không tìm thấy mã huyện hoặc phường/xã GHN hợp lệ cho địa chỉ lấy hàng: Huyện ID ${from_district_id}, Xã ID ${from_ward_id}.`);
+    if (!serviceTypeId) {
+      throw new Error("Không có dịch vụ GHN khả dụng cho tuyến lấy hàng này.");
+    }
+  } catch (err) {
+    console.error("GHN bookPickup: Lỗi khi lấy serviceTypeId:", err.message);
+    throw new Error(`GHN: Lỗi khi xác định dịch vụ lấy hàng: ${err.message}`);
+  }
+
+  // 🚀 Tạo payload tạo đơn hàng
+  const createOrderPayload = {
+    service_type_id: serviceTypeId,
+    required_note: 'KHONGCHOXEMHANG',
+    payment_type_id: 1,
+
+    from_name,
+    from_phone,
+    from_address,
+    from_ward_code,         // ✅ GHN mã xã
+    from_district_id,       // ✅ GHN mã huyện
+
+    to_name,
+    to_phone,
+    to_address,
+    to_ward_code,
+    to_district_id: Number(to_district_id),
+
+    weight,
+    length: Math.max(1, length),
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+
+    cod_amount: 0,
+    client_order_code,
+    content,
+  };
+
+  console.log('[GHN bookPickup] Create Order Request Payload:', JSON.stringify(createOrderPayload, null, 2));
+
+  try {
+    const { data: responseData } = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create',
+      createOrderPayload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Token: GHN_TOKEN,
+          ShopId: GHN_SHOP_ID,
+        },
+        timeout: 10000,
+      }
+    );
+
+    console.log('[GHN bookPickup] Create Order Response Data:', JSON.stringify(responseData, null, 2));
+
+    if (responseData?.code !== 200 || !responseData.data?.order_code) {
+      throw new Error(`GHN: Lỗi từ API tạo vận đơn: ${responseData?.message || 'Không rõ'}`);
     }
 
-    // Lấy service_type_id cho tuyến lấy hàng (từ khách về shop)
-    let serviceTypeId;
-    try {
-        // GHN's getDefaultService expects toDistrict/toProvince as the destination of the service
-        // For pickup, the "from" address is the customer's.
-        // The service is from the customer's district to the shop's district.
-        serviceTypeId = await getDefaultService({
-            toProvince: from_province_id, // Truyền ID nội bộ của tỉnh khách hàng để getDefaultService map ra mã GHN
-            toDistrict: from_district_id, // Truyền ID nội bộ của huyện khách hàng để getDefaultService map ra mã GHN
-        });
-        if (!serviceTypeId) {
-            throw new Error("Không có dịch vụ GHN khả dụng cho tuyến lấy hàng này.");
-        }
-    } catch (err) {
-        console.error("GHN bookPickup: Lỗi khi lấy serviceTypeId:", err.message);
-        throw new Error(`GHN: Lỗi khi xác định dịch vụ lấy hàng: ${err.message}`);
-    }
-
-    try {
-        const createOrderPayload = {
-            service_type_id: serviceTypeId,
-            required_note: 'KHONGCHOXEMHANG', // Yêu cầu không cho xem hàng
-            payment_type_id: 1, // 1 = Shop trả phí
-
-            // Địa chỉ lấy hàng (từ địa chỉ khách hàng)
-            from_name: from_name,
-            from_phone: from_phone,
-            from_address: from_address,
-            from_ward_code: fromWardGhnCode, // Mã phường/xã GHN của khách hàng
-            from_district_id: fromDistrictGhnCode, // Mã huyện GHN của khách hàng
-            // from_province_id: ghnProvId, // GHN create order không yêu cầu from_province_id
-
-            // Địa chỉ trả về (kho của shop)
-            to_name: to_name,
-            to_phone: to_phone,
-            to_address: to_address,
-            to_ward_code: to_ward_code, // Mã phường/xã GHN của shop (từ .env)
-            to_district_id: Number(to_district_id), // Mã huyện GHN của shop (từ .env)
-            // to_province_id: Number(to_province_id), // GHN create order không yêu cầu to_province_id
-
-            weight,
-            length: Math.max(1, length), // Đảm bảo min là 1
-            width: Math.max(1, width),   // Đảm bảo min là 1
-            height: Math.max(1, height), // Đảm bảo min là 1
-
-            cod_amount: 0, // Đơn trả hàng thường không có COD
-            client_order_code: client_order_code,
-            content: content,
-            // Các trường khác như insurance_value, items nếu cần
-        };
-        console.log('[GHN bookPickup] Create Order Request Payload:', JSON.stringify(createOrderPayload, null, 2));
-
-
-        const { data: responseData } = await axios.post(
-            'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create',
-            createOrderPayload,
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Token: GHN_TOKEN,
-                    ShopId: GHN_SHOP_ID,
-                },
-                timeout: 10000 // Tăng timeout cho API tạo đơn hàng
-            }
-        );
-        console.log('[GHN bookPickup] Create Order Response Data:', JSON.stringify(responseData, null, 2));
-
-
-        if (responseData?.code !== 200 || !responseData.data?.order_code) {
-            console.error(`[GHN bookPickup] API tạo vận đơn trả về lỗi: Code ${responseData?.code}, Message: ${responseData?.message}`);
-            throw new Error(`GHN: Lỗi từ API tạo vận đơn: ${responseData?.message || 'Không rõ'}`);
-        }
-
-        const { order_code, label } = responseData.data;
-        return { trackingCode: order_code, labelUrl: label };
-
-    } catch (error) {
-        console.error("GHN bookPickup Error:", error?.response?.data || error.message);
-        throw new Error("GHN: Lỗi khi tạo đơn lấy hàng. " + (error?.response?.data?.message || error.message));
-    }
+    const { order_code, label } = responseData.data;
+    return { trackingCode: order_code, labelUrl: label };
+  } catch (error) {
+    console.error("GHN bookPickup Error:", error?.response?.data || error.message);
+    throw new Error("GHN: Lỗi khi tạo đơn lấy hàng. " + (error?.response?.data?.message || error.message));
+  }
 }
+
 
 
 // Export các hàm/class cần thiết
 module.exports = {
     getDefaultService,
     getFee,
+    getGhnCodesFromLocalDb,
     bookPickup, // ⭐ Đảm bảo hàm này được export
 };
