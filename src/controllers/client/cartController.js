@@ -6,6 +6,8 @@ const {
   Order,
   Product,
   FlashSale,
+  User,
+  UserPoint,
   OrderItem,
   ProductMedia,
   FlashSaleCategory,
@@ -319,7 +321,7 @@ class CartController {
     }
   }
 
-  static async getCart(req, res) {
+ static async getCart(req, res) {
   try {
     const userId = req.user.id;
     console.log(`--- [getCart] Bắt đầu lấy giỏ hàng cho userId: ${userId} ---`);
@@ -553,34 +555,88 @@ class CartController {
       return sum + (item.isSelected ? item.lineTotal : 0);
     }, 0);
 
-   const couponCode = req.query.couponCode || null;
-let discountAmount = 0;
+    const couponCode = req.query.couponCode || null;
+    let discountAmount = 0;
 
-if (couponCode) {
-  const res = await couponService.applyCoupon({
-    code: couponCode,
-    skuIds: formattedItems.filter(i => i.isSelected).map(i => i.skuId),
-    orderTotal: totalAmount,
-  });
+    if (couponCode) {
+      const res = await couponService.applyCoupon({
+        code: couponCode,
+        skuIds: formattedItems.filter(i => i.isSelected).map(i => i.skuId),
+        orderTotal: totalAmount,
+      });
 
-  if (res?.isValid && res?.coupon?.discountAmount) {
-    discountAmount = parseFloat(res.coupon.discountAmount);
-  }
-}
+      if (res?.isValid && res?.coupon?.discountAmount) {
+        discountAmount = parseFloat(res.coupon.discountAmount);
+      }
+    }
 
-const payablePrice = Math.max(0, totalAmount - discountAmount);
-const rewardPoints = Math.floor(payablePrice / 4000);
+    const payablePrice = Math.max(0, totalAmount - discountAmount);
+    const rewardPoints = Math.floor(payablePrice / 4000);
+
+    // --- TÍNH ĐIỂM ĐỔI (GIỚI HẠN & GIẢM GIÁ TỪ ĐIỂM) ---
+  const totalEarned = await UserPoint.sum('points', {
+  where: {
+    userId,
+    type: 'earn',
+    [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
+  },
+}) || 0;
+
+const totalSpent = await UserPoint.sum('points', {
+  where: { userId, type: 'spend' },
+}) || 0;
+
+const totalRefunded = await UserPoint.sum('points', {
+  where: { userId, type: 'refund' },
+}) || 0;
+
+const totalExpired = await UserPoint.sum('points', {
+  where: {
+    userId,
+    type: 'expired',
+    expiresAt: { [Op.lte]: new Date() },
+  },
+}) || 0;
+
+const userPointBalance = totalEarned + totalRefunded - totalSpent - totalExpired;
+
+    const exchangeRate = 10; // 1 điểm = 10đ
+    const minPointRequired = 20;
+    const pointLimitRatio = 0.5;
+
+    const canUsePoints = userPointBalance >= minPointRequired;
+    let maxUsablePoints = 0;
+    let pointDiscountAmount = 0;
+
+    if (canUsePoints) {
+      maxUsablePoints = Math.min(
+        userPointBalance,
+        Math.floor(payablePrice * pointLimitRatio / exchangeRate)
+      );
+      pointDiscountAmount = maxUsablePoints * exchangeRate;
+    }
 
     return res.status(200).json({
       cartItems: formattedItems,
       totalAmount,
       rewardPoints,
+      payablePrice,
+      couponDiscount: discountAmount,
+      pointInfo: {
+        userPointBalance,
+        exchangeRate,
+        minPointRequired,
+        canUsePoints,
+        maxUsablePoints,
+        pointDiscountAmount
+      }
     });
   } catch (err) {
     console.error("Lỗi lấy giỏ hàng:", err);
     return res.status(500).json({ message: "Lỗi server" });
   }
 }
+
 
 
   static async updateQuantity(req, res) {
