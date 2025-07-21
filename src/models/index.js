@@ -23,6 +23,8 @@ const ProductAnswer = require("./productanswer.model");
 const UserRole = require("./userRole");
 const HomeSectionCategory = require("./homeSectionCategory.model");
 const UserPoint = require("./UserPoint");
+const MembershipTier = require("./MembershipTier");
+const MembershipLog = require("./MembershipLog");
 
 //
 const HomeSection = require("./homeSection");
@@ -590,6 +592,20 @@ ProviderProvince.belongsTo(Province, { foreignKey: "provinceId" });
 
 District.hasMany(ProviderDistrict, { foreignKey: "districtId" });
 ProviderDistrict.belongsTo(District, { foreignKey: "districtId" });
+User.belongsTo(MembershipTier, {
+  foreignKey: "currentTierId",
+  as: "membershipTier",
+});
+
+MembershipLog.belongsTo(User, { foreignKey: "userId", as: "user" });
+MembershipLog.belongsTo(MembershipTier, {
+  foreignKey: "oldTierId",
+  as: "oldTier",
+});
+MembershipLog.belongsTo(MembershipTier, {
+  foreignKey: "newTierId",
+  as: "newTier",
+});
 
 Ward.hasMany(ProviderWard, { foreignKey: "wardId" });
 ProviderWard.belongsTo(Ward, { foreignKey: "wardId" });
@@ -616,6 +632,8 @@ module.exports = {
   Sku,
   ReturnRequest,
   RefundRequest,
+  MembershipTier,
+  MembershipLog,
 
   ProductQuestion,
   ProductAnswer,

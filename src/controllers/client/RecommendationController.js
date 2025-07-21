@@ -1,3 +1,5 @@
+// controllers/RecommendationController.js
+
 require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -17,20 +19,20 @@ const {
     FlashSaleItem,
     FlashSaleCategory,
     FlashSale,
-    ProductMedia, // Thêm ProductMedia
+    ProductMedia,
+    SearchHistory,
     sequelize
 } = require("../../models");
 
-// Import the helper function
-const { processSkuPrices } = require('../../helpers/priceHelper'); // Điều chỉnh đường dẫn nếu cần
-const { formatCurrencyVND } = require('../../utils/formatCurrency'); // Thêm dòng này để import formatCurrencyVND
+const { processSkuPrices } = require('../../helpers/priceHelper');
+const { formatCurrencyVND } = require('../../utils/formatCurrency');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-const recommendationCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 }); // Cache 1 giờ
+const recommendationCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 
 class RecommendationController {
 
@@ -64,10 +66,6 @@ class RecommendationController {
         }
     }
 
-    /**
-     * Lấy các sản phẩm người dùng đã xem gần đây.
-     * Đã sửa lỗi EagerLoadingError và cách truy cập alias.
-     */
     static async _getUserRecentlyViewedProducts(userId, limit = 5) {
         if (!User || !Product || !ProductView || !Category || !Brand) {
             console.warn("WARN: [_getUserRecentlyViewedProducts] Required models missing.");
@@ -79,11 +77,11 @@ class RecommendationController {
                 attributes: ['id', 'userId', 'productId', 'viewCount', 'firstViewedAt', 'lastViewedAt', 'createdAt', 'updatedAt'],
                 include: [{
                     model: Product,
-                    as: 'product', // Đảm bảo alias này khớp với ProductView.belongsTo(Product) trong index.js
+                    as: 'product',
                     attributes: ['id', 'name', 'description'],
                     include: [
-                        { model: Category, as: 'category', attributes: ['name'] }, // Đảm bảo alias này khớp với Product.belongsTo(Category)
-                        { model: Brand, as: 'brand', attributes: ['name'] }      // Đảm bảo alias này khớp với Product.belongsTo(Brand)
+                        { model: Category, as: 'category', attributes: ['name'] },
+                        { model: Brand, as: 'brand', attributes: ['name'] }
                     ],
                     paranoid: false
                 }],
@@ -91,7 +89,6 @@ class RecommendationController {
                 limit: limit,
                 paranoid: false
             });
-            // Truy cập dữ liệu bằng alias (chữ thường)
             const products = views.map(view => view.product).filter(p => p !== null);
             console.log(`DEBUG: [_getUserRecentlyViewedProducts] User ${userId} recently viewed: ${products.length} products. Names: ${products.map(p => p.name).join(', ')}`);
             return products;
@@ -103,10 +100,6 @@ class RecommendationController {
         }
     }
 
-    /**
-     * Lấy các sản phẩm người dùng đã mua.
-     * Đã cải thiện logging cho lỗi SQL thuần và xử lý lỗi "not iterable".
-     */
     static async _getUserPurchasedProducts(userId, limit = 5) {
         console.log("DEBUG: Checking sequelize instance (inside _getUserPurchasedProducts):", !!sequelize);
 
@@ -122,7 +115,7 @@ class RecommendationController {
                     P.description,
                     Cat.name AS category_name,
                     B.name AS brand_name,
-                    O.createdAt AS order_created_at
+                    MAX(O.createdAt) AS last_purchased_at
                 FROM
                     Orders O
                 JOIN
@@ -136,34 +129,26 @@ class RecommendationController {
                 LEFT JOIN
                     Brands B ON P.brandId = B.id
                 WHERE
-                    O.userId = :userId
+                    O.userId = :userId AND O.status IN ('completed', 'delivered')
+                GROUP BY P.id, P.name, P.description, category_name, brand_name
                 ORDER BY
-                    O.createdAt DESC
+                    last_purchased_at DESC
                 LIMIT :limit;
             `, {
                 replacements: { userId: userId, limit: limit },
                 type: sequelize.QueryTypes.SELECT
             });
 
-            const results = Array.isArray(queryResults) ? queryResults : (queryResults ? [queryResults] : []);
-
-            const products = [];
-            const seenProductIds = new Set();
-            for (const row of results) {
-                if (!seenProductIds.has(row.id)) {
-                    products.push({
-                        id: row.id,
-                        name: row.name,
-                        description: row.description,
-                        category: { name: row.category_name },
-                        brand: { name: row.brand_name }
-                    });
-                    seenProductIds.add(row.id);
-                }
-            }
+            const products = Array.isArray(queryResults) ? queryResults : (queryResults ? [queryResults] : []);
 
             console.log(`DEBUG: [_getUserPurchasedProducts] User ${userId} purchased: ${products.length} unique products (RAW SQL). Names: ${products.map(p => p.name).join(', ')}`);
-            return products;
+            return products.map(row => ({
+                id: row.id,
+                name: row.name,
+                description: row.description,
+                category: { name: row.category_name },
+                brand: { name: row.brand_name }
+            }));
         } catch (error) {
             console.error(`ERROR: [_getUserPurchasedProducts] Lỗi khi lấy sản phẩm đã mua cho userId ${userId} (SQL thuần):`, error.message);
             console.error("SQL Error Name:", error.name);
@@ -172,10 +157,6 @@ class RecommendationController {
         }
     }
 
-    /**
-     * Lấy thông tin chi tiết của một sản phẩm.
-     * Đã sửa lỗi EagerLoadingError và cách truy cập alias.
-     */
     static async _getProductDetailsForGemini(productId) {
         if (!Product || !Category || !Brand) {
             console.warn("WARN: [_getProductDetailsForGemini] Required models missing.");
@@ -201,70 +182,158 @@ class RecommendationController {
         }
     }
 
-    /**
-     * Xây dựng prompt cho Gemini dựa trên hành vi người dùng.
-     * Đã cải tiến để truyền danh sách sản phẩm có sẵn và yêu cầu trả về ID.
-     */
+    static async _getUserSearchHistory(userId, limit = 5) {
+        if (!SearchHistory) {
+            console.warn("WARN: [_getUserSearchHistory] SearchHistory model is not available. Skipping search history retrieval.");
+            return [];
+        }
+        try {
+            const searchTerms = await SearchHistory.findAll({
+                where: { userId: userId },
+                attributes: ['keyword'],
+                order: [['createdAt', 'DESC']],
+                limit: limit,
+                raw: true
+            });
+            const keywords = searchTerms.map(item => item.keyword);
+            console.log(`DEBUG: [_getUserSearchHistory] User ${userId} recently searched: ${keywords.join(', ')}`);
+            return keywords;
+        } catch (error) {
+            console.error(`ERROR: [_getUserSearchHistory] Lỗi khi lấy lịch sử tìm kiếm cho userId ${userId}:`, error.message);
+            console.error("ERROR Name:", error.name);
+            console.error("ERROR Stack:", error.stack);
+            return [];
+        }
+    }
+
+    static async _getUserDemographics(userId) {
+        if (!User) {
+            console.warn("WARN: [_getUserDemographics] User model is not available. Skipping demographic retrieval.");
+            return { gender: null, age: null };
+        }
+        try {
+            const user = await User.findByPk(userId, {
+                attributes: ['gender', 'dateOfBirth'],
+                paranoid: false
+            });
+
+            if (!user) {
+                console.log(`DEBUG: [_getUserDemographics] User ${userId} not found.`);
+                return { gender: null, age: null };
+            }
+
+            // --- Logging thêm để debug giá trị dateOfBirth ---
+            console.log(`DEBUG: [_getUserDemographics] User ${userId} fetched:`, user.toJSON());
+            // --- End Logging ---
+
+            let age = null;
+            if (user.dateOfBirth) {
+                // --- Logging thêm để debug quá trình tính tuổi ---
+                console.log(`DEBUG: [_getUserDemographics] dateOfBirth from DB:`, user.dateOfBirth);
+                // --- End Logging ---
+
+                const today = new Date();
+                const birthDate = new Date(user.dateOfBirth);
+
+                // --- Logging thêm để debug quá trình parse ngày ---
+                console.log(`DEBUG: [_getUserDemographics] Parsed birthDate:`, birthDate);
+                // --- End Logging ---
+
+                // Kiểm tra xem birthDate có hợp lệ không
+                if (isNaN(birthDate.getTime())) {
+                    console.error(`ERROR: [_getUserDemographics] Invalid dateOfBirth for user ${userId}:`, user.dateOfBirth);
+                    age = null;
+                } else {
+                    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                        calculatedAge--;
+                    }
+                    age = calculatedAge;
+                    // --- Logging thêm để debug tuổi đã tính ---
+                    console.log(`DEBUG: [_getUserDemographics] Calculated age:`, age);
+                    // --- End Logging ---
+                }
+            }
+
+            console.log(`DEBUG: [_getUserDemographics] User ${userId} demographics: Gender: ${user.gender || 'N/A'}, Age: ${age || 'N/A'}`);
+            return { gender: user.gender, age: age };
+        } catch (error) {
+            console.error(`ERROR: [_getUserDemographics] Lỗi khi lấy thông tin nhân khẩu học cho userId ${userId}:`, error.message);
+            console.error("ERROR Name:", error.name);
+            console.error("ERROR Stack:", error.stack);
+            return { gender: null, age: null };
+        }
+    }
+
     static async _buildGeminiRecommendationPrompt(userId, currentProductId = null) {
         let prompt = "Bạn là một chuyên gia gợi ý sản phẩm cho một trang thương mại điện tử. " +
-                     "Dựa trên lịch sử hành vi của người dùng và thông tin về các sản phẩm đã cho, " +
-                     "hãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm. ";
-        prompt += "Các gợi ý phải phù hợp với sở thích thể hiện qua hành vi.";
+                     "Dựa trên lịch sử hành vi của người dùng (bao gồm lịch sử xem, mua, tìm kiếm) và thông tin cá nhân (giới tính, độ tuổi), " +
+                     "hãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm.";
+        prompt += " Các gợi ý phải phù hợp với sở thích thể hiện qua các dữ liệu được cung cấp.";
 
-        const recentlyViewed = await this._getUserRecentlyViewedProducts(userId, 5);
-        const purchasedProducts = await this._getUserPurchasedProducts(userId, 5);
-        const currentProduct = currentProductId ? await this._getProductDetailsForGemini(currentProductId) : null;
+        const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
+        const purchasedProducts = await RecommendationController._getUserPurchasedProducts(userId, 5);
+        const searchHistory = await RecommendationController._getUserSearchHistory(userId, 5);
+        const userDemographics = await RecommendationController._getUserDemographics(userId);
+        const currentProduct = currentProductId ? await RecommendationController._getProductDetailsForGemini(currentProductId) : null;
 
         const allAvailableProducts = await Product.findAll({
-            attributes: ['id', 'name'],
+            attributes: ['id', 'name', 'description'],
             limit: 500,
             paranoid: false
         });
+
+        if (userDemographics.gender || userDemographics.age) {
+            prompt += "\n\nThông tin cá nhân của người dùng:";
+            if (userDemographics.gender) {
+                prompt += `\n- Giới tính: ${userDemographics.gender === 'male' ? 'Nam' : (userDemographics.gender === 'female' ? 'Nữ' : 'Khác')}`;
+            }
+            if (userDemographics.age) {
+                prompt += `\n- Tuổi: ${userDemographics.age}`;
+            }
+        }
 
         if (currentProduct) {
             prompt += `\n\nNgười dùng hiện đang xem sản phẩm: "${currentProduct.name}" thuộc danh mục "${currentProduct.category?.name || 'không rõ'}" của thương hiệu "${currentProduct.brand?.name || 'không rõ'}" với mô tả: "${currentProduct.description}".`;
         }
 
         if (recentlyViewed.length > 0) {
-            prompt += "\n\nLịch sử các sản phẩm đã xem gần đây của người dùng (tên, danh mục, thương hiệu):";
+            prompt += "\n\nLịch sử các sản phẩm đã xem gần đây của người dùng (tên, danh mục, thương hiệu, mô tả):";
             recentlyViewed.forEach(p => {
-                prompt += `\n- "${p.name}" (Danh mục: ${p.category?.name || 'không rõ'}, Thương hiệu: ${p.brand?.name || 'không rõ'})`;
+                prompt += `\n- "${p.name}" (Danh mục: ${p.category?.name || 'không rõ'}, Thương hiệu: ${p.brand?.name || 'không rõ'}, Mô tả: "${p.description || 'không có'}")`;
             });
         }
 
         if (purchasedProducts.length > 0) {
-            prompt += "\n\nLịch sử các sản phẩm đã mua của người dùng (tên, danh mục, thương hiệu):";
+            prompt += "\n\nLịch sử các sản phẩm đã mua của người dùng (tên, danh mục, thương hiệu, mô tả):";
             purchasedProducts.forEach(p => {
-                prompt += `\n- "${p.name}" (Danh mục: ${p.category?.name || 'không rõ'}, Thương hiệu: ${p.brand?.name || 'không rõ'})`;
+                prompt += `\n- "${p.name}" (Danh mục: ${p.category?.name || 'không rõ'}, Thương hiệu: ${p.brand?.name || 'không rõ'}, Mô tả: "${p.description || 'không có'}")`;
+            });
+        }
+
+        if (searchHistory.length > 0) {
+            prompt += "\n\nLịch sử các từ khóa tìm kiếm gần đây của người dùng:";
+            searchHistory.forEach(keyword => {
+                prompt += `\n- "${keyword}"`;
             });
         }
 
         if (allAvailableProducts.length > 0) {
-            prompt += "\n\nDưới đây là danh sách CÁC SẢN PHẨM HIỆN CÓ trong kho của chúng tôi. Bạn CHỈ ĐƯỢC GỢI Ý các sản phẩm CÓ TRONG DANH SÁCH NÀY:";
+            prompt += "\n\nDưới đây là danh sách CÁC SẢN PHẨM HIỆN CÓ trong kho của chúng tôi. Bạn CHỈ ĐƯỢC GỢI Ý các sản phẩm CÓ TRONG DANH SÁCH NÀY. Mỗi sản phẩm kèm theo mô tả để bạn hiểu rõ hơn về chúng:";
             allAvailableProducts.forEach(p => {
-                prompt += `\n- ID: ${p.id}, Tên: "${p.name}"`;
+                prompt += `\n- ID: ${p.id}, Tên: "${p.name}", Mô tả: "${p.description || 'không có'}"`;
             });
         }
 
-        prompt += "\n\nHãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm. " +
-                  "Đảm bảo các gợi ý không trùng với các sản phẩm đã xem, đã mua hoặc đang xem.";
-        prompt += "\n\nĐịnh dạng trả về: Chỉ ID sản phẩm, mỗi ID trên một dòng mới. Không thêm bất kỳ văn bản giải thích nào khác. Ví dụ: \n123\n456\n789";
+        prompt += "\n\nHãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm nhất. " +
+                  "Đảm bảo các gợi ý không trùng với các sản phẩm đã xem, đã mua, đang xem hoặc những sản phẩm đã xuất hiện trong lịch sử tìm kiếm hoặc cực kỳ giống với chúng.";
+        prompt += "\n\nĐịnh dạng trả về: Chỉ ID sản phẩm, mỗi ID trên một dòng mới. Không thêm bất kỳ văn bản giải thích hay đánh dấu nào khác. Ví dụ: \n123\n456\n789";
 
         console.log("DEBUG: [buildGeminiRecommendationPrompt] Final Gemini Prompt length (chars):", prompt.length);
-        console.log("DEBUG: [buildGeminiRecommendationPrompt] Final Gemini Prompt:\n", prompt);
         return prompt;
     }
 
-    // === HÀM NÀY SẼ BỊ XÓA VÀ THAY THẾ BẰNG processSkuPrices ===
-    // static _calculateProductPricesAndDiscounts(product) { /* ... */ }
-    // ==========================================================
-
-    /**
-     * Lấy các gợi ý sản phẩm từ Gemini API.
-     * Đã cập nhật để xử lý ID sản phẩm từ Gemini và ánh xạ với DB.
-     * Đã thêm cơ chế cache để tránh gọi Gemini liên tục.
-     * Đã tích hợp logic Flash Sale bằng processSkuPrices helper.
-     */
     static async _getGeminiRecommendations(userId, currentProductId = null) {
         if (!genAI) {
             console.error('ERROR: [getGeminiRecommendations] GEMINI_API_KEY không được cấu hình. Không thể tạo gợi ý AI.');
@@ -279,10 +348,9 @@ class RecommendationController {
             return cachedRecommendations;
         }
 
-        const promptText = await this._buildGeminiRecommendationPrompt(userId, currentProductId);
+        const promptText = await RecommendationController._buildGeminiRecommendationPrompt(userId, currentProductId);
 
         try {
-            // LẤY TẤT CẢ DỮ LIỆU FLASH SALE ĐANG HOẠT ĐỘNG TRƯỚC VỚI CÁC THÔNG TIN CẦN THIẾT
             const now = new Date();
             const allActiveFlashSales = await FlashSale.findAll({
                 where: {
@@ -342,7 +410,7 @@ class RecommendationController {
                     if (!sku) return;
                     const skuId = sku.id;
                     const flashItemSalePrice = parseFloat(fsi.salePrice);
-                    const soldForThisItem = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0); 
+                    const soldForThisItem = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0);
                     const flashLimit = fsi.quantity;
 
                     const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
@@ -376,7 +444,6 @@ class RecommendationController {
                     });
                 });
             });
-            // HẾT PHẦN LẤY DỮ LIỆU FLASH SALE
 
             const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
             const result = await model.generateContent(promptText);
@@ -385,8 +452,8 @@ class RecommendationController {
             console.log("DEBUG: [getGeminiRecommendations] Raw Gemini Response Text:\n", text);
 
             const recommendedProductIds = text.split('\n')
-                                            .map(line => parseInt(line.trim()))
-                                            .filter(id => !isNaN(id) && id > 0);
+                                                .map(line => parseInt(line.trim()))
+                                                .filter(id => !isNaN(id) && id > 0);
             console.log("DEBUG: [getGeminiRecommendations] Recommended IDs from Gemini:", recommendedProductIds);
 
             let finalRecommendations = [];
@@ -424,20 +491,18 @@ class RecommendationController {
                 for (const id of recommendedProductIds) {
                     const product = mappedProducts.get(id);
                     if (product) {
-                        const productJson = product.toJSON(); // Convert to JSON for easier manipulation
+                        const productJson = product.toJSON();
 
-                        // Process SKUs using the helper
                         const processedSkus = (productJson.skus || []).map(sku => {
                             const skuDataWithCategory = {
                                 ...sku,
                                 Product: { category: { id: productJson.categoryId } }
                             };
                             return processSkuPrices(skuDataWithCategory, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
-                        }).sort((a, b) => a.price - b.price); // Sort SKUs by calculated price
+                        }).sort((a, b) => a.price - b.price);
 
-                        const bestSku = processedSkus[0] || {}; // Get the lowest priced SKU
+                        const bestSku = processedSkus[0] || {};
 
-                        // Calculate product-level soldCount and rating from all SKUs
                         let totalSoldCount = 0;
                         let totalRatingSum = 0;
                         let totalRatingCount = 0;
@@ -469,17 +534,15 @@ class RecommendationController {
                             thumbnail: productJson.thumbnail,
                             badge: productJson.badge,
                             badgeImage: productJson.badgeImage,
-                            // === ĐIỀU CHỈNH TẠI ĐÂY: Định dạng giá thành chuỗi tiền tệ ===
                             price: bestSku.price !== null ? formatCurrencyVND(bestSku.price) : null,
-                            oldPrice: (bestSku.flashSaleInfo && bestSku.flashSaleInfo.isSoldOut === false) 
-                                ? formatCurrencyVND(bestSku.originalPrice) 
-                                : (bestSku.originalPrice > bestSku.price ? formatCurrencyVND(bestSku.originalPrice) : null), 
-                            // ============================================================
-                            discount: bestSku.discount ?? null, // Use discount from bestSku
-                            inStock: productInStock, // Product-level stock
-                            soldCount: totalSoldCount, // Product-level soldCount
-                            rating: averageRating, // Product-level average rating
-                            image: bestSku.ProductMedia?.[0]?.mediaUrl || productJson.thumbnail, // Use bestSku's media or product thumbnail
+                            oldPrice: (bestSku.flashSaleInfo && bestSku.flashSaleInfo.isSoldOut === false)
+                                ? formatCurrencyVND(bestSku.originalPrice)
+                                : (bestSku.originalPrice > bestSku.price ? formatCurrencyVND(bestSku.originalPrice) : null),
+                            discount: bestSku.discount ?? null,
+                            inStock: productInStock,
+                            soldCount: totalSoldCount,
+                            rating: averageRating,
+                            image: bestSku.ProductMedia?.[0]?.mediaUrl || productJson.thumbnail,
                         });
                         console.log(`DEBUG: [getGeminiRecommendations] Successfully mapped Gemini suggestion ID ${id} to product "${product.name}".`);
                     } else {
@@ -494,10 +557,10 @@ class RecommendationController {
 
             const excludeProductIds = new Set();
             if (currentProductId) excludeProductIds.add(currentProductId);
-            const recentlyViewed = await this._getUserRecentlyViewedProducts(userId, 10);
-            recentlyViewed.forEach(p => excludeProductIds.add(p.id));
-            const purchasedProducts = await this._getUserPurchasedProducts(userId, 10);
-            purchasedProducts.forEach(p => excludeProductIds.add(p.id));
+            const recentlyViewedForExclusion = await RecommendationController._getUserRecentlyViewedProducts(userId, 10);
+            recentlyViewedForExclusion.forEach(p => excludeProductIds.add(p.id));
+            const purchasedProductsForExclusion = await RecommendationController._getUserPurchasedProducts(userId, 10);
+            purchasedProductsForExclusion.forEach(p => excludeProductIds.add(p.id));
             console.log("DEBUG: [getGeminiRecommendations] Products to exclude (IDs):", Array.from(excludeProductIds).join(', '));
 
             const filteredRecommendations = finalRecommendations.filter(p => !excludeProductIds.has(p.id));
@@ -516,9 +579,6 @@ class RecommendationController {
         }
     }
 
-    /**
-     * API Endpoint: Lấy gợi ý sản phẩm cho người dùng.
-     */
     static async getRecommendations(req, res) {
         console.log("DEBUG: [getRecommendations] API call received.");
         try {
@@ -551,6 +611,32 @@ class RecommendationController {
         }
     }
 
+    static async recordSearchKeyword(userId, keyword) {
+        if (!SearchHistory || !userId || !keyword || keyword.trim() === '') {
+            console.warn("WARN: [recordSearchKeyword] Missing userId or keyword, or SearchHistory model not available. Skipping record.");
+            return;
+        }
+        try {
+            const trimmedKeyword = keyword.trim();
+            const existingSearch = await SearchHistory.findOne({
+                where: { userId, keyword: trimmedKeyword }
+            });
+
+            if (existingSearch) {
+                existingSearch.changed('createdAt', true);
+                existingSearch.createdAt = new Date();
+                await existingSearch.save();
+                console.log(`DEBUG: [recordSearchKeyword] Updated timestamp for existing search keyword '${trimmedKeyword}' for user ${userId}.`);
+            } else {
+                await SearchHistory.create({ userId, keyword: trimmedKeyword });
+                console.log(`DEBUG: [recordSearchKeyword] Recorded new search keyword '${trimmedKeyword}' for user ${userId}.`);
+            }
+        } catch (error) {
+            console.error(`ERROR: [recordSearchKeyword] Lỗi khi ghi nhận từ khóa tìm kiếm '${keyword}' của user ${userId}:`, error.message);
+            console.error("ERROR Name:", error.name);
+            console.error("ERROR Stack:", error.stack);
+        }
+    }
 }
 
 module.exports = RecommendationController;

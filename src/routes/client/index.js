@@ -24,6 +24,8 @@ const systemSettingRoutes = require("./systemSetting.routes");
 const recommendationRoutes = require("./recommendationRoutes");
 const returnRefundRoutes = require("./returnRefundRoutes"); 
 const userPointRoutes = require('./userPoint.Routes'); // 👈 Tên file router bạn sẽ tạo (ví dụ userPoint.routes.js)
+const membershipRoutes = require("./membership.route"); // thêm dòng này ở trên
+
 
 const paymentRoutes = require("./payment.routes"); // Thêm dòng này
 router.use("/productviews", productViewRoutes);
@@ -70,6 +72,7 @@ router.use("/", authRoutes);
 router.use("/shipping", shippingRoutes);
 router.use("/user-address", userAddressRoutes);
 router.use("/", productRoutes);
+router.use("/membership", membershipRoutes);      // thêm dòng này ở dưới
 router.use("/chatbox", chatboxRoutes); // 👈 GẮN VÀO ĐÂY
 router.use("/cart", cartRoutes);
 router.use("/system-settings", systemSettingRoutes);

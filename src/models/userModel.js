@@ -75,6 +75,32 @@ const User = connection.define(
   comment: "Số điểm tích lũy của người dùng",
 },
 
+currentTierId: {
+  type: DataTypes.INTEGER,
+  allowNull: true,
+  references: {
+    model: "MembershipTiers", // tên bảng đúng trong DB
+    key: "id",
+  },
+},
+totalSpent: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  defaultValue: 0,
+},
+totalOrders: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  defaultValue: 0,
+},
+tierGrantedAt: {
+  type: DataTypes.DATE,
+  allowNull: true,
+},
+tierExpireAt: {
+  type: DataTypes.DATE,
+  allowNull: true,
+},
 
     lastLoginAt: {
       type: DataTypes.DATE,
