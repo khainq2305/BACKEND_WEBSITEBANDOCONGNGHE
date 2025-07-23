@@ -20,4 +20,8 @@ router.post('/analyze/:postId', postSEOController.analyzePostSEO);
 router.post('/bulk-analyze', postSEOController.bulkAnalyzePosts);
 router.post('/create-all', postSEOController.createSEOForAllPosts);
 
+// Schema routes
+router.get('/:postId/schema', postSEOController.getPostSchema);
+router.put('/:postId/schema', postSEOController.updatePostSchema);
+
 module.exports = router;

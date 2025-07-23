@@ -1159,6 +1159,141 @@ processVietnameseKeyword(keyword) {
       });
     }
   }
+
+  // Cập nhật schema cho post
+  async updatePostSchema(req, res) {
+    try {
+      const { postId } = req.params;
+      const { schema } = req.body;
+
+      console.log('=== UPDATE SCHEMA DEBUG ===');
+      console.log('Post ID:', postId);
+      console.log('Schema Data:', JSON.stringify(schema, null, 2));
+      console.log('Request body:', req.body);
+      console.log('Request headers:', req.headers);
+
+      // Tìm hoặc tạo PostSEO record
+      let postSEO = await PostSEO.findOne({ where: { postId } });
+      console.log('Found existing PostSEO:', postSEO ? `ID: ${postSEO.id}` : 'null');
+      
+      if (!postSEO) {
+        // Nếu chưa có PostSEO, tạo mới
+        const post = await Post.findByPk(postId);
+        console.log('Found post:', post ? `ID: ${post.id}, Title: ${post.title}` : 'null');
+        
+        if (!post) {
+          console.log('❌ Post not found');
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy bài viết'
+          });
+        }
+
+        console.log('Creating new PostSEO record...');
+        postSEO = await PostSEO.create({
+          postId,
+          title: post.title || '',
+          metaDescription: '',
+          focusKeyword: '',
+          schema: schema || null,
+          seoScore: 0,
+          readabilityScore: 0
+        });
+        console.log('✅ Created new PostSEO:', postSEO.id);
+      } else {
+        // Cập nhật schema cho record hiện tại
+        console.log('Updating existing PostSEO schema...');
+        console.log('Before update - schema:', postSEO.schema);
+        
+        const [affectedRows] = await PostSEO.update(
+          { schema: schema || null },
+          { where: { postId: postId } }
+        );
+        
+        console.log('Update affected rows:', affectedRows);
+        
+        // Reload để lấy data mới
+        await postSEO.reload();
+        console.log('After update - schema:', postSEO.schema);
+      }
+
+      // Lấy lại data đã cập nhật
+      const updatedPostSEO = await PostSEO.findOne({
+        where: { postId },
+        include: [{
+          model: Post,
+          as: 'post',
+          required: false
+        }]
+      });
+
+      console.log('Final PostSEO data:', {
+        id: updatedPostSEO.id,
+        postId: updatedPostSEO.postId,
+        hasSchema: !!updatedPostSEO.schema,
+        schemaType: updatedPostSEO.schema?.['@type'] || 'null'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cập nhật schema thành công',
+        data: {
+          postSEO: updatedPostSEO,
+          schema: updatedPostSEO.schema
+        }
+      });
+    } catch (error) {
+      console.error('❌ Update schema error:', error);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi khi cập nhật schema',
+        error: error.message
+      });
+    }
+  }
+
+  // Lấy schema của post
+  async getPostSchema(req, res) {
+    try {
+      const { postId } = req.params;
+
+      const postSEO = await PostSEO.findOne({
+        where: { postId },
+        include: [{
+          model: Post,
+          as: 'post',
+          required: false
+        }]
+      });
+
+      if (!postSEO) {
+        return res.json({
+          success: true,
+          data: {
+            schema: null,
+            message: 'Chưa có schema cho bài viết này'
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          schema: postSEO.schema,
+          postTitle: postSEO.post?.title,
+          lastUpdated: postSEO.updatedAt
+        }
+      });
+    } catch (error) {
+      console.error('Get schema error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi khi lấy schema',
+        error: error.message
+      });
+    }
+  }
 }
 
 const postSEOController = new PostSEOController();
