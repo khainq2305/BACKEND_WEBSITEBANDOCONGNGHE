@@ -175,7 +175,10 @@ class ReviewController {
           {
             model: Order,
             as: "order",
-            where: { userId, status: "completed" },
+            where: {
+              userId,
+              status: { [Op.in]: ["completed", "delivered"] }, // ✅ fix ở đây
+            },
             attributes: [],
           },
         ],

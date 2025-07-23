@@ -45,6 +45,7 @@ const postRoutes = require('./post.route')
 const productViewRoutes = require('./productView.routes');
 const productQuestionRoutes = require('./productQuestion.route');
 const spinRoutes = require('./spin.route'); 
+const searchImageRoute = require("./searchImage.route");
 
 
 const paymentRoutes = require("./payment.routes"); // Thêm dòng này
@@ -93,7 +94,7 @@ router.use("/", authRoutes);
 router.use("/shipping", shippingRoutes);
 router.use("/user-address", userAddressRoutes);
 router.use("/", productRoutes);
-
+router.use("/",searchImageRoute);
 router.use("/chatbox", chatboxRoutes); // 👈 GẮN VÀO ĐÂY
 router.use("/cart", cartRoutes);
 router.use("/system-settings", systemSettingRoutes);

@@ -71,6 +71,10 @@ const Product = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+     imageVector: {
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
+    },
   },
   {
     tableName: "products",
