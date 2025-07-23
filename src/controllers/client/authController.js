@@ -4,15 +4,7 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const sendEmail = require("../../utils/sendEmail");
-const {
-  User,
-  Role,
-  UserRole,
-  UserToken,
-  RolePermission,
-  Action,
-  Subject,
-} = require("../../models");
+const { User, Role, UserRole, UserToken, RolePermission, Action, Subject } = require("../../models");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret";
 const BASE_URL = process.env.BASE_URL || "http://localhost:9999";
@@ -1216,6 +1208,7 @@ class AuthController {
         return res.status(401).json({ message: "Không có token!" });
       }
 
+      // 2) Giải mã token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const userId = decoded.id;
 

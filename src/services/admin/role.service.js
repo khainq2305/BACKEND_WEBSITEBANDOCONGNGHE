@@ -1,41 +1,50 @@
 // services/role.service.js
-const { Role, RolePermission, User, sequelize } = require("../../models");
+const {
+  Role,
+  RolePermission,
+  User,
+  UserRole,
+  sequelize,
+} = require("../../models");
 
 const generateKeyFromName = (name) => {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 };
 
 class RoleService {
   async findAll() {
     return await Role.findAll({
-      attributes: {
-        include: [
-          "name",
-          "description",
-          [
-            sequelize.literal(
-              `(SELECT COUNT(*) FROM userroles WHERE userroles.roleId = Role.id)`
-            ),
-            "userCount",
-          ],
-        ],
-      },
+      attributes: [
+        "id",
+        "name",
+        "description",
+        [sequelize.fn("COUNT", sequelize.col("users.id")), "userCount"],
+      ],
+      include: [
+        {
+          model: User,
+          attributes: [],
+          through: { attributes: [] }, // ẩn bảng trung gian
+          required: false,
+        },
+      ],
+      group: ["Role.id", "Role.name", "Role.description", "Role.createdAt"],
       order: [["createdAt", "ASC"]],
     });
   }
 
-  async create({ name, description }) {
+  async create({ name, description, canAccess }) {
     const key = generateKeyFromName(name);
     const exists = await Role.findOne({ where: { key } });
     if (exists) {
       throw new Error("ROLE_EXISTS");
     }
-    return await Role.create({ key, name, description });
+    return await Role.create({ key, name, description, canAccess });
   }
 
   async getById(id) {
@@ -56,7 +65,7 @@ class RoleService {
     const role = await Role.findByPk(id);
     if (!role) return { notFound: true };
 
-    if (role.name === 'Admin') return { isAdmin: true };
+    if (role.name === "Admin") return { isAdmin: true };
 
     if (force) {
       await RolePermission.destroy({ where: { roleId: id } });

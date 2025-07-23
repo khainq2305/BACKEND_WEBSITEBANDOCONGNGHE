@@ -4,17 +4,19 @@ const SectionController = require("../../controllers/admin/sectionController");
 const { upload } = require("../../config/cloudinary");
 const { validateSection } = require("../../validations/sectionValidator");
 const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
-
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
 
 router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("Section"))
 
-
-router.get("/sections", SectionController.getAllSections);
-router.get("/sections/products", SectionController.getAllProducts);
-router.get("/sections/categories", SectionController.getAllCategories); 
+router.get("/", SectionController.getAllSections);
+router.get("/products", SectionController.getAllProducts);
+router.get("/categories", SectionController.getAllCategories); 
 
 router.post(
-  "/sections",
+  "/",
   upload.array("bannerImages"),
   validateSection,
   SectionController.createSection
@@ -22,19 +24,19 @@ router.post(
 
 
 router.put(
-  "/sections/:slug",
+  "/:slug",
   upload.array("bannerImages"),
   validateSection,
   SectionController.updateSection
 );
 
 
-router.get("/sections/:slug", SectionController.getSectionById);
+router.get("/:slug", SectionController.getSectionById);
 
 
-router.delete("/sections/:id", SectionController.deleteSection);
+router.delete("/:id", SectionController.deleteSection);
 
 
-router.patch("/sections/update-order", SectionController.updateOrderIndexes);
+router.patch("/update-order", SectionController.updateOrderIndexes);
 
 module.exports = router;

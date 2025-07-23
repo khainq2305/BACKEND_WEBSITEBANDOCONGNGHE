@@ -6,15 +6,21 @@ const HighlightedCategoryItemController = require('../../controllers/admin/highl
 const { checkJWT, isAdmin } = require('../../middlewares/checkJWT');
 router.use(checkJWT);
 const { validateHighlightedCategoryItem } = require('../../validations/validateHighlightedCategoryItem');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
+router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("HighlightedCategoryItem"))
 
-router.get('/highlighted-category-items/list', HighlightedCategoryItemController.list);
+
+router.get('/list', HighlightedCategoryItemController.list);
 
 
 
 
 
 router.post(
-  '/highlighted-category-items',
+  '/',
   upload.single('image'),
   validateHighlightedCategoryItem,
   HighlightedCategoryItemController.create
@@ -22,22 +28,22 @@ router.post(
 
 
 router.put(
-  '/highlighted-category-items/:slug',
+  '/:slug',
   upload.single('image'),
   validateHighlightedCategoryItem,
   HighlightedCategoryItemController.update
 );
 
-router.post('/highlighted-category-items/delete-many', HighlightedCategoryItemController.deleteMany);
+router.post('/delete-many', HighlightedCategoryItemController.deleteMany);
 
 
-router.post('/highlighted-category-items/reorder', HighlightedCategoryItemController.reorder);
+router.post('/reorder', HighlightedCategoryItemController.reorder);
 
-router.delete('/highlighted-category-items/:id', HighlightedCategoryItemController.delete);
+router.delete('/:id', HighlightedCategoryItemController.delete);
 
-router.get('/highlighted-category-items/categories/list', HighlightedCategoryItemController.getCategories);
+router.get('/categories/list', HighlightedCategoryItemController.getCategories);
 
 
-router.get('/highlighted-category-items/:slug', HighlightedCategoryItemController.getById);
+router.get('/:slug', HighlightedCategoryItemController.getById);
 
 module.exports = router;

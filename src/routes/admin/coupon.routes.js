@@ -2,32 +2,38 @@ const express = require('express');
 const router = express.Router();
 const CouponController = require('../../controllers/admin/couponController');
 const { validateCoupon } = require('../../validations/couponValidator');
-const {upload} = require('.././../config/cloudinary')
-router.post('/coupon/create', validateCoupon, CouponController.create);
-router.get('/coupon/list', CouponController.list);
+const {upload} = require('.././../config/cloudinary');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { authorize } = require('../../middlewares/authorize');
+router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("Coupon"))
+router.post('/create', validateCoupon, CouponController.create);
+router.get('/list', CouponController.list);
 
 
-router.patch('/coupon/update/:id',validateCoupon, CouponController.update);
+router.patch('/update/:id',validateCoupon, CouponController.update);
 
 
-router.delete('/coupon/soft/:id', CouponController.softDelete);
+router.delete('/soft/:id', CouponController.softDelete);
 
 
-router.patch('/coupon/restore/:id', CouponController.restore);
+router.patch('/restore/:id', CouponController.restore);
 
 
-router.delete('/coupon/force/:id', CouponController.forceDelete);
+router.delete('/force/:id', CouponController.forceDelete);
 
-router.get('/coupon/users', CouponController.getUsers);
+router.get('/users', CouponController.getUsers);
 
 
-router.get('/coupon/products', CouponController.getProducts);
+router.get('/products', CouponController.getProducts);
 
-router.post('/coupon/soft-delete-many', CouponController.softDeleteMany);
+router.post('/soft-delete-many', CouponController.softDeleteMany);
 
-router.post('/coupon/restore-many', CouponController.restoreMany);
+router.post('/restore-many', CouponController.restoreMany);
 
-router.post('/coupon/force-delete-many', CouponController.forceDeleteMany);
-router.get('/coupon/:id', CouponController.getById);
+router.post('/force-delete-many', CouponController.forceDeleteMany);
+router.get('/:id', CouponController.getById);
 
 module.exports = router;

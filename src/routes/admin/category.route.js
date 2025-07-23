@@ -3,9 +3,12 @@ const router = express.Router();
 const CategoryProductController = require("../../controllers/admin/categoryProductController");
 const { upload } = require("../../config/cloudinary");
 const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
-
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
 
 router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("Product"))
 const {
   validateCategoryProduct,
   validateCategoryUpdate,

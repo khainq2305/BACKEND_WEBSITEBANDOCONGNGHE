@@ -4,32 +4,37 @@ const VariantValueController = require('../../controllers/admin/variantValueCont
 const { validateVariantValue } = require('../../validations/variantValueValidator');
 const {upload }= require('../../config/cloudinary');
 const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
+
 
 
 router.use(checkJWT);
-router.get('/variant-values/:id', VariantValueController.getByVariant);
+router.use(attachUserDetail)
+router.use(authorize("Product"))
+router.get('/:id', VariantValueController.getByVariant);
 
 router.post(
-  '/variant-values/create',
+  '/create',
   upload.single('image'),
   validateVariantValue,
   VariantValueController.create
 );
-router.post('/variant-values/reorder', VariantValueController.reorder);
-router.post('/variant-values/create-quick', VariantValueController.createQuick);
+router.post('/reorder', VariantValueController.reorder);
+router.post('/create-quick', VariantValueController.createQuick);
 router.put(
-  '/variant-values/:id',
+  '/:id',
   upload.single('image'),
   validateVariantValue,
   VariantValueController.update
 );
 
-router.delete('/variant-values/:id', VariantValueController.softDelete);
-router.delete('/variant-values/:id/force', VariantValueController.forceDelete);
-router.patch('/variant-values/:id/restore', VariantValueController.restore);
+router.delete('/:id', VariantValueController.softDelete);
+router.delete('/:id/force', VariantValueController.forceDelete);
+router.patch('/:id/restore', VariantValueController.restore);
 
-router.post('/variant-values/delete-many', VariantValueController.deleteMany);
-router.post('/variant-values/force-delete-many', VariantValueController.forceDeleteMany);
-router.post('/variant-values/restore-many', VariantValueController.restoreMany);
+router.post('/delete-many', VariantValueController.deleteMany);
+router.post('/force-delete-many', VariantValueController.forceDeleteMany);
+router.post('/restore-many', VariantValueController.restoreMany);
 
 module.exports = router;

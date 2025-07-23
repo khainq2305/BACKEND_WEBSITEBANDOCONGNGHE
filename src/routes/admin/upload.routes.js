@@ -6,7 +6,7 @@ const { upload } = require("../../config/cloudinary");
 const {checkJWT} = require('../../middlewares/checkJWT')
 router.use(checkJWT);
 router.post(
-  "/upload-image",
+  "/",
   upload.single("file"),
   (req, res) => {
     if (!req.file) {

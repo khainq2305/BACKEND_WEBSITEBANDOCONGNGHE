@@ -7,7 +7,7 @@ const { attachUserDetail } = require('../../middlewares/getUserDetail ');
 
 router.use(checkJWT);
 router.use(attachUserDetail);
-router.use(authorize("Post"))
+router.use(authorize("Role"))
 
 router.get('/subjects', PermissionController.getAllSubject);
 

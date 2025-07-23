@@ -9,12 +9,7 @@ const checkPermission = (action, subject) => {
         message: 'Cấm: Người dùng không có vai trò hoặc quyền hợp lệ.'
       });
     }
-
     const ability = defineAbilitiesFor(user.permissions, user.roles);
-
-    console.log("roels", user.roles);
-    console.log("permision", user.permissions)
-    console.log(`[CASL] ✅ Check quyền: ${action} ${subject} =>`, ability.can(action, subject));
 
     if (ability.can(action, subject)) {
       return next();

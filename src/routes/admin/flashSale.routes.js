@@ -2,28 +2,32 @@ const express = require('express');
 const router = express.Router();
 const FlashSaleController = require('../../controllers/admin/flashSaleController');
 const { validateFlashSale } = require('../../validations/flashSaleValidator');
-
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
 const {upload} = require('../../config/cloudinary'); 
+router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("FlashSale"))
+router.get('/', FlashSaleController.list);
 
-router.get('/flash-sales', FlashSaleController.list);
 
 
+router.post('/', upload.single('bannerImage'), validateFlashSale, FlashSaleController.create);
+router.patch('/:slug', upload.single('bannerImage'), validateFlashSale, FlashSaleController.update);
 
-router.post('/flash-sales', upload.single('bannerImage'), validateFlashSale, FlashSaleController.create);
-router.patch('/flash-sales/:slug', upload.single('bannerImage'), validateFlashSale, FlashSaleController.update);
+router.get('/:slug', FlashSaleController.getById);
 
-router.get('/flash-sales/:slug', FlashSaleController.getById);
+router.get('/skus/available', FlashSaleController.getAvailableSkus);
+router.patch('/restore/:id', FlashSaleController.restore);
+router.post('/restore-many', FlashSaleController.restoreMany);
+router.delete('/soft-delete/:id', FlashSaleController.softDelete);
+router.post('/soft-delete-many', FlashSaleController.softDeleteMany);
+router.post('/force-delete-many', FlashSaleController.forceDeleteMany);
 
-router.get('/flash-sales/skus/available', FlashSaleController.getAvailableSkus);
-router.patch('/flash-sales/restore/:id', FlashSaleController.restore);
-router.post('/flash-sales/restore-many', FlashSaleController.restoreMany);
-router.delete('/flash-sales/soft-delete/:id', FlashSaleController.softDelete);
-router.post('/flash-sales/soft-delete-many', FlashSaleController.softDeleteMany);
-router.post('/flash-sales/force-delete-many', FlashSaleController.forceDeleteMany);
+router.delete('/force/:id', FlashSaleController.forceDelete);
 
-router.delete('/flash-sales/force/:id', FlashSaleController.forceDelete);
-
-router.get('/flash-sales/categories/available-tree', FlashSaleController.getAvailableCategoriesWithTree);
+router.get('/categories/available-tree', FlashSaleController.getAvailableCategoriesWithTree);
 
 
 

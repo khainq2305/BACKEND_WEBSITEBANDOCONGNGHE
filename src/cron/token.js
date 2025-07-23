@@ -21,7 +21,6 @@ cron.schedule("*/1 * * * *", async () => {
       },
     });
 
-    console.log(`[Cron Job] Đã dọn dẹp ${deletedTokens} token đã hết hạn hoặc đã sử dụng.`);
   } catch (err) {
     console.error("❌ [Cron Job] Lỗi khi dọn dẹp token:", err);
   }

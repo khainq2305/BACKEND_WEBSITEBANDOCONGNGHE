@@ -5,24 +5,27 @@ const VariantController = require('../../controllers/admin/variantController');
 const VariantValueController = require('../../controllers/admin/variantValueController');
 const { validateVariant } = require('../../validations/variantValidator');
 const { checkJWT, isAdmin } = require("../../middlewares/checkJWT");
-
+const { authorize } = require("../../middlewares/authorize");
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
 
 router.use(checkJWT);
-router.get('/variants/list', VariantController.getAll);
-router.get('/variants/with-values', VariantController.getAllActiveWithValues);
+router.use(attachUserDetail);
+router.use(authorize("Product"))
+router.get('/list', VariantController.getAll);
+router.get('/with-values', VariantController.getAllActiveWithValues);
 
-router.post('/variants/create', validateVariant, VariantController.create);
+router.post('/create', validateVariant, VariantController.create);
 
-router.delete('/variants/:id', VariantController.softDelete);          
-router.delete('/variants/:id/force', VariantController.forceDelete);   
-router.patch('/variants/:id/restore', VariantController.restore); 
-router.post('/variants/delete-many', VariantController.softDeleteMany);
-router.post('/variants/force-delete-many', VariantController.forceDeleteMany);
-router.post('/variants/restore-many', VariantController.restoreMany);
-router.get('/variants/:slug', VariantController.getById);
-router.put('/variants/:slug', validateVariant, VariantController.update);
+router.delete('/:id', VariantController.softDelete);          
+router.delete('/:id/force', VariantController.forceDelete);   
+router.patch('/:id/restore', VariantController.restore); 
+router.post('/delete-many', VariantController.softDeleteMany);
+router.post('/force-delete-many', VariantController.forceDeleteMany);
+router.post('/restore-many', VariantController.restoreMany);
+router.get('/:slug', VariantController.getById);
+router.put('/:slug', validateVariant, VariantController.update);
 
-router.post('/variants/type/create', VariantController.createTypeOnly); 
+router.post('/type/create', VariantController.createTypeOnly); 
 
 // 
 

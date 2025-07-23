@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const stripeWebhookRoute = require('./webhook/stripeWebhookRoute'); // <== thêm dòng này
 app.use('/orders', stripeWebhookRoute);
 app.use(cookieParser());
+
 const clientRoutes = require('./routes/client'); 
 const adminRoutes = require('./routes/admin'); 
 

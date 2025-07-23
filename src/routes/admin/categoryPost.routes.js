@@ -8,11 +8,17 @@ const checkDuplicateCategory = require('../../validations/checkDuplicateCategory
 const pagination = require('../../middlewares/pagination')
 const validatePostCategory = require('../../validations/postCategoryValidator')
 const {upload} = require('../../config/cloudinary')
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
+router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("PostCategory"))
 router.get('/',pagination, CategoryController.getAll);
-router.post('/them-danh-muc-moi',upload.none(), validatePostCategory, autoSlug(Category), checkDuplicateCategory(Category) , CategoryController.create)
-router.get('/chinh-sua-danh-muc/:slug' , CategoryController.getBySlug)
-router.post('/cap-nhat-danh-muc/:slug',upload.none(), validatePostCategory, autoSlug(Category), checkDuplicateCategory(Category) , CategoryController.update)
-router.post('/chuyen-vao-thung-rac', CategoryController.trashBySlug)
-router.post('/khoi-phuc', CategoryController.restoreBySlug)
-router.get('/tong-so-bai-viet', CategoryController.getPostCountsByCategory)
+router.post('/create',upload.none(), validatePostCategory, autoSlug(Category), checkDuplicateCategory(Category) , CategoryController.create)
+router.get('/edit/:slug' , CategoryController.getBySlug)
+router.post('/update/:slug',upload.none(), validatePostCategory, autoSlug(Category), checkDuplicateCategory(Category) , CategoryController.update)
+router.post('/trash', CategoryController.trashBySlug)
+router.post('/restore', CategoryController.restoreBySlug)
+router.get('/total-post', CategoryController.getPostCountsByCategory)
 module.exports = router

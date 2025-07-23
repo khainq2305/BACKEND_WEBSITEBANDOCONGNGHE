@@ -3,12 +3,19 @@ const router = express.Router();
 const { upload } = require('../../config/cloudinary');
 const BannerController = require('../../controllers/admin/BannerController');
 const { validateBanner } = require('../../validations/bannerValidator'); 
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
+
+router.use(checkJWT);
+router.use(attachUserDetail);
+router.use(authorize("Banner"))
 
 router.get('/banners/categories-for-select', BannerController.getCategoriesForSelect);
 router.get('/banners/products-for-select', BannerController.getProductsForSelect);
 
 router.post(
-  '/banners',
+  '/',
   upload.single('image'),
   validateBanner,
   BannerController.create
@@ -35,7 +42,7 @@ router.get('/banners', BannerController.getAll);
 
 
 
-router.delete('/banners/:id', BannerController.delete);
+router.delete('/banners/:id', authorize("Banner", "delete"), BannerController.delete);
 
 
 module.exports = router;

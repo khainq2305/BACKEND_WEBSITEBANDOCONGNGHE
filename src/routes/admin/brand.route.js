@@ -9,6 +9,7 @@ const { authorize } = require('../../middlewares/authorize');
 router.use(checkJWT);
 router.use(attachUserDetail)
 router.use(authorize("Brand"))
+
 router.post('/create', upload.single('logoUrl'), validateBrand, BrandController.create);
 
 

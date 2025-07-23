@@ -16,28 +16,28 @@ const { authorize } = require("../../middlewares/authorize"); // Import middlewa
 // =================================================================
 router.use(checkJWT);
 router.use(attachUserDetail);
-// router.use(authorize("Post"))
+router.use(authorize("Post"))
 // =================================================================
 // ĐỊNH NGHĨA CÁC ROUTE
 // Giờ đây, chúng ta chỉ cần dùng authorize() rất gọn gàng.
 // =================================================================
 
 // [POST] /them-bai-viet-moi -> Tự động hiểu action là 'create'
-router.post(
-  "/them-bai-viet-moi",
-  autoSlug(Post),
-  PostController.create
-);
+router.post("/create",  upload.single("thumbnail"), autoSlug(Post), PostController.create);
 
 // [GET] / -> Tự động hiểu action là 'read'
-router.get("/", pagination,authorize("Post"), PostController.getAll);
+router.get(
+  "/",
+  pagination,
+  PostController.getAll
+);
 
 // [GET] /chinh-sua-bai-viet/:slug -> Tự động hiểu action là 'read'
-router.get("/chinh-sua-bai-viet/:slug", PostController.getBySlug);
+router.get("/edit/:slug", PostController.getBySlug);
 
 // [PUT] /cap-nhat-bai-viet/:slug -> Tự động hiểu action là 'update'
 router.put(
-  "/cap-nhat-bai-viet/:slug",
+  "/update/:slug",
   authorize("Post"),
   upload.single("thumbnail"),
   validatePost,
@@ -47,20 +47,20 @@ router.put(
 
 // [POST] /chuyen-vao-thung-rac -> Ghi đè action thành 'delete'
 router.post(
-  "/chuyen-vao-thung-rac",
+  "/trash",
   authorize("Post", "delete"), // Ghi đè action mặc định của POST
   PostController.softDelete
 );
 
 // [POST] /khoi-phuc -> Ghi đè action thành 'update'
 router.post(
-  "/khoi-phuc",
+  "/restore",
   authorize("Post", "update"), // Ghi đè action mặc định của POST
   PostController.restore
 );
 
 // Route này dành cho quyền lực cao nhất, không cần kiểm tra phân quyền thông thường
 // Ví dụ: chỉ có Super Admin mới thấy và sử dụng được
-router.post("/xoa-vinh-vien", PostController.forceDelete);
+router.post("/force-delete", PostController.forceDelete);
 
 module.exports = router;

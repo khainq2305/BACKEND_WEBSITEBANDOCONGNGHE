@@ -48,7 +48,7 @@ class PermissionController {
     async updatePermission(req, res, next) {
     try {
         const { roleId, subject, action, hasPermission } = req.body;
-
+        console.log('req.body la',req.body)
         if (!roleId || !subject || !action || typeof hasPermission !== 'boolean') {
             return res.status(400).json({
                 success: false,

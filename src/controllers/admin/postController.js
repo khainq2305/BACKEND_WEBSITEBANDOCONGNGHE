@@ -68,6 +68,7 @@ class PostController {
   }
 
   static async getAll(req, res) {
+    console.log('da goi getall')
     try {
       const { search = "", categoryId, status } = req.query;
       const { page, limit, offset } = req.pagination;

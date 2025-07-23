@@ -888,7 +888,9 @@ class ProductController {
       }
 
       await product.restore();
-      res.json({ message: "Đã khôi phục sản phẩm" });
+      const restoredProduct = await Product.findOne({ where: { id } }); // <-- Lấy lại bản ghi mới nhất
+      req.auditNewValue = restoredProduct.toJSON();
+      res.json({ message: "Đã khôi phục sản phẩm", data: restoredProduct });
     } catch (error) {
       res.status(500).json({ message: "Lỗi server", error: error.message });
     }

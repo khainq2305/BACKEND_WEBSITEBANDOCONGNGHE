@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const autoSlug = (Model) => {
   return async (req, res, next) => {
     try {
+      console.log('daadxx gọi rebbory', req.body)
       const name = req.body.name || req.body.title;
       if (!name) return res.status(400).json({ message: 'Thiếu tên hoặc tiêu đề để tạo slug' });
 
@@ -27,7 +28,7 @@ const autoSlug = (Model) => {
       req.body.slug = slug; 
       next();
     } catch (err) {
-      console.error('generateUniqueSlug ERROR:', err);
+      console.error('generateUniqueSlug ERROR:', err.response);
       return res.status(500).json({ message: 'Lỗi khi tạo slug' });
     }
   };

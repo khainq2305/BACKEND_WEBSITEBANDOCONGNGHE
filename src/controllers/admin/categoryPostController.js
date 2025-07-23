@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 class CategoryController {
   // [CREATE] Thêm bài viết
   static async create(req, res) {
+    console.log('đã gọi tạo cateory',req.body)
     try {
       const {
         name,

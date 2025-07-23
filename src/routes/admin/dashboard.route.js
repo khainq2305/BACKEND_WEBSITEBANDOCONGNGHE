@@ -3,10 +3,12 @@
 const express = require('express');
 const router = express.Router();
 const DashboardController = require('../../controllers/admin/dashboardController');
-
-// const { checkJWT } = require('../../middlewares/checkJWT'); 
-
-// router.use(checkJWT);
+const { checkJWT } = require('../../middlewares/checkJWT');
+const { attachUserDetail } = require('../../middlewares/getUserDetail ');
+const { authorize } = require('../../middlewares/authorize');
+router.use(checkJWT);
+router.use(attachUserDetail)
+router.use(authorize("Dashboard"))  
 
 router.get('/stats', DashboardController.getDashboardStats);
 router.get('/revenue-by-date', DashboardController.getRevenueChartData);

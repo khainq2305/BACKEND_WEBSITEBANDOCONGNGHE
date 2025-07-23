@@ -14,6 +14,7 @@ const FlashSaleCategory = require("./flashsalecategory.model");
 //
 const ReturnRequest = require("./returnRequest");
 const StockLog = require("./StockLog")
+
 const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
 const ProductSpec = require("./productspec.model");
@@ -73,6 +74,7 @@ const CartItem = require("./cartitem");
 
 const ProductVariant = require("./productvariant");
 
+const StockLog = require("./StockLog");
 const Brand = require("./brandModel");
 const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
@@ -103,10 +105,18 @@ SpinHistory.belongsTo(SpinReward, { foreignKey: "reward_id", as: "reward" });
 SpinReward.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
 Coupon.hasMany(SpinReward, { foreignKey: "couponId", as: "rewards" });
 
+const AuditLog = require("./auditlogModel");
+
+AuditLog.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
 // phan quyen
 // User - Role
 User.belongsToMany(Role, {
   through: UserRole, 
+  through: UserRole, // 👈 sửa đây
   foreignKey: "userId",
   otherKey: "roleId",
 });
@@ -159,6 +169,18 @@ ReturnRequestItem.belongsTo(Sku, {
   as: "sku",
 });
 
+//
+
+StockLog.belongsTo(Sku, {
+  foreignKey: "skuId",
+  as: "sku",
+});
+
+Sku.hasMany(StockLog, {
+  foreignKey: "skuId",
+  as: "logs",
+});
+StockLog.belongsTo(User, { foreignKey: "userId", as: "user" });
 //
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
 NotificationUser.belongsTo(User, { foreignKey: "userId" });
@@ -649,6 +671,9 @@ UserPoint.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 
 StockLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 module.exports = {
+  Sequelize,
+  connection,
+  Category,
   User,
   Role,
   Province,
@@ -679,34 +704,51 @@ StockLog,
   Notification,
   NotificationUser,
   CouponItem,
+  UserToken,
+  UserAddress,
+  HighlightedCategoryItem,
   FlashSale,
   FlashSaleItem,
   FlashSaleCategory,
-  UserAddress,
-  Ward,
-  SkuVariantValue,
-  Variant,
-  VariantValue,
-  Brand,
-  HomeSection,
-  HomeSectionBanner,
-  HomeSectionCategory,
-  UserRole,
-  Category,
+  ReturnRequest,
   ProductHomeSection,
   ProductInfo,
   ProductSpec,
+  ProductView,
+  ProductQuestion,
+  ProductAnswer,
+  UserRole,
+  HomeSectionCategory,
+  HomeSection,
+  HomeSectionBanner,
   Post,
-  ProductVariant,
-  Order,
+  categoryPostModel,
   Tags,
   PostTag,
-  OrderItem,
+  Banner,
+  WishlistItem,
+  Wishlist,
+  SystemSetting,
   Review,
   ReviewMedia,
+  Notification,
+  NotificationUser,
+  Order,
+  OrderItem,
   PaymentMethod,
   PaymentTransaction,
+  SearchHistory,
   Coupon,
+  CouponUser,
+  CouponCategory,
+  CouponItem,
+  Cart,
+  CartItem,
+  ProductVariant,
+  StockLog,
+  Brand,
+  Sku,
+  ProductMedia,
   Product,
     ReturnRequestItem,
 
@@ -724,4 +766,12 @@ StockLog,
   UserSpin,
   SpinHistory,
   sequelize: connection,
+  RolePermission,
+  Action,
+  Subject,
+  AuditLog, // <-- Đảm bảo export model này
+  Variant,
+  VariantValue,
+  SkuVariantValue,
+  sequelize: connection, // Thêm dòng này
 };

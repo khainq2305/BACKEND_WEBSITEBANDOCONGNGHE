@@ -18,7 +18,7 @@ const { authorize } = require("../../middlewares/authorize");
 
 router.use(checkJWT)
 router.use(attachUserDetail);
-router.use(authorize("Roles"))
+router.use(authorize("Role"))
 
 router.get('/', RoleController.findAll);
 
