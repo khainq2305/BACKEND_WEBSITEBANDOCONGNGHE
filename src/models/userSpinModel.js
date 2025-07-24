@@ -7,7 +7,7 @@ const UserSpin = sequelize.define('UserSpin', {
   spinDate: { type: DataTypes.DATEONLY, allowNull: false },
   spinsLeft: { type: DataTypes.INTEGER, defaultValue: 1 },
 }, {
-  tableName: 'user_spins',
+  tableName: 'UserSpins',
   timestamps: true,
   indexes: [{ unique: true, fields: ['userId', 'spinDate'] }]
 });
