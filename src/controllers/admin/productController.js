@@ -16,7 +16,15 @@ const {
 } = require("../../models");
 
 const slugify = require("slugify");
-const { Op } = require("sequelize");
+const {
+  generateImageEmbedding,
+} = require("../../services/client/FlaskEmbeddingService");
+
+const axios = require("axios");
+const FormData = require("form-data");
+const { Op, fn, col, literal, Sequelize } = require("sequelize");
+
+const FLASK_EMBED_API_URL = "http://127.0.0.1:8000/embed";
 
 class ProductController {
   static async create(req, res) {

@@ -43,7 +43,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/notification-users', notificationUserRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/roles', roleRoutes);
-router.use('/product', productRoutes); 
+router.use('/', productRoutes); 
 router.use('/users', userRoutes); 
 router.use('/post', postRoutes);
 router.use('/post-category', postCategoryRoutes);
