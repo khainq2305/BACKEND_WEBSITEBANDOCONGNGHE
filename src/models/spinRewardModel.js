@@ -24,7 +24,7 @@ const SpinReward = sequelize.define('SpinReward', {
         defaultValue: true
     }
 }, {
-    tableName: 'spin_rewards',
+    tableName: 'SpinRewards', // ✅ đổi từ 'spin_rewards' sang 'SpinRewards'
     timestamps: true
 });
 

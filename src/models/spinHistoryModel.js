@@ -2,13 +2,26 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const SpinHistory = sequelize.define('SpinHistory', {
-    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    user_id: { type: DataTypes.INTEGER, allowNull: false },
-    reward_id: { type: DataTypes.INTEGER },
-    reward_name: { type: DataTypes.STRING }
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  rewardId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  rewardName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
-    tableName: 'spin_history',
-    timestamps: true
+  tableName: 'spinHistory',
+  timestamps: true,
 });
 
 module.exports = SpinHistory;

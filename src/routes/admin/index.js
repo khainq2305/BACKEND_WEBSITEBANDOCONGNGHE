@@ -34,7 +34,7 @@ const paymentMethodRoutes          = require('./paymentMethodRoutes');
 const shippingProviderRoutes       = require('./shippingProviderRoutes');
 const skuRoutes = require("./sku.route")
 const returnRoutes = require('./returnRoutes');
-router.use('/', returnRoutes); // ✅ THÊM DÒNG NÀY Ở CUỐI NHÓM ROUTES LIÊN QUAN
+router.use('/', returnRoutes); 
 router.use('/system-settings', systemSettingRoutes);
 router.use('/order', orderRoutes);  
 router.use('/tags', tagsRoute)

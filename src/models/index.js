@@ -74,7 +74,6 @@ const CartItem = require("./cartitem");
 
 const ProductVariant = require("./productvariant");
 
-const StockLog = require("./StockLog");
 const Brand = require("./brandModel");
 const Sku = require("./skuModel");
 const ProductMedia = require("./productMediaModel");
@@ -82,9 +81,7 @@ const Product = require("./product");
 const RolePermission = require("./RolePermission");
 const Action = require("./actionModel");
 const Subject = require("./Subject");
-const RolePermission = require('./RolePermission')
-const Action = require('./actionModel')
-const Subject = require('./Subject')
+
 
 // Mini Game
 const SpinReward = require("./spinRewardModel");
@@ -93,14 +90,14 @@ const SpinHistory = require("./spinHistoryModel");
 
 
 // Mini Game
-User.hasMany(UserSpin, { foreignKey: "user_id", as: "spins" });
-UserSpin.belongsTo(User, { foreignKey: "user_id", as: "user" });
+User.hasMany(UserSpin, { foreignKey: "userId", as: "spins" });
+UserSpin.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-User.hasMany(SpinHistory, { foreignKey: "user_id", as: "spinHistories" });
-SpinHistory.belongsTo(User, { foreignKey: "user_id", as: "user" });
+User.hasMany(SpinHistory, { foreignKey: "userId", as: "spinHistories" });
+SpinHistory.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-SpinReward.hasMany(SpinHistory, { foreignKey: "reward_id", as: "histories" });
-SpinHistory.belongsTo(SpinReward, { foreignKey: "reward_id", as: "reward" });
+SpinReward.hasMany(SpinHistory, { foreignKey: "rewardId", as: "histories" });
+SpinHistory.belongsTo(SpinReward, { foreignKey: "rewardId", as: "reward" });
 
 SpinReward.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
 Coupon.hasMany(SpinReward, { foreignKey: "couponId", as: "rewards" });
@@ -171,15 +168,7 @@ ReturnRequestItem.belongsTo(Sku, {
 
 //
 
-StockLog.belongsTo(Sku, {
-  foreignKey: "skuId",
-  as: "sku",
-});
 
-Sku.hasMany(StockLog, {
-  foreignKey: "skuId",
-  as: "logs",
-});
 StockLog.belongsTo(User, { foreignKey: "userId", as: "user" });
 //
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
@@ -669,7 +658,6 @@ UserPoint.belongsTo(User, { foreignKey: "userId", as: "user" });
 Order.hasMany(UserPoint, { foreignKey: "orderId", as: "pointLogs" });
 UserPoint.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 
-StockLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 module.exports = {
   Sequelize,
   connection,
@@ -685,7 +673,6 @@ module.exports = {
 
   ProductQuestion,
   ProductAnswer,
-StockLog,
   Banner,
   ProductView,
   SystemSetting,

@@ -238,7 +238,19 @@ class ProductController {
           );
         }
       }
-
+ try {
+        const embedding = await generateImageEmbedding(finalThumb);
+        if (embedding) {
+          product.imageVector = JSON.stringify(embedding);
+          await product.save({ transaction: t });
+        } else {
+          console.warn(
+            `[ProductController] Không nhận được vector từ Flask cho ${product.id}`
+          );
+        }
+      } catch (err) {
+        console.error(`[ProductController] Lỗi tạo vector từ Flask:`, err);
+      }
       await t.commit();
       return res.status(201).json({
         message: "Thêm sản phẩm thành công",
@@ -341,7 +353,94 @@ class ProductController {
       );
       const finalBadgeImg =
         uploadedBadge?.path || badgeImage || product.badgeImage;
+     let imageVectorValue = product.imageVector; // Giữ vector cũ mặc định
 
+      let imageUrlForVector = finalThumbnail;
+
+      if (hasVariants && skus && skus.length > 0) {
+        const primarySkuData = skus
+          .slice()
+          .sort((a, b) => (a.price || 0) - (b.price || 0))[0];
+
+        if (primarySkuData) {
+          const primarySkuIndex = skus.findIndex(
+            (s) => s.id === primarySkuData.id || !s.id
+          );
+          const newPrimarySkuImageFile = req.files?.find(
+            (f) => f.fieldname === `media_sku_${primarySkuIndex}`
+          );
+
+          if (newPrimarySkuImageFile) {
+            imageUrlForVector = newPrimarySkuImageFile.path;
+          } else if (
+            primarySkuData.mediaUrls &&
+            primarySkuData.mediaUrls.length > 0
+          ) {
+            imageUrlForVector = primarySkuData.mediaUrls[0];
+          }
+        }
+      }
+
+      // `product.imageVectorUrl` là tên cột đúng trong database của bạn nếu bạn có
+      const currentImageUrlInDbForVector = product.imageVectorUrl;
+
+      if (
+        imageUrlForVector &&
+        (imageUrlForVector !== currentImageUrlInDbForVector ||
+          !product.imageVector) && // Dùng product.imageVector
+        (imageUrlForVector.startsWith("http://") ||
+          imageUrlForVector.startsWith("https://"))
+      ) {
+        try {
+          const formDataForFlask = new FormData();
+          const imageRes = await axios.get(imageUrlForVector, {
+            responseType: "arraybuffer",
+          });
+          formDataForFlask.append("image", Buffer.from(imageRes.data), {
+            filename: "image.jpg",
+            contentType: "image/jpeg",
+          });
+
+          const flaskResponse = await axios.post(
+            FLASK_EMBED_API_URL,
+            formDataForFlask,
+            {
+              headers: formDataForFlask.getHeaders(),
+              maxBodyLength: Infinity,
+              maxContentLength: Infinity,
+              timeout: 60000,
+            }
+          );
+
+          const newVector = flaskResponse.data.vector;
+          if (Array.isArray(newVector) && newVector.length > 0) {
+            imageVectorValue = JSON.stringify(newVector); // Gán vào biến `imageVectorValue`
+            // product.imageVectorUrl = imageUrlForVector; // Nếu bạn có cột này và muốn update
+            console.log(
+              `✅ Đã tạo và cập nhật vector ảnh cho sản phẩm ${product.name}`
+            );
+          } else {
+            console.warn(
+              `⚠️ Flask API trả về vector không hợp lệ cho ảnh: ${imageUrlForVector}. Giữ vector cũ.`
+            );
+          }
+        } catch (flaskError) {
+          console.error(
+            `❌ Lỗi khi gửi ảnh đến Flask để tạo vector cho ${imageUrlForVector}:`,
+            flaskError.message
+          );
+        }
+      } else if (
+        !imageUrlForVector ||
+        !(
+          imageUrlForVector.startsWith("http://") ||
+          imageUrlForVector.startsWith("https://")
+        )
+      ) {
+        console.warn(
+          `Ảnh sản phẩm ${product.name} không có URL hợp lệ để tạo vector: ${imageUrlForVector}.`
+        );
+      }
       await product.update(
         {
           name,

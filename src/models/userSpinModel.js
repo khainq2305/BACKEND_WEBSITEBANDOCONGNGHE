@@ -3,13 +3,13 @@ const sequelize = require('../config/database');
 
 const UserSpin = sequelize.define('UserSpin', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  user_id: { type: DataTypes.INTEGER, allowNull: false },
-  spin_date: { type: DataTypes.DATEONLY, allowNull: false },
-  spins_left: { type: DataTypes.INTEGER, defaultValue: 1 }
+  userId: { type: DataTypes.INTEGER, allowNull: false },
+  spinDate: { type: DataTypes.DATEONLY, allowNull: false },
+  spinsLeft: { type: DataTypes.INTEGER, defaultValue: 1 },
 }, {
   tableName: 'user_spins',
   timestamps: true,
-  indexes: [{ unique: true, fields: ['user_id', 'spin_date'] }]
+  indexes: [{ unique: true, fields: ['userId', 'spinDate'] }]
 });
 
 module.exports = UserSpin;
