@@ -4,7 +4,15 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const sendEmail = require("../../utils/sendEmail");
-const { User, Role, UserRole, UserToken, RolePermission, Action, Subject } = require("../../models");
+const {
+  User,
+  Role,
+  UserRole,
+  UserToken,
+  RolePermission,
+  Action,
+  Subject,
+} = require("../../models");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret";
 const BASE_URL = process.env.BASE_URL || "http://localhost:9999";
@@ -666,8 +674,8 @@ class AuthController {
       }
 
       const now = new Date();
-      // const cooldownDuration = 10 * 1000; 10s
-      const cooldownDuration = 60 * 1000; //60s
+
+      const cooldownDuration = 60 * 1000;
 
       const userToken = await UserToken.findOne({
         where: { email, type: "emailVerification" },
@@ -1208,7 +1216,6 @@ class AuthController {
         return res.status(401).json({ message: "Không có token!" });
       }
 
-      // 2) Giải mã token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const userId = decoded.id;
 
@@ -1305,7 +1312,6 @@ class AuthController {
         });
       }
 
-      // 8) Kết quả trả về
       const userResponse = {
         id: userJson.id,
         email: userJson.email,
@@ -1411,7 +1417,6 @@ class AuthController {
       const { token } = req.body;
       if (!token) return res.status(400).json({ message: "Thiếu token!" });
 
-      // ✅ Gọi Google API userinfo
       const { data } = await axios.get(
         "https://www.googleapis.com/oauth2/v3/userinfo",
         {
@@ -1465,13 +1470,6 @@ class AuthController {
         JWT_SECRET,
         { expiresIn: "7d" }
       );
-
-      res.cookie("token", accessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "None",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
 
       return res.status(200).json({
         message: "Đăng nhập Google thành công!",
