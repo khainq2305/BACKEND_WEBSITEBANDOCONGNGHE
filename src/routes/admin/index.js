@@ -34,6 +34,8 @@ const paymentMethodRoutes          = require('./paymentMethodRoutes');
 const shippingProviderRoutes       = require('./shippingProviderRoutes');
 const skuRoutes = require("./sku.route")
 const returnRoutes = require('./returnRoutes');
+
+router.use('/sku', skuRoutes); 
 router.use('/', returnRoutes); 
 router.use('/system-settings', systemSettingRoutes);
 router.use('/order', orderRoutes);  
