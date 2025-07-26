@@ -107,7 +107,7 @@ const validateUpdateProfile = (req, res, next) => {
   const { fullName, dateOfBirth, phone } = req.body;
   const errors = {};
 
-  // Kiểm tra họ tên
+  // Họ tên
   if (!fullName || fullName.trim() === "") {
     errors.fullName = "Họ tên không được để trống!";
   } else {
@@ -117,7 +117,7 @@ const validateUpdateProfile = (req, res, next) => {
     }
   }
 
-  // ✅ Kiểm tra số điện thoại
+  // Số điện thoại
   if (phone) {
     const phoneRegex = /^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-9]|9[0-9])[0-9]{7}$/;
     if (!phoneRegex.test(phone)) {
@@ -125,18 +125,43 @@ const validateUpdateProfile = (req, res, next) => {
     }
   }
 
-  // Kiểm tra ngày sinh
-  if (dateOfBirth) {
-    const birthDate = new Date(dateOfBirth);
+// Kiểm tra ngày sinh
+if (dateOfBirth) {
+  let birthDateObj;
+  try {
+    if (typeof dateOfBirth === "string") {
+      // Trường hợp là JSON string: '{"day":"13","month":"07","year":"2007"}'
+      const parsed = JSON.parse(dateOfBirth);
+      if (parsed?.day && parsed?.month && parsed?.year) {
+        birthDateObj = new Date(`${parsed.year}-${parsed.month}-${parsed.day}`);
+      }
+    } else if (typeof dateOfBirth === "object" && dateOfBirth.day) {
+      // Nếu là object sẵn rồi
+      birthDateObj = new Date(`${dateOfBirth.year}-${dateOfBirth.month}-${dateOfBirth.day}`);
+    } else {
+      birthDateObj = new Date(dateOfBirth); // ISO string
+    }
+
     const now = new Date();
     const maxDate = new Date(now.getFullYear() - 100, now.getMonth(), now.getDate());
+    const minDate = new Date(now.getFullYear() - 13, now.getMonth(), now.getDate());
 
-    if (birthDate > now) {
+    if (isNaN(birthDateObj.getTime())) {
+      errors.dateOfBirth = "Ngày sinh không hợp lệ!";
+    } else if (birthDateObj > now) {
       errors.dateOfBirth = "Ngày sinh không được lớn hơn ngày hiện tại!";
-    } else if (birthDate < maxDate) {
+    } else if (birthDateObj < maxDate) {
       errors.dateOfBirth = "Tuổi không được vượt quá 100!";
+    } else if (birthDateObj > minDate) {
+      errors.dateOfBirth = "Bạn phải từ 13 tuổi trở lên!";
     }
+  } catch (e) {
+    errors.dateOfBirth = "Ngày sinh không hợp lệ!";
   }
+}
+
+
+  // Ảnh đại diện
   const file = req.file;
   if (file) {
     const allowedExt = [".jpg", ".jpeg", ".png"];
@@ -150,12 +175,14 @@ const validateUpdateProfile = (req, res, next) => {
       errors.avatarImage = "Ảnh đại diện không được vượt quá 5MB!";
     }
   }
+
   if (Object.keys(errors).length > 0) {
     return res.status(400).json({ errors });
   }
 
   next();
 };
+
 module.exports = {
   validateRegister,
   validateLogin,
