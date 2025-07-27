@@ -18,6 +18,16 @@ const User = connection.define(
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
+    previousPassword: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Mật khẩu cũ gần nhất (hash)",
+    },
+    passwordChangedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Thời điểm đổi mật khẩu lần cuối",
+    },
 
     email: {
       type: DataTypes.STRING,
@@ -68,39 +78,40 @@ const User = connection.define(
     receivedBirthdayVoucherYear: {
       type: DataTypes.INTEGER,
       allowNull: true,
-    },rewardPoints: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-  defaultValue: 0,
-  comment: "Số điểm tích lũy của người dùng",
-},
+    },
+    rewardPoints: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      comment: "Số điểm tích lũy của người dùng",
+    },
 
-currentTierId: {
-  type: DataTypes.INTEGER,
-  allowNull: true,
-  references: {
-    model: "MembershipTiers", // tên bảng đúng trong DB
-    key: "id",
-  },
-},
-totalSpent: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-  defaultValue: 0,
-},
-totalOrders: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-  defaultValue: 0,
-},
-tierGrantedAt: {
-  type: DataTypes.DATE,
-  allowNull: true,
-},
-tierExpireAt: {
-  type: DataTypes.DATE,
-  allowNull: true,
-},
+    currentTierId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: "MembershipTiers", // tên bảng đúng trong DB
+        key: "id",
+      },
+    },
+    totalSpent: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    totalOrders: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    tierGrantedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    tierExpireAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
 
     lastLoginAt: {
       type: DataTypes.DATE,

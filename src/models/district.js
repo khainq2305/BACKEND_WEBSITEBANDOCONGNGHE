@@ -10,6 +10,11 @@ const District = sequelize.define('District', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  ghnCode: {
+  type: DataTypes.INTEGER,
+  allowNull: true,
+}
+,
   provinceId: {
     type: DataTypes.INTEGER,
     allowNull: false,

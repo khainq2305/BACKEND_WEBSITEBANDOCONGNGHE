@@ -1294,148 +1294,172 @@ static async lookupOrder(req, res) {
   }
 
   static async getShippingOptions(req, res) {
-    try {
-      const { districtId, wardId, items = [] } = req.body;
+  try {
+    const { districtId, wardId, items = [] } = req.body;
 
-      console.log("[getShippingOptions] Payload:", {
-        districtId,
-        wardId,
-        itemsCount: items.length,
-      });
+    console.log("[getShippingOptions] Payload:", {
+      districtId,
+      wardId,
+      itemsCount: items.length,
+    });
 
-      // 1️⃣ Lấy tỉnh/huyện/xã
-      const district = await District.findByPk(districtId, {
-        include: [Province],
-      });
-      const ward = await Ward.findByPk(wardId);
+    // 1️⃣ Lấy tỉnh/huyện/xã
+    const district = await District.findByPk(districtId, { include: [Province] });
+    const ward = await Ward.findByPk(wardId);
 
-      if (!district || !district.Province)
-        return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
-      if (!ward)
-        return res.status(400).json({ message: "Không tìm thấy phường/xã." });
+    if (!district || !district.Province)
+      return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
+    if (!ward)
+      return res.status(400).json({ message: "Không tìm thấy phường/xã." });
 
-      const toProvinceName = district.Province.name;
-      const toDistrictName = district.name;
-      const toWardName = ward.name;
+    const toProvinceName = district.Province.name;
+    const toDistrictName = district.name;
+    const toWardName = ward.name;
 
-      const toProvinceId = district.Province.id;
-      const toDistrictId = district.id;
-      const toWardId = ward.id;
+    const toProvinceId = district.Province.id;
+    const toDistrictId = district.id;
+    const toWardId = ward.id;
 
-      console.log("[getShippingOptions] Địa chỉ:", {
-        province: toProvinceName,
-        district: toDistrictName,
-        ward: toWardName,
-      });
+    console.log("[getShippingOptions] Địa chỉ:", {
+      province: toProvinceName,
+      district: toDistrictName,
+      ward: toWardName,
+    });
 
-      // 2️⃣ Tính trọng lượng và kích thước
-      const skuList = await Sku.findAll({
-        where: { id: items.map((i) => i.skuId) },
-      });
-      const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
+    // 2️⃣ Tính trọng lượng và kích thước
+    const skuList = await Sku.findAll({
+      where: { id: items.map((i) => i.skuId) },
+    });
+    const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
 
-      let weight = 0,
-        maxL = 0,
-        maxW = 0,
-        maxH = 0;
-      for (const it of items) {
-        const sku = skuMap[it.skuId];
-        if (!sku) continue;
+    let weight = 0,
+      maxL = 0,
+      maxW = 0,
+      maxH = 0;
+    for (const it of items) {
+      const sku = skuMap[it.skuId];
+      if (!sku) continue;
 
-        weight += (sku.weight || 500) * it.quantity;
-        maxL = Math.max(maxL, sku.length || 10);
-        maxW = Math.max(maxW, sku.width || 10);
-        maxH = Math.max(maxH, sku.height || 10);
-      }
-
-      weight ||= 1;
-      maxL ||= 1;
-      maxW ||= 1;
-      maxH ||= 1;
-
-      const orderValue = items.reduce(
-        (sum, it) => sum + (it.price || 0) * (it.quantity || 1),
-        0
-      );
-
-      console.log("[getShippingOptions] Kích thước kiện:", {
-        weight,
-        length: maxL,
-        width: maxW,
-        height: maxH,
-        orderValue,
-      });
-
-      // 3️⃣ Lấy các hãng vận chuyển đang hoạt động (bỏ jnt)
-      const providers = await ShippingProvider.findAll({
-        where: {
-          isActive: true,
-          code: { [Op.ne]: "jnt" },
-        },
-      });
-
-      if (!providers.length)
-        return res
-          .status(404)
-          .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
-
-      // 4️⃣ Tính phí cho từng hãng
-      const options = await Promise.all(
-        providers.map(async (p) => {
-          try {
-            const isVTP = p.code === "vtp";
-
-            const { fee, leadTime } = await ShippingService.calcFee({
-              providerId: p.id,
-
-              toProvince: isVTP ? toProvinceId : toProvinceName,
-              toDistrict: isVTP ? toDistrictId : toDistrictName,
-              toWard: isVTP ? toWardId : toWardName,
-
-              provinceName: toProvinceName,
-              districtName: toDistrictName,
-              wardName: toWardName,
-
-              weight,
-              length: maxL,
-              width: maxW,
-              height: maxH,
-              orderValue,
-            });
-
-            return {
-              providerId: p.id,
-              code: p.code,
-              name: p.name,
-              fee,
-              leadTime,
-            };
-          } catch (err) {
-            console.warn(
-              `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) –`,
-              `Tỉnh: ${toProvinceName}, Huyện: ${toDistrictName}, Xã: ${toWardName} –`,
-              err?.response?.data || err.message
-            );
-            return null;
-          }
-        })
-      );
-
-      const available = options.filter(Boolean);
-      if (!available.length)
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
-
-      return res.json({ data: available });
-    } catch (err) {
-      console.error("[getShippingOptions] Lỗi server:", err);
-      return res.status(500).json({
-        message: "Lỗi server khi lấy phương thức vận chuyển",
-        error: err.message,
-      });
+      weight += (sku.weight || 500) * it.quantity;
+      maxL = Math.max(maxL, sku.length || 10);
+      maxW = Math.max(maxW, sku.width || 10);
+      maxH = Math.max(maxH, sku.height || 10);
     }
+
+    weight ||= 1;
+    maxL ||= 1;
+    maxW ||= 1;
+    maxH ||= 1;
+
+    const orderValue = items.reduce(
+      (sum, it) => sum + (it.price || 0) * (it.quantity || 1),
+      0
+    );
+
+    console.log("[getShippingOptions] Kích thước kiện:", {
+      weight,
+      length: maxL,
+      width: maxW,
+      height: maxH,
+      orderValue,
+    });
+
+    // 3️⃣ Lấy các hãng vận chuyển đang hoạt động (bỏ jnt)
+    const providers = await ShippingProvider.findAll({
+      where: {
+        isActive: true,
+        code: { [Op.ne]: "jnt" },
+      },
+    });
+
+    if (!providers.length)
+      return res
+        .status(404)
+        .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
+
+    // 4️⃣ Tính phí cho từng hãng
+    const options = await Promise.all(
+      providers.map(async (p) => {
+        try {
+          const isVTP = p.code === "vtp";
+          const isGHN = p.code === "ghn";
+
+          let mappedGhnCodes = {};
+          if (isGHN) {
+            const { getGhnCodesFromLocalDb } = require("../../services/client/drivers/ghnService");
+            mappedGhnCodes = await getGhnCodesFromLocalDb({
+              province: toProvinceId,
+              district: toDistrictId,
+              ward: toWardId,
+            });
+          }
+
+          const { fee, leadTime } = await ShippingService.calcFee({
+            providerId: p.id,
+
+            toProvince: isGHN
+              ? mappedGhnCodes.ghnProvId
+              : isVTP
+              ? toProvinceId
+              : toProvinceName,
+
+            toDistrict: isGHN
+              ? mappedGhnCodes.ghnDistId
+              : isVTP
+              ? toDistrictId
+              : toDistrictName,
+
+            toWard: isGHN
+              ? mappedGhnCodes.ghnWardCode
+              : isVTP
+              ? toWardId
+              : toWardName,
+
+            provinceName: toProvinceName,
+            districtName: toDistrictName,
+            wardName: toWardName,
+
+            weight,
+            length: maxL,
+            width: maxW,
+            height: maxH,
+            orderValue,
+          });
+
+          return {
+            providerId: p.id,
+            code: p.code,
+            name: p.name,
+            fee,
+            leadTime,
+          };
+        } catch (err) {
+          console.warn(
+            `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) –`,
+            `Tỉnh: ${toProvinceName}, Huyện: ${toDistrictName}, Xã: ${toWardName} –`,
+            err?.response?.data || err.message
+          );
+          return null;
+        }
+      })
+    );
+
+    const available = options.filter(Boolean);
+    if (!available.length)
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
+
+    return res.json({ data: available });
+  } catch (err) {
+    console.error("[getShippingOptions] Lỗi server:", err);
+    return res.status(500).json({
+      message: "Lỗi server khi lấy phương thức vận chuyển",
+      error: err.message,
+    });
   }
+}
+
 }
 
 module.exports = OrderController;

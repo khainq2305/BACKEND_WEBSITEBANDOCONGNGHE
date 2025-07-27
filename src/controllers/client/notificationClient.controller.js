@@ -73,68 +73,87 @@ const NotificationClientController = {
     }
   },
 
-  async markAllAsRead(req, res) {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
+ async markAllAsRead(req, res) {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
 
-    try {
-      const notifications = await Notification.findAll({
-        where: {
-          isActive: true,
-          startAt: { [Op.lte]: new Date() },
-          [Op.or]: [
-            { isGlobal: true },
-            { "$notificationUsers.userId$": userId },
-          ],
-        },
-        include: [
-          {
-            model: NotificationUser,
-            as: "notificationUsers",
-            required: false,
-            where: { userId },
-            attributes: ["isRead", "readAt"],
-          },
+  try {
+    console.log("🔍 [DEBUG] Bắt đầu markAllAsRead cho userId:", userId);
+
+    const notifications = await Notification.findAll({
+      where: {
+        isActive: true,
+        startAt: { [Op.lte]: new Date() },
+        [Op.or]: [
+          { isGlobal: true },
+          { "$notificationUsers.userId$": userId },
         ],
-        order: [["startAt", "DESC"]],
-      });
+      },
+      include: [
+        {
+          model: NotificationUser,
+          as: "notificationUsers",
+          required: false,
+          where: { userId },
+          attributes: ["id", "isRead", "readAt"],
+        },
+      ],
+      order: [["startAt", "DESC"]],
+    });
 
-      const toUpdate = [];
-      const toInsert = [];
+    console.log("🔍 [DEBUG] Tổng thông báo tìm thấy:", notifications.length);
 
-      for (const notif of notifications) {
-        const link = notif.notificationUsers?.[0];
-        if (link) {
-          if (!link.isRead) {
-            toUpdate.push(link.id);
-          }
-        } else {
-          toInsert.push({
-            notificationId: notif.id,
-            userId,
-            isRead: true,
-            readAt: new Date(),
+    const toUpdate = [];
+    const toInsert = [];
+
+    for (const notif of notifications) {
+      const link = notif.notificationUsers?.[0];
+
+      if (link) {
+        if (!link.isRead) {
+          console.log("📌 [UPDATE] Thông báo cần update:", {
+            id: link.id,
+            notifId: notif.id,
+            title: notif.title,
           });
+          toUpdate.push(link.id);
         }
+      } else {
+        console.log("📌 [INSERT] Global notif chưa có bản ghi:", {
+          notifId: notif.id,
+          title: notif.title,
+        });
+        toInsert.push({
+          notificationId: notif.id,
+          userId,
+          isRead: true,
+          readAt: new Date(),
+        });
       }
-
-      if (toInsert.length > 0) {
-        await NotificationUser.bulkCreate(toInsert);
-      }
-
-      if (toUpdate.length > 0) {
-        await NotificationUser.update(
-          { isRead: true, readAt: new Date() },
-          { where: { id: toUpdate } }
-        );
-      }
-
-      return res.json({ message: "Đã đánh dấu đã đọc tất cả" });
-    } catch (err) {
-      console.error("Lỗi markAllAsRead:", err);
-      return res.status(500).json({ message: "Lỗi server" });
     }
-  },
+
+    if (toInsert.length > 0) {
+      console.log("🚀 [DEBUG] Đang tạo mới bản ghi NotificationUser:", toInsert.length);
+      await NotificationUser.bulkCreate(toInsert);
+    }
+
+    if (toUpdate.length > 0) {
+      console.log("🚀 [DEBUG] Đang update các bản ghi NotificationUser:", toUpdate.length);
+      await NotificationUser.update(
+        { isRead: true, readAt: new Date() },
+        { where: { id: toUpdate } }
+      );
+    }
+
+    console.log("✅ [DEBUG] Đã xử lý xong markAllAsRead");
+
+    return res.json({ message: "Đã đánh dấu đã đọc tất cả" });
+  } catch (err) {
+    console.error("❌ [ERROR] markAllAsRead:", err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
 };
 
 module.exports = NotificationClientController;

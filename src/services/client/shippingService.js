@@ -183,16 +183,23 @@ class ShippingService {
             finalWard = wdCode;
         }
 
-        const finalService =
-            serviceCode ||
-            (await driver.getDefaultService({
-                toProvince: finalProvince,
-                toDistrict: finalDistrict,
-            }));
+   let finalService = serviceCode;
 
-        if (!finalService) {
-            throw new Error(`Không tìm thấy dịch vụ giao hàng cho ${provider.code}`);
-        }
+if (!finalService && provider.code === 'ghn') {
+  finalService = await driver.getDefaultService({
+    toDistrict: finalDistrict, // finalDistrict lúc này là GHN District ID
+  });
+}
+
+if (!finalService && provider.code === 'vtp') {
+  finalService = await driver.getDefaultService({
+    toProvince: finalProvince,
+    toDistrict: finalDistrict,
+  });
+}
+
+// Các hãng khác nếu cần getDefaultService thì viết thêm ở đây
+
 
         return driver.getFee({
             toProvince: finalProvince,

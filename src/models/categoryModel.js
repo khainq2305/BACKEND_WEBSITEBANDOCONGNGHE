@@ -12,10 +12,10 @@ const Category = sequelize.define('Category', {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
-description: {
-  type: DataTypes.TEXT('long'),
-  allowNull: true,
-},
+  description: {
+    type: DataTypes.TEXT('long'),
+    allowNull: true,
+  },
 
   thumbnail: {
     type: DataTypes.STRING(255),
@@ -30,11 +30,11 @@ description: {
     allowNull: true,
     defaultValue: true,
   },
-     slug: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      unique: true,    
-    },
+  slug: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: true,
+  },
   sortOrder: {
     type: DataTypes.INTEGER,
     allowNull: true,
@@ -43,7 +43,7 @@ description: {
 }, {
   tableName: 'categories',
   timestamps: true,
-  paranoid: true, // để dùng deletedAt
+  paranoid: true,
   underscored: false,
 });
 

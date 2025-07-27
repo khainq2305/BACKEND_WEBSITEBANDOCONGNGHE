@@ -185,12 +185,12 @@ class CategoryProductController {
     try {
       let ids = [];
 
-      // ✅ Xử lý ID đơn (xóa mềm 1)
+      
       if (req.params.id) {
         ids = [parseInt(req.params.id)];
       }
 
-      // ✅ Xử lý nhiều ID (xóa mềm nhiều)
+      
       if (Array.isArray(req.body.ids)) {
         ids = req.body.ids.map((id) => parseInt(id));
       }
@@ -199,13 +199,13 @@ class CategoryProductController {
         return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
       }
 
-      // ✅ Lấy toàn bộ danh mục (cả đã xóa)
+      
       const allCategories = await Category.findAll({
         paranoid: false,
         raw: true,
       });
 
-      // ✅ Tạo map parentId → children[]
+      
       const map = {};
       for (const cat of allCategories) {
         const parent = cat.parentId || 0;
@@ -213,7 +213,7 @@ class CategoryProductController {
         map[parent].push(cat);
       }
 
-      // ✅ Đệ quy lấy toàn bộ con cháu
+     
       const collectAllIds = (rootIds) => {
         const result = new Set(rootIds);
         const stack = [...rootIds];
