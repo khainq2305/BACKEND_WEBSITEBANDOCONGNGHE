@@ -1,42 +1,39 @@
-const { Banner } = require('../models');
-const validator = require('validator');
-const path = require('path');
-const slugify = require('slugify');
-const { Op } = require('sequelize');
+const { Banner } = require("../models");
+const validator = require("validator");
+const path = require("path");
+const slugify = require("slugify");
+const { Op } = require("sequelize");
 
 const validateBanner = async (req, res, next) => {
-  const {
-    title,
-    type,
-    startDate,
-    endDate,
-    displayOrder
-  } = req.body;
+  const { title, type, startDate, endDate, displayOrder } = req.body;
 
   const errors = [];
   const isEdit = !!req.params?.slug;
   let currentBannerId = null;
 
-  // === Lấy id thật từ slug nếu đang sửa ===
   if (isEdit) {
-    const existingBanner = await Banner.findOne({ where: { slug: req.params.slug } });
+    const existingBanner = await Banner.findOne({
+      where: { slug: req.params.slug },
+    });
     if (!existingBanner) {
-      return res.status(404).json({ message: 'Không tìm thấy banner cần sửa' });
+      return res.status(404).json({ message: "Không tìm thấy banner cần sửa" });
     }
     currentBannerId = existingBanner.id;
   }
 
-  // === 1. Bắt buộc nhập ===
-  if (!title || typeof title !== 'string' || !title.trim()) {
-    errors.push({ field: 'title', message: 'Tiêu đề không được để trống' });
+  if (!title || typeof title !== "string" || !title.trim()) {
+    errors.push({ field: "title", message: "Tiêu đề không được để trống" });
   }
 
-  if (!type || typeof type !== 'string' || !type.trim()) {
-    errors.push({ field: 'type', message: 'Loại hiển thị là bắt buộc' });
+  if (!type || typeof type !== "string" || !type.trim()) {
+    errors.push({ field: "type", message: "Loại hiển thị là bắt buộc" });
   }
 
   if (displayOrder !== undefined && isNaN(Number(displayOrder))) {
-    errors.push({ field: 'displayOrder', message: 'Thứ tự hiển thị phải là số' });
+    errors.push({
+      field: "displayOrder",
+      message: "Thứ tự hiển thị phải là số",
+    });
   }
 
   // === 2. Ngày
@@ -44,34 +41,34 @@ const validateBanner = async (req, res, next) => {
   const isValidEnd = endDate && validator.isISO8601(endDate);
 
   if (startDate && !isValidStart) {
-    errors.push({ field: 'startDate', message: 'Ngày bắt đầu không hợp lệ' });
+    errors.push({ field: "startDate", message: "Ngày bắt đầu không hợp lệ" });
   }
 
   if (endDate && !isValidEnd) {
-    errors.push({ field: 'endDate', message: 'Ngày kết thúc không hợp lệ' });
+    errors.push({ field: "endDate", message: "Ngày kết thúc không hợp lệ" });
   }
 
   if (isValidStart && isValidEnd && new Date(startDate) > new Date(endDate)) {
-    errors.push({ field: 'endDate', message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+    errors.push({
+      field: "endDate",
+      message: "Ngày kết thúc phải sau ngày bắt đầu",
+    });
   }
 
-  // === 3. Ảnh nếu tạo mới
   if (!isEdit && (!req.file || !req.file.path)) {
-    errors.push({ field: 'image', message: 'Vui lòng chọn ảnh banner' });
+    errors.push({ field: "image", message: "Vui lòng chọn ảnh banner" });
   }
 
-  // === 4. Kiểm tra định dạng ảnh
   if (req.file && req.file.originalname) {
     const ext = path.extname(req.file.originalname).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+    if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
       errors.push({
-        field: 'image',
-        message: 'Chỉ chấp nhận định dạng ảnh .jpg, .jpeg hoặc .png'
+        field: "image",
+        message: "Chỉ chấp nhận định dạng ảnh .jpg, .jpeg hoặc .png",
       });
     }
   }
 
-  // === 5. Kiểm tra trùng slug tiêu đề
   const slug = slugify(title.trim(), { lower: true, strict: true });
   const slugCheckWhere = { slug };
 
@@ -81,7 +78,7 @@ const validateBanner = async (req, res, next) => {
 
   const existing = await Banner.findOne({ where: slugCheckWhere });
   if (existing) {
-    errors.push({ field: 'title', message: 'Tiêu đề đã tồn tại' });
+    errors.push({ field: "title", message: "Tiêu đề đã tồn tại" });
   }
 
   if (errors.length > 0) {

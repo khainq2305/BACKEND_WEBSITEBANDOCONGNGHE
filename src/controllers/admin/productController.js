@@ -246,7 +246,7 @@ class ProductController {
           );
         }
       }
- try {
+      try {
         const embedding = await generateImageEmbedding(finalThumb);
         if (embedding) {
           product.imageVector = JSON.stringify(embedding);
@@ -330,13 +330,14 @@ class ProductController {
         }
       }
 
-      // Xử lý thứ tự
       if (orderIndex !== undefined && orderIndex !== product.orderIndex) {
         if (orderIndex > product.orderIndex) {
           await Product.decrement("orderIndex", {
             by: 1,
             where: {
+              categoryId,
               orderIndex: { [Op.gt]: product.orderIndex, [Op.lte]: orderIndex },
+              deletedAt: null,
             },
             transaction: t,
           });
@@ -344,7 +345,9 @@ class ProductController {
           await Product.increment("orderIndex", {
             by: 1,
             where: {
+              categoryId,
               orderIndex: { [Op.gte]: orderIndex, [Op.lt]: product.orderIndex },
+              deletedAt: null,
             },
             transaction: t,
           });
@@ -361,7 +364,7 @@ class ProductController {
       );
       const finalBadgeImg =
         uploadedBadge?.path || badgeImage || product.badgeImage;
-     let imageVectorValue = product.imageVector; // Giữ vector cũ mặc định
+      let imageVectorValue = product.imageVector; // Giữ vector cũ mặc định
 
       let imageUrlForVector = finalThumbnail;
 
@@ -647,6 +650,56 @@ class ProductController {
         .json({ message: "Lỗi server", error: error.message });
     }
   }
+  static async updateOrderIndexBulk(req, res) {
+    const t = await Product.sequelize.transaction();
+    try {
+      const { items } = req.body;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Danh sách không hợp lệ." });
+      }
+
+      // ✅ Kiểm tra định dạng từng item
+      for (const item of items) {
+        if (!item.id || item.orderIndex == null || item.categoryId == null) {
+          return res.status(400).json({ message: "Thiếu thông tin sản phẩm." });
+        }
+      }
+
+      // ✅ Kiểm tra toàn bộ cùng categoryId
+      const categoryIds = [...new Set(items.map((item) => item.categoryId))];
+      if (categoryIds.length !== 1) {
+        return res.status(400).json({ message: "Chỉ được sắp xếp sản phẩm trong cùng một danh mục." });
+      }
+
+      const categoryId = categoryIds[0];
+
+      // ✅ Cập nhật
+      for (const item of items) {
+        await Product.update(
+          { orderIndex: item.orderIndex },
+          {
+            where: {
+              id: item.id,
+              categoryId: categoryId // chỉ cập nhật nếu cùng danh mục
+            },
+            transaction: t
+          }
+        );
+      }
+
+      await t.commit();
+      return res.json({ message: "Cập nhật thứ tự thành công!" });
+    } catch (error) {
+      if (!t.finished) await t.rollback();
+      console.error("updateOrderIndexBulk LỖI:", error);
+      return res.status(500).json({
+        message: "Lỗi cập nhật thứ tự sản phẩm.",
+        error: error.message
+      });
+    }
+  }
+
 
   static async getAll(req, res) {
     try {
@@ -693,27 +746,59 @@ class ProductController {
               as: "category",
               attributes: ["id", "name"],
             },
+            {
+              model: Sku,
+              as: "skus",
+              attributes: ["stock"],
+            },
           ],
           attributes: {
             include: ["deletedAt"],
           },
-          order: [["orderIndex", "ASC"]],
+          order: categoryId
+            ? [["orderIndex", "ASC"]]
+            : [["createdAt", "DESC"]],
+
           offset: parseInt(offset),
           limit: parseInt(limit),
           paranoid,
         });
+      for (const p of products) {
+        const stocks = p.skus?.map((sku) => sku.stock || 0) || [];
+        const totalStock = stocks.reduce((sum, val) => sum + val, 0);
+        const anyLow = stocks.some((s) => s <= 5);
+
+        p.setDataValue('totalStock', totalStock);
+        p.setDataValue('lowStockWarning', anyLow);
+      }
+
 
       const totalPages = Math.ceil(totalItems / limit);
-
-      // Đếm số lượng theo từng loại
-      const [activeCount, inactiveCount, deletedCount] = await Promise.all([
-        Product.count({ where: { isActive: true, deletedAt: null } }),
-        Product.count({ where: { isActive: false, deletedAt: null } }),
-        Product.count({
-          where: { deletedAt: { [Op.ne]: null } },
-          paranoid: false,
-        }),
-      ]);
+      const [activeCount, inactiveCount, deletedCount, lowStockCount] =
+        await Promise.all([
+          Product.count({ where: { isActive: true, deletedAt: null } }),
+          Product.count({ where: { isActive: false, deletedAt: null } }),
+          Product.count({
+            where: { deletedAt: { [Op.ne]: null } },
+            paranoid: false,
+          }),
+          Product.count({
+            include: [
+              {
+                model: Sku,
+                as: "skus",
+                attributes: [],
+                where: {
+                  stock: { [Op.lte]: 5 },
+                },
+                required: true,
+              },
+            ],
+            where: {
+              deletedAt: null,
+            },
+          }),
+        ]);
 
       res.json({
         data: products,
@@ -728,6 +813,7 @@ class ProductController {
           active: activeCount,
           inactive: inactiveCount,
           deleted: deletedCount,
+          lowStock: lowStockCount,
         },
       });
     } catch (error) {
@@ -890,13 +976,13 @@ class ProductController {
             length: sku.length,
             weight: sku.weight,
             description: sku.description,
-          mediaUrls: (sku.ProductMedia || [])
-  .sort((a, b) => a.sortOrder - b.sortOrder)
-  .map((m) => ({
-    id: m.mediaUrl, // tạm lấy mediaUrl làm id
-    url: m.mediaUrl,
-    type: m.type || getFileType(m.mediaUrl),
-  })),
+            mediaUrls: (sku.ProductMedia || [])
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((m) => ({
+                id: m.mediaUrl, // tạm lấy mediaUrl làm id
+                url: m.mediaUrl,
+                type: m.type || getFileType(m.mediaUrl),
+              })),
 
             variantValueIds,
             selectedValues,
@@ -1184,32 +1270,7 @@ class ProductController {
         .json({ message: "Lỗi server", error: error.message });
     }
   }
-  static async updateOrderIndexBulk(req, res) {
-    const t = await Product.sequelize.transaction();
-    try {
-      const { items } = req.body;
 
-      if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: "Danh sách không hợp lệ" });
-      }
-
-      for (const item of items) {
-        await Product.update(
-          { orderIndex: item.orderIndex },
-          { where: { id: item.id }, transaction: t }
-        );
-      }
-
-      await t.commit();
-      return res.json({ message: "Cập nhật thứ tự thành công!" });
-    } catch (error) {
-      if (!t.finished) await t.rollback();
-      console.error("updateOrderIndexBulk LỖI:", error);
-      return res
-        .status(500)
-        .json({ message: "Lỗi cập nhật thứ tự", error: error.message });
-    }
-  }
 }
 
 module.exports = ProductController;
