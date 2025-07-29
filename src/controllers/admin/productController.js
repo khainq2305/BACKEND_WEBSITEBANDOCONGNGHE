@@ -659,14 +659,14 @@ class ProductController {
         return res.status(400).json({ message: "Danh sách không hợp lệ." });
       }
 
-      // ✅ Kiểm tra định dạng từng item
+ 
       for (const item of items) {
         if (!item.id || item.orderIndex == null || item.categoryId == null) {
           return res.status(400).json({ message: "Thiếu thông tin sản phẩm." });
         }
       }
 
-      // ✅ Kiểm tra toàn bộ cùng categoryId
+    
       const categoryIds = [...new Set(items.map((item) => item.categoryId))];
       if (categoryIds.length !== 1) {
         return res.status(400).json({ message: "Chỉ được sắp xếp sản phẩm trong cùng một danh mục." });
@@ -674,14 +674,14 @@ class ProductController {
 
       const categoryId = categoryIds[0];
 
-      // ✅ Cập nhật
+    
       for (const item of items) {
         await Product.update(
           { orderIndex: item.orderIndex },
           {
             where: {
               id: item.id,
-              categoryId: categoryId // chỉ cập nhật nếu cùng danh mục
+              categoryId: categoryId 
             },
             transaction: t
           }
@@ -1081,7 +1081,7 @@ class ProductController {
       }
 
       await product.restore();
-      const restoredProduct = await Product.findOne({ where: { id } }); // <-- Lấy lại bản ghi mới nhất
+      const restoredProduct = await Product.findOne({ where: { id } }); 
       req.auditNewValue = restoredProduct.toJSON();
       res.json({ message: "Đã khôi phục sản phẩm", data: restoredProduct });
     } catch (error) {

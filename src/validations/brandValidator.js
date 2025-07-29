@@ -2,12 +2,12 @@ const { Brand } = require('../models');
 const { Op } = require('sequelize');
 
 const validateBrand = async (req, res, next) => {
-  const { name, description, isActive } = req.body;
+  const { name, description } = req.body;
+  let isActive = req.body.isActive;
   const file = req.file;
-  const slug = req.params.slug; 
+  const slug = req.params.slug;
   let excludeId = null;
 
- 
   if (req.method === 'PUT' && slug) {
     const brand = await Brand.findOne({ where: { slug }, paranoid: false });
     if (brand) {
@@ -35,20 +35,19 @@ const validateBrand = async (req, res, next) => {
     return res.status(400).json({ field: 'description', message: 'Mô tả phải là một chuỗi!' });
   }
 
-  const validStatus = ['1', '0', 1, 0];
-  if (isActive !== undefined && !validStatus.includes(isActive)) {
-    return res.status(400).json({ field: 'isActive', message: 'Trạng thái phải là 1 (hiển thị) hoặc 0 (ẩn)' });
+  
+  if (isActive !== undefined) {
+    const validStatus = ['1', '0', 1, 0, true, false, 'true', 'false'];
+    if (!validStatus.includes(isActive)) {
+      return res.status(400).json({ field: 'isActive', message: 'Trạng thái phải là 1 (hiển thị) hoặc 0 (ẩn)' });
+    }
+    req.body.isActive = ['1', 1, true, 'true'].includes(isActive) ? 1 : 0;
   }
-
-  req.body.isActive = Number(isActive) === 1 ? 1 : 0;
 
   const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
   const maxSize = 5 * 1024 * 1024;
 
-  if (req.method === 'POST') {
-    if (!file) {
-      return res.status(400).json({ field: 'logoUrl', message: 'Vui lòng chọn ảnh logo cho thương hiệu!' });
-    }
+  if (req.method === 'POST' && file) {
     if (!allowedTypes.includes(file.mimetype)) {
       return res.status(400).json({ field: 'logoUrl', message: 'Chỉ chấp nhận ảnh PNG, JPG, JPEG' });
     }
@@ -69,7 +68,6 @@ const validateBrand = async (req, res, next) => {
   next();
 };
 
-
 module.exports = {
-    validateBrand,
+  validateBrand,
 };

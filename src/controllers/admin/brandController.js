@@ -144,64 +144,63 @@ class BrandController {
     }
   }
 
-  static async create(req, res) {
-    try {
-      const { name, description, isActive, orderIndex } = req.body;
-      const logoUrl = req.file?.path;
+ static async create(req, res) {
+  try {
+    const { name, description, orderIndex } = req.body;
+    const logoUrl = req.file?.path;
+    let isActive = req.body.isActive;
 
-      if (!logoUrl) {
-        return res.status(400).json({
-          field: "logoUrl",
-          message: "Vui lòng chọn ảnh logoUrl cho thương hiệu!",
-        });
-      }
-
-      if (!name || name.trim() === "") {
-        return res.status(400).json({
-          field: "name",
-          message: "Tên thương hiệu là bắt buộc!",
-        });
-      }
-
-      const slug = slugify(name, { lower: true, strict: true });
-
-      let finalOrderIndex = Number(orderIndex);
-      if (isNaN(finalOrderIndex)) {
-        const maxOrder = (await Brand.max("orderIndex")) || 0;
-        finalOrderIndex = maxOrder + 1;
-      } else {
-        // Nếu người dùng nhập orderIndex thì đẩy các mục >= xuống
-        await Brand.increment("orderIndex", {
-          by: 1,
-          where: {
-            orderIndex: {
-              [Op.gte]: finalOrderIndex,
-            },
-          },
-        });
-      }
-
-      const brand = await Brand.create({
-        name,
-        slug,
-        description,
-        logoUrl,
-        isActive: Number(isActive) === 1 || isActive === true,
-        orderIndex: finalOrderIndex,
-      });
-
-      return res.status(201).json({
-        message: "Tạo brand thành công",
-        data: brand,
-      });
-    } catch (error) {
-      console.error("Lỗi tạo brand:", error);
-      return res.status(500).json({
-        message: "Lỗi server khi tạo brand",
-        error: error.message,
+    if (!name || name.trim() === "") {
+      return res.status(400).json({
+        field: "name",
+        message: "Tên thương hiệu là bắt buộc!",
       });
     }
+
+    // Mặc định isActive = true nếu không gửi
+    isActive = Number(isActive ?? 1) === 1;
+
+    const slug = slugify(name, { lower: true, strict: true });
+
+    let finalOrderIndex = Number(orderIndex);
+    if (isNaN(finalOrderIndex)) {
+      const maxOrder = (await Brand.max("orderIndex")) || 0;
+      finalOrderIndex = maxOrder + 1;
+    } else {
+      // Nếu người dùng nhập orderIndex thì đẩy các mục >= xuống
+      await Brand.increment("orderIndex", {
+        by: 1,
+        where: {
+          orderIndex: {
+            [Op.gte]: finalOrderIndex,
+          },
+        },
+      });
+    }
+
+    const brand = await Brand.create({
+      name,
+      slug,
+      description,
+      logoUrl,
+      isActive,
+      orderIndex: finalOrderIndex,
+    });
+
+    return res.status(201).json({
+      message: "Tạo thương hiệu thành công",
+      data: brand,
+    });
+  } catch (error) {
+    console.error("Lỗi tạo brand:", error);
+    return res.status(500).json({
+      message: "Lỗi server khi tạo thương hiệu",
+      error: error.message,
+    });
   }
+}
+
+
 
   static async softDelete(req, res) {
     try {

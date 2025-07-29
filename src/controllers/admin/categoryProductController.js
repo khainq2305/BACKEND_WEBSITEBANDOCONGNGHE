@@ -173,7 +173,8 @@ class CategoryProductController {
         thumbnail,
       });
 
-      return res.status(201).json(newCategory);
+    return res.status(201).json({ message: "Thêm thành công", data: newCategory });
+
     } catch (err) {
       console.error("Lỗi tạo danh mục:", err);
       return res
