@@ -1,7 +1,7 @@
 const { ShippingProvider } = require("../../models");
 
 class ShippingProviderController {
-  // GET /api/shipping-providers?active=1|0
+ 
   static async getAll(req, res) {
     try {
       const { active } = req.query;
@@ -16,7 +16,7 @@ class ShippingProviderController {
     }
   }
 
-  // POST /api/shipping-providers
+ 
   static async create(req, res) {
     try {
       const { code, name, isActive = true } = req.body;
@@ -32,7 +32,7 @@ class ShippingProviderController {
     }
   }
 
-  // PUT /api/shipping-providers/:id
+  
   static async update(req, res) {
     try {
       const { id } = req.params;
@@ -49,7 +49,7 @@ class ShippingProviderController {
     }
   }
 
-  // PATCH /api/shipping-providers/:id/toggle
+
   static async toggleActive(req, res) {
     try {
       const { id } = req.params;

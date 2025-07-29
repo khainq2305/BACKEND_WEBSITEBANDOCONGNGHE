@@ -124,144 +124,196 @@ class FlashSaleController {
     }
   }
 
-  static async update(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { slug } = req.params;
+static async update(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { slug } = req.params;
 
-      const flashSale = await FlashSale.findOne({ where: { slug } });
-      if (!flashSale) {
-        return res.status(404).json({ message: "Không tìm thấy" });
-      }
-
-      const { title, description, startTime, endTime, isActive, bgColor } =
-        req.body;
-
-      const items = req.body.items ? JSON.parse(req.body.items) : [];
-      const categories = req.body.categories
-        ? JSON.parse(req.body.categories)
-        : [];
-
-      const updateData = {
-        title,
-        description,
-        startTime,
-        endTime,
-        slug: slugify(title || "", {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        }),
-        isActive,
-        bgColor,
-      };
-
-      if (req.file) {
-        updateData.bannerUrl = req.file.path;
-      }
-
-      await flashSale.update(updateData, { transaction: t });
-
-      await FlashSaleItem.destroy({
-        where: { flashSaleId: flashSale.id },
-        transaction: t,
-      });
-      await FlashSaleCategory.destroy({
-        where: { flashSaleId: flashSale.id },
-        transaction: t,
-      });
-
-      if (items && items.length > 0) {
-    const itemData = items.map((item) => ({
-  ...item,
-  flashSaleId: flashSale.id,
-  originalQuantity: item.quantity, // ✅ GÁN GỐC TẠI ĐÂY
-}));
-
-        await FlashSaleItem.bulkCreate(itemData, { transaction: t });
-      }
-
-      if (categories && categories.length > 0) {
-        const catData = categories.map((cat) => ({
-          ...cat,
-          flashSaleId: flashSale.id,
-        }));
-        await FlashSaleCategory.bulkCreate(catData, { transaction: t });
-      }
-
-      await t.commit();
-      req.app.locals.io.emit('flash-sale-updated');
-
-      res.json({ message: "Cập nhật thành công" });
-    } catch (err) {
-      await t.rollback();
-      console.error("Lỗi cập nhật Flash Sale:", err);
-      res.status(500).json({ message: "Lỗi server: " + err.message });
+    const flashSale = await FlashSale.findOne({ where: { slug } });
+    if (!flashSale) {
+      return res.status(404).json({ message: "Không tìm thấy" });
     }
-  }
 
-  static async create(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { title, description, startTime, endTime, isActive, bgColor } =
-        req.body;
+    const { title, description, startTime, endTime, isActive, bgColor } = req.body;
 
-      const items = req.body.items ? JSON.parse(req.body.items) : [];
-      const categories = req.body.categories
-        ? JSON.parse(req.body.categories)
-        : [];
+    const items = req.body.items ? JSON.parse(req.body.items) : [];
+    const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
 
-      const bannerUrl = req.file ? req.file.path : null;
-
-      const slug = slugify(title || "", {
+    const updateData = {
+      title,
+      description,
+      startTime,
+      endTime,
+      slug: slugify(title || "", {
         lower: true,
         strict: true,
         remove: /[*+~.()'"!:@]/g,
-      });
+      }),
+      isActive,
+      bgColor,
+    };
 
-      const flashSale = await FlashSale.create(
-        {
-          title,
-          bannerUrl,
-          startTime,
-          endTime,
-          slug,
-          description,
-          isActive,
-          bgColor,
-        },
-        { transaction: t }
-      );
-
-      if (items && items.length > 0) {
-      const itemData = items.map((item) => ({
-  ...item,
-  flashSaleId: flashSale.id,
-  originalQuantity: parseInt(item.originalQuantity ?? item.quantity) || 0
-
-}));
-
-        await FlashSaleItem.bulkCreate(itemData, { transaction: t });
-      }
-
-      if (categories && categories.length > 0) {
-        const catData = categories.map((cat) => ({
-          ...cat,
-          flashSaleId: flashSale.id,
-        }));
-        await FlashSaleCategory.bulkCreate(catData, { transaction: t });
-      }
-
-      await t.commit();
-      req.app.locals.io.emit('flash-sale-updated');
-
-      res.status(201).json({ message: "Tạo thành công", data: flashSale });
-    } catch (err) {
-      await t.rollback();
-      console.error("Lỗi tạo Flash Sale:", err);
-      res.status(500).json({ message: "Lỗi server: " + err.message });
+    if (req.file) {
+      updateData.bannerUrl = req.file.path;
     }
+
+    const newOrderIndex = parseInt(req.body.orderIndex);
+    const currentOrderIndex = flashSale.orderIndex;
+
+   if (!isNaN(newOrderIndex)) {
+  const hasConflict = await FlashSale.findOne({
+    where: {
+      orderIndex: newOrderIndex,
+      id: { [Op.ne]: flashSale.id }, // trừ chính nó ra
+    },
+  });
+
+  if (hasConflict || newOrderIndex !== currentOrderIndex) {
+    if (newOrderIndex > currentOrderIndex) {
+      await FlashSale.decrement("orderIndex", {
+        by: 1,
+        where: {
+          orderIndex: {
+            [Op.gt]: currentOrderIndex,
+            [Op.lte]: newOrderIndex,
+          },
+        },
+        transaction: t,
+      });
+    } else {
+      await FlashSale.increment("orderIndex", {
+        by: 1,
+        where: {
+          orderIndex: {
+            [Op.gte]: newOrderIndex,
+            [Op.lt]: currentOrderIndex,
+          },
+        },
+        transaction: t,
+      });
+    }
+    updateData.orderIndex = newOrderIndex;
   }
+}
+
+
+    await flashSale.update(updateData, { transaction: t });
+
+    await FlashSaleItem.destroy({
+      where: { flashSaleId: flashSale.id },
+      transaction: t,
+    });
+
+    await FlashSaleCategory.destroy({
+      where: { flashSaleId: flashSale.id },
+      transaction: t,
+    });
+
+    if (items.length > 0) {
+      const itemData = items.map((item) => ({
+        ...item,
+        flashSaleId: flashSale.id,
+        originalQuantity: item.quantity,
+      }));
+      await FlashSaleItem.bulkCreate(itemData, { transaction: t });
+    }
+
+    if (categories.length > 0) {
+      const catData = categories.map((cat) => ({
+        ...cat,
+        flashSaleId: flashSale.id,
+      }));
+      await FlashSaleCategory.bulkCreate(catData, { transaction: t });
+    }
+
+    await t.commit();
+    req.app.locals.io.emit('flash-sale-updated');
+
+    res.json({ message: "Cập nhật thành công" });
+  } catch (err) {
+    await t.rollback();
+    console.error("Lỗi cập nhật Flash Sale:", err);
+    res.status(500).json({ message: "Lỗi server: " + err.message });
+  }
+}
+
+
+static async create(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { title, description, startTime, endTime, isActive, bgColor } = req.body;
+
+    const items = req.body.items ? JSON.parse(req.body.items) : [];
+    const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+
+    const bannerUrl = req.file ? req.file.path : null;
+
+    const slug = slugify(title || "", {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@]/g,
+    });
+
+    let finalOrderIndex = parseInt(req.body.orderIndex);
+    if (isNaN(finalOrderIndex)) {
+      finalOrderIndex = 0;
+    }
+
+    await FlashSale.increment("orderIndex", {
+      by: 1,
+      where: {
+        orderIndex: {
+          [Op.gte]: finalOrderIndex,
+        },
+      },
+      transaction: t,
+    });
+
+    const flashSale = await FlashSale.create(
+      {
+        title,
+        bannerUrl,
+        startTime,
+        endTime,
+        slug,
+        description,
+        isActive,
+        bgColor,
+        orderIndex: finalOrderIndex,
+      },
+      { transaction: t }
+    );
+
+    if (items.length > 0) {
+      const itemData = items.map((item) => ({
+        ...item,
+        flashSaleId: flashSale.id,
+        originalQuantity: parseInt(item.originalQuantity ?? item.quantity) || 0,
+      }));
+      await FlashSaleItem.bulkCreate(itemData, { transaction: t });
+    }
+
+    if (categories.length > 0) {
+      const catData = categories.map((cat) => ({
+        ...cat,
+        flashSaleId: flashSale.id,
+      }));
+      await FlashSaleCategory.bulkCreate(catData, { transaction: t });
+    }
+
+    await t.commit();
+    req.app.locals.io.emit('flash-sale-updated');
+
+    res.status(201).json({ message: "Tạo thành công", data: flashSale });
+  } catch (err) {
+    await t.rollback();
+    console.error("Lỗi tạo Flash Sale:", err);
+    res.status(500).json({ message: "Lỗi server: " + err.message });
+  }
+}
+
+
+
 
   static async forceDelete(req, res) {
     try {
@@ -432,6 +484,32 @@ class FlashSaleController {
       return res.status(500).json({ message: "Lỗi server" });
     }
   }
+  static async updateOrder(req, res) {
+  try {
+    const { orderedIds } = req.body;
+
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+      return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+    }
+
+    const updatePromises = orderedIds.map((id, index) => {
+      return FlashSale.update(
+        { orderIndex: index + 1 },
+        { where: { id } }
+      );
+    });
+
+    await Promise.all(updatePromises);
+
+    req.app.locals.io.emit('flash-sale-reordered');
+
+    res.json({ message: "Cập nhật thứ tự thành công" });
+  } catch (err) {
+    console.error("Lỗi cập nhật thứ tự Flash Sale:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
 }
 
 module.exports = FlashSaleController;

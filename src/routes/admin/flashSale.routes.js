@@ -11,12 +11,11 @@ router.use(attachUserDetail)
 router.use(authorize("FlashSale"))
 router.get('/', FlashSaleController.list);
 
-
-
-router.post('/', upload.single('bannerImage'), validateFlashSale, FlashSaleController.create);
-router.patch('/:slug', upload.single('bannerImage'), validateFlashSale, FlashSaleController.update);
-
-router.get('/:slug', FlashSaleController.getById);
+router.get('/list', FlashSaleController.list);
+router.post('/create', upload.single('bannerImage'), validateFlashSale, FlashSaleController.create);
+router.patch('/update/:slug', upload.single('bannerImage'), validateFlashSale, FlashSaleController.update);
+router.get('/detail/:slug', FlashSaleController.getById);
+router.patch('/update-order', FlashSaleController.updateOrder);
 
 router.get('/skus/available', FlashSaleController.getAvailableSkus);
 router.patch('/restore/:id', FlashSaleController.restore);

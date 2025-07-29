@@ -109,10 +109,8 @@ class BannerController {
           where: whereClause,
           offset,
           limit: Number(limit),
-          order: [
-            ["type", "ASC"],
-            ["displayOrder", "ASC"],
-          ],
+          order: [["createdAt", "DESC"]],
+
         }
       );
 

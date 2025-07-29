@@ -10,6 +10,24 @@ const validateFlashSale = async (req, res, next) => {
   let currentId = null;
 
   const { title, startTime, endTime, items, categories } = req.body;
+const orderIndexRaw = req.body.orderIndex;
+if (
+  orderIndexRaw !== undefined &&
+  orderIndexRaw !== null &&
+  `${orderIndexRaw}`.trim() !== ""
+) {
+  const orderIndexNum = Number(orderIndexRaw);
+  if (
+    isNaN(orderIndexNum) ||
+    !Number.isInteger(orderIndexNum) ||
+    orderIndexNum < 0
+  ) {
+    errors.push({
+      field: "orderIndex",
+      message: "Thứ tự hiển thị phải là số nguyên không âm",
+    });
+  }
+}
 
   if (isEdit) {
     const flashSale = await FlashSale.findOne({
