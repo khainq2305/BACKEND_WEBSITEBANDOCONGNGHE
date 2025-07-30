@@ -46,12 +46,7 @@ const validateCoupon = async (req, res, next) => {
     });
   }
 
-  if (totalQuantity === undefined || totalQuantity === "") {
-    errors.push({
-      field: "totalQuantity",
-      message: "Tổng số lượng là bắt buộc",
-    });
-  }
+  
 
   if (maxUsagePerUser === undefined || maxUsagePerUser === "") {
     errors.push({
@@ -135,12 +130,17 @@ const validateCoupon = async (req, res, next) => {
     }
   }
 
-  if (isNaN(totalQuantity) || Number(totalQuantity) < 0) {
-    errors.push({
-      field: "totalQuantity",
-      message: "Tổng số lượng không hợp lệ",
-    });
-  }
+  if (
+  totalQuantity !== undefined &&
+  totalQuantity !== "" &&
+  (isNaN(totalQuantity) || Number(totalQuantity) < 0)
+) {
+  errors.push({
+    field: "totalQuantity",
+    message: "Tổng số lượng không hợp lệ",
+  });
+}
+
 
   if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) < 0) {
     errors.push({
@@ -199,8 +199,21 @@ const validateCoupon = async (req, res, next) => {
       message: "Ngày kết thúc phải sau ngày bắt đầu",
     });
   }
+if (validator.isISO8601(startTime)) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
-  // 3. Kiểm tra trùng mã
+  const start = new Date(startTime);
+  start.setHours(0, 0, 0, 0);
+
+  if (start < now) {
+    errors.push({
+      field: "startTime",
+      message: "Ngày bắt đầu không được trong quá khứ",
+    });
+  }
+}
+
   const existing = await Coupon.findOne({
     where: {
       code,

@@ -275,7 +275,7 @@ class CouponController {
       if (!Array.isArray(ids))
         return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
 
-      // Xoá liên kết trước nếu không có CASCADE
+     
       await CouponUser.destroy({
         where: { couponId: { [Op.in]: ids } },
         force: true,

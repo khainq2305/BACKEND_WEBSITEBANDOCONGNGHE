@@ -10,24 +10,24 @@ const validateFlashSale = async (req, res, next) => {
   let currentId = null;
 
   const { title, startTime, endTime, items, categories } = req.body;
-const orderIndexRaw = req.body.orderIndex;
-if (
-  orderIndexRaw !== undefined &&
-  orderIndexRaw !== null &&
-  `${orderIndexRaw}`.trim() !== ""
-) {
-  const orderIndexNum = Number(orderIndexRaw);
+  const orderIndexRaw = req.body.orderIndex;
   if (
-    isNaN(orderIndexNum) ||
-    !Number.isInteger(orderIndexNum) ||
-    orderIndexNum < 0
+    orderIndexRaw !== undefined &&
+    orderIndexRaw !== null &&
+    `${orderIndexRaw}`.trim() !== ""
   ) {
-    errors.push({
-      field: "orderIndex",
-      message: "Thứ tự hiển thị phải là số nguyên không âm",
-    });
+    const orderIndexNum = Number(orderIndexRaw);
+    if (
+      isNaN(orderIndexNum) ||
+      !Number.isInteger(orderIndexNum) ||
+      orderIndexNum < 0
+    ) {
+      errors.push({
+        field: "orderIndex",
+        message: "Thứ tự hiển thị phải là số nguyên không âm",
+      });
+    }
   }
-}
 
   if (isEdit) {
     const flashSale = await FlashSale.findOne({
@@ -47,6 +47,21 @@ if (
 
   const isValidStart = startTime && validator.isISO8601(startTime);
   const isValidEnd = endTime && validator.isISO8601(endTime);
+  if (isValidStart) {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const start = new Date(startTime);
+    start.setHours(0, 0, 0, 0);
+
+    if (start < now) {
+      errors.push({
+        field: "startTime",
+        message: "Thời gian bắt đầu không được nằm trong quá khứ",
+      });
+    }
+  }
+
 
   if (!isValidStart) {
     errors.push({
@@ -141,13 +156,13 @@ if (
           message: "Giá sale không được âm",
         });
       }
-     const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
-if (!Number.isInteger(qty) || qty < 0) {
-  errors.push({
-    field: `items[${index}].quantity`,
-    message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 0",
-  });
-}
+      const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
+      if (!Number.isInteger(qty) || qty < 0) {
+        errors.push({
+          field: `items[${index}].quantity`,
+          message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 0",
+        });
+      }
 
     });
 
@@ -183,21 +198,21 @@ if (!Number.isInteger(qty) || qty < 0) {
         }
       }
 
-      const maxPerUserStr = cat.maxPerUser;
+      // const maxPerUserStr = cat.maxPerUser;
 
-      if (
-        maxPerUserStr !== undefined &&
-        maxPerUserStr !== null &&
-        `${maxPerUserStr}`.trim() !== ""
-      ) {
-        const value = Number(maxPerUserStr);
-        if (isNaN(value) || !Number.isInteger(value) || value <= 0) {
-          errors.push({
-            field: `categories[${index}].maxPerUser`,
-            message: "Giới hạn/người phải là số nguyên dương",
-          });
-        }
-      }
+      // if (
+      //   maxPerUserStr !== undefined &&
+      //   maxPerUserStr !== null &&
+      //   `${maxPerUserStr}`.trim() !== ""
+      // ) {
+      //   const value = Number(maxPerUserStr);
+      //   if (isNaN(value) || !Number.isInteger(value) || value <= 0) {
+      //     errors.push({
+      //       field: `categories[${index}].maxPerUser`,
+      //       message: "Giới hạn/người phải là số nguyên dương",
+      //     });
+      //   }
+      // }
     });
   }
 
