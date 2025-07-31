@@ -47,20 +47,19 @@ const validateFlashSale = async (req, res, next) => {
 
   const isValidStart = startTime && validator.isISO8601(startTime);
   const isValidEnd = endTime && validator.isISO8601(endTime);
-  if (isValidStart) {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+if (!isEdit && isValidStart) {
+  const now = new Date();
+  const start = new Date(startTime);
 
-    const start = new Date(startTime);
-    start.setHours(0, 0, 0, 0);
-
-    if (start < now) {
-      errors.push({
-        field: "startTime",
-        message: "Thời gian bắt đầu không được nằm trong quá khứ",
-      });
-    }
+  if (start < now) {
+    errors.push({
+      field: "startTime",
+      message: "Thời gian bắt đầu không được nằm trong quá khứ",
+    });
   }
+}
+
+
 
 
   if (!isValidStart) {

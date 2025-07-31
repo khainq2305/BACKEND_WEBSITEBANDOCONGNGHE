@@ -40,25 +40,22 @@ const validateBanner = async (req, res, next) => {
   const isValidStart = startDate && validator.isISO8601(startDate);
   const isValidEnd = endDate && validator.isISO8601(endDate);
 
- if (startDate) {
-  if (!isValidStart) {
-    errors.push({ field: "startDate", message: "Ngày bắt đầu không hợp lệ" });
-} else {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0); // reset về 00:00 hôm nay
+  if (startDate) {
+    if (!isValidStart) {
+      errors.push({ field: "startDate", message: "Ngày bắt đầu không hợp lệ" });
+    } else if (!isEdit) {
+      const now = new Date();
+      const start = new Date(startDate);
+      if (start < now) {
+        errors.push({
+          field: "startDate",
+          message: "Ngày bắt đầu không được nằm trong quá khứ",
+        });
+      }
+    }
 
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0); // reset giờ startDate để so sánh theo ngày
 
-  if (start < now) {
-    errors.push({
-      field: "startDate",
-      message: "Ngày bắt đầu không được nằm trong quá khứ",
-    });
   }
-}
-
-}
 
 
   if (endDate && !isValidEnd) {

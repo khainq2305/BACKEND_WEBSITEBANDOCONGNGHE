@@ -18,6 +18,7 @@ const {
   ReturnRequestItem,
   ShippingProvider,
   Notification,
+  
   NotificationUser,
   ProviderProvince, // <--- Đảm bảo đã import
   ProviderDistrict, // <--- Đảm bảo đã import
@@ -650,7 +651,7 @@ class OrderController {
     }
   }
 
-  static async getById(req, res) {
+static async getById(req, res) {
   try {
     const user = req.user;
     const orderCode = req.params.code?.trim();
@@ -695,7 +696,7 @@ class OrderController {
           attributes: ["id", "name", "code"],
         },
         {
-          model: ShippingProvider, // 👈 thêm ShippingProvider
+          model: ShippingProvider,
           as: "shippingProvider",
           attributes: ["id", "name", "code"],
         },
@@ -707,18 +708,30 @@ class OrderController {
     });
 
     if (!order) {
-      console.warn(
-        `Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`
-      );
+      console.warn(`Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`);
       return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
     }
 
+    // 📌 Tìm điểm thưởng & điểm đã dùng từ bảng UserPoint
+    const [earnedPoint, spentPoint] = await Promise.all([
+      UserPoint.findOne({
+        where: {
+          userId: user.id,
+          orderId: order.id,
+          type: "earn",
+        },
+      }),
+      UserPoint.findOne({
+        where: {
+          userId: user.id,
+          orderId: order.id,
+          type: "spend",
+        },
+      }),
+    ]);
+
     const address = order.shippingAddress;
-    const fullAddress = `${address?.streetAddress || ""}, ${
-      address?.ward?.name || ""
-    }, ${address?.district?.name || ""}, ${
-      address?.province?.name || ""
-    }`.trim();
+    const fullAddress = `${address?.streetAddress || ""}, ${address?.ward?.name || ""}, ${address?.district?.name || ""}, ${address?.province?.name || ""}`.trim();
 
     const products = order.items.map((item) => ({
       skuId: item.skuId,
@@ -752,12 +765,14 @@ class OrderController {
       orderCode: order.orderCode,
       status: order.status,
       statusText: statusTextMap[order.status] || "Không xác định",
+
       totalPrice: order.totalPrice,
+      finalPrice: order.finalPrice,
       shippingFee: order.shippingFee,
       shippingDiscount: order.shippingDiscount,
       couponDiscount: order.couponDiscount,
       productDiscount,
-      finalPrice: order.finalPrice,
+
       paymentStatus: order.paymentStatus,
       cancelReason: order.cancelReason,
       note: order.note,
@@ -768,6 +783,10 @@ class OrderController {
       completedAt: order.completedAt,
       cancelledAt: order.cancelledAt,
       returnedAt: order.returnedAt,
+
+      // 🎯 Trích xuất điểm từ bảng userpoints
+      rewardPoints: earnedPoint?.points || 0,
+      usedPoints: spentPoint?.points || 0,
 
       paymentMethod: order.paymentMethod
         ? {
@@ -805,6 +824,7 @@ class OrderController {
     return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
   }
 }
+
 
 
   static async uploadProof(req, res) {
@@ -982,132 +1002,151 @@ static async getAllByUser(req, res) {
 
 
   static async cancel(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const { reason } = req.body || {};
-      const reasonText = typeof reason === "string" ? reason : reason?.reason;
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
-      if (!reasonText?.trim()) {
-        return res
-          .status(400)
-          .json({ message: "Lý do huỷ đơn không được bỏ trống" });
-      }
-
-      // Tìm đơn hàng cần huỷ + phương thức thanh toán
-      const order = await Order.findByPk(id, {
-        include: [
-          { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
-        ],
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
-
-      if (!order) {
-        await t.rollback();
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-      }
-
-      if (order.status === "cancelled") {
-        await t.rollback();
-        return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
-      }
-
-      const disallowedStatuses = ["shipping", "delivered", "completed"];
-      if (disallowedStatuses.includes(order.status)) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
-      }
-
-      // ==============================
-      // Hoàn tiền nếu đã thanh toán
-      // ==============================
-      const paid = order.paymentStatus === "paid";
-      const payCode = order.paymentMethod?.code?.toLowerCase();
-
-      if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
-        const payload = {
-          orderCode: order.orderCode,
-          amount: order.finalPrice,
-        };
-
-        if (payCode === "momo") {
-          if (!order.momoTransId) {
-            await t.rollback();
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch MoMo" });
-          }
-          payload.momoTransId = order.momoTransId;
-        }
-
-        if (payCode === "vnpay") {
-          if (!order.vnpTransactionId || !order.paymentTime) {
-            await t.rollback();
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch VNPay" });
-          }
-          payload.vnpTransactionId = order.vnpTransactionId;
-          payload.transDate = order.paymentTime;
-        }
-        if (payCode === "stripe") {
-          if (!order.stripePaymentIntentId) {
-            await t.rollback();
-            return res
-              .status(400)
-              .json({ message: "Thiếu stripePaymentIntentId" });
-          }
-          payload.stripePaymentIntentId = order.stripePaymentIntentId;
-        }
-
-        if (payCode === "zalopay") {
-          if (!order.zaloTransId || !order.zaloAppTransId) {
-            await t.rollback();
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch ZaloPay" });
-          }
-          payload.zp_trans_id = order.zaloTransId;
-          payload.app_trans_id = order.zaloAppTransId;
-          payload.amount = Math.round(Number(order.finalPrice)); // 💥 BẮT BUỘC
-        }
-
-        console.log("[REFUND] Payload gửi gateway:", payload);
-
-        const { ok, transId } = await refundGateway(payCode, payload);
-
-        if (!ok) {
-          await t.rollback();
-          return res
-            .status(400)
-            .json({ message: "Hoàn tiền qua cổng thanh toán thất bại" });
-        }
-
-        order.paymentStatus = "refunded";
-        order.gatewayTransId = transId || null;
-      } else {
-        // Nếu chưa thanh toán, hoặc COD/ATM thì chỉ huỷ đơn
-        order.paymentStatus = "unpaid";
-      }
-
-      order.status = "cancelled";
-      order.cancelReason = reasonText.trim();
-
-      await order.save({ transaction: t });
-      await t.commit();
-
-      return res
-        .status(200)
-        .json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
-    } catch (err) {
-      await t.rollback();
-      console.error("[cancel]", err);
-      return res.status(500).json({ message: "Hủy đơn thất bại" });
+    if (!reasonText?.trim()) {
+      return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
     }
+
+    // Tìm đơn hàng cần huỷ + phương thức thanh toán
+    const order = await Order.findByPk(id, {
+      include: [
+        { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
+      ],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!order) {
+      await t.rollback();
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+
+    if (order.status === "cancelled") {
+      await t.rollback();
+      return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
+    }
+
+    const disallowedStatuses = ["shipping", "delivered", "completed"];
+    if (disallowedStatuses.includes(order.status)) {
+      await t.rollback();
+      return res.status(400).json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
+    }
+
+    // ==============================
+    // Hoàn tiền nếu đã thanh toán
+    // ==============================
+    const paid = order.paymentStatus === "paid";
+    const payCode = order.paymentMethod?.code?.toLowerCase();
+
+    if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
+      const payload = {
+        orderCode: order.orderCode,
+        amount: order.finalPrice,
+      };
+
+      if (payCode === "momo") {
+        if (!order.momoTransId) {
+          await t.rollback();
+          return res.status(400).json({ message: "Thiếu thông tin giao dịch MoMo" });
+        }
+        payload.momoTransId = order.momoTransId;
+      }
+
+      if (payCode === "vnpay") {
+        if (!order.vnpTransactionId || !order.paymentTime) {
+          await t.rollback();
+          return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
+        }
+        payload.vnpTransactionId = order.vnpTransactionId;
+        payload.transDate = order.paymentTime;
+      }
+
+      if (payCode === "stripe") {
+        if (!order.stripePaymentIntentId) {
+          await t.rollback();
+          return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
+        }
+        payload.stripePaymentIntentId = order.stripePaymentIntentId;
+      }
+
+      if (payCode === "zalopay") {
+        if (!order.zaloTransId || !order.zaloAppTransId) {
+          await t.rollback();
+          return res.status(400).json({ message: "Thiếu thông tin giao dịch ZaloPay" });
+        }
+        payload.zp_trans_id = order.zaloTransId;
+        payload.app_trans_id = order.zaloAppTransId;
+        payload.amount = Math.round(Number(order.finalPrice));
+      }
+
+      console.log("[REFUND] Payload gửi gateway:", payload);
+
+      const { ok, transId } = await refundGateway(payCode, payload);
+
+      if (!ok) {
+        await t.rollback();
+        return res.status(400).json({ message: "Hoàn tiền qua cổng thanh toán thất bại" });
+      }
+
+      order.paymentStatus = "refunded";
+      order.gatewayTransId = transId || null;
+    } else {
+      // Nếu chưa thanh toán, hoặc COD/ATM thì chỉ huỷ đơn
+      order.paymentStatus = "unpaid";
+    }
+
+    // Cập nhật trạng thái đơn hàng
+    order.status = "cancelled";
+    order.cancelReason = reasonText.trim();
+    await order.save({ transaction: t });
+
+    // ===================================
+    // Cộng ngược lại Flash Sale & SKU
+    // ===================================
+    const orderItems = await OrderItem.findAll({
+      where: { orderId: order.id },
+      transaction: t,
+    });
+
+    for (const item of orderItems) {
+      // Cộng lại số lượng FlashSaleItem nếu có
+      if (item.flashSaleId) {
+        await FlashSaleItem.increment(
+          { quantity: item.quantity },
+          {
+            where: {
+              flashSaleId: item.flashSaleId,
+              skuId: item.skuId,
+            },
+            transaction: t,
+          }
+        );
+      }
+
+      // Cộng lại tồn kho SKU
+      await Sku.increment(
+        { stock: item.quantity },
+        {
+          where: { id: item.skuId },
+          transaction: t,
+        }
+      );
+    }
+
+    await t.commit();
+    return res.status(200).json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
+  } catch (err) {
+    await t.rollback();
+    console.error("[cancel]", err);
+    return res.status(500).json({ message: "Hủy đơn thất bại" });
   }
+}
+
 
 static async lookupOrder(req, res) {
   try {
@@ -1293,17 +1332,11 @@ static async lookupOrder(req, res) {
     }
   }
 
-  static async getShippingOptions(req, res) {
+static async getShippingOptions(req, res) {
   try {
     const { districtId, wardId, items = [] } = req.body;
 
-    console.log("[getShippingOptions] Payload:", {
-      districtId,
-      wardId,
-      itemsCount: items.length,
-    });
-
-    // 1️⃣ Lấy tỉnh/huyện/xã
+    // 1️⃣ Lấy thông tin địa chỉ từ DB nội bộ
     const district = await District.findByPk(districtId, { include: [Province] });
     const ward = await Ward.findByPk(wardId);
 
@@ -1312,113 +1345,49 @@ static async lookupOrder(req, res) {
     if (!ward)
       return res.status(400).json({ message: "Không tìm thấy phường/xã." });
 
+    const toProvinceId = district.Province.id;
+    const toDistrictId = district.id;
+    const toWardId = ward.id;
     const toProvinceName = district.Province.name;
     const toDistrictName = district.name;
     const toWardName = ward.name;
 
-    const toProvinceId = district.Province.id;
-    const toDistrictId = district.id;
-    const toWardId = ward.id;
-
-    console.log("[getShippingOptions] Địa chỉ:", {
-      province: toProvinceName,
-      district: toDistrictName,
-      ward: toWardName,
-    });
-
-    // 2️⃣ Tính trọng lượng và kích thước
+    // 2️⃣ Tính tổng trọng lượng và giá trị đơn hàng
     const skuList = await Sku.findAll({
       where: { id: items.map((i) => i.skuId) },
     });
     const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
-
-    let weight = 0,
-      maxL = 0,
-      maxW = 0,
-      maxH = 0;
-    for (const it of items) {
+    let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+    const orderValue = items.reduce((sum, it) => {
       const sku = skuMap[it.skuId];
-      if (!sku) continue;
-
+      if (!sku) return sum;
       weight += (sku.weight || 500) * it.quantity;
       maxL = Math.max(maxL, sku.length || 10);
       maxW = Math.max(maxW, sku.width || 10);
       maxH = Math.max(maxH, sku.height || 10);
-    }
+      return sum + (it.price || 0) * (it.quantity || 1);
+    }, 0);
+    weight ||= 1; maxL ||= 1; maxW ||= 1; maxH ||= 1;
 
-    weight ||= 1;
-    maxL ||= 1;
-    maxW ||= 1;
-    maxH ||= 1;
-
-    const orderValue = items.reduce(
-      (sum, it) => sum + (it.price || 0) * (it.quantity || 1),
-      0
-    );
-
-    console.log("[getShippingOptions] Kích thước kiện:", {
-      weight,
-      length: maxL,
-      width: maxW,
-      height: maxH,
-      orderValue,
-    });
-
-    // 3️⃣ Lấy các hãng vận chuyển đang hoạt động (bỏ jnt)
+    // 3️⃣ Lấy các hãng vận chuyển đang hoạt động
     const providers = await ShippingProvider.findAll({
-      where: {
-        isActive: true,
-        code: { [Op.ne]: "jnt" },
-      },
+      where: { isActive: true }, // Bỏ loại trừ JNT, để logic này trong service
     });
-
     if (!providers.length)
-      return res
-        .status(404)
-        .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
+      return res.status(404).json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
 
-    // 4️⃣ Tính phí cho từng hãng
+    // 4️⃣ Gọi service để tính phí cho TẤT CẢ các hãng
     const options = await Promise.all(
       providers.map(async (p) => {
         try {
-          const isVTP = p.code === "vtp";
-          const isGHN = p.code === "ghn";
-
-          let mappedGhnCodes = {};
-          if (isGHN) {
-            const { getGhnCodesFromLocalDb } = require("../../services/client/drivers/ghnService");
-            mappedGhnCodes = await getGhnCodesFromLocalDb({
-              province: toProvinceId,
-              district: toDistrictId,
-              ward: toWardId,
-            });
-          }
-
           const { fee, leadTime } = await ShippingService.calcFee({
             providerId: p.id,
-
-            toProvince: isGHN
-              ? mappedGhnCodes.ghnProvId
-              : isVTP
-              ? toProvinceId
-              : toProvinceName,
-
-            toDistrict: isGHN
-              ? mappedGhnCodes.ghnDistId
-              : isVTP
-              ? toDistrictId
-              : toDistrictName,
-
-            toWard: isGHN
-              ? mappedGhnCodes.ghnWardCode
-              : isVTP
-              ? toWardId
-              : toWardName,
-
+            toProvince: toProvinceId,
+            toDistrict: toDistrictId,
+            toWard: toWardId,
             provinceName: toProvinceName,
             districtName: toDistrictName,
             wardName: toWardName,
-
             weight,
             length: maxL,
             width: maxW,
@@ -1434,11 +1403,7 @@ static async lookupOrder(req, res) {
             leadTime,
           };
         } catch (err) {
-          console.warn(
-            `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) –`,
-            `Tỉnh: ${toProvinceName}, Huyện: ${toDistrictName}, Xã: ${toWardName} –`,
-            err?.response?.data || err.message
-          );
+          console.warn(`[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`);
           return null;
         }
       })
@@ -1446,9 +1411,7 @@ static async lookupOrder(req, res) {
 
     const available = options.filter(Boolean);
     if (!available.length)
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
+      return res.status(404).json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
 
     return res.json({ data: available });
   } catch (err) {

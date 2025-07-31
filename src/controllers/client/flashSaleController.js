@@ -24,17 +24,17 @@ class FlashSaleClientController {
             as: 'flashSaleItems',
             attributes: {
               include: [
-                [
-                  Sequelize.literal(`(
-                    SELECT COALESCE(SUM(oi.quantity), 0)
-                    FROM orderitems oi
-                    INNER JOIN orders o ON oi.orderId = o.id
-                    WHERE oi.flashSaleId = flashSaleItems.flashSaleId
-                      AND oi.skuId = flashSaleItems.skuId -- Cần thêm điều kiện skuId để đảm bảo đúng item
-                      AND o.status IN ('completed', 'delivered')
-                  )`),
-                  'soldQuantity'
-                ]
+               [
+  Sequelize.literal(`(
+    SELECT COALESCE(SUM(oi.quantity), 0)
+    FROM orderitems oi
+    INNER JOIN orders o ON oi.orderId = o.id
+    WHERE oi.flashSaleId = flashSaleItems.id
+      AND o.status NOT IN ('cancelled', 'failed')
+  )`),
+  'soldQuantity'
+]
+
               ]
             },
             include: [

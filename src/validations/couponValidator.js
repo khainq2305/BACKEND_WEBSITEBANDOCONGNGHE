@@ -199,12 +199,9 @@ const validateCoupon = async (req, res, next) => {
       message: "Ngày kết thúc phải sau ngày bắt đầu",
     });
   }
-if (validator.isISO8601(startTime)) {
+if (!isUpdate && validator.isISO8601(startTime)) {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
   const start = new Date(startTime);
-  start.setHours(0, 0, 0, 0);
 
   if (start < now) {
     errors.push({
@@ -213,6 +210,8 @@ if (validator.isISO8601(startTime)) {
     });
   }
 }
+
+
 
   const existing = await Coupon.findOne({
     where: {

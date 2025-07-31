@@ -125,127 +125,139 @@ class FlashSaleController {
   }
 
   static async update(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { slug } = req.params;
+  const t = await sequelize.transaction();
+  try {
+    const { slug } = req.params;
 
-      const flashSale = await FlashSale.findOne({ where: { slug } });
-      if (!flashSale) {
-        return res.status(404).json({ message: "Không tìm thấy" });
-      }
+    const flashSale = await FlashSale.findOne({ where: { slug } });
+    if (!flashSale) {
+      return res.status(404).json({ message: "Không tìm thấy" });
+    }
 
-      const { title, description, startTime, endTime, isActive, bgColor } =
-        req.body;
+    const { title, description, startTime, endTime, isActive, bgColor } = req.body;
+    const items = req.body.items ? JSON.parse(req.body.items) : [];
+    const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
 
-      const items = req.body.items ? JSON.parse(req.body.items) : [];
-      const categories = req.body.categories
-        ? JSON.parse(req.body.categories)
-        : [];
+    const updateData = {
+      title,
+      description,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      slug: slugify(title || "", {
+        lower: true,
+        strict: true,
+        remove: /[*+~.()'"!:@]/g,
+      }),
+      isActive,
+      bgColor,
+    };
 
-      const updateData = {
-        title,
-        description,
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        slug: slugify(title || "", {
-          lower: true,
-          strict: true,
-          remove: /[*+~.()'"!:@]/g,
-        }),
-        isActive,
-        bgColor,
-      };
+    if (req.file) {
+      updateData.bannerUrl = req.file.path;
+    }
 
-      if (req.file) {
-        updateData.bannerUrl = req.file.path;
-      }
+    const newOrderIndex = parseInt(req.body.orderIndex);
+    const currentOrderIndex = flashSale.orderIndex;
 
-      const newOrderIndex = parseInt(req.body.orderIndex);
-      const currentOrderIndex = flashSale.orderIndex;
+    if (!isNaN(newOrderIndex)) {
+      const hasConflict = await FlashSale.findOne({
+        where: { orderIndex: newOrderIndex, id: { [Op.ne]: flashSale.id } },
+      });
 
-      if (!isNaN(newOrderIndex)) {
-        const hasConflict = await FlashSale.findOne({
-          where: {
-            orderIndex: newOrderIndex,
-            id: { [Op.ne]: flashSale.id },
-          },
-        });
-
-        if (hasConflict || newOrderIndex !== currentOrderIndex) {
-          if (newOrderIndex > currentOrderIndex) {
-            await FlashSale.decrement("orderIndex", {
-              by: 1,
-              where: {
-                orderIndex: {
-                  [Op.gt]: currentOrderIndex,
-                  [Op.lte]: newOrderIndex,
-                },
+      if (hasConflict || newOrderIndex !== currentOrderIndex) {
+        if (newOrderIndex > currentOrderIndex) {
+          await FlashSale.decrement("orderIndex", {
+            by: 1,
+            where: {
+              orderIndex: {
+                [Op.gt]: currentOrderIndex,
+                [Op.lte]: newOrderIndex,
               },
-              transaction: t,
-            });
-          } else {
-            await FlashSale.increment("orderIndex", {
-              by: 1,
-              where: {
-                orderIndex: {
-                  [Op.gte]: newOrderIndex,
-                  [Op.lt]: currentOrderIndex,
-                },
+            },
+            transaction: t,
+          });
+        } else {
+          await FlashSale.increment("orderIndex", {
+            by: 1,
+            where: {
+              orderIndex: {
+                [Op.gte]: newOrderIndex,
+                [Op.lt]: currentOrderIndex,
               },
-              transaction: t,
-            });
-          }
-          updateData.orderIndex = newOrderIndex;
+            },
+            transaction: t,
+          });
         }
+        updateData.orderIndex = newOrderIndex;
       }
+    }
 
-      await flashSale.update(updateData, { transaction: t });
+    await flashSale.update(updateData, { transaction: t });
 
-      await FlashSaleItem.destroy({
-        where: { flashSaleId: flashSale.id },
-        transaction: t,
-      });
+    // Lấy các FlashSaleItem cũ để giữ lại originalQuantity nếu cần
+    const existingItems = await FlashSaleItem.findAll({
+      where: { flashSaleId: flashSale.id },
+      transaction: t,
+    });
 
-      await FlashSaleCategory.destroy({
-        where: { flashSaleId: flashSale.id },
-        transaction: t,
-      });
+    const existingMap = new Map();
+    existingItems.forEach((it) => {
+      existingMap.set(it.skuId, it.originalQuantity || it.quantity);
+    });
 
-      if (items.length > 0) {
-        const itemData = items.map((item) => ({
+    // Xoá cũ
+    await FlashSaleItem.destroy({
+      where: { flashSaleId: flashSale.id },
+      transaction: t,
+    });
+
+    await FlashSaleCategory.destroy({
+      where: { flashSaleId: flashSale.id },
+      transaction: t,
+    });
+
+    // ➕ Tạo mới
+    if (items.length > 0) {
+      const itemData = items.map((item) => {
+        const incomingQty = parseInt(item.quantity);
+        const oldOriginal = existingMap.get(item.skuId || item.id) || 0;
+        return {
           skuId: item.skuId || item.id,
           salePrice: item.salePrice,
-          quantity: item.quantity,
-          originalQuantity:
-            parseInt(item.originalQuantity ?? item.quantity) || 0,
+          quantity: incomingQty,
+          originalQuantity: Math.max(incomingQty, oldOriginal),
           maxPerUser: item.maxPerUser,
           note: item.note || "",
           flashSaleId: flashSale.id,
-        }));
-        await FlashSaleItem.bulkCreate(itemData, { transaction: t });
-      }
+        };
+      });
 
-      if (categories.length > 0) {
-        const catData = categories.map((cat) => ({
-          categoryId: cat.categoryId,
-          discountType: cat.discountType || "percent",
-          discountValue: cat.discountValue,
-          maxPerUser: cat.maxPerUser,
-          flashSaleId: flashSale.id,
-        }));
-        await FlashSaleCategory.bulkCreate(catData, { transaction: t });
-      }
-
-      await t.commit();
-      req.app.locals.io.emit("flash-sale-updated");
-
-      res.json({ message: "Cập nhật thành công" });
-    } catch (err) {
-      await t.rollback();
-      console.error("Lỗi cập nhật Flash Sale:", err);
-      res.status(500).json({ message: "Lỗi server: " + err.message });
+      await FlashSaleItem.bulkCreate(itemData, { transaction: t });
     }
+
+    if (categories.length > 0) {
+      const catData = categories.map((cat) => ({
+        categoryId: cat.categoryId,
+        discountType: cat.discountType || "percent",
+        discountValue: cat.discountValue,
+        maxPerUser: cat.maxPerUser,
+        flashSaleId: flashSale.id,
+      }));
+
+      await FlashSaleCategory.bulkCreate(catData, { transaction: t });
+    }
+
+    await t.commit();
+    req.app.locals.io.emit("flash-sale-updated");
+
+    res.json({ message: "Cập nhật thành công" });
+  } catch (err) {
+    await t.rollback();
+    console.error("Lỗi cập nhật Flash Sale:", err);
+    res.status(500).json({ message: "Lỗi server: " + err.message });
   }
+}
+
 
   static async create(req, res) {
     const t = await sequelize.transaction();

@@ -47,7 +47,69 @@ const NotificationClientController = {
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
+  // async getForCurrentUser(req, res) {
+  //   const userId = req.user?.id;
+  //   if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
 
+  //   try {
+  //     const now = new Date();
+
+  //     // 🔹 Lấy thông báo cá nhân (NotificationUser + Notification)
+  //     const personal = await Notification.findAll({
+  //       where: {
+  //         isActive: true,
+  //         [Op.or]: [{ startAt: null }, { startAt: { [Op.lte]: now } }],
+  //       },
+  //       include: [
+  //         {
+  //           model: NotificationUser,
+  //           as: "notificationUsers",
+  //           required: true, // ✅ Quan trọng: chỉ lấy nếu có đúng userId
+  //           where: { userId },
+  //           attributes: ["isRead", "readAt"],
+  //         },
+  //       ],
+  //       order: [
+  //         ["startAt", "DESC"],
+  //         ["createdAt", "DESC"],
+  //       ],
+  //     });
+
+  //     // 🔹 Lấy thông báo toàn cục
+  //     const global = await Notification.findAll({
+  //       where: {
+  //         isActive: true,
+  //         isGlobal: true,
+  //         [Op.or]: [{ startAt: null }, { startAt: { [Op.lte]: now } }],
+  //       },
+  //       order: [
+  //         ["startAt", "DESC"],
+  //         ["createdAt", "DESC"],
+  //       ],
+  //     });
+
+  //     // 🔹 Gộp + xử lý kết quả
+  //     const formatted = [
+  //       ...personal.map((n) => {
+  //         const json = n.toJSON();
+  //         const link = json.notificationUsers?.[0];
+  //         return {
+  //           ...json,
+  //           isRead: link?.isRead || false,
+  //         };
+  //       }),
+  //       ...global.map((n) => ({
+  //         ...n.toJSON(),
+  //         isRead: false,
+  //       })),
+  //     ];
+
+  //     return res.json(formatted);
+  //   } catch (err) {
+  //     console.error("Lỗi getForCurrentUser:", err);
+  //     return res.status(500).json({ message: "Lỗi máy chủ" });
+  //   }
+  // },
   async markAsRead(req, res) {
     const userId = req.user?.id;
     const notificationId = req.params.id;
@@ -72,14 +134,11 @@ const NotificationClientController = {
       return res.status(500).json({ message: "Lỗi máy chủ" });
     }
   },
-
- async markAllAsRead(req, res) {
+async markAllAsRead(req, res) {
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
 
   try {
-    console.log("🔍 [DEBUG] Bắt đầu markAllAsRead cho userId:", userId);
-
     const notifications = await Notification.findAll({
       where: {
         isActive: true,
@@ -95,13 +154,13 @@ const NotificationClientController = {
           as: "notificationUsers",
           required: false,
           where: { userId },
-          attributes: ["id", "isRead", "readAt"],
+          attributes: ["id", "isRead", "readAt"], // ✅ cần có id
         },
       ],
       order: [["startAt", "DESC"]],
     });
 
-    console.log("🔍 [DEBUG] Tổng thông báo tìm thấy:", notifications.length);
+    console.log("📥 Tổng thông báo cần xử lý:", notifications.length);
 
     const toUpdate = [];
     const toInsert = [];
@@ -110,19 +169,12 @@ const NotificationClientController = {
       const link = notif.notificationUsers?.[0];
 
       if (link) {
+        console.log(`🔎 Đã có NotificationUser ID=${link.id}, isRead=${link.isRead}`);
         if (!link.isRead) {
-          console.log("📌 [UPDATE] Thông báo cần update:", {
-            id: link.id,
-            notifId: notif.id,
-            title: notif.title,
-          });
           toUpdate.push(link.id);
         }
       } else {
-        console.log("📌 [INSERT] Global notif chưa có bản ghi:", {
-          notifId: notif.id,
-          title: notif.title,
-        });
+        console.log(`➕ Thêm mới notificationUser cho notificationId=${notif.id}`);
         toInsert.push({
           notificationId: notif.id,
           userId,
@@ -132,24 +184,23 @@ const NotificationClientController = {
       }
     }
 
+    console.log("✅ Sẽ insert mới:", toInsert.length, "records");
+    console.log("♻️  Sẽ cập nhật đã đọc:", toUpdate.length, "records");
+
     if (toInsert.length > 0) {
-      console.log("🚀 [DEBUG] Đang tạo mới bản ghi NotificationUser:", toInsert.length);
       await NotificationUser.bulkCreate(toInsert);
     }
 
     if (toUpdate.length > 0) {
-      console.log("🚀 [DEBUG] Đang update các bản ghi NotificationUser:", toUpdate.length);
       await NotificationUser.update(
         { isRead: true, readAt: new Date() },
         { where: { id: toUpdate } }
       );
     }
 
-    console.log("✅ [DEBUG] Đã xử lý xong markAllAsRead");
-
     return res.json({ message: "Đã đánh dấu đã đọc tất cả" });
   } catch (err) {
-    console.error("❌ [ERROR] markAllAsRead:", err);
+    console.error("❌ Lỗi markAllAsRead:", err);
     return res.status(500).json({ message: "Lỗi server" });
   }
 }

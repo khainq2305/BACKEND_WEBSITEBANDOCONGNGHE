@@ -310,13 +310,16 @@ static async cancelOrder(req, res) {
       });
 
       const fsItem = it.Sku.flashSaleSkus?.[0];
-      if (fsItem) {
-        await FlashSaleItem.increment('quantity', {
-          by: it.quantity,
-          where: { id: fsItem.id },
-          transaction: t
-        });
-      }
+    if (fsItem) {
+  await FlashSaleItem.increment('quantity', {
+    by: it.quantity,
+    where: { id: fsItem.id },
+    transaction: t
+  });
+
+  console.log(`[cancelOrder] Đã hoàn lại ${it.quantity} suất FlashSaleItemId=${fsItem.id} từ skuId=${it.skuId}`);
+}
+
     }
 
     // 4. Trả lại coupon nếu có

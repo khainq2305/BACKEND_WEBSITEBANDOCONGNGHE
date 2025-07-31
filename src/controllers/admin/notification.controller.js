@@ -1,5 +1,8 @@
 const { Notification } = require("../../models");
 const { NotificationUser } = require("../../models");
+const { User } = require("../../models");
+const { getIO } = require("../../socket"); // Đường dẫn đúng theo vị trí controller
+
 const { Op } = require("sequelize");
 
 const NotificationController = {
@@ -20,7 +23,9 @@ const NotificationController = {
       } = req.body;
 
       const imageUrl = req.file?.path || "";
-      // Kiểm tra trùng tiêu đề
+      console.log("✅ [create] req.user:", req.user);
+
+      // 🚫 Kiểm tra trùng tiêu đề
       const existing = await Notification.findOne({ where: { title } });
       if (existing) {
         return res
@@ -28,67 +33,97 @@ const NotificationController = {
           .json({ message: "Tên thông báo này đã tồn tại" });
       }
 
-      let notification;
+      // ✅ Tạo thông báo chính
+      const notification = await Notification.create({
+        title,
+        slug,
+        message,
+        imageUrl,
+        link,
+        targetType,
+        targetId: targetId ? Number(targetId) : null,
+        isGlobal: isGlobal === "true" || isGlobal === true,
+        type,
 
-      try {
-        notification = await Notification.create({
-          title,
-          slug,
-          message,
-          imageUrl,
-          link,
-          targetType,
-          targetId: targetId ? Number(targetId) : null,
-          isGlobal: isGlobal === "true" || isGlobal === true,
-          type,
-          isActive: isActive === "true" || isActive === true,
-          startAt: startAt ? new Date(startAt) : null,
-        });
-      } catch (err) {
-        console.error("Lỗi khi tạo Notification:", err);
-        return res
-          .status(500)
-          .json({ message: "Tạo Notification thất bại", error: err.message });
-      }
+        isActive: isActive === "true" || isActive === true,
+        startAt: startAt ? new Date(startAt) : null,
+        createdBy: req.user?.fullName || `Admin #${req.user?.id}`, // ghi rõ ai tạo
+      });
+      console.log("✅ [create] Notification created:", notification?.id);
 
-      // Nếu là thông báo cho từng user
+      // relltime
+      getIO().emit("new-admin-notification", notification);
+      getIO().emit("new-client-notification", notification);
+
+      // ✅ Nếu là thông báo cho một số user cụ thể
       if (isGlobal === "false" || isGlobal === false || isGlobal === "0") {
-        let parsed = [];
+        let parsedUserIds = [];
 
         if (typeof userIds === "string") {
           try {
-            parsed = JSON.parse(userIds);
+            parsedUserIds = JSON.parse(userIds);
           } catch (err) {
-            console.error("userIds parse lỗi:", userIds);
             return res.status(400).json({ message: "userIds không hợp lệ" });
           }
         } else if (Array.isArray(userIds)) {
-          parsed = userIds;
+          parsedUserIds = userIds;
         }
 
-        if (parsed.length > 0) {
-          const inserts = parsed.map((userId) => ({
+        if (parsedUserIds.length > 0) {
+          const inserts = parsedUserIds.map((userId) => ({
             notificationId: notification.id,
             userId,
             isRead: false,
           }));
 
-          try {
-            await NotificationUser.bulkCreate(inserts);
-          } catch (err) {
-            console.error("Lỗi khi tạo NotificationUser:", err);
-            return res
-              .status(500)
-              .json({ message: "Tạo user nhận thông báo thất bại" });
-          }
+          await NotificationUser.bulkCreate(inserts);
         }
+      }
+
+      // ====================== //
+      // ✅ Gửi thông báo hệ thống cho tất cả admin
+      // ====================== //
+      if (req.user?.roleId === 1) {
+        console.log("✅ [create] Creating admin system notification");
+
+        const adminId = req.user.id;
+        const adminName = req.user.fullName || `Admin #${adminId}`;
+
+        const systemNotification = await Notification.create({
+          title: `${adminName} đã tạo một thông báo: "${title}"`,
+          message: message || "",
+          type: "system",
+          slug: `admin-created-${Date.now()}`,
+          isGlobal: false,
+          isActive: true,
+          targetType: "notification",
+          targetId: notification.id,
+          startAt: new Date(),
+            createdBy: adminName, // ✅ Thêm dòng này
+
+        });
+        // 👇 Thêm log ở đây
+        console.log("✅ [System Noti] Created system notification:", {
+          id: systemNotification.id,
+          title: systemNotification.title,
+          type: systemNotification.type,
+        });
+
+        const allAdmins = await User.findAll({ where: { roleId: 1 } });
+        const adminNotiUsers = allAdmins.map((a) => ({
+          notificationId: systemNotification.id,
+          userId: a.id,
+          isRead: false,
+        }));
+
+        await NotificationUser.bulkCreate(adminNotiUsers);
       }
 
       return res
         .status(201)
         .json({ message: "Tạo thông báo thành công", data: notification });
     } catch (err) {
-      console.error("Lỗi tạo thông báo:", err);
+      console.error("❌ Lỗi tạo thông báo:", err);
       return res
         .status(500)
         .json({ message: "Lỗi máy chủ", error: err.message });
@@ -142,6 +177,7 @@ const NotificationController = {
         isActive: isActive === "true" || isActive === true,
         isGlobal: isGlobal === "true" || isGlobal === true,
         startAt: startAt ? new Date(startAt) : null,
+        
       });
 
       // Cập nhật danh sách user nhận thông báo nếu isGlobal = false
