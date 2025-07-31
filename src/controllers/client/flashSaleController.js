@@ -1,6 +1,6 @@
 const {
   FlashSale, FlashSaleItem, FlashSaleCategory,
-  Sku, Product, ProductMedia, Category, OrderItem, Order, Review // Thêm Order, OrderItem, Review nếu cần cho soldCount, averageRating
+  Sku, Product, ProductMedia, Category, OrderItem, Order, Review 
 } = require('../../models');
 
 const { Sequelize, Op } = require('sequelize');
@@ -12,11 +12,10 @@ class FlashSaleClientController {
         where: {
           isActive: true,
           deletedAt: null,
-          // Thêm điều kiện thời gian để chỉ lấy flash sale đang hoặc sắp diễn ra
-          // Điều này giúp giảm tải và chỉ hiển thị các sale có liên quan
+        
           [Op.or]: [
-            { startTime: { [Op.lte]: new Date() }, endTime: { [Op.gte]: new Date() } }, // Đang diễn ra
-            { startTime: { [Op.gt]: new Date() } } // Sắp diễn ra
+            { startTime: { [Op.lte]: new Date() }, endTime: { [Op.gte]: new Date() } }, 
+            { startTime: { [Op.gt]: new Date() } }
           ]
         },
         include: [
@@ -141,21 +140,23 @@ class FlashSaleClientController {
             ]
           }
         ],
-        order: [['startTime', 'ASC']]
+       order: [
+    ['orderIndex', 'ASC'],   
+    ['startTime', 'ASC']      
+  ]
       });
 
       const resetAllSkuSalePrices = (flashSale) => {
-        // Reset salePrice và flashSaleInfo cho tất cả SKUs để đảm bảo tính toán mới
-        // flashSaleItems
+        
         flashSale.flashSaleItems?.forEach((it) => {
           if (it?.sku?.dataValues) {
             delete it.sku.dataValues.salePrice;
             delete it.sku.dataValues.flashSaleInfo;
             delete it.sku.dataValues.isSoldOut;
-            delete it.sku.dataValues._bestPriority; // Xóa cả ưu tiên nếu có
+            delete it.sku.dataValues._bestPriority; 
           }
         });
-        // categories (cho sản phẩm liên quan đến category)
+       
         flashSale.categories?.forEach((cat) => {
           cat.category?.products?.forEach((prod) => {
             prod.skus?.forEach((sku) => {
@@ -171,14 +172,13 @@ class FlashSaleClientController {
       };
 
       allSales.forEach((flashSale) => {
-        // Luôn reset thông tin khuyến mãi cho từng SKU trong mỗi Flash Sale để tính toán lại
+        
         resetAllSkuSalePrices(flashSale);
 
         const currentTime = new Date();
         const saleIsActive = currentTime >= flashSale.startTime && currentTime <= flashSale.endTime;
 
-        // --- Bước 1: Xử lý giá từ FlashSaleItem (Sản phẩm cụ thể trong Flash Sale) ---
-        // Ưu tiên cao nhất
+       
         const skuItemMap = new Map();
         (flashSale.flashSaleItems || []).forEach((it) => {
           if (!skuItemMap.has(it.skuId)) skuItemMap.set(it.skuId, []);
@@ -192,31 +192,28 @@ class FlashSaleClientController {
           sku.soldCount = parseInt(sku.dataValues.soldCount || 0);
           sku.averageRating = parseFloat(sku.dataValues.averageRating || 0);
 
-          // Lọc các flashSaleItems còn suất và có salePrice hợp lệ
+    
           const availableItems = items.filter(it => {
             const sold = parseInt(it.dataValues?.soldQuantity || 0);
             const limit = it.quantity;
-            // Một flashSaleItem được coi là hợp lệ nếu:
-            // 1. Có salePrice
-            // 2. Chưa hết suất (quantity > 0 và sold < quantity, hoặc quantity là null/0 có nghĩa là không giới hạn)
+
             const hasValidSalePrice = it.salePrice !== undefined && it.salePrice !== null;
             const hasAvailableSlots = (limit === null || limit === 0 || (limit > 0 && sold < limit));
             return hasValidSalePrice && hasAvailableSlots;
           });
 
-          // console.log(`SKU ${skuId} (Item): availableItems count: ${availableItems.length}`);
+        
 availableItems.sort((a, b) =>
   (a.dataValues.soldQuantity || 0) - (b.dataValues.soldQuantity || 0)
 );
 
           if (saleIsActive && availableItems.length > 0) {
-            // Chọn flashSaleItem tốt nhất (ví dụ: giảm giá nhiều nhất)
-            // Hiện tại, ta chỉ lấy cái đầu tiên vì ít khi có nhiều item cho cùng 1 SKU trong 1 flash sale
+           
             const selectedItem = availableItems[0];
             const basePrice = sku.originalPrice ?? sku.price;
             let calculatedSalePrice = selectedItem.salePrice;
 
-            // Đảm bảo giá sale không cao hơn giá gốc
+         
             if (calculatedSalePrice >= basePrice) {
               calculatedSalePrice = basePrice;
             }
@@ -224,48 +221,42 @@ availableItems.sort((a, b) =>
             sku.dataValues.salePrice = calculatedSalePrice;
             sku.dataValues.flashSaleInfo = {
                 flashSaleId: selectedItem.flashSaleId,
-  quantity: selectedItem.quantity, // Số suất được cấu hình
+  quantity: selectedItem.quantity,
   sold: parseInt(selectedItem.dataValues?.soldQuantity || 0),
-  originalQuantity: selectedItem.quantity, // ✅ CHỈ DÙNG quantity thôi
+  originalQuantity: selectedItem.quantity,
               isSoldOut: false,
               limitPerUser: selectedItem.maxPerUser,
-              isFlashSaleItem: true // Đánh dấu đây là FlashSaleItem
+              isFlashSaleItem: true 
             };
-            sku.dataValues.isSoldOut = false; // Ở cấp độ SKU, chưa hết hàng trong flash sale này
+            sku.dataValues.isSoldOut = false; 
           } else {
-            // Nếu flash sale không hoạt động HOẶC tất cả flashSaleItems cho SKU này đều hết suất/không hợp lệ
-            // Đặt isSoldOut = true nếu nó đã hết suất trong flash sale (dù flash sale có đang chạy hay không)
-            // hoặc đơn giản là không có ưu đãi FlashSaleItem hợp lệ
+         
          sku.dataValues.isSoldOut = true;
 sku.dataValues.flashSaleInfo = { isSoldOut: true, isFlashSaleItem: true };
-delete sku.dataValues.salePrice; // ✅ Quan trọng: phải xóa giá sale đi
+delete sku.dataValues.salePrice; 
 
           }
         });
 
-        // --- Bước 2: Xử lý giá từ FlashSaleCategory (Danh mục trong Flash Sale) ---
-        // Ưu tiên thấp hơn FlashSaleItem
+      
         (flashSale.categories || []).forEach((cat) => {
           const { discountType = 'percent', discountValue = 0, priority = 0 } = cat;
 
           (cat.category?.products || []).forEach((prod) => {
             (prod.skus || []).forEach((sku) => {
-              // Cập nhật soldCount và averageRating cho SKU từ category
+            
               if (sku?.dataValues) {
                 sku.soldCount = parseInt(sku.dataValues.soldCount || 0);
                 sku.averageRating = parseFloat(sku.dataValues.averageRating || 0);
               }
 
-              // Chỉ áp dụng giảm giá theo danh mục nếu flash sale đang hoạt động
+            
               if (!saleIsActive) {
-                // Nếu flash sale không hoạt động, không áp dụng giảm giá theo danh mục của flash sale này
+            
                 return;
               }
 
-              // Kiểm tra xem SKU này đã có salePrice từ FlashSaleItem chưa
-              // Hoặc nếu nó đã bị đánh dấu là hết hàng (isSoldOut) từ FlashSaleItem
-              // FlashSaleItem có ưu tiên cao nhất, nếu đã có salePrice hoặc đã hết suất ở cấp FlashSaleItem,
-              // thì không áp dụng giảm giá theo category nữa.
+          
 if (
   sku.dataValues.flashSaleInfo?.isFlashSaleItem &&
   sku.dataValues.flashSaleInfo?.isSoldOut === false
@@ -274,40 +265,37 @@ if (
 }
 
 
-              // Nếu không có salePrice từ FlashSaleItem, tính toán giá từ FlashSaleCategory
+             
               const basePrice = sku.originalPrice ?? sku.price;
               let newPrice;
 
               if (discountType === 'percent') {
                 newPrice = basePrice * (100 - discountValue) / 100;
-              } else { // 'fixed'
+              } else { 
                 newPrice = basePrice - discountValue;
               }
               newPrice = Math.max(0, Math.round(newPrice / 1000) * 1000);
 
-              // Chỉ cập nhật nếu giá mới tốt hơn giá hiện tại (hoặc chưa có giá nào)
-              // Hoặc nếu chưa có flashSaleInfo cụ thể (tức là không phải là FlashSaleItem)
+            
               if (sku.dataValues.salePrice === undefined || newPrice < sku.dataValues.salePrice) {
                 sku.dataValues.salePrice = newPrice;
            
 
                 sku.dataValues.flashSaleInfo = {
-                  flashSaleId: flashSale.id, // Gán flashSaleId của Flash Sale chính
+                  flashSaleId: flashSale.id,
                   discountType: discountType,
                   
                   discountValue: discountValue,
-                  isSoldOut: false, // Category discount không có khái niệm hết suất riêng lẻ
-                  isFlashSaleItem: false // Đánh dấu đây là category discount
+                  isSoldOut: false, 
+                  isFlashSaleItem: false 
                 };
-                sku.dataValues.isSoldOut = false; // Đánh dấu là còn hàng vì category discount không có suất cụ thể
+                sku.dataValues.isSoldOut = false; 
               }
             });
           });
         });
 
-        // --- Bước 3: Chuẩn hóa dữ liệu cho Frontend ---
-        // Đảm bảo rằng mỗi SKU có flashSaleInfo và isSoldOut rõ ràng
-        // Duyệt qua tất cả flashSaleItems và category products để chuẩn hóa
+        
         const allSkusInThisFlashSale = new Map();
 
         (flashSale.flashSaleItems || []).forEach(it => {
@@ -327,29 +315,26 @@ if (
         });
 
         allSkusInThisFlashSale.forEach(sku => {
-            // Nếu SKU không có salePrice sau tất cả các tính toán
-            // và không phải là isSoldOut = true (do hết suất item),
-            // thì giá hiển thị sẽ là giá price mặc định của SKU.
+       
             if (sku.dataValues.salePrice === undefined) {
-                // Xóa flashSaleInfo nếu không có salePrice cụ thể từ flash sale nữa
+             
                 delete sku.dataValues.flashSaleInfo;
-                // Nếu isSoldOut đã được set từ FlashSaleItem và là true, giữ nguyên
-                // Nếu chưa được set, mặc định là false (không hết hàng do flash sale)
+             
                 if (sku.dataValues.isSoldOut === undefined) {
-                    sku.dataValues.isSoldOut = false; // Không hết hàng nếu không có flash sale cụ thể
+                    sku.dataValues.isSoldOut = false;
                 }
             } else {
-                // Nếu có salePrice, nhưng flashSaleInfo chưa được set đầy đủ từ category discount
+           
                 if (!sku.dataValues.flashSaleInfo && !sku.dataValues.isFlashSaleItem) {
                     sku.dataValues.flashSaleInfo = {
                         flashSaleId: flashSale.id,
                         isSoldOut: false,
-                        isFlashSaleItem: false // Là category discount
+                        isFlashSaleItem: false 
                     };
                     sku.dataValues.isSoldOut = false;
                 }
             }
-            // Đảm bảo không có _bestPriority được gửi ra frontend
+ 
             delete sku.dataValues._bestPriority;
         });
       });

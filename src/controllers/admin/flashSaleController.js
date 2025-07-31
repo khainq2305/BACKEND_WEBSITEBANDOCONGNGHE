@@ -134,16 +134,19 @@ class FlashSaleController {
         return res.status(404).json({ message: "Không tìm thấy" });
       }
 
-      const { title, description, startTime, endTime, isActive, bgColor } = req.body;
+      const { title, description, startTime, endTime, isActive, bgColor } =
+        req.body;
 
       const items = req.body.items ? JSON.parse(req.body.items) : [];
-      const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+      const categories = req.body.categories
+        ? JSON.parse(req.body.categories)
+        : [];
 
       const updateData = {
         title,
         description,
-        startTime,
-        endTime,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
         slug: slugify(title || "", {
           lower: true,
           strict: true,
@@ -213,9 +216,10 @@ class FlashSaleController {
           skuId: item.skuId || item.id,
           salePrice: item.salePrice,
           quantity: item.quantity,
-          originalQuantity: parseInt(item.originalQuantity ?? item.quantity) || 0,
+          originalQuantity:
+            parseInt(item.originalQuantity ?? item.quantity) || 0,
           maxPerUser: item.maxPerUser,
-          note: item.note || '',
+          note: item.note || "",
           flashSaleId: flashSale.id,
         }));
         await FlashSaleItem.bulkCreate(itemData, { transaction: t });
@@ -224,7 +228,7 @@ class FlashSaleController {
       if (categories.length > 0) {
         const catData = categories.map((cat) => ({
           categoryId: cat.categoryId,
-          discountType: cat.discountType || 'percent',
+          discountType: cat.discountType || "percent",
           discountValue: cat.discountValue,
           maxPerUser: cat.maxPerUser,
           flashSaleId: flashSale.id,
@@ -233,7 +237,7 @@ class FlashSaleController {
       }
 
       await t.commit();
-      req.app.locals.io.emit('flash-sale-updated');
+      req.app.locals.io.emit("flash-sale-updated");
 
       res.json({ message: "Cập nhật thành công" });
     } catch (err) {
@@ -243,15 +247,16 @@ class FlashSaleController {
     }
   }
 
-
-
   static async create(req, res) {
     const t = await sequelize.transaction();
     try {
-      const { title, description, startTime, endTime, isActive, bgColor } = req.body;
+      const { title, description, startTime, endTime, isActive, bgColor } =
+        req.body;
 
       const items = req.body.items ? JSON.parse(req.body.items) : [];
-      const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+      const categories = req.body.categories
+        ? JSON.parse(req.body.categories)
+        : [];
 
       const bannerUrl = req.file ? req.file.path : null;
 
@@ -297,9 +302,10 @@ class FlashSaleController {
           skuId: item.skuId || item.id,
           salePrice: item.salePrice,
           quantity: item.quantity,
-          originalQuantity: parseInt(item.originalQuantity ?? item.quantity) || 0,
+          originalQuantity:
+            parseInt(item.originalQuantity ?? item.quantity) || 0,
           maxPerUser: item.maxPerUser,
-          note: item.note || '',
+          note: item.note || "",
           flashSaleId: flashSale.id,
         }));
         await FlashSaleItem.bulkCreate(itemData, { transaction: t });
@@ -308,7 +314,7 @@ class FlashSaleController {
       if (categories.length > 0) {
         const catData = categories.map((cat) => ({
           categoryId: cat.categoryId,
-          discountType: cat.discountType || 'percent',
+          discountType: cat.discountType || "percent",
           discountValue: cat.discountValue,
           maxPerUser: cat.maxPerUser,
           flashSaleId: flashSale.id,
@@ -317,7 +323,7 @@ class FlashSaleController {
       }
 
       await t.commit();
-      req.app.locals.io.emit('flash-sale-updated');
+      req.app.locals.io.emit("flash-sale-updated");
 
       res.status(201).json({ message: "Tạo thành công", data: flashSale });
     } catch (err) {
@@ -326,10 +332,6 @@ class FlashSaleController {
       res.status(500).json({ message: "Lỗi server: " + err.message });
     }
   }
-
-
-
-
 
   static async forceDelete(req, res) {
     try {
@@ -469,8 +471,9 @@ class FlashSaleController {
         price: sku.price,
         originalPrice: sku.originalPrice,
         stock: sku.stock,
-        label: `${sku.product?.name} - ${sku.skuCode
-          } - ${sku.originalPrice?.toLocaleString("vi-VN")}đ`,
+        label: `${sku.product?.name} - ${
+          sku.skuCode
+        } - ${sku.originalPrice?.toLocaleString("vi-VN")}đ`,
       }));
 
       res.json(result);
@@ -508,15 +511,12 @@ class FlashSaleController {
       }
 
       const updatePromises = orderedIds.map((id, index) => {
-        return FlashSale.update(
-          { orderIndex: index + 1 },
-          { where: { id } }
-        );
+        return FlashSale.update({ orderIndex: index + 1 }, { where: { id } });
       });
 
       await Promise.all(updatePromises);
 
-      req.app.locals.io.emit('flash-sale-reordered');
+      req.app.locals.io.emit("flash-sale-reordered");
 
       res.json({ message: "Cập nhật thứ tự thành công" });
     } catch (err) {
@@ -524,7 +524,6 @@ class FlashSaleController {
       res.status(500).json({ message: "Lỗi server" });
     }
   }
-
 }
 
 module.exports = FlashSaleController;
