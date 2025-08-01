@@ -362,13 +362,17 @@ class ChatboxController {
                 isProductDetail: false
             };
         }
-        if (/(chính hãng|hàng thật|giả|bảo đảm|bảo mật)/.test(lower)) {
+        if (
+            /(chính hãng|hàng thật|giả|bảo đảm|bảo mật)/.test(lower) &&
+            !/giảm giá/.test(lower)
+        ) {
             return {
                 type: 'text',
                 data: '🔒 **Home Power** cam kết 100% sản phẩm chính hãng, có nguồn gốc rõ ràng và hỗ trợ bảo hành đầy đủ. Quý khách có thể yên tâm mua sắm!',
                 isProductDetail: false
             };
         }
+
         if (/(nên mua|loại nào tốt|phù hợp|gợi ý|hợp với tôi|chọn giúp|sản phẩm tốt nhất)/.test(lower)) {
             return {
                 type: 'text',
@@ -503,15 +507,30 @@ class ChatboxController {
 
         if (/giảm giá|khuyến mãi/.test(lower)) {
             const saleItems = products.filter(p => p.discount && p.discount >= 1);
+
+            const tableRows = saleItems.slice(0, 5).map(p => [
+                `<a href='/product/${p.slug}' class='text-blue-600 underline'>${p.name}</a>`,
+                `${formatCurrencyVND(p.price)}`,
+                p.soldCount > 999 ? `${Math.floor(p.soldCount / 1000)}k+` : `${p.soldCount}`
+            ]);
+
             return {
                 type: 'product_grid',
                 data: {
                     title: 'Sản phẩm đang giảm giá',
-                    products: saleItems
+                    descriptionTop: '🔥 Dưới đây là các sản phẩm đang khuyến mãi nổi bật:',
+                    table: {
+                        headers: ['Tên sản phẩm', 'Giá (VNĐ)', 'Đã bán'],
+                        rows: tableRows
+                    },
+                    products: saleItems,
+                    noteAfterGrid: '💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!'
                 },
                 isProductDetail: false
             };
         }
+
+
         function normalizeVN(str) {
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         }
