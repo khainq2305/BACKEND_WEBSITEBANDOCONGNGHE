@@ -1,4 +1,3 @@
-// routes/client/searchRoutes.js
 const express = require("express");
 // Import 'uploadCloudinary' từ file cấu hình Cloudinary của bạn
 const { upload } = require("../../config/cloudinary"); // Đảm bảo đường dẫn đúng

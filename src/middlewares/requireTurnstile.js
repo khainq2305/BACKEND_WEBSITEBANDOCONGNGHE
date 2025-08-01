@@ -1,6 +1,6 @@
-import { verifyTurnstile } from '../utils/verifyTurnstile.js';
+const { verifyTurnstile } = require('../utils/verifyTurnstile.js');
 
-export async function requireTurnstile(req, res, next) {
+async function requireTurnstile(req, res, next) {
   const { cfToken } = req.body;
 
   if (!cfToken) {
@@ -14,3 +14,9 @@ export async function requireTurnstile(req, res, next) {
 
   next(); // ✅ Cho đi tiếp nếu pass
 }
+
+// Xuất hàm bằng cú pháp CommonJS
+module.exports = {
+  requireTurnstile,
+};
+

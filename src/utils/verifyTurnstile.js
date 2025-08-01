@@ -1,6 +1,6 @@
-import axios from 'axios';
+const axios = require('axios'); // Changed from import
 
-export async function verifyTurnstile(token, ip) {
+async function verifyTurnstile(token, ip) {
   try {
     const secret = process.env.TURNSTILE_SECRET_KEY;
     console.log('USING SECRET:', process.env.TURNSTILE_SECRET_KEY);
@@ -34,3 +34,8 @@ export async function verifyTurnstile(token, ip) {
     return false;
   }
 }
+
+// Export the function using CommonJS syntax
+module.exports = {
+  verifyTurnstile,
+};
