@@ -458,34 +458,142 @@ Disallow: /api/admin/`,
   // Generate sitemap
   async generateSitemap(req, res) {
     try {
+      console.log('🗺️ Generating sitemap...');
+      
+      // Lấy cấu hình SEO để có base URL
+      let config = await SEOConfig.findOne();
+      const baseUrl = config?.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+      
+      // Lấy tất cả reports (không chỉ score >= 60)
       const reports = await SEOReport.findAll({
-        where: { overallScore: { [Op.gte]: 60 } },
-        attributes: ['url', 'lastAnalyzed']
+        attributes: ['url', 'lastAnalyzed', 'overallScore'],
+        order: [['lastAnalyzed', 'DESC']]
       });
+      
+      console.log(`📊 Found ${reports.length} SEO reports`);
       
       let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
       sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
-      reports.forEach(report => {
+      // 1. Thêm trang chủ
+      sitemap += '  <url>\n';
+      sitemap += `    <loc>${baseUrl}</loc>\n`;
+      sitemap += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
+      sitemap += '    <changefreq>daily</changefreq>\n';
+      sitemap += '    <priority>1.0</priority>\n';
+      sitemap += '  </url>\n';
+      
+      // 2. Thêm các trang tĩnh quan trọng
+      const staticPages = [
+        { path: '/san-pham', priority: '0.9', changefreq: 'daily' },
+        { path: '/danh-muc', priority: '0.8', changefreq: 'weekly' },
+        { path: '/tin-tuc', priority: '0.7', changefreq: 'daily' },
+        { path: '/lien-he', priority: '0.6', changefreq: 'monthly' },
+        { path: '/gioi-thieu', priority: '0.5', changefreq: 'monthly' }
+      ];
+      
+      staticPages.forEach(page => {
         sitemap += '  <url>\n';
-        sitemap += `    <loc>${report.url}</loc>\n`;
-        sitemap += `    <lastmod>${report.lastAnalyzed.toISOString().split('T')[0]}</lastmod>\n`;
-        sitemap += '    <changefreq>weekly</changefreq>\n';
-        sitemap += '    <priority>0.8</priority>\n';
+        sitemap += `    <loc>${baseUrl}${page.path}</loc>\n`;
+        sitemap += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
+        sitemap += `    <changefreq>${page.changefreq}</changefreq>\n`;
+        sitemap += `    <priority>${page.priority}</priority>\n`;
         sitemap += '  </url>\n';
       });
       
+      // 3. Thêm URLs từ SEO reports (nếu có)
+      if (reports && reports.length > 0) {
+        console.log('📄 Adding SEO analyzed pages...');
+        
+        // Loại bỏ duplicate URLs và filter URLs hợp lệ
+        const uniqueUrls = new Set();
+        
+        reports.forEach(report => {
+          if (report.url && !uniqueUrls.has(report.url)) {
+            uniqueUrls.add(report.url);
+            
+            // Xác định priority dựa trên SEO score
+            let priority = '0.5';
+            if (report.overallScore >= 90) priority = '0.9';
+            else if (report.overallScore >= 80) priority = '0.8';
+            else if (report.overallScore >= 70) priority = '0.7';
+            else if (report.overallScore >= 60) priority = '0.6';
+            
+            // Xác định changefreq dựa trên loại trang
+            let changefreq = 'weekly';
+            if (report.url.includes('/tin-tuc/') || report.url.includes('/blog/')) {
+              changefreq = 'daily';
+            } else if (report.url.includes('/san-pham/')) {
+              changefreq = 'weekly';
+            } else if (report.url.includes('/danh-muc/')) {
+              changefreq = 'weekly';
+            }
+            
+            sitemap += '  <url>\n';
+            sitemap += `    <loc>${report.url}</loc>\n`;
+            sitemap += `    <lastmod>${report.lastAnalyzed.toISOString().split('T')[0]}</lastmod>\n`;
+            sitemap += `    <changefreq>${changefreq}</changefreq>\n`;
+            sitemap += `    <priority>${priority}</priority>\n`;
+            sitemap += '  </url>\n';
+          }
+        });
+        
+        console.log(`✅ Added ${uniqueUrls.size} unique analyzed URLs`);
+      }
+      
+      // 4. Thêm sample product/category URLs (nếu chưa có data thực)
+      if (reports.length === 0) {
+        console.log('📦 Adding sample URLs (no SEO reports found)...');
+        
+        const sampleUrls = [
+          { path: '/san-pham/dien-thoai', priority: '0.8', changefreq: 'weekly' },
+          { path: '/san-pham/laptop', priority: '0.8', changefreq: 'weekly' },
+          { path: '/san-pham/tablet', priority: '0.7', changefreq: 'weekly' },
+          { path: '/danh-muc/apple', priority: '0.7', changefreq: 'weekly' },
+          { path: '/danh-muc/samsung', priority: '0.7', changefreq: 'weekly' },
+          { path: '/tin-tuc/cong-nghe-moi', priority: '0.6', changefreq: 'daily' }
+        ];
+        
+        sampleUrls.forEach(page => {
+          sitemap += '  <url>\n';
+          sitemap += `    <loc>${baseUrl}${page.path}</loc>\n`;
+          sitemap += `    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n`;
+          sitemap += `    <changefreq>${page.changefreq}</changefreq>\n`;
+          sitemap += `    <priority>${page.priority}</priority>\n`;
+          sitemap += '  </url>\n';
+        });
+      }
+      
       sitemap += '</urlset>';
+      
+      console.log('✅ Sitemap generated successfully');
       
       res.set('Content-Type', 'application/xml');
       res.send(sitemap);
       
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to generate sitemap',
-        error: error.message
-      });
+      console.error('❌ Generate sitemap error:', error);
+      
+      // Fallback sitemap với ít nhất trang chủ
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/san-pham</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>`;
+      
+      res.set('Content-Type', 'application/xml');
+      res.send(fallbackSitemap);
     }
   }
   
