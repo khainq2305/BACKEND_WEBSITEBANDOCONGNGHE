@@ -176,28 +176,33 @@ class WishlistController {
 
             if (!wishlists.length) return res.json([]);
 
-            wishlists.forEach((wl) => {
-                wl.items.forEach((it) => {
-                    const sku = it.sku;
-                    const product = it.product; // Get product details
-                    
-                    // Prepare skuData for the helper
-                    const skuDataForHelper = {
-                        ...sku.toJSON(), // Convert to JSON to get plain data
-                        Product: { category: { id: product?.categoryId } } // Attach category for helper
-                    };
+        wishlists.forEach((wl) => {
+  wl.items.forEach((it) => {
+    const sku = it.sku;
+    const product = it.product;
 
-                    // Use the helper to process SKU prices and get Flash Sale info
-                    const priceResults = processSkuPrices(skuDataForHelper, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+    // 🛑 Fix ở đây
+    if (!sku || !product) return;
 
-                    // Attach the processed price information to the SKU object
-                    sku.dataValues.price = priceResults.price;
-                    sku.dataValues.originalPrice = priceResults.originalPrice; // This will be the strikethrough price
-                    sku.dataValues.discount = priceResults.discount;
-                    sku.dataValues.flashSaleInfo = priceResults.flashSaleInfo;
-                    sku.dataValues.hasDeal = priceResults.hasDeal;
-                });
-            });
+    const skuDataForHelper = {
+      ...sku.toJSON(),
+      Product: { category: { id: product?.categoryId } }
+    };
+
+    const priceResults = processSkuPrices(
+      skuDataForHelper,
+      allActiveFlashSaleItemsMap,
+      allActiveCategoryDealsMap
+    );
+
+    sku.dataValues.price = priceResults.price;
+    sku.dataValues.originalPrice = priceResults.originalPrice;
+    sku.dataValues.discount = priceResults.discount;
+    sku.dataValues.flashSaleInfo = priceResults.flashSaleInfo;
+    sku.dataValues.hasDeal = priceResults.hasDeal;
+  });
+});
+
 
             const variantTxt = (sku) =>
                 (sku?.variantValues || [])

@@ -124,7 +124,7 @@ class FlashSaleController {
     }
   }
 
-  static async update(req, res) {
+static async update(req, res) {
   const t = await sequelize.transaction();
   try {
     const { slug } = req.params;
@@ -156,6 +156,7 @@ class FlashSaleController {
       updateData.bannerUrl = req.file.path;
     }
 
+    // 🔁 Xử lý thay đổi orderIndex nếu cần
     const newOrderIndex = parseInt(req.body.orderIndex);
     const currentOrderIndex = flashSale.orderIndex;
 
@@ -192,58 +193,71 @@ class FlashSaleController {
       }
     }
 
+    // 📝 Cập nhật flashSale chính
     await flashSale.update(updateData, { transaction: t });
 
-    // Lấy các FlashSaleItem cũ để giữ lại originalQuantity nếu cần
+    // 🔍 Lấy FlashSaleItem cũ để xử lý cập nhật
     const existingItems = await FlashSaleItem.findAll({
       where: { flashSaleId: flashSale.id },
       transaction: t,
     });
+    const existingMap = new Map(existingItems.map(it => [it.skuId, it]));
 
-    const existingMap = new Map();
-    existingItems.forEach((it) => {
-      existingMap.set(it.skuId, it.originalQuantity || it.quantity);
-    });
+    const incomingSkuIds = items.map(i => i.skuId || i.id);
 
-    // Xoá cũ
+    // 🧹 Xoá những item không còn nữa
     await FlashSaleItem.destroy({
-      where: { flashSaleId: flashSale.id },
+      where: {
+        flashSaleId: flashSale.id,
+        skuId: { [Op.notIn]: incomingSkuIds },
+      },
       transaction: t,
     });
 
+    // 🔁 Cập nhật hoặc tạo mới các item
+    for (const item of items) {
+      const skuId = item.skuId || item.id;
+      const incomingQty = parseInt(item.quantity);
+      const oldItem = existingMap.get(skuId);
+
+      if (oldItem) {
+        const soldCount = Math.max(oldItem.originalQuantity - oldItem.quantity, 0);
+        const newOriginalQuantity = Math.max(oldItem.originalQuantity, incomingQty + soldCount);
+
+        await oldItem.update({
+          salePrice: item.salePrice,
+          quantity: incomingQty,
+          originalQuantity: newOriginalQuantity,
+          maxPerUser: item.maxPerUser,
+          note: item.note || "",
+        }, { transaction: t });
+      } else {
+        await FlashSaleItem.create({
+          skuId,
+          salePrice: item.salePrice,
+          quantity: incomingQty,
+          originalQuantity: parseInt(item.quantity),
+          maxPerUser: item.maxPerUser,
+          note: item.note || "",
+          flashSaleId: flashSale.id,
+        }, { transaction: t });
+      }
+    }
+
+    // 🔁 Xoá hết & thêm lại categories
     await FlashSaleCategory.destroy({
       where: { flashSaleId: flashSale.id },
       transaction: t,
     });
 
-    // ➕ Tạo mới
-    if (items.length > 0) {
-      const itemData = items.map((item) => {
-        const incomingQty = parseInt(item.quantity);
-        const oldOriginal = existingMap.get(item.skuId || item.id) || 0;
-        return {
-          skuId: item.skuId || item.id,
-          salePrice: item.salePrice,
-          quantity: incomingQty,
-          originalQuantity: Math.max(incomingQty, oldOriginal),
-          maxPerUser: item.maxPerUser,
-          note: item.note || "",
-          flashSaleId: flashSale.id,
-        };
-      });
-
-      await FlashSaleItem.bulkCreate(itemData, { transaction: t });
-    }
-
     if (categories.length > 0) {
-      const catData = categories.map((cat) => ({
+      const catData = categories.map(cat => ({
         categoryId: cat.categoryId,
         discountType: cat.discountType || "percent",
         discountValue: cat.discountValue,
         maxPerUser: cat.maxPerUser,
         flashSaleId: flashSale.id,
       }));
-
       await FlashSaleCategory.bulkCreate(catData, { transaction: t });
     }
 
@@ -257,6 +271,7 @@ class FlashSaleController {
     res.status(500).json({ message: "Lỗi server: " + err.message });
   }
 }
+
 
 
   static async create(req, res) {
@@ -314,8 +329,8 @@ class FlashSaleController {
           skuId: item.skuId || item.id,
           salePrice: item.salePrice,
           quantity: item.quantity,
-          originalQuantity:
-            parseInt(item.originalQuantity ?? item.quantity) || 0,
+          originalQuantity: parseInt(item.quantity) || 0,
+
           maxPerUser: item.maxPerUser,
           note: item.note || "",
           flashSaleId: flashSale.id,
