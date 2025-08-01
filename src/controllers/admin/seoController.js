@@ -247,7 +247,17 @@ class SEOController {
           defaultTitle: 'Website Bán Đồ Công Nghệ',
           titleSeparator: '-',
           defaultMetaDescription: 'Chuyên bán các sản phẩm công nghệ chất lượng cao',
-          robotsTxt: 'User-agent: *\nDisallow:',
+          robotsTxt: `User-agent: *
+Allow: /
+
+# SEO-friendly URLs - Allow crawling
+Allow: /san-pham/
+Allow: /danh-muc/
+Allow: /tin-tuc/
+
+# Disallow admin pages
+Disallow: /admin/
+Disallow: /api/admin/`,
           sitemap: { enabled: true, includeImages: true },
           socialMedia: {
             twitter: { defaultCard: 'summary_large_image' }
@@ -264,9 +274,9 @@ class SEOController {
         titleSeparator: config.titleSeparator || '-',
         maxTitleLength: 60,
         maxMetaDescLength: 160,
-        enableOpenGraph: true,
-        enableTwitterCard: true,
-        enableJsonLd: true,
+        enableOpenGraph: config.enableOpenGraph,
+        enableTwitterCard: config.enableTwitterCard,
+        enableJsonLd: config.enableJsonLd,
         enableSitemap: config.sitemap?.enabled !== false,
         robotsTxt: config.robotsTxt || ''
       };
@@ -307,6 +317,9 @@ class SEOController {
         titleSeparator: configData.titleSeparator || '-',
         defaultMetaDescription: configData.metaDescription,
         robotsTxt: configData.robotsTxt,
+        enableOpenGraph: configData.enableOpenGraph !== false,
+        enableTwitterCard: configData.enableTwitterCard !== false,
+        enableJsonLd: configData.enableJsonLd !== false,
         sitemap: {
           enabled: configData.enableSitemap !== false,
           includeImages: true,
@@ -471,6 +484,53 @@ class SEOController {
       res.status(500).json({
         success: false,
         message: 'Failed to generate sitemap',
+        error: error.message
+      });
+    }
+  }
+  
+  // Generate robots.txt từ database
+  async generateRobotsTxt(req, res) {
+    try {
+      let config = await SEOConfig.findOne();
+      
+      let robotsTxt = '';
+      
+      if (config && config.robotsTxt) {
+        robotsTxt = config.robotsTxt;
+        
+        // Tự động thêm sitemap nếu chưa có
+        if (!robotsTxt.includes('Sitemap:')) {
+          const baseUrl = config.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+          robotsTxt += `\n\n# Sitemap\nSitemap: ${baseUrl}/sitemap.xml`;
+        }
+      } else {
+        // Default robots.txt
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        robotsTxt = `User-agent: *
+Allow: /
+
+# SEO-friendly URLs - Allow crawling
+Allow: /san-pham/
+Allow: /danh-muc/
+Allow: /tin-tuc/
+
+# Disallow admin pages
+Disallow: /admin/
+Disallow: /api/admin/
+
+# Sitemap
+Sitemap: ${baseUrl}/sitemap.xml`;
+      }
+      
+      res.set('Content-Type', 'text/plain');
+      res.send(robotsTxt);
+      
+    } catch (error) {
+      console.error('Generate robots.txt error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate robots.txt',
         error: error.message
       });
     }

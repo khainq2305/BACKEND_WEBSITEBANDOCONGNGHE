@@ -29,6 +29,11 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
+// SEO public routes (không cần authentication)
+const seoController = require('./controllers/admin/seoController');
+app.get('/robots.txt', (req, res) => seoController.generateRobotsTxt(req, res));
+app.get('/sitemap.xml', (req, res) => seoController.generateSitemap(req, res));
+
 app.use('/', clientRoutes);
 app.use('/admin', adminRoutes); 
 

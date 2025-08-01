@@ -96,6 +96,21 @@ const SEOConfig = connection.define('SEOConfig', {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: []
+  },
+  enableOpenGraph: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
+  enableTwitterCard: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
+  enableJsonLd: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
   }
 }, {
   tableName: 'seo_configs',
