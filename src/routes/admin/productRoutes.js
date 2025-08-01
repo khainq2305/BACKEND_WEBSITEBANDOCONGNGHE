@@ -3,19 +3,12 @@ const router = express.Router();
 const ProductController = require('../../controllers/admin/productController');
 const { validateSimpleProduct } = require('../../validations/validateSimpleProduct');
 const { attachUserDetail } = require('../../middlewares/getUserDetail ');
-const { authorize } = require('../../middlewares/authorize'); // Import middleware phân quyền thông minh
+const { authorize } = require('../../middlewares/authorize');
 const { checkJWT } = require('../../middlewares/checkJWT');
 const { upload } = require('../../config/cloudinary');
+
 router.use(checkJWT);
 router.use(attachUserDetail);
-// router.use(authorize("ggg"))
-router.get('/product/list', ProductController.getAll);  
-router.get(
-  '/product/:slug',
-  ProductController.getById    
-);
-
-
 
 const parseProductBody = (req, res, next) => {
   try {
@@ -36,44 +29,35 @@ const parseProductBody = (req, res, next) => {
   }
 };
 
-router.post(
-  '/product/create',
- upload.any(),
-parseProductBody, 
-validateSimpleProduct,
+router.get('/list', ProductController.getAll);
+router.get('/:slug', ProductController.getById);
 
-  ProductController.create
-);
-router.put(
-  '/product/update/:slug',
+router.post(
+  '/create',
   upload.any(),
   parseProductBody,
   validateSimpleProduct,
-  ProductController.update  
+  ProductController.create
 );
-router.delete('/product/soft/:id', ProductController.softDelete);
 
+router.put(
+  '/update/:slug',
+  upload.any(),
+  parseProductBody,
+  validateSimpleProduct,
+  ProductController.update
+);
 
-  
+router.delete('/soft/:id', ProductController.softDelete);
+router.delete('/force/:id', ProductController.forceDelete);
+router.patch('/restore/:id', ProductController.restore);
+
+router.post('/soft-delete-many', ProductController.softDeleteMany);
+router.post('/force-delete-many', ProductController.forceDeleteMany);
+router.post('/restore-many', ProductController.restoreMany);
+router.post('/update-order', ProductController.updateOrderIndexBulk);
+
 router.get('/categories/tree', ProductController.getCategoryTree);
-router.post  ('/product/force-delete-many',  ProductController.forceDeleteMany); 
-
-router.post('/product/soft-delete-many', ProductController.softDeleteMany);
-
-
-router.patch('/product/restore/:id', ProductController.restore);
-
-
-router.post('/product/restore-many', ProductController.restoreMany);
-
-
-router.delete('/product/force/:id', ProductController.forceDelete);
-
-
 router.get('/brands/list', ProductController.getBrandList);
-
-
-router.post('/product/update-order', ProductController.updateOrderIndexBulk);
-
 
 module.exports = router;

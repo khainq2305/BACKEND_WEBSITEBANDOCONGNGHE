@@ -9,40 +9,18 @@ const { authorize } = require('../../middlewares/authorize');
 
 router.use(checkJWT);
 router.use(attachUserDetail);
-router.use(authorize("Banner"))
+router.use(authorize("Banner"));
 
-router.get('/banners/categories-for-select', BannerController.getCategoriesForSelect);
-router.get('/banners/products-for-select', BannerController.getProductsForSelect);
+router.get('/categories-for-select', BannerController.getCategoriesForSelect);
+router.get('/products-for-select', BannerController.getProductsForSelect);
 
-router.post(
-  '/',
-  upload.single('image'),
-  validateBanner,
-  BannerController.create
-);
+router.post('/create', upload.single('image'), validateBanner, BannerController.create);
+router.put('/update/:slug', upload.single('image'), validateBanner, BannerController.update);
+router.get('/detail/:slug', BannerController.getById);
+router.get('/list', BannerController.getAll);
 
-// Cập nhật thứ tự hiển thị (kéo thả)
-router.put(
-  '/banners/:id/update-order',
-  BannerController.updateOrder
-);
-router.put(
-  '/banners/:slug',
-  upload.single('image'),
-  validateBanner,
-  BannerController.update
-);
-// Sửa lại route từ POST → DELETE
-router.delete('/banners/force-delete', BannerController.forceDeleteMany);
-
-router.get('/banners/:slug', BannerController.getById);
-
-router.get('/banners', BannerController.getAll);
-
-
-
-
-router.delete('/banners/:id', authorize("Banner", "delete"), BannerController.delete);
-
+router.delete('/force-delete-many', BannerController.forceDeleteMany);
+router.delete('/delete/:id', authorize("Banner", "delete"), BannerController.delete);
+router.put('/update-order/:id', BannerController.updateOrder);
 
 module.exports = router;
