@@ -460,9 +460,21 @@ Disallow: /api/admin/`,
     try {
       console.log('🗺️ Generating sitemap...');
       
-      // Lấy cấu hình SEO để có base URL
+      // Lấy cấu hình SEO để có base URL và sitemap settings
       let config = await SEOConfig.findOne();
       const baseUrl = config?.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+      
+      // Kiểm tra xem sitemap có được bật hay không
+      const sitemapEnabled = config?.sitemap?.enabled !== false;
+      
+      if (!sitemapEnabled) {
+        console.log('❌ Sitemap generation is disabled in SEO config');
+        return res.status(403).json({
+          success: false,
+          message: 'Sitemap generation is disabled. Please enable it in SEO configuration.',
+          code: 'SITEMAP_DISABLED'
+        });
+      }
       
       // Lấy tất cả reports (không chỉ score >= 60)
       const reports = await SEOReport.findAll({
@@ -483,7 +495,7 @@ Disallow: /api/admin/`,
       sitemap += '    <priority>1.0</priority>\n';
       sitemap += '  </url>\n';
       
-      // 2. Thêm các trang tĩnh quan trọng
+      // 2. Thêm các trang tĩnh quan trọng (luôn có nếu sitemap enabled)
       const staticPages = [
         { path: '/san-pham', priority: '0.9', changefreq: 'daily' },
         { path: '/danh-muc', priority: '0.8', changefreq: 'weekly' },
@@ -501,7 +513,7 @@ Disallow: /api/admin/`,
         sitemap += '  </url>\n';
       });
       
-      // 3. Thêm URLs từ SEO reports (nếu có)
+      // 3. Thêm URLs từ SEO reports (nếu có và enabled)
       if (reports && reports.length > 0) {
         console.log('📄 Adding SEO analyzed pages...');
         
@@ -574,7 +586,7 @@ Disallow: /api/admin/`,
     } catch (error) {
       console.error('❌ Generate sitemap error:', error);
       
-      // Fallback sitemap với ít nhất trang chủ
+      // Fallback sitemap với ít nhất trang chủ (nếu có lỗi)
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -607,10 +619,13 @@ Disallow: /api/admin/`,
       if (config && config.robotsTxt) {
         robotsTxt = config.robotsTxt;
         
-        // Tự động thêm sitemap nếu chưa có
+        // Tự động thêm sitemap nếu chưa có và sitemap được bật
         if (!robotsTxt.includes('Sitemap:')) {
-          const baseUrl = config.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
-          robotsTxt += `\n\n# Sitemap\nSitemap: ${baseUrl}/sitemap.xml`;
+          const sitemapEnabled = config.sitemap?.enabled !== false;
+          if (sitemapEnabled) {
+            const baseUrl = config.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+            robotsTxt += `\n\n# Sitemap\nSitemap: ${baseUrl}/sitemap.xml`;
+          }
         }
       } else {
         // Default robots.txt
@@ -627,7 +642,7 @@ Allow: /tin-tuc/
 Disallow: /admin/
 Disallow: /api/admin/
 
-# Sitemap
+# Sitemap (auto-generated if enabled)
 Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
@@ -639,6 +654,30 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.status(500).json({
         success: false,
         message: 'Failed to generate robots.txt',
+        error: error.message
+      });
+    }
+  }
+  
+  // Kiểm tra trạng thái sitemap
+  async getSitemapStatus(req, res) {
+    try {
+      const config = await SEOConfig.findOne();
+      const sitemapEnabled = config?.sitemap?.enabled !== false;
+      
+      res.json({
+        success: true,
+        data: {
+          enabled: sitemapEnabled,
+          message: sitemapEnabled ? 'Sitemap generation is enabled' : 'Sitemap generation is disabled',
+          settings: config?.sitemap || { enabled: true, includeImages: true }
+        }
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get sitemap status',
         error: error.message
       });
     }
