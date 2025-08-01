@@ -681,6 +681,7 @@ module.exports = {
   categoryPostModel,
   Cart,
   CartItem,
+  Ward ,
   ProductMedia,
   HighlightedCategoryItem,
   District,
