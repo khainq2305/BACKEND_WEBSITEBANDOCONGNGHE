@@ -1,6 +1,9 @@
 const { Role, Action, Subject, RolePermission } = require('../../models');
 const { Op } = require('sequelize');
 
+const SUBJECT_COMMENT = 'Comment';
+const SUBJECT_DASHBOARD = 'Dashboard';
+const SUBJECT_USER = 'User';
 class PermissionService {
     async getAllSubjects() {
         return Subject.findAll({
@@ -10,9 +13,39 @@ class PermissionService {
     }
 
     async getActionsForSubject(subjectKey) {
-        return Action.findAll({
+        let allowedActions;
+        switch (subjectKey) {
+            case SUBJECT_COMMENT:
+                allowedActions = ['read', 'reply'];
+                break;
+            case SUBJECT_DASHBOARD:
+                allowedActions = ['read', 'export'];
+                break;
+            case SUBJECT_USER:
+                allowedActions = ['read', 'resetPassword', 'lockAccount', 'unlockAccount'];
+                break;
+            default:
+                return Action.findAll({
+                    where: {
+                        key: { [Op.notIn]: ['reply', 'export', 'resetPassword', 'lockAccount', 'unlockAccount'] }
+                    },
+                    attributes: ['id', ['key', 'action'], 'description']
+                });
+        }
+        const actions = await Action.findAll({
+            where: {
+                key: {
+                    [Op.in]: allowedActions
+                }
+            },
             attributes: ['id', ['key', 'action'], 'description']
         });
+        return actions.map(a => ({
+            id: a.id,
+            action: a.action,
+            description: a.description,
+            label: a.label
+        }));
     }
 
     async getMatrix(subjectKey) {
@@ -107,6 +140,7 @@ class PermissionService {
         const result = Object.values(grouped).sort((a, b) => a.subject.localeCompare(b.subject));
         return { grouped: result, total: rawPermissions.length };
     }
+
 }
 
 module.exports = new PermissionService();

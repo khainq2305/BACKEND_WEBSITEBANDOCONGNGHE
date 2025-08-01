@@ -92,6 +92,7 @@ class SkuController {
       const logs = await SkuService.getLogsBySkuId(id, type);
       res.json({ data: logs });
     } catch (err) {
+      console.error(err); // In lỗi ra console
       res.status(500).json({ error: 'Server error loi roi' });
     }
   }
