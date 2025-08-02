@@ -13,7 +13,7 @@ const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
 const ReturnRequest = require("./returnRequest");
-const StockLog = require("./StockLog")
+const StockLog = require("./StockLog");
 
 const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
@@ -82,12 +82,14 @@ const RolePermission = require("./RolePermission");
 const Action = require("./actionModel");
 const Subject = require("./Subject");
 
-
 // Mini Game
 const SpinReward = require("./spinRewardModel");
 const UserSpin = require("./userSpinModel");
 const SpinHistory = require("./spinHistoryModel");
 
+//combo
+const Combo = require("./combo.model");
+const ComboSku = require("./combosku.model");
 
 // Mini Game
 User.hasMany(UserSpin, { foreignKey: "userId", as: "spins" });
@@ -112,7 +114,7 @@ AuditLog.belongsTo(User, {
 // phan quyen
 // User - Role
 User.belongsToMany(Role, {
-  through: UserRole, 
+  through: UserRole,
   through: UserRole, // 👈 sửa đây
   foreignKey: "userId",
   otherKey: "roleId",
@@ -168,7 +170,6 @@ ReturnRequestItem.belongsTo(Sku, {
 
 //
 
-
 StockLog.belongsTo(User, { foreignKey: "userId", as: "user" });
 //
 NotificationUser.belongsTo(Notification, { foreignKey: "notificationId" });
@@ -209,7 +210,7 @@ Post.belongsToMany(Tags, {
 });
 Order.belongsTo(ShippingProvider, {
   foreignKey: "shippingProviderId",
-  as: "shippingProvider", 
+  as: "shippingProvider",
 });
 Tags.belongsToMany(Post, {
   through: PostTag,
@@ -609,7 +610,7 @@ ShippingService.belongsTo(ShippingProvider, {
   foreignKey: "providerId",
   as: "provider",
 });
-Category.belongsTo(Category, { as: 'parentCategory', foreignKey: 'parentId' }); 
+Category.belongsTo(Category, { as: "parentCategory", foreignKey: "parentId" });
 // Provider ↔ Province/District/Ward mapping
 ShippingProvider.hasMany(ProviderProvince, { foreignKey: "providerId" });
 ProviderProvince.belongsTo(ShippingProvider, { foreignKey: "providerId" });
@@ -644,19 +645,25 @@ MembershipLog.belongsTo(MembershipTier, {
 Ward.hasMany(ProviderWard, { foreignKey: "wardId" });
 ProviderWard.belongsTo(Ward, { foreignKey: "wardId" });
 StockLog.belongsTo(Sku, {
-  foreignKey: 'skuId',
-  as: 'sku'
+  foreignKey: "skuId",
+  as: "sku",
 });
 
 Sku.hasMany(StockLog, {
-  foreignKey: 'skuId',
-  as: 'logs'
+  foreignKey: "skuId",
+  as: "logs",
 });
 User.hasMany(UserPoint, { foreignKey: "userId", as: "points" });
 UserPoint.belongsTo(User, { foreignKey: "userId", as: "user" });
 
 Order.hasMany(UserPoint, { foreignKey: "orderId", as: "pointLogs" });
 UserPoint.belongsTo(Order, { foreignKey: "orderId", as: "order" });
+
+// Combo có nhiều sku qua ComboSku
+Combo.hasMany(ComboSku, { foreignKey: "comboId", as: "comboSkus" });
+ComboSku.belongsTo(Combo, { foreignKey: "comboId" });
+// Có thể thêm nếu cần:
+ComboSku.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
 
 module.exports = {
   Sequelize,
@@ -681,7 +688,7 @@ module.exports = {
   categoryPostModel,
   Cart,
   CartItem,
-  Ward ,
+  Ward,
   ProductMedia,
   HighlightedCategoryItem,
   District,
@@ -738,7 +745,7 @@ module.exports = {
   Sku,
   ProductMedia,
   Product,
-    ReturnRequestItem,
+  ReturnRequestItem,
 
   UserToken,
   RolePermission,
@@ -761,5 +768,7 @@ module.exports = {
   Variant,
   VariantValue,
   SkuVariantValue,
+  Combo,
+  ComboSku,
   sequelize: connection, // Thêm dòng này
 };
