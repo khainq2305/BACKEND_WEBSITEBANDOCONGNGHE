@@ -4,7 +4,7 @@ module.exports = {
   init: (server) => {
     const socketIo = require('socket.io')(server, {
       cors: {
-        origin: 'http://localhost:9999', // domain FE admin
+        origin: ['http://localhost:9999', 'http://localhost:3000'], // hoặc thêm ngrok nếu cần
         credentials: true
       }
     });
@@ -13,6 +13,16 @@ module.exports = {
 
     socketIo.on('connection', (socket) => {
       console.log('📡 Socket connected:', socket.id);
+
+      // ✅ LẮNG NGHE USER JOIN ROOM
+      socket.on('join', (room) => {
+        console.log('👥 Join room:', room);
+        socket.join(room);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('❌ Socket disconnected:', socket.id);
+      });
     });
 
     return io;

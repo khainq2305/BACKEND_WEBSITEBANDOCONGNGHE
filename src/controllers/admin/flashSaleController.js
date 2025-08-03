@@ -128,11 +128,8 @@ static async update(req, res) {
   const t = await sequelize.transaction();
   try {
     const { slug } = req.params;
-
     const flashSale = await FlashSale.findOne({ where: { slug } });
-    if (!flashSale) {
-      return res.status(404).json({ message: "Không tìm thấy" });
-    }
+    if (!flashSale) return res.status(404).json({ message: "Không tìm thấy" });
 
     const { title, description, startTime, endTime, isActive, bgColor } = req.body;
     const items = req.body.items ? JSON.parse(req.body.items) : [];
@@ -152,14 +149,11 @@ static async update(req, res) {
       bgColor,
     };
 
-    if (req.file) {
-      updateData.bannerUrl = req.file.path;
-    }
+    if (req.file) updateData.bannerUrl = req.file.path;
 
-    // 🔁 Xử lý thay đổi orderIndex nếu cần
+    // Handle orderIndex reorder
     const newOrderIndex = parseInt(req.body.orderIndex);
     const currentOrderIndex = flashSale.orderIndex;
-
     if (!isNaN(newOrderIndex)) {
       const hasConflict = await FlashSale.findOne({
         where: { orderIndex: newOrderIndex, id: { [Op.ne]: flashSale.id } },
@@ -170,10 +164,7 @@ static async update(req, res) {
           await FlashSale.decrement("orderIndex", {
             by: 1,
             where: {
-              orderIndex: {
-                [Op.gt]: currentOrderIndex,
-                [Op.lte]: newOrderIndex,
-              },
+              orderIndex: { [Op.gt]: currentOrderIndex, [Op.lte]: newOrderIndex },
             },
             transaction: t,
           });
@@ -181,10 +172,7 @@ static async update(req, res) {
           await FlashSale.increment("orderIndex", {
             by: 1,
             where: {
-              orderIndex: {
-                [Op.gte]: newOrderIndex,
-                [Op.lt]: currentOrderIndex,
-              },
+              orderIndex: { [Op.gte]: newOrderIndex, [Op.lt]: currentOrderIndex },
             },
             transaction: t,
           });
@@ -193,10 +181,9 @@ static async update(req, res) {
       }
     }
 
-    // 📝 Cập nhật flashSale chính
     await flashSale.update(updateData, { transaction: t });
 
-    // 🔍 Lấy FlashSaleItem cũ để xử lý cập nhật
+    // Handle FlashSaleItems
     const existingItems = await FlashSaleItem.findAll({
       where: { flashSaleId: flashSale.id },
       transaction: t,
@@ -204,8 +191,6 @@ static async update(req, res) {
     const existingMap = new Map(existingItems.map(it => [it.skuId, it]));
 
     const incomingSkuIds = items.map(i => i.skuId || i.id);
-
-    // 🧹 Xoá những item không còn nữa
     await FlashSaleItem.destroy({
       where: {
         flashSaleId: flashSale.id,
@@ -214,7 +199,6 @@ static async update(req, res) {
       transaction: t,
     });
 
-    // 🔁 Cập nhật hoặc tạo mới các item
     for (const item of items) {
       const skuId = item.skuId || item.id;
       const incomingQty = parseInt(item.quantity);
@@ -222,11 +206,12 @@ static async update(req, res) {
 
       if (oldItem) {
         const soldCount = Math.max(oldItem.originalQuantity - oldItem.quantity, 0);
-        const newOriginalQuantity = Math.max(oldItem.originalQuantity, incomingQty + soldCount);
+        const newOriginalQuantity = Math.max(incomingQty + soldCount, soldCount);
+        const newQuantity = newOriginalQuantity - soldCount;
 
         await oldItem.update({
           salePrice: item.salePrice,
-          quantity: incomingQty,
+          quantity: newQuantity,
           originalQuantity: newOriginalQuantity,
           maxPerUser: item.maxPerUser,
           note: item.note || "",
@@ -236,7 +221,7 @@ static async update(req, res) {
           skuId,
           salePrice: item.salePrice,
           quantity: incomingQty,
-          originalQuantity: parseInt(item.quantity),
+          originalQuantity: incomingQty,
           maxPerUser: item.maxPerUser,
           note: item.note || "",
           flashSaleId: flashSale.id,
@@ -244,7 +229,7 @@ static async update(req, res) {
       }
     }
 
-    // 🔁 Xoá hết & thêm lại categories
+    // Handle FlashSaleCategory
     await FlashSaleCategory.destroy({
       where: { flashSaleId: flashSale.id },
       transaction: t,
@@ -263,7 +248,6 @@ static async update(req, res) {
 
     await t.commit();
     req.app.locals.io.emit("flash-sale-updated");
-
     res.json({ message: "Cập nhật thành công" });
   } catch (err) {
     await t.rollback();
@@ -271,6 +255,8 @@ static async update(req, res) {
     res.status(500).json({ message: "Lỗi server: " + err.message });
   }
 }
+
+
 
 
 

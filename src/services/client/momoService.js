@@ -1,89 +1,77 @@
 // src/services/client/momoService.js
-const axios   = require('axios');
-const crypto  = require('crypto');
+const axios = require("axios");
+const crypto = require("crypto");
 
 const partnerCode = process.env.MOMO_PARTNER_CODE;
-const accessKey   = process.env.MOMO_ACCESS_KEY;
-const secretKey   = process.env.MOMO_SECRET_KEY;
+const accessKey = process.env.MOMO_ACCESS_KEY;
+const secretKey = process.env.MOMO_SECRET_KEY;
 const redirectUrl = process.env.MOMO_REDIRECT_URL;
-
-
-/* ----------------------------------------------------
- * 1. TẠO LINK THANH TOÁN
- * -------------------------------------------------- */
 async function createPaymentLink({ orderId, amount, orderInfo }) {
-  
-  const ipnUrl      ='https://437361babf31.ngrok-free.app/payment/momo-callback';
-   const requestType = 'captureWallet'; // ✅ Flow QR MoMo Wallet
-  const requestId   = `${orderId}-${Date.now()}`;
-  const extraData   = '';
- console.log("🔗 IPN URL gửi MoMo:", ipnUrl);
+  const ipnUrl = "https://437361babf31.ngrok-free.app/payment/momo-callback";
+  const requestType = "captureWallet";
+  const requestId = `${orderId}-${Date.now()}`;
+  const extraData = "";
+
   const rawSignature = [
     `accessKey=${accessKey}`,
     `amount=${Math.round(amount)}`,
     `extraData=${extraData}`,
     `ipnUrl=${ipnUrl}`,
+    
     `orderId=${orderId}`,
     `orderInfo=${orderInfo}`,
     `partnerCode=${partnerCode}`,
     `redirectUrl=${redirectUrl}`,
     `requestId=${requestId}`,
-    `requestType=${requestType}`
-  ].join('&');
+    `requestType=${requestType}`,
+  ].join("&");
 
   const signature = crypto
-    .createHmac('sha256', secretKey)
+    .createHmac("sha256", secretKey)
     .update(rawSignature)
-    .digest('hex');
+    .digest("hex");
 
   const payload = {
     partnerCode,
     accessKey,
     requestId,
-    amount        : `${Math.round(amount)}`,
-    orderId       : `${orderId}`,
+    amount: `${Math.round(amount)}`,
+    orderId: `${orderId}`,
     orderInfo,
     redirectUrl,
     ipnUrl,
     extraData,
     requestType,
     signature,
-    lang          : 'vi'
+    lang: "vi",
   };
 
   const { data } = await axios.post(
-    'https://test-payment.momo.vn/v2/gateway/api/create',
+    "https://test-payment.momo.vn/v2/gateway/api/create",
     payload,
-    { headers: { 'Content-Type': 'application/json' } }
+    { headers: { "Content-Type": "application/json" } }
   );
 
-  console.log('🟢 Phản hồi từ MoMo (create):', data);
   return data;
 }
 
-/* ----------------------------------------------------
- * 2. HOÀN TIỀN (API: /refund)
- *    - Đây là “refund toàn phần” (full-refund).
- *    - Nếu bạn muốn refund một phần, bổ sung transactionType = 02/03...
- * -------------------------------------------------- */
-async function refund({ orderCode, amount, momoTransId, description = '' }) {
-  
-  if (!momoTransId) throw new Error('Thiếu momoTransId – không thể hoàn tiền');
+async function refund({ orderCode, amount, momoTransId, description = "" }) {
+  if (!momoTransId) throw new Error("Thiếu momoTransId – không thể hoàn tiền");
 
   const requestId = `${orderCode}-RF-${Date.now()}`;
-  const orderId   = requestId;           // mã refund riêng biệt
-  const transId   = String(momoTransId);
+  const orderId = requestId;
+  const transId = String(momoTransId);
 
-  const rawSignature = 
+  const rawSignature =
     `accessKey=${accessKey}&amount=${Math.round(amount)}` +
     `&description=${description}&orderId=${orderId}` +
     `&partnerCode=${partnerCode}&requestId=${requestId}` +
     `&transId=${transId}`;
 
   const signature = crypto
-    .createHmac('sha256', secretKey)
+    .createHmac("sha256", secretKey)
     .update(rawSignature)
-    .digest('hex');
+    .digest("hex");
 
   const payload = {
     partnerCode,
@@ -94,39 +82,26 @@ async function refund({ orderCode, amount, momoTransId, description = '' }) {
     transId,
     description,
     signature,
-    lang: 'vi'
+    lang: "vi",
+   
   };
-console.log('[🟠 MoMo REFUND PAYLOAD]', {
-  orderCode,
-  amount,
-  momoTransId,
-  requestId,
-  orderId
-});
 
-try {
-  const { data } = await axios.post(
-    'https://test-payment.momo.vn/v2/gateway/api/refund',
-    payload,
-    { headers: { 'Content-Type': 'application/json' } }
-  );
+  try {
+    const { data } = await axios.post(
+      "https://test-payment.momo.vn/v2/gateway/api/refund",
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
 
-  console.log('[🔴 MoMo REFUND RESPONSE]', data);
-  return data;
-
-} catch (error) {
-  console.error('[❌ MoMo REFUND ERROR]', error?.response?.data || error.message || error);
-  throw error; // để đẩy lỗi ra ngoài nếu cần rollback
-}
+    return data;
+  } catch (error) {
+    throw error;
+  }
 
   return data;
 }
 
-
-/* ----------------------------------------------------
- * 3. EXPORT
- * -------------------------------------------------- */
 module.exports = {
   createPaymentLink,
-  refund                      // 🔑 thêm export này
+  refund,
 };

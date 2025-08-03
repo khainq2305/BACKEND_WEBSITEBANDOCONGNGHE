@@ -10,7 +10,7 @@ const sendEmail = async (to, subject, htmlContent) => {
   });
 
   await transporter.sendMail({
-    from: `"No-Reply" <${process.env.EMAIL_USER}>`,
+   from: `"CYBERZONE" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html: htmlContent

@@ -2,11 +2,14 @@ const {
   Order,
   OrderItem,
   sequelize,
+  FlashSaleCategory,
   UserAddress,
   Province,
   Product,
   Coupon,
+  Category,
   CouponUser,
+  User,
   ReturnRequest,
   FlashSale,
   FlashSaleItem,
@@ -18,7 +21,7 @@ const {
   ReturnRequestItem,
   ShippingProvider,
   Notification,
-  
+
   NotificationUser,
   ProviderProvince, // <--- Đảm bảo đã import
   ProviderDistrict, // <--- Đảm bảo đã import
@@ -34,21 +37,27 @@ const momoService = require("../../services/client/momoService");
 const zaloPayService = require("../../services/client/zalopayService");
 const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
-const { Op } = require("sequelize");
+const { Sequelize, Op } = require('sequelize');
+const { generateOrderConfirmationHtml } = require("../../utils/emailTemplates/orderConfirmationTemplate");
+const { generateOrderCancellationHtml } = require('../../utils/emailTemplates/orderCancellationTemplate');
+const mjml2html = require('mjml');
 const refundGateway = require("../../utils/refundGateway");
+const { processSkuPrices } = require('../../helpers/priceHelper');
 
 const moment = require("moment"); // nếu chưa import
 const ShippingService = require("../../services/client/shippingService");
 class OrderController {
-   static async createOrder(req, res) {
+  // Bạn cần đảm bảo các models đã được import đúng cách
+  // const { Order, OrderItem, Sku, FlashSale, FlashSaleItem, Coupon, CouponUser, UserPoint, Cart, CartItem, UserAddress, Province, District, Ward, PaymentMethod, ShippingProvider, Notification, NotificationUser } = require('../models');
+  // const { Op } = require('sequelize');
+  // const { sendEmail } = require('../utils/email');
+  // const ShippingService = require('../services/shippingService');
+  // const axios = require('axios');
+
+  static async createOrder(req, res) {
     const t = await sequelize.transaction();
     try {
-      console.log("--- BẮT ĐẦU QUÁ TRÌNH TẠO ĐƠN HÀNG (Phiên bản của bạn) ---");
-
-      /* ================================================================
-       * 1. LẤY INPUT & CÁC BIẾN CÓ THỂ THAY ĐỔI
-       * ================================================================ */
-      const user = req.user; // Giả định req.user đã được gán qua middleware
+      const user = req.user;
       const {
         addressId,
         items,
@@ -64,63 +73,36 @@ class OrderController {
         pointsToSpend = 0,
       } = req.body;
 
-      console.log(`[Input] User ID: ${user.id}`);
-      console.log(`[Input] addressId: ${addressId}`);
-      console.log(`[Input] items (${items.length}):`, JSON.stringify(items));
-      console.log(`[Input] couponCode: ${couponCode}`);
-      console.log(`[Input] paymentMethodId: ${paymentMethodId}`);
-      console.log(`[Input] usePoints: ${usePoints}, pointsToSpend: ${pointsToSpend}`);
-      console.log(`[Input] shippingProviderId: ${shippingProviderId}, shippingService: ${shippingService}, shippingLeadTime: ${shippingLeadTime}, bodyShippingFee: ${bodyShippingFee}`);
-
-
-      // 👉 copy sang biến có thể reassignment
-      let providerId = shippingProviderId || null;
-      let serviceCode = shippingService || null;
-      let leadTimeDate = shippingLeadTime ? new Date(shippingLeadTime) : null;
-      console.log(`[Biến Reassignment] providerId: ${providerId}, serviceCode: ${serviceCode}, leadTimeDate: ${leadTimeDate}`);
-
-      /* ------------------------------------------------ */
       if (!addressId || !items?.length || !paymentMethodId) {
-        console.error("Lỗi: Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán).");
-        return res.status(400).json({ message: "Thiếu dữ liệu đơn hàng" });
+        return res.status(400).json({ message: "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán)." });
       }
 
-      const validPayment = await PaymentMethod.findByPk(paymentMethodId);
+      const [validPayment, selectedAddress] = await Promise.all([
+        PaymentMethod.findByPk(paymentMethodId),
+        UserAddress.findOne({
+          where: { id: addressId, userId: user.id },
+          include: [{ model: Province, as: "province" }, { model: District, as: "district" }, { model: Ward, as: "ward" }],
+        }),
+      ]);
+
       if (!validPayment) {
-        console.error(`Lỗi: Phương thức thanh toán ID ${paymentMethodId} không hợp lệ.`);
-        return res
-          .status(400)
-          .json({ message: "Phương thức thanh toán không hợp lệ" });
+        return res.status(400).json({ message: "Phương thức thanh toán không hợp lệ." });
       }
-      console.log(`[Check] Phương thức thanh toán: ${validPayment.code} - ${validPayment.name}`);
-
-      /* ========== ĐỊA CHỈ ========= */
-      const selectedAddress = await UserAddress.findOne({
-        where: { id: addressId, userId: user.id },
-        include: [
-          { model: Province, as: "province" },
-          { model: District, as: "district" },
-          { model: Ward, as: "ward" },
-        ],
-      });
       if (!selectedAddress) {
-        console.error(`Lỗi: Địa chỉ người dùng ID ${addressId} không hợp lệ hoặc không thuộc về người dùng ${user.id}.`);
-        return res
-          .status(400)
-          .json({ message: "Địa chỉ người dùng không hợp lệ." });
+        return res.status(400).json({ message: "Địa chỉ người dùng không hợp lệ." });
       }
-      console.log(`[Check] Địa chỉ: ${selectedAddress.addressDetail}, ${selectedAddress.ward.name}, ${selectedAddress.district.name}, ${selectedAddress.province.name}`);
 
-
-      /* ========== SKU & GIẢM GIÁ (Tính totalPrice dựa trên giá từ FE, như code của bạn) ========= */
       const now = new Date();
-      console.log(`[Thời gian] Hiện tại: ${now.toISOString()}`);
-
       const skuIdsToFetch = items.map((i) => i.skuId);
-      console.log(`[Fetch] Đang lấy thông tin SKU cho IDs: ${skuIdsToFetch.join(', ')}`);
+
       const skuList = await Sku.findAll({
         where: { id: skuIdsToFetch },
         include: [
+          {
+            model: Product,
+            as: "product",
+            include: [{ model: Category, as: "category" }],
+          },
           {
             model: FlashSaleItem,
             as: "flashSaleSkus",
@@ -128,55 +110,108 @@ class OrderController {
             include: {
               model: FlashSale,
               as: "flashSale",
+              where: { isActive: true, startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
               required: true,
-              where: {
-                isActive: true,
-                startTime: { [Op.lte]: now },
-                endTime: { [Op.gte]: now },
-              },
             },
           },
         ],
       });
-      console.log(`[Fetch] Đã lấy ${skuList.length} SKU từ DB.`);
+
       if (skuList.length !== skuIdsToFetch.length) {
-          console.error("Lỗi: Số lượng SKU lấy được từ DB không khớp với số lượng SKU yêu cầu.");
-          return res.status(400).json({ message: "Một hoặc nhiều SKU không tồn tại trong hệ thống." });
+        return res.status(400).json({ message: "Một hoặc nhiều sản phẩm không tồn tại trong hệ thống." });
       }
 
-      const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
+      const skuMap = new Map(skuList.map(s => [s.id, s]));
 
-      console.log("--- Bắt đầu kiểm tra SKU và tồn kho ---");
+      // SỬA LỖI TRUY VẤN: Lấy các FlashSaleItem đang hoạt động bằng cách include model FlashSale
+      const allActiveFlashSaleItems = await FlashSaleItem.findAll({
+        where: { isActive: true }, // Kiểm tra isActive của FlashSaleItem
+        include: [{
+          model: FlashSale,
+          as: 'flashSale',
+          where: {
+            isActive: true,
+            startTime: { [Op.lte]: now },
+            endTime: { [Op.gte]: now }
+          },
+          required: true
+        }]
+      });
+      const allActiveFlashSaleItemsMap = new Map();
+      for (const item of allActiveFlashSaleItems) {
+        if (!allActiveFlashSaleItemsMap.has(item.skuId)) {
+          allActiveFlashSaleItemsMap.set(item.skuId, []);
+        }
+        allActiveFlashSaleItemsMap.get(item.skuId).push(item);
+      }
+
+      // SỬA LỖI TRUY VẤN: Lấy các Category Deal đang hoạt động bằng cách include model FlashSale
+      const allActiveCategoryDeals = await FlashSaleCategory.findAll({
+        where: { isActive: true }, // Kiểm tra isActive của FlashSaleCategory
+        include: [
+          {
+            model: FlashSale,
+            as: 'flashSale',
+            where: {
+              isActive: true,
+              startTime: { [Op.lte]: now },
+              endTime: { [Op.gte]: now }
+            },
+            required: true
+          }
+        ]
+      });
+      const allActiveCategoryDealsMap = new Map();
+      allActiveCategoryDeals.forEach(deal => {
+        const existingDeals = allActiveCategoryDealsMap.get(deal.categoryId) || [];
+        existingDeals.push(deal);
+        allActiveCategoryDealsMap.set(deal.categoryId, existingDeals);
+      });
+
+      let totalPrice = 0;
+      const orderItemsToCreate = [];
+      const orderItemsForEmail = [];
       for (const it of items) {
-        const sku = skuMap[it.skuId];
+        const sku = skuMap.get(it.skuId);
         if (!sku) {
-          console.error(`Lỗi: SKU ${it.skuId} không tìm thấy trong skuMap (lỗi logic nội bộ).`);
-          return res
-            .status(400)
-            .json({ message: `Không tìm thấy SKU ${it.skuId}` });
+          return res.status(400).json({ message: `Không tìm thấy SKU ${it.skuId}` });
         }
-        console.log(`[SKU Loop] Đang kiểm tra SKU: ${sku.id} (${sku.skuCode}), số lượng yêu cầu: ${it.quantity}, tồn kho: ${sku.stock}`);
         if (it.quantity > sku.stock) {
-          console.error(`Lỗi: SKU "${sku.skuCode}" chỉ còn ${sku.stock} sản phẩm trong kho. Yêu cầu: ${it.quantity}.`);
-          return res
-            .status(400)
-            .json({ message: `SKU "${sku.skuCode}" chỉ còn ${sku.stock}` });
+          return res.status(400).json({ message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.` });
         }
+
+        const priceResult = processSkuPrices(sku, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+
+        totalPrice += priceResult.price * it.quantity;
+
+        let flashSaleItemId = null;
+        // Chỉ gán flashSaleId nếu là flash sale item và flash sale đó chưa hết hàng
+        if (priceResult.flashSaleInfo?.type === 'item' && priceResult.flashSaleInfo.isSoldOut === false) {
+          flashSaleItemId = allActiveFlashSaleItems.find(fsItem =>
+            fsItem.flashSaleId === priceResult.flashSaleInfo.flashSaleId &&
+            fsItem.skuId === it.skuId &&
+            parseFloat(fsItem.salePrice) === priceResult.price
+          )?.id || null;
+        }
+
+        orderItemsToCreate.push({
+          skuId: it.skuId,
+          quantity: it.quantity,
+          price: priceResult.price,
+          flashSaleId: flashSaleItemId, // Gán ID FlashSaleItem hợp lệ hoặc null
+        });
+        orderItemsForEmail.push({
+          productName: sku.product.name,
+          quantity: it.quantity,
+          price: priceResult.price,
+        });
       }
 
-      // ⚠️ Cảnh báo: Đoạn này vẫn tính totalPrice dựa trên 'it.price' từ frontend.
-      // Nếu frontend gửi 'price: 0', totalPrice sẽ là 0.
-      const totalPrice = items.reduce((s, i) => s + i.price * i.quantity, 0);
-      console.log(`[Giá] TotalPrice (tính từ 'items.price' từ FE): ${totalPrice}`);
-
-      /* ----- coupon (nếu có) ----- */
       let couponRecord = null;
       let couponDiscount = 0;
       let shippingDiscount = 0;
-      console.log("--- Bắt đầu xử lý Coupon ---");
 
       if (couponCode) {
-        console.log(`[Coupon] Mã coupon nhận được: ${couponCode.trim()}`);
         couponRecord = await Coupon.findOne({
           where: {
             code: couponCode.trim(),
@@ -186,118 +221,67 @@ class OrderController {
           },
           paranoid: false,
         });
+
         if (!couponRecord) {
-          console.error(`Lỗi: Mã giảm giá "${couponCode}" không hợp lệ hoặc đã hết hiệu lực.`);
-          return res
-            .status(400)
-            .json({ message: "Coupon không hợp lệ hoặc đã hết hiệu lực" });
-        }
-        console.log(`[Coupon] Đã tìm thấy Coupon: ${couponRecord.code}, DiscountType: ${couponRecord.discountType}, DiscountValue: ${couponRecord.discountValue}`);
-
-
-        if (couponRecord.totalQuantity !== null) {
-          const used = await Order.count({
-            where: {
-              couponId: couponRecord.id,
-              status: { [Op.notIn]: ["cancelled", "failed"] },
-            },
-          });
-          console.log(`[Coupon] Lượt đã dùng tổng cộng: ${used}, Lượt tối đa: ${couponRecord.totalQuantity}`);
-          if (used >= couponRecord.totalQuantity) {
-            console.error(`Lỗi: Mã giảm giá "${couponCode}" đã hết lượt sử dụng tổng cộng.`);
-            return res
-              .status(400)
-              .json({ message: "Coupon đã hết lượt sử dụng" });
-          }
+          return res.status(400).json({ message: "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực." });
         }
 
-        const maxUsagePerUser = couponRecord.maxUsagePerUser || 1;
+        const usedByOthers = await Order.count({
+          where: {
+            couponId: couponRecord.id,
+            status: { [Op.notIn]: ["cancelled", "failed"] },
+          },
+        });
+
+        if (couponRecord.totalQuantity && usedByOthers >= couponRecord.totalQuantity) {
+          return res.status(400).json({ message: "Mã giảm giá đã hết lượt sử dụng." });
+        }
+
         const couponUser = await CouponUser.findOne({
           where: { userId: user.id, couponId: couponRecord.id },
           transaction: t,
           lock: t.LOCK.UPDATE,
         });
-        console.log(`[Coupon] User ${user.id} đã dùng coupon này: ${couponUser?.used || 0} lần. Tối đa: ${maxUsagePerUser}`);
 
-        if (couponUser && couponUser.used >= maxUsagePerUser) {
+        if (couponUser && couponUser.used >= (couponRecord.maxUsagePerUser || 1)) {
           await t.rollback();
-          console.error(`Lỗi: Người dùng ${user.id} đã sử dụng mã giảm giá này tối đa ${maxUsagePerUser} lần.`);
-          return res
-            .status(400)
-            .json({ message: "Bạn đã sử dụng mã này tối đa" });
+          return res.status(400).json({ message: "Bạn đã sử dụng mã này tối đa." });
         }
 
         if (couponRecord.discountType === "shipping") {
           shippingDiscount = Number(couponRecord.discountValue);
-          console.log(`[Coupon] Loại giảm giá vận chuyển. shippingDiscount: ${shippingDiscount}`);
         } else {
-          couponDiscount =
-            couponRecord.discountType === "percent"
-              ? Math.floor((totalPrice * couponRecord.discountValue) / 100)
-              : Number(couponRecord.discountValue);
+          couponDiscount = couponRecord.discountType === "percent"
+            ? Math.floor((totalPrice * couponRecord.discountValue) / 100)
+            : Number(couponRecord.discountValue);
 
-          if (
-            couponRecord.maxDiscountValue &&
-            couponDiscount > couponRecord.maxDiscountValue
-          )
+          if (couponRecord.maxDiscountValue && couponDiscount > couponRecord.maxDiscountValue) {
             couponDiscount = couponRecord.maxDiscountValue;
-          console.log(`[Coupon] Loại giảm giá tổng tiền. couponDiscount: ${couponDiscount}`);
+          }
         }
-      } else {
-          console.log("[Coupon] Không có mã coupon được áp dụng.");
       }
 
-      /* ========== PHÍ VẬN CHUYỂN ========= */
       let shippingFee = Number(bodyShippingFee) || 0;
-      console.log(`[Vận chuyển] Phí vận chuyển nhận từ FE (bodyShippingFee): ${bodyShippingFee}, sau đó ép kiểu: ${shippingFee}`);
+      let finalServiceCode = shippingService;
+      let finalProviderId = shippingProviderId;
+      let calculatedLeadTime = shippingLeadTime ? new Date(shippingLeadTime) : null;
 
-      let finalServiceCode = serviceCode; // Để lưu serviceCode cuối cùng
-      let finalProviderId = providerId; // Để lưu providerId cuối cùng
-      let calculatedLeadTime = leadTimeDate; // Để lưu leadTime cuối cùng
-
-      if (shippingFee === 0) { // Nếu frontend không truyền phí vận chuyển (hoặc bằng 0), thì tự tính
-        console.log("[Vận chuyển] Phí vận chuyển là 0, đang tính lại.");
+      if (shippingFee === 0 || !shippingProviderId) {
         let weight = 0, maxL = 0, maxW = 0, maxH = 0;
-        for (const it of items) {
-          const sku = skuMap[it.skuId];
-          weight += (sku.weight || 500) * it.quantity;
+        for (const item of orderItemsToCreate) {
+          const sku = skuMap.get(item.skuId);
+          weight += (sku.weight || 500) * item.quantity;
           maxL = Math.max(maxL, sku.length || 10);
           maxW = Math.max(maxW, sku.width || 10);
           maxH = Math.max(maxH, sku.height || 10);
         }
         weight = Math.max(1, weight);
-        maxL = Math.max(1, maxL);
-        maxW = Math.max(1, maxW);
-        maxH = Math.max(1, maxH);
-        console.log(`[Vận chuyển] Kích thước/Khối lượng gói hàng: Weight=${weight}g, L=${maxL}cm, W=${maxW}cm, H=${maxH}cm`);
 
-        const MAX_WEIGHT = 30000; // 30kg
-        const MAX_DIMENSION = 150; // GHN chiều dài tối đa
-
-        if (
-          weight > MAX_WEIGHT ||
-          maxL > MAX_DIMENSION ||
-          maxW > MAX_DIMENSION ||
-          maxH > MAX_DIMENSION
-        ) {
-          console.error(`Lỗi: Đơn hàng vượt quá giới hạn vận chuyển. Weight=${weight}, L=${maxL}, W=${maxW}, H=${maxH}`);
-          return res.status(400).json({
-            message: `Đơn hàng vượt quá giới hạn vận chuyển của GHN (30kg hoặc kích thước > 150cm). Vui lòng giảm số lượng sản phẩm.`,
-            code: "ORDER_OVER_LIMIT",
-          });
-        }
-
-        const defaultProvider = await ShippingProvider.findOne({
-          where: { code: "ghn" },
-        });
+        const defaultProvider = await ShippingProvider.findOne({ where: { code: "ghn" } });
         if (!defaultProvider) {
-          console.error("Lỗi: Hãng vận chuyển GHN (mặc định) không được tìm thấy trong DB.");
-          throw new Error(
-            "Hãng vận chuyển GHN (mặc định) không được tìm thấy."
-          );
+          throw new Error("Hãng vận chuyển mặc định không được tìm thấy.");
         }
         finalProviderId = defaultProvider.id;
-        console.log(`[Vận chuyển] Sử dụng hãng vận chuyển mặc định: GHN (ID: ${finalProviderId})`);
 
         const calcFeeParams = {
           providerId: finalProviderId,
@@ -311,109 +295,54 @@ class OrderController {
           provinceName: selectedAddress.province.name,
           districtName: selectedAddress.district.name,
           wardName: selectedAddress.ward.name,
-          serviceCode: serviceCode,
+          serviceCode: finalServiceCode,
         };
-        console.log("[Vận chuyển] Tham số tính phí vận chuyển:", calcFeeParams);
 
-        const {
-          fee,
-          leadTime,
-          serviceCode: newServiceCode,
-        } = await ShippingService.calcFee(calcFeeParams);
-        console.log(`[Vận chuyển] Kết quả tính phí từ ShippingService: Fee=${fee}, LeadTime=${leadTime}, ServiceCode=${newServiceCode}`);
-
+        const { fee, leadTime, serviceCode: newServiceCode } = await ShippingService.calcFee(calcFeeParams);
         shippingFee = fee;
         calculatedLeadTime = leadTime;
-        finalServiceCode = newServiceCode || serviceCode;
-
-        // Cập nhật các biến cuối cùng
-        providerId = finalProviderId;
-        serviceCode = finalServiceCode;
-        leadTimeDate = calculatedLeadTime ? new Date(calculatedLeadTime) : null;
-        console.log(`[Vận chuyển] Phí vận chuyển cuối cùng sau tính toán: ${shippingFee}`);
-      } else {
-          console.log(`[Vận chuyển] Sử dụng phí vận chuyển từ FE: ${shippingFee}`);
+        finalServiceCode = newServiceCode || finalServiceCode;
+        finalProviderId = defaultProvider.id;
       }
 
       shippingDiscount = Math.min(shippingDiscount, shippingFee);
-      console.log(`[Vận chuyển] ShippingDiscount sau khi áp giới hạn: ${shippingDiscount}`);
 
-      // 🟨 Trừ điểm nếu có yêu cầu sử dụng
-      // Lỗi ReferenceError trước đó đã xảy ra ở đây vì 'pointDiscountAmount' chưa được khai báo
-      let pointDiscountAmount = 0; // Đã di chuyển khai báo lên đây để tránh ReferenceError
-      console.log("--- Bắt đầu xử lý Điểm thưởng ---");
-
+      let pointDiscountAmount = 0;
       if (usePoints && pointsToSpend > 0) {
-        console.log(`[Điểm] Người dùng muốn sử dụng ${pointsToSpend} điểm.`);
-        const pointBalance = await UserPoint.sum("points", {
-          where: { userId: user.id },
-        });
-
-        const totalUsed = await UserPoint.sum("points", {
-          where: { userId: user.id, type: "spend" },
-        });
-
-        const usablePoints = (pointBalance || 0) - (totalUsed || 0);
-        console.log(`[Điểm] Điểm tích lũy: ${pointBalance || 0}, Điểm đã dùng: ${totalUsed || 0}, Điểm khả dụng: ${usablePoints}`);
+        const usablePoints = (await UserPoint.sum("points", { where: { userId: user.id } })) - (await UserPoint.sum("points", { where: { userId: user.id, type: "spend" } }));
 
         if (usablePoints < pointsToSpend) {
           await t.rollback();
-          console.error(`Lỗi: Người dùng không đủ điểm. Khả dụng: ${usablePoints}, Yêu cầu: ${pointsToSpend}.`);
           return res.status(400).json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
         }
 
-        const pointsConversionRate = 4000; // Đảm bảo tỷ lệ này khớp với logic của bạn
+        const pointsConversionRate = 4000;
         pointDiscountAmount = pointsToSpend * pointsConversionRate;
-        console.log(`[Điểm] Số tiền giảm giá từ điểm (pointDiscountAmount): ${pointDiscountAmount}`);
 
-        // Tính finalPrice tạm thời để áp giới hạn cho pointDiscountAmount
         const tempFinalPriceForPointCheck = totalPrice - couponDiscount + shippingFee - shippingDiscount;
         if (pointDiscountAmount > tempFinalPriceForPointCheck) {
-            pointDiscountAmount = tempFinalPriceForPointCheck;
-            console.log(`[Điểm] Giảm giá điểm bị giới hạn về: ${pointDiscountAmount} (không vượt quá tổng giá tạm thời).`);
+          pointDiscountAmount = tempFinalPriceForPointCheck;
         }
-      } else {
-          console.log("[Điểm] Người dùng không sử dụng điểm hoặc pointsToSpend <= 0.");
       }
 
-      const finalPrice =
-        totalPrice - couponDiscount + shippingFee - shippingDiscount - pointDiscountAmount;
-      const finalFinalPrice = Math.max(0, finalPrice); // Đảm bảo giá cuối cùng không âm
-      console.log(`[Tổng kết giá] TotalPrice ban đầu (từ FE): ${totalPrice}`);
-      console.log(`[Tổng kết giá] CouponDiscount: ${couponDiscount}`);
-      console.log(`[Tổng kết giá] ShippingFee: ${shippingFee}`);
-      console.log(`[Tổng kết giá] ShippingDiscount: ${shippingDiscount}`);
-      console.log(`[Tổng kết giá] PointDiscountAmount: ${pointDiscountAmount}`);
-      console.log(`[Tổng kết giá] finalPrice trước Math.max(0, finalPrice): ${finalPrice}`);
-      console.log(`[Tổng kết giá] FinalPrice cuối cùng cho đơn hàng: ${finalFinalPrice}`);
+      const finalPrice = Math.max(0, totalPrice - couponDiscount + shippingFee - shippingDiscount - pointDiscountAmount);
 
-
-      /* ========== TẠO ĐƠN HÀNG ========= */
-      const paymentStatus = [
-        "momo",
-        "vnpay",
-        "zalopay",
-        "atm",
-        "stripe",
-      ].includes(validPayment.code.toLowerCase())
-        ? "waiting"
-        : "unpaid";
-      console.log(`[Order Creation] Trạng thái thanh toán ban đầu: ${paymentStatus}`);
+      const paymentStatus = ["momo", "vnpay", "zalopay", "atm", "stripe"].includes(validPayment.code.toLowerCase()) ? "waiting" : "unpaid";
 
       const newOrder = await Order.create(
         {
           userId: user.id,
           userAddressId: selectedAddress.id,
           couponId: couponRecord?.id || null,
-          totalPrice: totalPrice, // Sử dụng totalPrice từ FE
-          finalPrice: finalFinalPrice, // Sử dụng finalFinalPrice đã tính
+          totalPrice,
+          finalPrice,
           shippingFee,
           couponDiscount,
           shippingDiscount,
-          pointDiscount: pointDiscountAmount, // Thêm trường pointDiscount
-          shippingProviderId: providerId,
-          shippingService: serviceCode,
-          shippingLeadTime: leadTimeDate,
+          pointDiscount: pointDiscountAmount,
+          shippingProviderId: finalProviderId,
+          shippingService: finalServiceCode,
+          shippingLeadTime: calculatedLeadTime,
           paymentMethodId,
           note,
           status: "processing",
@@ -422,200 +351,142 @@ class OrderController {
         },
         { transaction: t }
       );
-      console.log(`[Order Creation] Đã tạo Order tạm thời ID: ${newOrder.id}`);
 
-      newOrder.orderCode = `DH${new Date()
-        .toISOString()
-        .slice(0, 10)
-        .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
+      newOrder.orderCode = `DH${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
-      console.log(`[Order Creation] Mã đơn hàng chính thức: ${newOrder.orderCode}`);
 
-      // ✅ Nếu là VNPay thì tạo vnpOrderId và lưu vào đơn
       if (validPayment.code.toLowerCase() === "vnpay") {
-        const vnpOrderId = `${newOrder.orderCode}-${Date.now()}`;
-        newOrder.vnpOrderId = vnpOrderId;
+        newOrder.vnpOrderId = `${newOrder.orderCode}-${Date.now()}`;
         await newOrder.save({ transaction: t });
-        console.log(`[VNPay] Đã gán vnpOrderId: ${vnpOrderId} cho đơn hàng.`);
       }
 
-      /* ---------- ORDER ITEMS & KHO ---------- */
-      console.log("--- Bắt đầu tạo OrderItems và cập nhật kho ---");
-      for (const it of items) {
-        const sku = skuMap[it.skuId];
-        console.log(`[OrderItem Loop] Xử lý OrderItem cho SKU ${sku.id} (Code: ${sku.skuCode})`);
-        
-        // Cảnh báo: Vẫn dùng 'it.price' từ frontend cho OrderItem.price
-        // Nếu frontend gửi price là 0, thì OrderItem này sẽ có giá 0 trong DB.
-        console.log(`[OrderItem Loop] Giá sản phẩm cho OrderItem (từ FE): ${it.price}`);
+      for (const item of orderItemsToCreate) {
+        const sku = skuMap.get(item.skuId);
+        await OrderItem.create({ orderId: newOrder.id, ...item }, { transaction: t });
+        await sku.decrement("stock", { by: item.quantity, transaction: t });
 
-        // FlashSaleItem: Cần tìm lại fsItem nếu bạn muốn gán flashSaleId vào OrderItem.
-        // Trong phiên bản code này, 'fsItem' được định nghĩa trong vòng lặp này.
-        const fsItem = sku.flashSaleSkus?.find(
-          (f) => f.flashSale && f.quantity > 0 && f.skuId === it.skuId
-        );
-        console.log(`[OrderItem Loop] Tìm thấy FSItem cho SKU ${sku.id}: ${fsItem ? fsItem.id : 'Không'}`);
-
-
-        await OrderItem.create(
-          {
-            orderId: newOrder.id,
-            skuId: it.skuId,
-            quantity: it.quantity,
-            price: it.price, // ⚠️ Cảnh báo: Vẫn dùng giá từ frontend
-            flashSaleId: fsItem?.id || null,
-          },
-          { transaction: t }
-        );
-        console.log(`[OrderItem Loop] Đã tạo OrderItem cho SKU ${sku.id}, giá: ${it.price}, số lượng: ${it.quantity}, FlashSaleId: ${fsItem?.id || 'null'}`);
-
-
-        await sku.decrement("stock", { by: it.quantity, transaction: t });
-        console.log(`[OrderItem Loop] Đã trừ tồn kho SKU ${sku.id}. (Giảm ${it.quantity})`);
-
-        if (fsItem) {
+        if (item.flashSaleId) {
           const fsItemLocked = await FlashSaleItem.findOne({
-            where: { id: fsItem.id },
+            where: { id: item.flashSaleId },
             transaction: t,
             lock: t.LOCK.UPDATE,
           });
           if (fsItemLocked) {
-            await fsItemLocked.decrement("quantity", {
-              by: it.quantity,
-              transaction: t,
-            });
-            await fsItemLocked.reload({ transaction: t });
-            console.log(
-              `[OrderItem Loop] Đã trừ flashSaleItem ${fsItemLocked.id}, còn lại: ${fsItemLocked.quantity}`
+            const newQuantity = Math.max(0, (fsItemLocked.quantity || 0) - item.quantity);
+            const newSoldCount = (fsItemLocked.soldCount || 0) + item.quantity;
+            await fsItemLocked.update(
+              {
+                quantity: newQuantity,
+                soldCount: newSoldCount
+              },
+              { transaction: t }
             );
           }
+
+
         }
       }
 
-      if (couponRecord && couponRecord.totalQuantity !== null) {
-        await couponRecord.decrement("totalQuantity", {
-          by: 1,
-          transaction: t,
-        });
-        console.log(`[Coupon Usage] Đã trừ 1 lượt sử dụng tổng cộng của coupon ${couponRecord.code}.`);
-      }
-
-      const cart = await Cart.findOne({ where: { userId: user.id } });
-      if (cart && cartItemIds.length) {
-        await CartItem.destroy({
-          where: { id: cartItemIds, cartId: cart.id },
-          transaction: t,
-        });
-        console.log(`[Cart] Đã xóa ${cartItemIds.length} CartItems khỏi giỏ hàng của người dùng ${user.id}.`);
-      } else {
-          console.log("[Cart] Không có CartItems nào cần xóa hoặc giỏ hàng không tồn tại.");
-      }
-
-      /* ---------- NOTIFICATION ---------- */
-      console.log("--- Bắt đầu tạo thông báo và gửi email ---");
-      const title =
-        paymentStatus === "paid"
-          ? "Đặt hàng thành công"
-          : "Đơn hàng đã tạo – chờ thanh toán";
-      const message =
-        paymentStatus === "paid"
-          ? `Đơn ${newOrder.orderCode} đã được đặt thành công.`
-          : `Đơn ${newOrder.orderCode} đã được tạo. Vui lòng thanh toán trong 15 phút để tránh hủy đơn tự động.`;
-
-      const notification = await Notification.create(
-        {
-          title,
-          message,
-          slug: `order-${newOrder.orderCode}`,
-          type: "order",
-          referenceId: newOrder.id,
-        },
-        { transaction: t }
-      );
-      await NotificationUser.create(
-        { notificationId: notification.id, userId: user.id },
-        { transaction: t }
-      );
-      console.log(`[Notification] Đã tạo thông báo cho người dùng: ${title}`);
-
-      const emailHtml = `
-        <h2>Đơn hàng ${newOrder.orderCode} đã được đặt thành công</h2>
-        <p>Xin chào ${user.fullName || "khách hàng"},</p>
-        <p>Cảm ơn bạn đã đặt hàng tại cửa hàng chúng tôi.</p>
-        <p>Mã đơn hàng của bạn: <b>${newOrder.orderCode}</b></p>
-        <p>Tổng giá trị: <b>${newOrder.finalPrice.toLocaleString("vi-VN")}₫</b></p>
-        <p>Phí vận chuyển: <b>${shippingFee.toLocaleString("vi-VN")}₫</b></p>
-        <p>Phương thức thanh toán: <b>${validPayment.name}</b></p>
-        <p>Chúng tôi sẽ liên hệ với bạn sớm nhất để xử lý đơn hàng.</p>
-        <br />
-        <p>Trân trọng,</p>
-        <p>Đội ngũ hỗ trợ khách hàng</p>
-      `;
-
-      try {
-        await sendEmail(
-          user.email,
-          `Đơn hàng ${newOrder.orderCode} của bạn`,
-          emailHtml
-        );
-        console.log(`[Email] Đã gửi email xác nhận đơn hàng tới ${user.email}.`);
-      } catch (emailErr) {
-        console.error("Lỗi gửi email thông báo đặt hàng:", emailErr);
-      }
       if (couponRecord) {
-        const couponUser = await CouponUser.findOne({
+        const [couponUser] = await CouponUser.findOrCreate({
           where: { userId: user.id, couponId: couponRecord.id },
+          defaults: { used: 0 },
           transaction: t,
           lock: t.LOCK.UPDATE,
         });
 
-        if (couponUser) {
-          await couponUser.increment("used", { by: 1, transaction: t });
-          console.log(`[Coupon Usage] Đã tăng lượt sử dụng của người dùng ${user.id} cho coupon ${couponRecord.code}.`);
-        } else {
-          await CouponUser.create(
-            {
-              userId: user.id,
-              couponId: couponRecord.id,
-              used: 1,
-              assignedAt: new Date(),
-            },
-            { transaction: t }
-          );
-          console.log(`[Coupon Usage] Đã tạo bản ghi CouponUser mới cho người dùng ${user.id} và coupon ${couponRecord.code}.`);
-        }
-      }
-      // ✅ TÍNH VÀ LƯU ĐIỂM THƯỞNG
-      const rewardPointsConversionRate = 4000; // Đảm bảo khớp với logic của bạn
-      const rewardPoints = Math.floor(finalPrice / rewardPointsConversionRate);
-      if (rewardPoints > 0) {
-        await UserPoint.create({
-          userId: user.id,
-          orderId: newOrder.id,
-          points: rewardPoints,
-          type: 'earn',
-          description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
-        }, { transaction: t });
-        console.log(`[User Points] Đã thêm ${rewardPoints} điểm thưởng cho người dùng ${user.id}.`);
-      } else {
-          console.log("[User Points] Không có điểm thưởng được thêm.");
-      }
-      // ✅ Lưu điểm đã sử dụng nếu có
-      if (usePoints && pointsToSpend > 0 && pointDiscountAmount > 0) {
-        await UserPoint.create({
-          userId: user.id,
-          orderId: newOrder.id,
-          points: pointsToSpend,
-          type: 'spend',
-          description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}`,
-        }, { transaction: t });
-        console.log(`[User Points] Đã ghi nhận sử dụng ${pointsToSpend} điểm cho người dùng ${user.id}.`);
-      } else {
-          console.log("[User Points] Không có điểm nào được sử dụng hoặc ghi nhận.");
+        // ✅ Ghi nhận luôn nếu coupon được dùng (bất kể discount > 0 hay không)
+        await couponUser.increment("used", { by: 1, transaction: t });
+        await couponRecord.increment("usedCount", { by: 1, transaction: t });
       }
 
+
+
+      if (cartItemIds.length) {
+        await CartItem.destroy({ where: { id: cartItemIds }, transaction: t });
+      }
+
+      if (usePoints && pointsToSpend > 0 && pointDiscountAmount > 0) {
+        await UserPoint.create({ userId: user.id, orderId: newOrder.id, points: -pointsToSpend, type: 'spend', description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}` }, { transaction: t });
+      }
+      const rewardPointsConversionRate = 4000;
+      const rewardPoints = Math.floor(finalPrice / rewardPointsConversionRate);
+      if (rewardPoints > 0) {
+        await UserPoint.create({ userId: user.id, orderId: newOrder.id, points: rewardPoints, type: 'earn', description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}` }, { transaction: t });
+      }
+
+      const payCode = validPayment.code.toLowerCase();
+
+      let title = "Đơn hàng đã được tạo";
+      let message = `Đơn ${newOrder.orderCode} đã được tạo.`;
+
+      if (paymentStatus === "paid") {
+        title = "Đặt hàng thành công";
+        message = `Đơn ${newOrder.orderCode} đã được đặt thành công.`;
+      } else if (["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
+        title = "Đơn hàng đã tạo – chờ thanh toán";
+        message = `Đơn ${newOrder.orderCode} đã được tạo. Vui lòng thanh toán trong 15 phút để tránh hủy đơn tự động.`;
+      } else if (payCode === "atm") {
+        title = "Đơn hàng đã được tạo – chờ xác nhận";
+        message = `Đơn ${newOrder.orderCode} đã được tạo. Chờ admin duyệt thanh toán.`;
+      } else if (payCode === "cod") {
+        title = "Đơn hàng đã được tạo";
+        message = `Đơn ${newOrder.orderCode} đã được tạo. Vui lòng thanh toán khi nhận hàng.`;
+      }
+
+      const notification = await Notification.create({
+        title,
+        message,
+        slug: `order-${newOrder.orderCode}`,
+        type: "order",
+        referenceId: newOrder.id,
+        link: `/user-profile/orders/${newOrder.orderCode}`
+
+
+      }, { transaction: t });
+
+      await NotificationUser.create({ notificationId: notification.id, userId: user.id }, { transaction: t });
+
+      // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
+
+      // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
+
+      const addressParts = [
+        selectedAddress.streetAddress, // <-- SỬA TỪ .address THÀNH .streetAddress
+        selectedAddress.ward?.name,
+        selectedAddress.district?.name,
+        selectedAddress.province?.name,
+      ].filter(part => part);
+
+      const fullUserAddress = addressParts.join(', ');
+
+      const mjmlContent = generateOrderConfirmationHtml({
+        orderCode: newOrder.orderCode,
+        finalPrice: newOrder.finalPrice,
+        totalPrice: newOrder.totalPrice,
+         paymentMethodName: validPayment.name,
+        shippingFee: newOrder.shippingFee,
+        couponDiscount: newOrder.couponDiscount,
+        pointDiscountAmount: newOrder.pointDiscount,
+        rewardPoints,
+        userName: selectedAddress.fullName,
+        userPhone: selectedAddress.phone,
+        userAddress: fullUserAddress, // <-- Sử dụng biến mới đã xử lý
+        orderItems: orderItemsForEmail,
+        companyName: "Cyberzone",
+        companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+        companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+        companyPhone: "0878999894",
+        companySupportEmail: "contact@cyberzone.com",
+        orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${newOrder.orderCode}`
+      });
+
+      // Biên dịch MJML sang HTML
+      const { html: emailHtml } = mjml2html(mjmlContent);
+      try { await sendEmail(user.email, `Đơn hàng ${newOrder.orderCode} của bạn`, emailHtml); } catch (emailErr) { console.error("Lỗi gửi email:", emailErr); }
+
       await t.commit();
-      console.log("--- GIAO DỊCH ĐƠN HÀNG THÀNH CÔNG (COMMIT) ---");
+
       return res.status(201).json({
         message: "Đặt hàng thành công",
         orderId: newOrder.id,
@@ -624,206 +495,200 @@ class OrderController {
         shippingDiscount,
         pointDiscountAmount,
         rewardPoints,
-        // Cần truyền lại finalPrice để frontend hiển thị đúng
-        finalPrice: newOrder.finalPrice, 
-
-        // gửi lại thông tin vận chuyển cho FE
+        finalPrice: newOrder.finalPrice,
         shippingFee,
-        shippingProviderId: providerId,
-        shippingService: serviceCode,
-        shippingLeadTime: leadTimeDate,
+        shippingProviderId: finalProviderId,
+        shippingService: finalServiceCode,
+        shippingLeadTime: calculatedLeadTime,
       });
+
     } catch (err) {
       await t.rollback();
-      console.error("--- LỖI TẠO ĐƠN HÀNG (ROLLBACK) ---");
-      console.error("Chi tiết lỗi:", err); // Log toàn bộ lỗi để debug
-
       let errorMessage = "Lỗi khi tạo đơn hàng";
-      if (axios.isAxiosError(err) && err.response && err.response.data) {
-        errorMessage = `Lỗi từ hãng vận chuyển: ${
-          err.response.data.message || JSON.stringify(err.response.data)
-        }`;
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        errorMessage = `Lỗi từ hãng vận chuyển: ${err.response.data.message}`;
       } else if (err.message) {
         errorMessage = err.message;
       }
-      console.error(`[Phản hồi lỗi] Gửi về frontend: ${errorMessage}`);
+      console.error("Lỗi tạo đơn hàng:", err);
       return res.status(500).json({ message: errorMessage });
     }
   }
 
-static async getById(req, res) {
-  try {
-    const user = req.user;
-    const orderCode = req.params.code?.trim();
 
-    const order = await Order.findOne({
-      where: {
-        userId: user.id,
-        [Op.or]: [
-          { orderCode },
-          { momoOrderId: orderCode },
-          { vnpOrderId: orderCode },
-        ],
-      },
-      include: [
-        {
-          model: OrderItem,
-          as: "items",
-          include: {
-            model: Sku,
-            as: "Sku",
-            include: [
-              {
-                model: Product,
-                as: "product",
-                attributes: ["name", "thumbnail"],
-              },
-            ],
-          },
-        },
-        {
-          model: UserAddress,
-          as: "shippingAddress",
-          include: [
-            { model: Province, as: "province" },
-            { model: District, as: "district" },
-            { model: Ward, as: "ward" },
+  static async getById(req, res) {
+    try {
+      const user = req.user;
+      const orderCode = req.params.code?.trim();
+
+      const order = await Order.findOne({
+        where: {
+          userId: user.id,
+          [Op.or]: [
+            { orderCode },
+            { momoOrderId: orderCode },
+            { vnpOrderId: orderCode },
           ],
         },
-        {
-          model: PaymentMethod,
-          as: "paymentMethod",
-          attributes: ["id", "name", "code"],
-        },
-        {
-          model: ShippingProvider,
-          as: "shippingProvider",
-          attributes: ["id", "name", "code"],
-        },
-        {
-          model: ReturnRequest,
-          as: "returnRequest",
-        },
-      ],
-    });
+        include: [
+          {
+            model: OrderItem,
+            as: "items",
+            include: {
+              model: Sku,
+              as: "Sku",
+              include: [
+                {
+                  model: Product,
+                  as: "product",
+                  attributes: ["name", "thumbnail"],
+                },
+              ],
+            },
+          },
+          {
+            model: UserAddress,
+            as: "shippingAddress",
+            include: [
+              { model: Province, as: "province" },
+              { model: District, as: "district" },
+              { model: Ward, as: "ward" },
+            ],
+          },
+          {
+            model: PaymentMethod,
+            as: "paymentMethod",
+            attributes: ["id", "name", "code"],
+          },
+          {
+            model: ShippingProvider,
+            as: "shippingProvider",
+            attributes: ["id", "name", "code"],
+          },
+          {
+            model: ReturnRequest,
+            as: "returnRequest",
+          },
+        ],
+      });
 
-    if (!order) {
-      console.warn(`Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`);
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    // 📌 Tìm điểm thưởng & điểm đã dùng từ bảng UserPoint
-    const [earnedPoint, spentPoint] = await Promise.all([
-      UserPoint.findOne({
-        where: {
-          userId: user.id,
-          orderId: order.id,
-          type: "earn",
-        },
-      }),
-      UserPoint.findOne({
-        where: {
-          userId: user.id,
-          orderId: order.id,
-          type: "spend",
-        },
-      }),
-    ]);
-
-    const address = order.shippingAddress;
-    const fullAddress = `${address?.streetAddress || ""}, ${address?.ward?.name || ""}, ${address?.district?.name || ""}, ${address?.province?.name || ""}`.trim();
-
-    const products = order.items.map((item) => ({
-      skuId: item.skuId,
-      name: item.Sku?.product?.name || "Sản phẩm không tồn tại",
-      image: item.Sku?.product?.thumbnail || "/images/default.jpg",
-      quantity: item.quantity,
-      originalPrice: item.Sku?.price ? Number(item.Sku.price) : null,
-      price: item.price,
-      total: item.price * item.quantity,
-    }));
-
-    let productDiscount = 0;
-    for (const p of products) {
-      if (p.originalPrice && p.originalPrice > p.price) {
-        productDiscount += (p.originalPrice - p.price) * (p.quantity || 1);
+      if (!order) {
+        console.warn(`Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`);
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
-    }
 
-    const statusTextMap = {
-      pending: "Chờ xác nhận",
-      processing: "Đang xử lý",
-      shipping: "Đang giao",
-      delivered: "Đã giao",
-      cancelled: "Đã hủy",
-      returned: "Đã hoàn trả",
-      completed: "Đã hoàn tất",
-    };
+      // 📌 Tìm điểm thưởng & điểm đã dùng từ bảng UserPoint
+      const [earnedPoint, spentPoint] = await Promise.all([
+        UserPoint.findOne({
+          where: {
+            userId: user.id,
+            orderId: order.id,
+            type: "earn",
+          },
+        }),
+        UserPoint.findOne({
+          where: {
+            userId: user.id,
+            orderId: order.id,
+            type: "spend",
+          },
+        }),
+      ]);
 
-    const result = {
-      id: order.id,
-      orderCode: order.orderCode,
-      status: order.status,
-      statusText: statusTextMap[order.status] || "Không xác định",
+      const address = order.shippingAddress;
+      const fullAddress = `${address?.streetAddress || ""}, ${address?.ward?.name || ""}, ${address?.district?.name || ""}, ${address?.province?.name || ""}`.trim();
 
-      totalPrice: order.totalPrice,
-      finalPrice: order.finalPrice,
-      shippingFee: order.shippingFee,
-      shippingDiscount: order.shippingDiscount,
-      couponDiscount: order.couponDiscount,
-      productDiscount,
+      const products = order.items.map((item) => ({
+        skuId: item.skuId,
+        name: item.Sku?.product?.name || "Sản phẩm không tồn tại",
+        image: item.Sku?.product?.thumbnail || "/images/default.jpg",
+        quantity: item.quantity,
+        originalPrice: item.Sku?.price ? Number(item.Sku.price) : null,
+        price: item.price,
+        total: item.price * item.quantity,
+      }));
 
-      paymentStatus: order.paymentStatus,
-      cancelReason: order.cancelReason,
-      note: order.note,
-      createdAt: order.createdAt,
-      confirmedAt: order.confirmedAt,
-      shippedAt: order.shippedAt,
-      deliveredAt: order.deliveredAt,
-      completedAt: order.completedAt,
-      cancelledAt: order.cancelledAt,
-      returnedAt: order.returnedAt,
+      let productDiscount = 0;
+      for (const p of products) {
+        if (p.originalPrice && p.originalPrice > p.price) {
+          productDiscount += (p.originalPrice - p.price) * (p.quantity || 1);
+        }
+      }
 
-      // 🎯 Trích xuất điểm từ bảng userpoints
-      rewardPoints: earnedPoint?.points || 0,
-      usedPoints: spentPoint?.points || 0,
+      const statusTextMap = {
+        pending: "Chờ xác nhận",
+        processing: "Đang xử lý",
+        shipping: "Đang giao",
+        delivered: "Đã giao",
+        cancelled: "Đã hủy",
+        returned: "Đã hoàn trả",
+        completed: "Đã hoàn tất",
+      };
 
-      paymentMethod: order.paymentMethod
-        ? {
+      const result = {
+        id: order.id,
+        orderCode: order.orderCode,
+        status: order.status,
+        statusText: statusTextMap[order.status] || "Không xác định",
+
+        totalPrice: order.totalPrice,
+        finalPrice: order.finalPrice,
+        shippingFee: order.shippingFee,
+        shippingDiscount: order.shippingDiscount,
+        couponDiscount: order.couponDiscount,
+        productDiscount,
+
+        paymentStatus: order.paymentStatus,
+        cancelReason: order.cancelReason,
+        note: order.note,
+        createdAt: order.createdAt,
+        confirmedAt: order.confirmedAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt,
+        completedAt: order.completedAt,
+        cancelledAt: order.cancelledAt,
+        returnedAt: order.returnedAt,
+
+        // 🎯 Trích xuất điểm từ bảng userpoints
+        rewardPoints: earnedPoint?.points || 0,
+        usedPoints: spentPoint?.points || 0,
+
+        paymentMethod: order.paymentMethod
+          ? {
             id: order.paymentMethod.id,
             name: order.paymentMethod.name,
             code: order.paymentMethod.code,
           }
-        : null,
+          : null,
 
-      shippingProvider: order.shippingProvider
-        ? {
+        shippingProvider: order.shippingProvider
+          ? {
             id: order.shippingProvider.id,
             name: order.shippingProvider.name,
             code: order.shippingProvider.code,
           }
-        : null,
+          : null,
 
-      userAddress: {
-        fullAddress,
-        fullName: address?.fullName,
-        phone: address?.phone,
-        province: address?.province?.name || null,
-        district: address?.district?.name || null,
-        ward: address?.ward?.name || null,
-        streetAddress: address?.streetAddress || null,
-      },
+        userAddress: {
+          fullAddress,
+          fullName: address?.fullName,
+          phone: address?.phone,
+          province: address?.province?.name || null,
+          district: address?.district?.name || null,
+          ward: address?.ward?.name || null,
+          streetAddress: address?.streetAddress || null,
+        },
 
-      products,
-      returnRequest: order.returnRequest || null,
-    };
+        products,
+        returnRequest: order.returnRequest || null,
+      };
 
-    return res.json({ message: "Lấy đơn hàng thành công", data: result });
-  } catch (error) {
-    console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
-    return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
+      return res.json({ message: "Lấy đơn hàng thành công", data: result });
+    } catch (error) {
+      console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
+      return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
+    }
   }
-}
 
 
 
@@ -853,85 +718,99 @@ static async getById(req, res) {
     }
   }
 
-static async getAllByUser(req, res) {
-  try {
-    const userId = req.user.id;
+  static async getAllByUser(req, res) {
+    try {
+      const userId = req.user.id;
 
-    const ordersFromDb = await Order.findAll({
-      where: { userId },
-      include: [
-        {
-          model: OrderItem,
-          as: "items",
-          include: [
-            {
-              model: Sku,
-              required: false,
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                  required: false,
-                  paranoid: false,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: ReturnRequest,
-          as: "returnRequest",
-          required: false,
-          attributes: [
-            "id",
-            "status",
-            "returnCode",
-            "deadlineChooseReturnMethod",
-            "returnMethod",
-          ],
-          // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
-          include: [ // Thêm include này để lấy ReturnRequestItem
-            {
-              model: ReturnRequestItem, // Đảm bảo bạn đã import model này
-              as: "items", // Tên alias của mối quan hệ trong model ReturnRequest của bạn (ví dụ: ReturnRequest hasMany ReturnRequestItem as 'items')
-              attributes: ["skuId", "quantity"], // Chỉ lấy các thuộc tính cần thiết để so sánh ở frontend
-              required: false, // Để vẫn lấy ReturnRequest nếu không có ReturnRequestItem nào
-            },
-          ],
-        },
-        {
-          model: PaymentMethod,
-          as: "paymentMethod",
-          attributes: ["id", "name", "code"],
-          required: true,
-        },
-        {
-          model: UserAddress,
-          as: "shippingAddress",
-          include: [
-            { model: Province, as: "province" },
-            { model: District, as: "district" },
-            { model: Ward, as: "ward" },
-          ],
-          required: false,
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
+      const ordersFromDb = await Order.findAll({
+        where: { userId },
+        include: [
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              {
+                model: Sku,
+                required: false,
+                include: [
+                  {
+                    model: Product,
+                    as: "product",
+                    required: false,
+                    paranoid: false,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: ReturnRequest,
+            as: "returnRequest",
+            required: false,
+            attributes: [
+              "id",
+              "status",
+              "returnCode",
+              "deadlineChooseReturnMethod",
+              "returnMethod",
+            ],
+            // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
+            include: [ // Thêm include này để lấy ReturnRequestItem
+              {
+                model: ReturnRequestItem, // Đảm bảo bạn đã import model này
+                as: "items", // Tên alias của mối quan hệ trong model ReturnRequest của bạn (ví dụ: ReturnRequest hasMany ReturnRequestItem as 'items')
+                attributes: ["skuId", "quantity"], // Chỉ lấy các thuộc tính cần thiết để so sánh ở frontend
+                required: false, // Để vẫn lấy ReturnRequest nếu không có ReturnRequestItem nào
+              },
+            ],
+          },
+          {
+            model: PaymentMethod,
+            as: "paymentMethod",
+            attributes: ["id", "name", "code"],
+            required: true,
+          },
+          {
+            model: UserAddress,
+            as: "shippingAddress",
+            include: [
+              { model: Province, as: "province" },
+              { model: District, as: "district" },
+              { model: Ward, as: "ward" },
+            ],
+            required: false,
+          },
+          {
+            model: UserPoint,
+            as: "pointLogs", // ✅ phải trùng với alias trong model index.js
+            where: { type: "earn" },
+            required: false,
+            attributes: ["points"]
+          }
 
-    if (!ordersFromDb) {
-      return res.json({ message: "Không có đơn hàng nào", data: [] });
-    }
+          ,
+        ],
+        order: [["createdAt", "DESC"]],
+      });
 
-    const formattedOrders = ordersFromDb.map((order) => ({
-      id: order.id,
-      status: order.status,
-      paymentStatus: order.paymentStatus,
-      finalPrice: order.finalPrice,
-      orderCode: order.orderCode,
-      createdAt: order.createdAt,
-      returnRequest: order.returnRequest // Nếu order.returnRequest tồn tại
-        ? {
+      if (!ordersFromDb) {
+        return res.json({ message: "Không có đơn hàng nào", data: [] });
+      }
+
+      const formattedOrders = ordersFromDb.map((order) => ({
+        id: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        finalPrice: order.finalPrice,
+        orderCode: order.orderCode,
+        createdAt: order.createdAt,
+        rewardPoints:
+          order.userPoints && order.userPoints.length > 0
+            ? order.userPoints.reduce((sum, p) => sum + p.points, 0)
+            : 0,
+
+        returnRequest: order.returnRequest // Nếu order.returnRequest tồn tại
+          ? {
             id: order.returnRequest.id,
             status: order.returnRequest.status,
             returnCode: order.returnRequest.returnCode,
@@ -940,21 +819,21 @@ static async getAllByUser(req, res) {
             // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
             items: order.returnRequest.items // Bây giờ `items` sẽ có dữ liệu từ include
               ? order.returnRequest.items.map((item) => ({
-                  skuId: item.skuId,
-                  quantity: item.quantity,
-                }))
+                skuId: item.skuId,
+                quantity: item.quantity,
+              }))
               : [], // Đảm bảo trả về mảng rỗng nếu không có item nào
           }
-        : null,
-      paymentMethod: order.paymentMethod
-        ? {
+          : null,
+        paymentMethod: order.paymentMethod
+          ? {
             id: order.paymentMethod.id,
             name: order.paymentMethod.name,
             code: order.paymentMethod.code,
           }
-        : null,
-      shippingAddress: order.shippingAddress
-        ? {
+          : null,
+        shippingAddress: order.shippingAddress
+          ? {
             fullName: order.shippingAddress.fullName,
             phone: order.shippingAddress.phone,
             streetAddress: order.shippingAddress.streetAddress,
@@ -970,282 +849,320 @@ static async getAllByUser(req, res) {
               name: order.shippingAddress.province?.name,
             },
           }
-        : null,
-      products: order.items.map((item) => {
-        const productInfo = item.Sku?.product;
-        const skuInfo = item.Sku;
-        const pricePaid = item.price;
-        const originalPriceFromSku = skuInfo?.originalPrice || 0;
+          : null,
+        products: order.items.map((item) => {
+          const productInfo = item.Sku?.product;
+          const skuInfo = item.Sku;
+          const pricePaid = item.price;
+          const originalPriceFromSku = skuInfo?.originalPrice || 0;
 
-        return {
-          skuId: item.skuId,
-          name: productInfo?.name || "Sản phẩm không tồn tại",
-          imageUrl: productInfo?.thumbnail || "/images/default.jpg",
-          quantity: item.quantity,
-          price: pricePaid,
-          originalPrice:
-            originalPriceFromSku > pricePaid ? originalPriceFromSku : null,
-          variation: skuInfo?.skuCode || "",
-        };
-      }),
-    }));
+          return {
+            skuId: item.skuId,
+            name: productInfo?.name || "Sản phẩm không tồn tại",
+            imageUrl: productInfo?.thumbnail || "/images/default.jpg",
+            quantity: item.quantity,
+            price: pricePaid,
+            originalPrice:
+              originalPriceFromSku > pricePaid ? originalPriceFromSku : null,
+            variation: skuInfo?.skuCode || "",
+          };
+        }),
+      }));
 
-    return res.json({
-      message: "Lấy danh sách đơn hàng thành công",
-      data: formattedOrders,
-    });
-  } catch (error) {
-    console.error("Lỗi khi lấy danh sách đơn hàng:", error);
-    return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
+      return res.json({
+        message: "Lấy danh sách đơn hàng thành công",
+        data: formattedOrders,
+      });
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách đơn hàng:", error);
+      return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
+    }
   }
-}
 
 
   static async cancel(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { id } = req.params;
-    const { reason } = req.body || {};
-    const reasonText = typeof reason === "string" ? reason : reason?.reason;
+    const t = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+      const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
-    if (!reasonText?.trim()) {
-      return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
-    }
-
-    // Tìm đơn hàng cần huỷ + phương thức thanh toán
-    const order = await Order.findByPk(id, {
-      include: [
-        { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
-      ],
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-
-    if (!order) {
-      await t.rollback();
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    if (order.status === "cancelled") {
-      await t.rollback();
-      return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
-    }
-
-    const disallowedStatuses = ["shipping", "delivered", "completed"];
-    if (disallowedStatuses.includes(order.status)) {
-      await t.rollback();
-      return res.status(400).json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
-    }
-
-    // ==============================
-    // Hoàn tiền nếu đã thanh toán
-    // ==============================
-    const paid = order.paymentStatus === "paid";
-    const payCode = order.paymentMethod?.code?.toLowerCase();
-
-    if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
-      const payload = {
-        orderCode: order.orderCode,
-        amount: order.finalPrice,
-      };
-
-      if (payCode === "momo") {
-        if (!order.momoTransId) {
-          await t.rollback();
-          return res.status(400).json({ message: "Thiếu thông tin giao dịch MoMo" });
-        }
-        payload.momoTransId = order.momoTransId;
+      if (!reasonText?.trim()) {
+        return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
       }
 
-      if (payCode === "vnpay") {
-        if (!order.vnpTransactionId || !order.paymentTime) {
-          await t.rollback();
-          return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
-        }
-        payload.vnpTransactionId = order.vnpTransactionId;
-        payload.transDate = order.paymentTime;
-      }
+      const order = await Order.findByPk(id, {
+        include: [{ model: PaymentMethod, as: "paymentMethod", attributes: ["code"] }],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
 
-      if (payCode === "stripe") {
-        if (!order.stripePaymentIntentId) {
-          await t.rollback();
-          return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
-        }
-        payload.stripePaymentIntentId = order.stripePaymentIntentId;
-      }
-
-      if (payCode === "zalopay") {
-        if (!order.zaloTransId || !order.zaloAppTransId) {
-          await t.rollback();
-          return res.status(400).json({ message: "Thiếu thông tin giao dịch ZaloPay" });
-        }
-        payload.zp_trans_id = order.zaloTransId;
-        payload.app_trans_id = order.zaloAppTransId;
-        payload.amount = Math.round(Number(order.finalPrice));
-      }
-
-      console.log("[REFUND] Payload gửi gateway:", payload);
-
-      const { ok, transId } = await refundGateway(payCode, payload);
-
-      if (!ok) {
+      if (!order) {
         await t.rollback();
-        return res.status(400).json({ message: "Hoàn tiền qua cổng thanh toán thất bại" });
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
-      order.paymentStatus = "refunded";
-      order.gatewayTransId = transId || null;
-    } else {
-      // Nếu chưa thanh toán, hoặc COD/ATM thì chỉ huỷ đơn
-      order.paymentStatus = "unpaid";
-    }
+      if (order.status === "cancelled") {
+        await t.rollback();
+        return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
+      }
 
-    // Cập nhật trạng thái đơn hàng
-    order.status = "cancelled";
-    order.cancelReason = reasonText.trim();
-    await order.save({ transaction: t });
+      if (["shipping", "delivered", "completed"].includes(order.status)) {
+        await t.rollback();
+        return res.status(400).json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
+      }
 
-    // ===================================
-    // Cộng ngược lại Flash Sale & SKU
-    // ===================================
-    const orderItems = await OrderItem.findAll({
-      where: { orderId: order.id },
-      transaction: t,
-    });
+      const paid = order.paymentStatus === "paid";
+      const payCode = order.paymentMethod?.code?.toLowerCase();
 
-    for (const item of orderItems) {
-      // Cộng lại số lượng FlashSaleItem nếu có
-      if (item.flashSaleId) {
-        await FlashSaleItem.increment(
-          { quantity: item.quantity },
-          {
-            where: {
-              flashSaleId: item.flashSaleId,
-              skuId: item.skuId,
+      if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
+        const payload = { orderCode: order.orderCode, amount: order.finalPrice };
+
+        if (payCode === "momo") {
+          if (!order.momoTransId) return res.status(400).json({ message: "Thiếu thông tin giao dịch MoMo" });
+          payload.momoTransId = order.momoTransId;
+        } else if (payCode === "vnpay") {
+          if (!order.vnpTransactionId || !order.paymentTime) return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
+          payload.vnpTransactionId = order.vnpTransactionId;
+          payload.transDate = order.paymentTime;
+        } else if (payCode === "stripe") {
+          if (!order.stripePaymentIntentId) return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
+          payload.stripePaymentIntentId = order.stripePaymentIntentId;
+        } else if (payCode === "zalopay") {
+          if (!order.zaloTransId || !order.zaloAppTransId) return res.status(400).json({ message: "Thiếu thông tin giao dịch ZaloPay" });
+          payload.zp_trans_id = order.zaloTransId;
+          payload.app_trans_id = order.zaloAppTransId;
+          payload.amount = Math.round(Number(order.finalPrice));
+        }
+
+        const { ok, transId } = await refundGateway(payCode, payload);
+        if (!ok) {
+          await t.rollback();
+          return res.status(400).json({ message: "Hoàn tiền thất bại" });
+        }
+
+        order.paymentStatus = "refunded";
+        order.gatewayTransId = transId || null;
+      } else {
+        order.paymentStatus = "unpaid";
+      }
+
+      order.status = "cancelled";
+      order.cancelReason = reasonText.trim();
+      await order.save({ transaction: t });
+
+      const orderItems = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
+
+      for (const item of orderItems) {
+        // ✅ Cộng lại FlashSaleItem.quantity và trừ soldCount
+        if (item.flashSaleId) {
+          await FlashSaleItem.update(
+            {
+              quantity: Sequelize.literal(`quantity + ${item.quantity}`),
+              soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
             },
+            {
+              where: { id: item.flashSaleId },
+              transaction: t,
+            }
+          );
+        }
+
+        // ✅ Cộng lại tồn kho SKU
+        await Sku.increment(
+          { stock: item.quantity },
+          {
+            where: { id: item.skuId },
             transaction: t,
           }
         );
       }
 
-      // Cộng lại tồn kho SKU
-      await Sku.increment(
-        { stock: item.quantity },
-        {
-          where: { id: item.skuId },
+      // ✅ Xóa điểm thưởng đã nhận
+      await UserPoint.destroy({
+        where: { orderId: order.id, userId: order.userId, type: "earn" },
+        transaction: t,
+      });
+      console.log("[DEBUG] couponId:", order.couponId, "| userId:", order.userId);
+
+      // ✅ Hoàn lại lượt dùng mã giảm giá
+      if (order.couponId != null) {
+        await CouponUser.decrement("used", {
+          by: 1,
+          where: { userId: order.userId, couponId: order.couponId },
           transaction: t,
-        }
-      );
-    }
+        });
 
-    await t.commit();
-    return res.status(200).json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
-  } catch (err) {
-    await t.rollback();
-    console.error("[cancel]", err);
-    return res.status(500).json({ message: "Hủy đơn thất bại" });
-  }
+        await Coupon.decrement("usedCount", {
+          by: 1,
+          where: { id: order.couponId },
+          transaction: t,
+        });
+      }
+// ✅ Tạo Notification nếu chưa có
+const slug = `user-cancel-order-${order.orderCode}`; // 👈 tránh trùng với các noti auto từ cron job
+
+let notif;
+
+const existingNotif = await Notification.findOne({ where: { slug } });
+
+if (!existingNotif) {
+  notif = await Notification.create({
+    title: "Đơn hàng bị huỷ",
+    message: `Đơn ${order.orderCode} đã bị huỷ bởi người dùng.`,
+    slug,
+    type: "order",
+    referenceId: order.id,
+    link: `/user-profile/orders/${order.orderCode}`,
+  }, { transaction: t });
+
+  await NotificationUser.create({
+    notificationId: notif.id,
+    userId: order.userId,
+  }, { transaction: t });
+} else {
+  notif = existingNotif; // 👈 gán lại để emit
 }
+  req.app.locals.io.to(`user-${order.userId}`).emit("new-client-notification", notif);
 
 
-static async lookupOrder(req, res) {
+
+const user = await User.findByPk(order.userId, { transaction: t });
+
+if (user?.email) {
+  const emailMjmlContent = generateOrderCancellationHtml({
+    orderCode: order.orderCode,
+    cancelReason: order.cancelReason,
+    userName: user.fullName || user.email || "Khách hàng",
+    orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
+    companyName: "Cyberzone",
+    companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+    companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+    companyPhone: "0878999894",
+    companySupportEmail: "contact@cyberzone.com",
+  });
+
+  const { html: emailHtml } = mjml2html(emailMjmlContent);
+
   try {
-    const { code, phone } = req.query;
-
-    if (!code || !phone) {
-      return res.status(400).json({ message: "Thiếu mã đơn hoặc số điện thoại" });
-    }
-
-    const order = await Order.findOne({
-      where: { orderCode: code },
-      include: [
-        {
-          model: UserAddress,
-          as: "shippingAddress",
-          where: { phone },
-          required: true,
-        },
-        {
-          model: OrderItem,
-          as: "items",
-          include: [
-            {
-              model: Sku,
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: PaymentMethod,
-          as: "paymentMethod",
-          attributes: ["id", "name"],
-        },
-      ],
-      attributes: [
-        "id",
-        "orderCode",
-        "status",
-        "totalPrice",
-        "shippingProviderId",
-        "shippingServiceId",
-        "shippingFee",
-        "paymentMethodId",
-      ],
-    });
-
-    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-
-    const plain = order.get({ plain: true });
-
-    // ✅ Tính lại totalPrice nếu không có
-    if (!plain.totalPrice || plain.totalPrice === 0) {
-      plain.totalPrice = plain.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    }
-
-    // ✅ Tìm tên địa chỉ từ ID (nếu đã có các bảng mapping)
-    const ward = plain.shippingAddress?.wardId ? await Ward.findByPk(plain.shippingAddress.wardId) : null;
-    const district = plain.shippingAddress?.districtId ? await District.findByPk(plain.shippingAddress.districtId) : null;
-    const province = plain.shippingAddress?.provinceId ? await Province.findByPk(plain.shippingAddress.provinceId) : null;
-
-    const fullAddress = [
-      plain.shippingAddress?.streetAddress,
-      ward?.name,
-      district?.name,
-      province?.name,
-    ]
-      .filter(Boolean)
-      .join(", ");
-
-    const responseData = {
-      id: plain.id,
-      code: plain.orderCode,
-      status: plain.status,
-      shippingProviderId: plain.shippingProviderId,
-      shippingServiceId: plain.shippingServiceId,
-      shippingFee: plain.shippingFee,
-      totalPrice: plain.totalPrice,
-      paymentMethod: plain.paymentMethod?.name || "Không rõ",
-      customer: plain.shippingAddress?.fullName || "N/A",
-      phone: plain.shippingAddress?.phone || "N/A",
-      address: fullAddress || "Không xác định",
-      products: plain.items.map((item) => ({
-        name: item.Sku?.product?.name || "Sản phẩm",
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    };
-
-    return res.status(200).json(responseData);
-  } catch (err) {
-    console.error("[lookupOrder]", err);
-    res.status(500).json({ message: "Lỗi server", error: err.message });
+    await sendEmail(user.email, `Đơn hàng ${order.orderCode} đã bị hủy`, emailHtml);
+  } catch (emailErr) {
+    console.error(`[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
   }
 }
+
+
+      await t.commit();
+      return res.status(200).json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
+    } catch (err) {
+      await t.rollback();
+      console.error("[cancel][ERROR]", err);
+      return res.status(500).json({ message: "Hủy đơn thất bại" });
+    }
+  }
+
+
+
+
+
+  static async lookupOrder(req, res) {
+    try {
+      const { code, phone } = req.query;
+
+      if (!code || !phone) {
+        return res.status(400).json({ message: "Thiếu mã đơn hoặc số điện thoại" });
+      }
+
+      const order = await Order.findOne({
+        where: { orderCode: code },
+        include: [
+          {
+            model: UserAddress,
+            as: "shippingAddress",
+            where: { phone },
+            required: true,
+          },
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              {
+                model: Sku,
+                include: [
+                  {
+                    model: Product,
+                    as: "product",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: PaymentMethod,
+            as: "paymentMethod",
+            attributes: ["id", "name"],
+          },
+        ],
+        attributes: [
+          "id",
+          "orderCode",
+          "status",
+          "totalPrice",
+          "shippingProviderId",
+          "shippingServiceId",
+          "shippingFee",
+          "paymentMethodId",
+        ],
+      });
+
+      if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+      const plain = order.get({ plain: true });
+
+      // ✅ Tính lại totalPrice nếu không có
+      if (!plain.totalPrice || plain.totalPrice === 0) {
+        plain.totalPrice = plain.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      }
+
+      // ✅ Tìm tên địa chỉ từ ID (nếu đã có các bảng mapping)
+      const ward = plain.shippingAddress?.wardId ? await Ward.findByPk(plain.shippingAddress.wardId) : null;
+      const district = plain.shippingAddress?.districtId ? await District.findByPk(plain.shippingAddress.districtId) : null;
+      const province = plain.shippingAddress?.provinceId ? await Province.findByPk(plain.shippingAddress.provinceId) : null;
+
+      const fullAddress = [
+        plain.shippingAddress?.streetAddress,
+        ward?.name,
+        district?.name,
+        province?.name,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      const responseData = {
+        id: plain.id,
+        code: plain.orderCode,
+        status: plain.status,
+        shippingProviderId: plain.shippingProviderId,
+        shippingServiceId: plain.shippingServiceId,
+        shippingFee: plain.shippingFee,
+        totalPrice: plain.totalPrice,
+        paymentMethod: plain.paymentMethod?.name || "Không rõ",
+        customer: plain.shippingAddress?.fullName || "N/A",
+        phone: plain.shippingAddress?.phone || "N/A",
+        address: fullAddress || "Không xác định",
+        products: plain.items.map((item) => ({
+          name: item.Sku?.product?.name || "Sản phẩm",
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      };
+
+      return res.status(200).json(responseData);
+    } catch (err) {
+      console.error("[lookupOrder]", err);
+      res.status(500).json({ message: "Lỗi server", error: err.message });
+    }
+  }
 
 
 
@@ -1332,96 +1249,96 @@ static async lookupOrder(req, res) {
     }
   }
 
-static async getShippingOptions(req, res) {
-  try {
-    const { districtId, wardId, items = [] } = req.body;
+  static async getShippingOptions(req, res) {
+    try {
+      const { districtId, wardId, items = [] } = req.body;
 
-    // 1️⃣ Lấy thông tin địa chỉ từ DB nội bộ
-    const district = await District.findByPk(districtId, { include: [Province] });
-    const ward = await Ward.findByPk(wardId);
+      // 1️⃣ Lấy thông tin địa chỉ từ DB nội bộ
+      const district = await District.findByPk(districtId, { include: [Province] });
+      const ward = await Ward.findByPk(wardId);
 
-    if (!district || !district.Province)
-      return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
-    if (!ward)
-      return res.status(400).json({ message: "Không tìm thấy phường/xã." });
+      if (!district || !district.Province)
+        return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
+      if (!ward)
+        return res.status(400).json({ message: "Không tìm thấy phường/xã." });
 
-    const toProvinceId = district.Province.id;
-    const toDistrictId = district.id;
-    const toWardId = ward.id;
-    const toProvinceName = district.Province.name;
-    const toDistrictName = district.name;
-    const toWardName = ward.name;
+      const toProvinceId = district.Province.id;
+      const toDistrictId = district.id;
+      const toWardId = ward.id;
+      const toProvinceName = district.Province.name;
+      const toDistrictName = district.name;
+      const toWardName = ward.name;
 
-    // 2️⃣ Tính tổng trọng lượng và giá trị đơn hàng
-    const skuList = await Sku.findAll({
-      where: { id: items.map((i) => i.skuId) },
-    });
-    const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
-    let weight = 0, maxL = 0, maxW = 0, maxH = 0;
-    const orderValue = items.reduce((sum, it) => {
-      const sku = skuMap[it.skuId];
-      if (!sku) return sum;
-      weight += (sku.weight || 500) * it.quantity;
-      maxL = Math.max(maxL, sku.length || 10);
-      maxW = Math.max(maxW, sku.width || 10);
-      maxH = Math.max(maxH, sku.height || 10);
-      return sum + (it.price || 0) * (it.quantity || 1);
-    }, 0);
-    weight ||= 1; maxL ||= 1; maxW ||= 1; maxH ||= 1;
+      // 2️⃣ Tính tổng trọng lượng và giá trị đơn hàng
+      const skuList = await Sku.findAll({
+        where: { id: items.map((i) => i.skuId) },
+      });
+      const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
+      let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+      const orderValue = items.reduce((sum, it) => {
+        const sku = skuMap[it.skuId];
+        if (!sku) return sum;
+        weight += (sku.weight || 500) * it.quantity;
+        maxL = Math.max(maxL, sku.length || 10);
+        maxW = Math.max(maxW, sku.width || 10);
+        maxH = Math.max(maxH, sku.height || 10);
+        return sum + (it.price || 0) * (it.quantity || 1);
+      }, 0);
+      weight ||= 1; maxL ||= 1; maxW ||= 1; maxH ||= 1;
 
-    // 3️⃣ Lấy các hãng vận chuyển đang hoạt động
-    const providers = await ShippingProvider.findAll({
-      where: { isActive: true }, // Bỏ loại trừ JNT, để logic này trong service
-    });
-    if (!providers.length)
-      return res.status(404).json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
+      // 3️⃣ Lấy các hãng vận chuyển đang hoạt động
+      const providers = await ShippingProvider.findAll({
+        where: { isActive: true }, // Bỏ loại trừ JNT, để logic này trong service
+      });
+      if (!providers.length)
+        return res.status(404).json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
 
-    // 4️⃣ Gọi service để tính phí cho TẤT CẢ các hãng
-    const options = await Promise.all(
-      providers.map(async (p) => {
-        try {
-          const { fee, leadTime } = await ShippingService.calcFee({
-            providerId: p.id,
-            toProvince: toProvinceId,
-            toDistrict: toDistrictId,
-            toWard: toWardId,
-            provinceName: toProvinceName,
-            districtName: toDistrictName,
-            wardName: toWardName,
-            weight,
-            length: maxL,
-            width: maxW,
-            height: maxH,
-            orderValue,
-          });
+      // 4️⃣ Gọi service để tính phí cho TẤT CẢ các hãng
+      const options = await Promise.all(
+        providers.map(async (p) => {
+          try {
+            const { fee, leadTime } = await ShippingService.calcFee({
+              providerId: p.id,
+              toProvince: toProvinceId,
+              toDistrict: toDistrictId,
+              toWard: toWardId,
+              provinceName: toProvinceName,
+              districtName: toDistrictName,
+              wardName: toWardName,
+              weight,
+              length: maxL,
+              width: maxW,
+              height: maxH,
+              orderValue,
+            });
 
-          return {
-            providerId: p.id,
-            code: p.code,
-            name: p.name,
-            fee,
-            leadTime,
-          };
-        } catch (err) {
-          console.warn(`[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`);
-          return null;
-        }
-      })
-    );
+            return {
+              providerId: p.id,
+              code: p.code,
+              name: p.name,
+              fee,
+              leadTime,
+            };
+          } catch (err) {
+            console.warn(`[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`);
+            return null;
+          }
+        })
+      );
 
-    const available = options.filter(Boolean);
-    if (!available.length)
-      return res.status(404).json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
+      const available = options.filter(Boolean);
+      if (!available.length)
+        return res.status(404).json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
 
-    return res.json({ data: available });
-  } catch (err) {
-    console.error("[getShippingOptions] Lỗi server:", err);
-    return res.status(500).json({
-      message: "Lỗi server khi lấy phương thức vận chuyển",
-      error: err.message,
-    });
+      return res.json({ data: available });
+    } catch (err) {
+      console.error("[getShippingOptions] Lỗi server:", err);
+      return res.status(500).json({
+        message: "Lỗi server khi lấy phương thức vận chuyển",
+        error: err.message,
+      });
+    }
   }
-}
 
 }
 
