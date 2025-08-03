@@ -99,8 +99,6 @@ const NotificationController = {
           targetType: "notification",
           targetId: notification.id,
           startAt: new Date(),
-            createdBy: adminName, // ✅ Thêm dòng này
-
         });
         // 👇 Thêm log ở đây
         console.log("✅ [System Noti] Created system notification:", {
@@ -177,7 +175,6 @@ const NotificationController = {
         isActive: isActive === "true" || isActive === true,
         isGlobal: isGlobal === "true" || isGlobal === true,
         startAt: startAt ? new Date(startAt) : null,
-        
       });
 
       // Cập nhật danh sách user nhận thông báo nếu isGlobal = false

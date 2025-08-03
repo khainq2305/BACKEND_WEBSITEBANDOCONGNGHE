@@ -19,7 +19,11 @@ const Coupon = sequelize.define('Coupon', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  usedCount: DataTypes.INTEGER,
+  usedCount: {
+  type: DataTypes.INTEGER,
+  defaultValue: 0,
+},
+
   startTime: DataTypes.DATE,
   endTime: DataTypes.DATE,
   isActive: {

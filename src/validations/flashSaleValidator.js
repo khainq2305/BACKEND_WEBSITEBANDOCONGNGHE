@@ -1,4 +1,4 @@
-const { FlashSale, Sku } = require("../models");
+const { FlashSale, FlashSaleItem, Sku } = require("../models");
 const slugify = require("slugify");
 const validator = require("validator");
 const path = require("path");
@@ -47,32 +47,23 @@ const validateFlashSale = async (req, res, next) => {
 
   const isValidStart = startTime && validator.isISO8601(startTime);
   const isValidEnd = endTime && validator.isISO8601(endTime);
-if (!isEdit && isValidStart) {
-  const now = new Date();
-  const start = new Date(startTime);
 
-  if (start < now) {
-    errors.push({
-      field: "startTime",
-      message: "Thời gian bắt đầu không được nằm trong quá khứ",
-    });
+  if (!isEdit && isValidStart) {
+    const now = new Date();
+    const start = new Date(startTime);
+    if (start < now) {
+      errors.push({
+        field: "startTime",
+        message: "Thời gian bắt đầu không được nằm trong quá khứ",
+      });
+    }
   }
-}
-
-
-
 
   if (!isValidStart) {
-    errors.push({
-      field: "startTime",
-      message: "Thời gian bắt đầu không hợp lệ",
-    });
+    errors.push({ field: "startTime", message: "Thời gian bắt đầu không hợp lệ" });
   }
   if (!isValidEnd) {
-    errors.push({
-      field: "endTime",
-      message: "Thời gian kết thúc không hợp lệ",
-    });
+    errors.push({ field: "endTime", message: "Thời gian kết thúc không hợp lệ" });
   }
 
   if (isValidStart && isValidEnd && new Date(startTime) >= new Date(endTime)) {
@@ -103,6 +94,20 @@ if (!isEdit && isValidStart) {
     errors.push({ field: "items", message: "Danh sách sản phẩm không hợp lệ" });
   }
 
+  const existingItemsMap = {};
+  if (isEdit && currentId) {
+    const existingItems = await FlashSaleItem.findAll({
+      where: { flashSaleId: currentId },
+      attributes: ["skuId", "quantity", "originalQuantity"],
+    });
+    existingItems.forEach((item) => {
+      existingItemsMap[item.skuId] = {
+        quantity: item.quantity,
+        originalQuantity: item.originalQuantity,
+      };
+    });
+  }
+
   if (parsedItems.length) {
     const skuIds = parsedItems.map((i) => i.skuId);
     const skusInDB = await Sku.findAll({
@@ -115,13 +120,35 @@ if (!isEdit && isValidStart) {
       return acc;
     }, {});
 
-    parsedItems.forEach((it, idx) => {
-      const ori = priceMap[it.skuId];
-      if (ori !== undefined && Number(it.salePrice) >= ori) {
+    parsedItems.forEach((item, index) => {
+      const ori = priceMap[item.skuId];
+      if (ori !== undefined && Number(item.salePrice) >= ori) {
         errors.push({
-          field: `items[${idx}].salePrice`,
+          field: `items[${index}].salePrice`,
           message: "Giá sale phải nhỏ hơn giá gốc",
         });
+      }
+
+      if (item.salePrice == null || item.salePrice === "") {
+        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale là bắt buộc" });
+      } else if (Number(item.salePrice) < 0) {
+        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale không được âm" });
+      }
+
+      const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
+      if (!Number.isInteger(qty) || qty < 0) {
+        errors.push({ field: `items[${index}].quantity`, message: "Số lượng phải là số nguyên >= 0" });
+      }
+
+      if (isEdit && existingItemsMap[item.skuId]) {
+        const old = existingItemsMap[item.skuId];
+        const soldCount = Math.max(old.originalQuantity - old.quantity, 0);
+        if (qty < soldCount) {
+          errors.push({
+            field: `items[${index}].quantity`,
+            message: `Không thể đặt số lượng nhỏ hơn số đã bán (${soldCount})`,
+          });
+        }
       }
     });
   }
@@ -130,90 +157,44 @@ if (!isEdit && isValidStart) {
   try {
     parsedCategories = categories ? JSON.parse(categories) : [];
   } catch (err) {
-    errors.push({
-      field: "categories",
-      message: "Danh sách danh mục không hợp lệ",
-    });
+    errors.push({ field: "categories", message: "Danh sách danh mục không hợp lệ" });
   }
 
   if (parsedItems.length === 0 && parsedCategories.length === 0) {
     errors.push({
       field: "items",
-      message:
-        "Vui lòng chọn ít nhất 1 sản phẩm hoặc 1 danh mục để tạo khuyến mãi.",
-    });
-  } else {
-    parsedItems.forEach((item, index) => {
-      if (item.salePrice == null || item.salePrice === "") {
-        errors.push({
-          field: `items[${index}].salePrice`,
-          message: "Giá sale là bắt buộc",
-        });
-      } else if (Number(item.salePrice) < 0) {
-        errors.push({
-          field: `items[${index}].salePrice`,
-          message: "Giá sale không được âm",
-        });
-      }
-      const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
-      if (!Number.isInteger(qty) || qty < 0) {
-        errors.push({
-          field: `items[${index}].quantity`,
-          message: "Số lượng phải là số nguyên lớn hơn hoặc bằng 0",
-        });
-      }
-
-    });
-
-    parsedCategories.forEach((cat, index) => {
-      const discountType = cat.discountType || "percent";
-      const discountValueStr = cat.discountValue;
-
-      if (
-        discountValueStr == null ||
-        discountValueStr === "" ||
-        isNaN(Number(discountValueStr))
-      ) {
-        errors.push({
-          field: `categories[${index}].discountValue`,
-          message: "Giá trị giảm là bắt buộc",
-        });
-      } else {
-        const discountValue = Number(discountValueStr);
-        if (discountType === "percent") {
-          if (discountValue <= 0 || discountValue > 100) {
-            errors.push({
-              field: `categories[${index}].discountValue`,
-              message: "Giá trị % phải từ 1 đến 100",
-            });
-          }
-        } else {
-          if (discountValue <= 0) {
-            errors.push({
-              field: `categories[${index}].discountValue`,
-              message: "Giá trị giảm phải là số dương",
-            });
-          }
-        }
-      }
-
-      // const maxPerUserStr = cat.maxPerUser;
-
-      // if (
-      //   maxPerUserStr !== undefined &&
-      //   maxPerUserStr !== null &&
-      //   `${maxPerUserStr}`.trim() !== ""
-      // ) {
-      //   const value = Number(maxPerUserStr);
-      //   if (isNaN(value) || !Number.isInteger(value) || value <= 0) {
-      //     errors.push({
-      //       field: `categories[${index}].maxPerUser`,
-      //       message: "Giới hạn/người phải là số nguyên dương",
-      //     });
-      //   }
-      // }
+      message: "Vui lòng chọn ít nhất 1 sản phẩm hoặc danh mục",
     });
   }
+
+  parsedCategories.forEach((cat, index) => {
+    const discountType = cat.discountType || "percent";
+    const discountValueStr = cat.discountValue;
+
+    if (discountValueStr == null || discountValueStr === "" || isNaN(Number(discountValueStr))) {
+      errors.push({
+        field: `categories[${index}].discountValue`,
+        message: "Giá trị giảm là bắt buộc",
+      });
+    } else {
+      const discountValue = Number(discountValueStr);
+      if (discountType === "percent") {
+        if (discountValue <= 0 || discountValue > 100) {
+          errors.push({
+            field: `categories[${index}].discountValue`,
+            message: "% phải từ 1 đến 100",
+          });
+        }
+      } else {
+        if (discountValue <= 0) {
+          errors.push({
+            field: `categories[${index}].discountValue`,
+            message: "Phải là số dương",
+          });
+        }
+      }
+    }
+  });
 
   if (title && typeof title === "string" && title.trim()) {
     const slug = slugify(title.trim(), { lower: true, strict: true });
