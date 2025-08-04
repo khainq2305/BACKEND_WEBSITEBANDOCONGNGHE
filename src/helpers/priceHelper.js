@@ -1,103 +1,92 @@
 // utils/priceHelper.js
 
 const processSkuPrices = (skuData, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap) => {
-    let effectivePrice;
-    let effectiveFlashSaleInfo = null;
-    let isCurrentFlashSaleItemSoldOut = false;
-
+    // Lấy giá gốc từ originalPrice, nếu không có thì lấy price.
+    // Nếu cả hai đều không có, mặc định là 0.
     const rawOriginalSkuPrice = parseFloat(skuData.originalPrice || skuData.price || 0);
-    const rawDefaultSkuPrice = parseFloat(skuData.price || 0);
-    const displayOriginalPrice = rawOriginalSkuPrice > 0 ? rawOriginalSkuPrice : rawDefaultSkuPrice;
 
+    // Giá hiệu quả (effectivePrice) ban đầu sẽ là giá gốc
+    let effectivePrice = rawOriginalSkuPrice; 
+    let effectiveFlashSaleInfo = null;
+
+    // --- XỬ LÝ FLASH SALE ---
     const bestFsItemForSku = allActiveFlashSaleItemsMap.get(skuData.id);
-
     if (bestFsItemForSku) {
-        isCurrentFlashSaleItemSoldOut = bestFsItemForSku.quantity != null && bestFsItemForSku.soldQuantity >= bestFsItemForSku.quantity;
-
-        if (!isCurrentFlashSaleItemSoldOut) {
-            effectivePrice = parseFloat(bestFsItemForSku.salePrice);
-            effectiveFlashSaleInfo = {
-                quantity: bestFsItemForSku.quantity,
-                soldQuantity: bestFsItemForSku.soldQuantity,
-                endTime: bestFsItemForSku.flashSaleEndTime,
-                type: 'item',
-                discountType: 'fixed',
-                discountValue: displayOriginalPrice - effectivePrice,
-                flashSaleId: bestFsItemForSku.flashSaleId,
-                isSoldOut: false
-            };
-        }
-    }
-
-    if (!effectiveFlashSaleInfo || isCurrentFlashSaleItemSoldOut) {
-        const productCategoryId = skuData.Product?.category?.id || skuData.product?.category?.id || skuData.productId;
-        const dealsForCategory = allActiveCategoryDealsMap.get(productCategoryId) || [];
-
-        if (dealsForCategory.length > 0) {
-            let bestCategoryDealPrice = Infinity;
-            let bestCategoryDealInfo = null;
-
-            dealsForCategory.forEach(deal => {
-                let currentCategoryDealPrice = displayOriginalPrice;
-
-                if (deal.discountType === 'percent') {
-                    currentCategoryDealPrice = (currentCategoryDealPrice * (100 - deal.discountValue)) / 100;
-                } else if (deal.discountType === 'fixed' || deal.discountType === 'amount') {
-                    currentCategoryDealPrice = currentCategoryDealPrice - deal.discountValue;
-                }
-
-                currentCategoryDealPrice = Math.max(0, Math.round(currentCategoryDealPrice / 1000) * 1000);
-
-                if (currentCategoryDealPrice < bestCategoryDealPrice) {
-                    bestCategoryDealPrice = currentCategoryDealPrice;
-                    bestCategoryDealInfo = {
-                        endTime: deal.endTime,
-                        type: 'category',
-                        discountType: deal.discountType,
-                        discountValue: deal.discountValue,
-                        flashSaleId: deal.flashSaleId,
-                        flashSaleCategoryId: deal.flashSaleCategoryId,
-                        isSoldOut: false
-                    };
-                }
-            });
-
-            if (!effectiveFlashSaleInfo || bestCategoryDealPrice < effectivePrice) {
-                effectivePrice = bestCategoryDealPrice;
-                effectiveFlashSaleInfo = bestCategoryDealInfo;
-            } else if (bestCategoryDealPrice === effectivePrice && effectiveFlashSaleInfo?.type !== 'item') {
-                effectivePrice = bestCategoryDealPrice;
-                effectiveFlashSaleInfo = bestCategoryDealInfo;
+        // Kiểm tra xem flash sale item này đã hết hàng chưa
+        const isSoldOutForThisItem = bestFsItemForSku.quantity != null && bestFsItemForSku.soldQuantity >= bestFsItemForSku.quantity;
+        
+        if (!isSoldOutForThisItem) {
+            const flashSalePrice = parseFloat(bestFsItemForSku.salePrice);
+            // Chỉ áp dụng flash sale nếu giá sale thấp hơn giá hiện tại
+            if (flashSalePrice < effectivePrice) { 
+                effectivePrice = flashSalePrice;
+                effectiveFlashSaleInfo = {
+                    salePrice: flashSalePrice,
+                    quantity: bestFsItemForSku.quantity,
+                    soldQuantity: bestFsItemForSku.soldQuantity,
+                    maxPerUser: bestFsItemForSku.maxPerUser,
+                    flashSaleId: bestFsItemForSku.flashSaleId,
+                    flashSaleEndTime: bestFsItemForSku.flashSaleEndTime,
+                    type: 'item',
+                    isSoldOut: false
+                };
             }
         }
     }
 
-    if (!effectivePrice) {
-        effectivePrice = rawDefaultSkuPrice;
+    // --- XỬ LÝ KHUYẾN MÃI THEO DANH MỤC ---
+    const productCategoryId = skuData.Product?.category?.id || skuData.product?.category?.id || skuData.productId;
+    const dealsForCategory = allActiveCategoryDealsMap.get(productCategoryId) || [];
+    if (dealsForCategory.length > 0) {
+        dealsForCategory.forEach(deal => {
+            let currentCategoryDealPrice = rawOriginalSkuPrice;
+            if (deal.discountType === 'percent') {
+                currentCategoryDealPrice = (currentCategoryDealPrice * (100 - deal.discountValue)) / 100;
+            } else if (deal.discountType === 'fixed' || deal.discountType === 'amount') {
+                currentCategoryDealPrice = currentCategoryDealPrice - deal.discountValue;
+            }
+            currentCategoryDealPrice = Math.max(0, Math.round(currentCategoryDealPrice / 1000) * 1000);
+
+            // Nếu giá khuyến mãi danh mục tốt hơn giá hiện tại
+            if (currentCategoryDealPrice < effectivePrice) {
+                effectivePrice = currentCategoryDealPrice;
+                effectiveFlashSaleInfo = {
+                    salePrice: currentCategoryDealPrice,
+                    quantity: null,
+                    soldQuantity: null,
+                    endTime: deal.endTime,
+                    type: 'category',
+                    discountType: deal.discountType,
+                    discountValue: deal.discountValue,
+                    flashSaleId: deal.flashSaleId,
+                    flashSaleCategoryId: deal.flashSaleCategoryId,
+                    isSoldOut: false
+                };
+            }
+        });
     }
 
-    if (isCurrentFlashSaleItemSoldOut && bestFsItemForSku) {
-        effectiveFlashSaleInfo = {
-            quantity: bestFsItemForSku.quantity,
-            soldQuantity: bestFsItemForSku.soldQuantity,
-            endTime: bestFsItemForSku.flashSaleEndTime,
-            type: 'item',
-            flashSaleId: bestFsItemForSku.flashSaleId,
-            isSoldOut: true
-        };
+    // Nếu không có deal nào được áp dụng và giá bán khác giá gốc, cập nhật giá
+    if (effectivePrice === rawOriginalSkuPrice && skuData.price > 0 && skuData.price < rawOriginalSkuPrice) {
+        effectivePrice = parseFloat(skuData.price);
     }
+    
+    // Đảm bảo giá không bao giờ âm
+    effectivePrice = Math.max(0, effectivePrice);
 
-    const discount = (displayOriginalPrice > effectivePrice && displayOriginalPrice > 0)
-        ? Math.round(100 - (effectivePrice * 100) / displayOriginalPrice)
+    // Tính toán lại giá trị giảm giá dựa trên giá gốc và giá hiệu quả
+    const discountPercent = (rawOriginalSkuPrice > effectivePrice && rawOriginalSkuPrice > 0)
+        ? Math.round((1 - effectivePrice / rawOriginalSkuPrice) * 100)
         : 0;
 
     return {
         price: effectivePrice,
-        salePrice: effectivePrice,
-        originalPrice: displayOriginalPrice,
+        originalPrice: rawOriginalSkuPrice, // Trả về giá gốc
+        strikethroughPrice: rawOriginalSkuPrice, // Giá gạch ngang
+        discountPercent: discountPercent,
+        discountAmount: rawOriginalSkuPrice - effectivePrice,
         flashSaleInfo: effectiveFlashSaleInfo,
-        discount: discount,
-        hasDeal: effectiveFlashSaleInfo !== null && effectiveFlashSaleInfo.flashSaleId !== undefined && !effectiveFlashSaleInfo.isSoldOut
+        hasDeal: effectiveFlashSaleInfo !== null
     };
 };
 
