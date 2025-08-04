@@ -7,15 +7,15 @@ const path = require("path");
 const { Op, fn, col, literal, Sequelize } = require("sequelize");
 const { processSkuPrices } = require('../../helpers/priceHelper');
 const {
-  Product,
-  Sku,
-  Category,
-  Brand,
-  ProductMedia,
-  FlashSale,
-  FlashSaleItem,
-  FlashSaleCategory,
-  SearchHistory,
+    Product,
+    Sku,
+    Category,
+    Brand,
+    ProductMedia,
+    FlashSale,
+    FlashSaleItem,
+    FlashSaleCategory,
+    SearchHistory,
 } = db;
 
 exports.searchByImage = async (req, res) => {
@@ -41,8 +41,7 @@ exports.searchByImage = async (req, res) => {
 
     const flaskResponse = await axios.post(
       "http://127.0.0.1:8000/embed",
-      formData,
-      {
+      formData, {
         headers: formData.getHeaders(),
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
@@ -55,7 +54,127 @@ exports.searchByImage = async (req, res) => {
         message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn.",
       });
     }
+    
+    const now = new Date();
+    const allActiveFlashSales = await FlashSale.findAll({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        startTime: { [Op.lte]: now },
+        endTime: { [Op.gte]: now },
+      },
+      include: [
+        {
+          model: FlashSaleItem,
+          as: "flashSaleItems",
+          required: false,
+          attributes: [
+            "id",
+            "flashSaleId",
+            "skuId",
+            "salePrice",
+            "quantity",
+            "maxPerUser",
+            [
+              Sequelize.literal(`(
+                                SELECT COALESCE(SUM(oi.quantity), 0)
+                                FROM orderitems oi
+                                INNER JOIN orders o ON oi.orderId = o.id
+                                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
+                                AND oi.skuId = flashSaleItems.skuId
+                                AND o.status IN ('completed', 'delivered')
+                            )`),
+              "soldQuantityForFlashSaleItem",
+            ],
+          ],
+          include: [
+            {
+              model: Sku,
+              as: "sku",
+              attributes: [
+                "id",
+                "skuCode",
+                "price",
+                "originalPrice",
+                "stock",
+                "productId",
+              ],
+              include: [
+                { model: Product, as: "product", attributes: ["categoryId"] },
+              ],
+            },
+          ],
+        },
+        {
+          model: FlashSaleCategory,
+          as: "categories",
+          required: false,
+          include: [
+            {
+              model: FlashSale,
+              as: "flashSale",
+              attributes: ["endTime"],
+              required: false,
+            },
+          ],
+        },
+      ],
+    });
 
+    const allActiveFlashSaleItemsMap = new Map();
+    const allActiveCategoryDealsMap = new Map();
+
+    allActiveFlashSales.forEach((saleEvent) => {
+      const saleEndTime = saleEvent.endTime;
+      const saleId = saleEvent.id;
+
+      (saleEvent.flashSaleItems || []).forEach((fsi) => {
+        const sku = fsi.sku;
+        if (!sku) return;
+        const skuId = sku.id;
+        const flashItemSalePrice = parseFloat(fsi.salePrice);
+        const soldForThisItem = parseInt(
+          fsi.dataValues.soldQuantityForFlashSaleItem || 0
+        );
+        const flashLimit = fsi.quantity;
+
+        const isSoldOutForThisItem =
+          flashLimit != null && soldForThisItem >= flashLimit;
+
+        if (
+          !allActiveFlashSaleItemsMap.has(skuId) ||
+          (!isSoldOutForThisItem &&
+            flashItemSalePrice <
+            allActiveFlashSaleItemsMap.get(skuId).salePrice)
+        ) {
+          allActiveFlashSaleItemsMap.set(skuId, {
+            salePrice: flashItemSalePrice,
+            quantity: flashLimit,
+            soldQuantity: soldForThisItem,
+            maxPerUser: fsi.maxPerUser,
+            flashSaleId: saleId,
+            flashSaleEndTime: saleEndTime,
+            isSoldOut: isSoldOutForThisItem,
+          });
+        }
+      });
+
+      (saleEvent.categories || []).forEach((fsc) => {
+        const categoryId = fsc.categoryId;
+        if (!allActiveCategoryDealsMap.has(categoryId)) {
+          allActiveCategoryDealsMap.set(categoryId, []);
+        }
+        allActiveCategoryDealsMap.get(categoryId).push({
+          discountType: fsc.discountType,
+          discountValue: fsc.discountValue,
+          priority: fsc.priority,
+          endTime: saleEndTime,
+          flashSaleId: saleId,
+          flashSaleCategoryId: fsc.id,
+        });
+      });
+    });
+    
     const productsWithEmbeddings = await Product.findAll({
       where: { imageVector: { [Op.ne]: null } },
       attributes: [
@@ -72,7 +191,7 @@ exports.searchByImage = async (req, res) => {
         {
           model: Sku,
           as: "skus",
-          attributes: ["id", "price", "originalPrice", "stock"],
+          attributes: ["id", "price", "originalPrice", "stock", "skuCode"],
           include: [
             {
               model: ProductMedia,
@@ -80,23 +199,6 @@ exports.searchByImage = async (req, res) => {
               attributes: ["mediaUrl"],
               separate: true,
               limit: 1,
-            },
-            {
-              model: FlashSaleItem,
-              as: "flashSaleSkus",
-              required: false,
-              include: [
-                {
-                  model: FlashSale,
-                  as: "flashSale",
-                  required: false,
-                  where: {
-                    isActive: true,
-                    startTime: { [Op.lte]: Sequelize.literal("NOW()") },
-                    endTime: { [Op.gte]: Sequelize.literal("NOW()") },
-                  },
-                },
-              ],
             },
           ],
         },
@@ -117,100 +219,43 @@ exports.searchByImage = async (req, res) => {
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_RESULTS);
 
-    const now = new Date();
-    const activeCatDeals = await FlashSaleCategory.findAll({
-      include: [
-        {
-          model: FlashSale,
-          as: "flashSale",
-          attributes: ["endTime"],
-          where: {
-            isActive: true,
-            startTime: { [Op.lte]: now },
-            endTime: { [Op.gte]: now },
-          },
-        },
-      ],
-    });
-
-    const catDealMap = new Map();
-    activeCatDeals.forEach((d) => {
-      const stored = catDealMap.get(d.categoryId);
-      if (!stored || d.priority > stored.priority) {
-        catDealMap.set(d.categoryId, {
-          discountType: d.discountType,
-          discountValue: d.discountValue,
-          priority: d.priority,
-          endTime: d.flashSale.endTime,
-        });
-      }
-    });
-
     const formattedResults = topResultsRaw.map(({ product, score }) => {
       const skus = (product.skus || [])
-        .map((sku) => ({
-          ...sku.get(),
-          price: +sku.price || 0,
-          originalPrice: +sku.originalPrice || 0,
-        }))
+        .map((sku) => {
+          const skuDataForHelper = {
+            ...sku.toJSON(),
+            Product: { category: { id: product.categoryId } },
+          };
+          const priceResults = processSkuPrices(
+            skuDataForHelper,
+            allActiveFlashSaleItemsMap,
+            allActiveCategoryDealsMap
+          );
+
+          return {
+            ...sku.toJSON(),
+            price: priceResults.price,
+            originalPrice: priceResults.originalPrice,
+            flashSaleInfo: priceResults.flashSaleInfo,
+            hasDeal: priceResults.hasDeal,
+            discountAmount: priceResults.discountAmount,
+            discountPercent: priceResults.discountPercent,
+          };
+        })
         .sort((a, b) => {
-          const aFS = a.flashSaleSkus?.length > 0;
-          const bFS = b.flashSaleSkus?.length > 0;
-          if (aFS && !bFS) return -1;
-          if (!aFS && bFS) return 1;
+          const aHasActiveFS = a.flashSaleInfo?.dealApplied;
+          const bHasActiveFS = b.flashSaleInfo?.dealApplied;
+
+          if (aHasActiveFS && !bHasActiveFS) return -1;
+          if (!aHasActiveFS && bHasActiveFS) return 1;
+
           return (+a.price || 0) - (+b.price || 0);
         });
 
-      const primary = skus[0] || {};
-      const catDeal = catDealMap.get(product.categoryId);
-
-      let finalPrice = primary.price;
-      let finalOldPrice = null;
-
-      const fsItem = primary.flashSaleSkus?.[0];
-      if (
-        fsItem?.flashSale &&
-        fsItem.salePrice > 0 &&
-        fsItem.salePrice < primary.price
-      ) {
-        finalOldPrice = primary.price;
-        finalPrice = fsItem.salePrice;
-        primary.salePrice = fsItem.salePrice;
-      }
-
-      if (finalPrice === primary.price && catDeal) {
-        let tempPrice = primary.price;
-        if (catDeal.discountType === "percent") {
-          tempPrice = (primary.price * (100 - catDeal.discountValue)) / 100;
-        } else {
-          tempPrice = primary.price - catDeal.discountValue;
-        }
-        tempPrice = Math.max(0, Math.round(tempPrice / 1000) * 1000);
-        if (tempPrice < finalPrice) {
-          finalOldPrice = primary.price;
-          finalPrice = tempPrice;
-          primary.salePrice = tempPrice;
-        }
-      }
-
-      if (!finalOldPrice && primary.originalPrice > finalPrice) {
-        finalOldPrice = primary.originalPrice;
-      }
-
-      let calculatedDiscount = 0;
-      const comparePriceForDiscount =
-        finalOldPrice || primary.originalPrice || 0;
-      if (comparePriceForDiscount > finalPrice && finalPrice > 0) {
-        calculatedDiscount = Math.round(
-          ((comparePriceForDiscount - finalPrice) / comparePriceForDiscount) *
-            100
-        );
-        calculatedDiscount = Math.min(99, Math.max(1, calculatedDiscount));
-      }
+      const primarySku = skus[0] || {};
 
       const totalStock = (product.skus || []).reduce(
-        (s, x) => s + (+x.stock || 0),
-        0
+        (s, x) => s + (parseInt(x.stock, 10) || 0), 0
       );
 
       return {
@@ -219,15 +264,16 @@ exports.searchByImage = async (req, res) => {
         slug: product.slug,
         thumbnail: product.thumbnail,
         badge: product.badge,
-        image: primary.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
+        image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
         badgeImage: product.badgeImage,
-        price: finalPrice, // Đã đổi từ priceNum thành price
-        oldPrice: finalOldPrice, // Đã đổi từ oldPriceNum thành oldPrice
-        originalPrice: primary.originalPrice, // Giữ nguyên
-        discount: calculatedDiscount,
-        skus: product.skus,
-        similarity: score.toFixed(4),
+        price: primarySku.price,
+        oldPrice: primarySku.originalPrice,
+        originalPrice: primarySku.originalPrice,
+        discount: primarySku.discountPercent,
+        discountAmount: primarySku.discountAmount,
+        skus: skus,
         inStock: totalStock > 0,
+        similarity: score.toFixed(4),
       };
     });
 
