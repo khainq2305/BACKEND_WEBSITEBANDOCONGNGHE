@@ -209,21 +209,21 @@ class ChatboxController {
         if (/(shop hoạt động bao lâu|mở từ khi nào|ra đời khi nào|shop có lâu chưa|shop mới mở hả)/.test(lower)) {
             return {
                 type: 'text',
-                data: `📅 **Home Power** đã hoạt động hơn 5 năm trong lĩnh vực điện máy gia dụng và luôn được khách hàng đánh giá cao về chất lượng dịch vụ và sản phẩm.`,
+                data: `📅 **ZYBERZONE** đã hoạt động hơn 5 năm trong lĩnh vực điện máy gia dụng và luôn được khách hàng đánh giá cao về chất lượng dịch vụ và sản phẩm.`,
                 isProductDetail: false
             };
         }
         if (/(ai đang tư vấn|bạn là ai|có nhân viên không|ai đang chat|gặp nhân viên thật|nói chuyện với người thật)/.test(lower)) {
             return {
                 type: 'text',
-                data: `🤖 Em là trợ lý ảo của **Home Power**. Nếu anh/chị cần hỗ trợ trực tiếp từ nhân viên, em có thể kết nối qua hotline **1900 8922** hoặc gửi tin nhắn fanpage ạ!`,
+                data: `🤖 Em là trợ lý ảo của **ZYBERZONE**. Nếu anh/chị cần hỗ trợ trực tiếp từ nhân viên, em có thể kết nối qua hotline **1900 8922** hoặc gửi tin nhắn fanpage ạ!`,
                 isProductDetail: false
             };
         }
         if (/(khách hàng nói gì|feedback|đánh giá về shop|uy tín không|tin tưởng được không)/.test(lower)) {
             return {
                 type: 'text',
-                data: `🌟 **Home Power** nhận được hàng nghìn phản hồi tích cực từ khách hàng về chất lượng sản phẩm, tốc độ giao hàng và hỗ trợ sau bán. Anh/chị có thể tham khảo đánh giá trực tiếp trên từng sản phẩm ạ!`,
+                data: `🌟 **ZYBERZONE** nhận được hàng nghìn phản hồi tích cực từ khách hàng về chất lượng sản phẩm, tốc độ giao hàng và hỗ trợ sau bán. Anh/chị có thể tham khảo đánh giá trực tiếp trên từng sản phẩm ạ!`,
                 isProductDetail: false
             };
         }
@@ -286,7 +286,7 @@ class ChatboxController {
         if (/(có người yêu chưa|tên gì|nam hay nữ|sống bao lâu|mày mấy tuổi|lương bao nhiêu)/.test(lower)) {
             return {
                 type: 'text',
-                data: '😄 Em là trợ lý ảo **Home Power**, sinh ra từ dòng code với trái tim yêu khách hàng. Lương em là nụ cười của anh/chị đó ạ!',
+                data: '😄 Em là trợ lý ảo **ZYBERZONE**, sinh ra từ dòng code với trái tim yêu khách hàng. Lương em là nụ cười của anh/chị đó ạ!',
                 isProductDetail: false
             };
         }
@@ -320,7 +320,7 @@ class ChatboxController {
         if (/(shopee|lazada|tiki|mạng xã hội|có trên|mua ngoài sàn|sàn thương mại)/.test(lower)) {
             return {
                 type: 'text',
-                data: '🛒 Hiện tại **Home Power** chỉ bán chính thức trên website này để đảm bảo chất lượng và hỗ trợ tốt nhất. Anh/chị đặt tại đây là yên tâm nhất ạ!',
+                data: '🛒 Hiện tại **ZYBERZONE** chỉ bán chính thức trên website này để đảm bảo chất lượng và hỗ trợ tốt nhất. Anh/chị đặt tại đây là yên tâm nhất ạ!',
                 isProductDetail: false
             };
         }
@@ -368,7 +368,7 @@ class ChatboxController {
         ) {
             return {
                 type: 'text',
-                data: '🔒 **Home Power** cam kết 100% sản phẩm chính hãng, có nguồn gốc rõ ràng và hỗ trợ bảo hành đầy đủ. Quý khách có thể yên tâm mua sắm!',
+                data: '🔒 **ZYBERZONE** cam kết 100% sản phẩm chính hãng, có nguồn gốc rõ ràng và hỗ trợ bảo hành đầy đủ. Quý khách có thể yên tâm mua sắm!',
                 isProductDetail: false
             };
         }
@@ -465,7 +465,7 @@ class ChatboxController {
         if (/(bảo hành|bảo trì)/.test(lower)) {
             return {
                 type: 'text',
-                data: '🛠️ Tất cả sản phẩm đều được bảo hành chính hãng từ 6-24 tháng tùy loại. Anh/chị yên tâm khi mua sắm tại **Home Power** ạ!',
+                data: '🛠️ Tất cả sản phẩm đều được bảo hành chính hãng từ 6-24 tháng tùy loại. Anh/chị yên tâm khi mua sắm tại **ZYBERZONE** ạ!',
                 isProductDetail: false
             };
         }

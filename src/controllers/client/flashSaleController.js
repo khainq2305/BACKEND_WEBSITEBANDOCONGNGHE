@@ -24,6 +24,7 @@ class FlashSaleClientController {
                         model: Sku,
                         as: 'sku',
                         required: true,
+                        where: { isActive: true, deletedAt: null }, // ✅ thêm deletedAt null
                         attributes: [
                             'id', 'skuCode', 'price', 'originalPrice', 'stock',
                             [Sequelize.literal(`(SELECT COALESCE(SUM(oi.quantity),0) FROM orderitems oi INNER JOIN orders o ON oi.orderId = o.id WHERE oi.skuId = \`flashSaleItems->sku\`.\`id\` AND o.status IN ('completed', 'delivered'))`), 'totalSoldCount'],
@@ -32,6 +33,7 @@ class FlashSaleClientController {
                         include: [{
                             model: Product,
                             as: 'product',
+                            where: { deletedAt: null }, 
                             attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
                         }, {
                             model: ProductMedia,
@@ -48,15 +50,17 @@ class FlashSaleClientController {
                         model: Category,
                         as: 'category',
                         attributes: ['id', 'name', 'slug'],
+                        where: { deletedAt: null }, 
                         include: [{
                             model: Product,
                             as: 'products',
+                            where: { deletedAt: null }, 
                             attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage'],
                             include: [{
                                 model: Sku,
                                 as: 'skus',
                                 required: true,
-                                where: { isActive: true, deletedAt: null },
+                                where: { isActive: true, deletedAt: null }, 
                                 attributes: [
                                     'id', 'skuCode', 'price', 'originalPrice', 'stock',
                                     [Sequelize.literal(`(SELECT COALESCE(SUM(oi.quantity),0) FROM orderitems oi INNER JOIN orders o ON oi.orderId = o.id WHERE oi.skuId = \`categories->category->products->skus\`.\`id\` AND o.status IN ('completed', 'delivered'))`), 'totalSoldCount'],
@@ -65,6 +69,7 @@ class FlashSaleClientController {
                                 include: [{
                                     model: Product,
                                     as: 'product',
+                                    where: { deletedAt: null }, 
                                     attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
                                 }, {
                                     model: ProductMedia,
@@ -75,7 +80,8 @@ class FlashSaleClientController {
                             }]
                         }]
                     }]
-                }],
+                }]
+                ,
                 order: [
                     ['orderIndex', 'ASC'],
                     ['startTime', 'ASC']
@@ -88,25 +94,25 @@ class FlashSaleClientController {
                 const isUpcoming = now < flashSale.startTime;
 
                 const allSkusInSale = new Map();
-                
+
                 // ✅ FIX: Cấu trúc lại để tính toán và gán soldCount chính xác
                 flashSale.flashSaleItems?.forEach(item => {
                     if (item.sku) {
                         const finalSku = item.sku.toJSON();
                         const sold = item.originalQuantity - item.quantity;
-                        
+
                         finalSku.flashSaleInfo = {
-                             quantity: item.quantity,
-                             soldQuantity: sold,
-                             originalQuantity: item.originalQuantity,
-                             flashSaleId: flashSale.id,
-                             isSoldOut: item.quantity <= 0,
-                             limitPerUser: item.maxPerUser,
-                             isFlashSaleItem: true,
+                            quantity: item.quantity,
+                            soldQuantity: sold,
+                            originalQuantity: item.originalQuantity,
+                            flashSaleId: flashSale.id,
+                            isSoldOut: item.quantity <= 0,
+                            limitPerUser: item.maxPerUser,
+                            isFlashSaleItem: true,
                         };
                         finalSku.salePrice = item.salePrice;
                         finalSku.soldCount = sold; // ✅ Gán soldCount đúng
-                        
+
                         allSkusInSale.set(finalSku.id, finalSku);
                     }
                 });
@@ -126,7 +132,7 @@ class FlashSaleClientController {
                                         ? basePrice * (100 - discountValue) / 100
                                         : basePrice - discountValue;
                                     newPrice = Math.max(0, Math.round(newPrice / 1000) * 1000);
-                                    
+
                                     finalSku.salePrice = newPrice;
                                     finalSku.flashSaleInfo = {
                                         quantity: finalSku.stock,
@@ -143,7 +149,7 @@ class FlashSaleClientController {
                                     finalSku.flashSaleInfo = undefined;
                                     finalSku.soldCount = parseInt(finalSku.totalSoldCount || 0);
                                 }
-                                
+
                                 allSkusInSale.set(sku.id, finalSku);
                             }
                         });
@@ -174,7 +180,7 @@ class FlashSaleClientController {
                         });
                     });
                 });
-                
+
                 // Dọn dẹp thuộc tính totalSoldCount sau khi đã sử dụng
                 flashSale.flashSaleItems?.forEach(item => {
                     if (item.sku?.dataValues) delete item.sku.dataValues.totalSoldCount;

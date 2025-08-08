@@ -90,6 +90,19 @@ class OrderController {
         usePoints = false,
         pointsToSpend = 0,
       } = req.body;
+if (!req.body.shippingProviderId) {
+  return res.status(400).json({
+    message: "Vui lòng chọn phương thức vận chuyển trước khi đặt hàng."
+  });
+}
+
+// Kiểm tra provider có tồn tại và đang active
+const provider = await ShippingProvider.findByPk(req.body.shippingProviderId);
+if (!provider || !provider.isActive) {
+  return res.status(400).json({
+    message: "Phương thức vận chuyển không hợp lệ hoặc không khả dụng."
+  });
+}
 
       if (!addressId || !items?.length || !paymentMethodId) {
         return res.status(400).json({ message: "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán)." });
@@ -140,6 +153,10 @@ class OrderController {
       }
 
       const skuMap = new Map(skuList.map(s => [s.id, s]));
+if (!validPayment) {
+  await t.rollback();
+  return res.status(400).json({ message: 'Phương thức thanh toán không hợp lệ.' });
+}
 
       // SỬA LỖI TRUY VẤN: Lấy các FlashSaleItem đang hoạt động bằng cách include model FlashSale
       const allActiveFlashSaleItems = await FlashSaleItem.findAll({
@@ -508,12 +525,13 @@ if (validPayment.code.toLowerCase() === 'internalwallet') {
 
       // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
 
-      const addressParts = [
-        selectedAddress.streetAddress, // <-- SỬA TỪ .address THÀNH .streetAddress
-        selectedAddress.ward?.name,
-        selectedAddress.district?.name,
-        selectedAddress.province?.name,
-      ].filter(part => part);
+      // Cách 1: Sử dụng toán tử 3 ngôi
+const addressParts = [
+    selectedAddress.streetAddress,
+    selectedAddress.ward ? selectedAddress.ward.name : null,
+    selectedAddress.district ? selectedAddress.district.name : null,
+    selectedAddress.province ? selectedAddress.province.name : null,
+].filter(part => part);
 
       const fullUserAddress = addressParts.join(', ');
 

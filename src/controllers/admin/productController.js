@@ -8,6 +8,7 @@ const {
   Brand,
   Variant,
   VariantValue,
+  ProductView,
   ProductInfo,
   ProductSpec,
   CartItem,
@@ -1106,170 +1107,165 @@ class ProductController {
     }
   }
 
-  static async forceDelete(req, res) {
-    const t = await Product.sequelize.transaction();
-    try {
-      const { id } = req.params;
+ static async forceDelete(req, res) {
+  const t = await Product.sequelize.transaction();
+  try {
+    const { id } = req.params;
 
-      const product = await Product.findByPk(id, {
-        paranoid: false,
-        transaction: t,
-      });
-      if (!product)
-        return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
-
-      const skus = await Sku.findAll({
-        where: { productId: id },
-        attributes: ["id"],
-        raw: true,
-        transaction: t,
-      });
-      const skuIds = skus.map((s) => s.id);
-
-      const usedInOrder = await OrderItem.count({
-        where: { skuId: skuIds },
-        transaction: t,
-      });
-      if (usedInOrder > 0) {
-        await t.rollback();
-        return res.status(400).json({
-          message:
-            "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
-            "Hãy giữ lại để bảo toàn lịch sử.",
-        });
-      }
-
-      const opts = { force: true, transaction: t };
-
-      await CartItem.destroy({ where: { skuId: skuIds }, ...opts });
-      await WishlistItem.destroy({ where: { productId: id }, ...opts });
-
-      await ProductMedia.destroy({ where: { skuId: skuIds }, ...opts });
-      await SkuVariantValue.destroy({ where: { skuId: skuIds }, ...opts });
-      await ProductSpec.destroy({ where: { productId: id }, ...opts });
-      await ProductInfo.destroy({ where: { productId: id }, ...opts });
-      await ProductVariant.destroy({ where: { productId: id }, ...opts });
-
-      await Sku.destroy({ where: { id: skuIds }, ...opts });
-      await product.destroy({ force: true, transaction: t });
-
-      await t.commit();
-      return res.json({ message: "Đã xoá vĩnh viễn sản phẩm" });
-    } catch (err) {
-      if (!t.finished) await t.rollback();
-      console.error("Lỗi forceDelete:", err);
-      return res
-        .status(500)
-        .json({ message: " Lỗi server", error: err.message });
+    // 1. Tìm sản phẩm kể cả đã xoá mềm
+    const product = await Product.findByPk(id, {
+      paranoid: false,
+      transaction: t,
+    });
+    if (!product) {
+      await t.rollback();
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
     }
-  }
-  static async forceDeleteMany(req, res) {
-    const t = await Product.sequelize.transaction();
-    try {
-      const { ids = [] } = req.body;
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
-      }
 
-      const skus = await Sku.findAll({
-        where: { productId: ids },
-        attributes: ["id", "productId"],
-        raw: true,
-        transaction: t,
+    // 2. Lấy tất cả SKU của sản phẩm
+    const skus = await Sku.findAll({
+      where: { productId: id },
+      attributes: ["id"],
+      raw: true,
+      transaction: t,
+    });
+    const skuIds = skus.map((s) => s.id);
+
+   
+    const usedInOrder = await OrderItem.count({
+      where: { skuId: skuIds },
+      transaction: t,
+    });
+    if (usedInOrder > 0) {
+      await t.rollback();
+      return res.status(400).json({
+        message:
+          "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
+          "Hãy giữ lại để bảo toàn lịch sử.",
       });
-
-      const skuIds = skus.map((s) => s.id);
-
-      const orderCnt = await OrderItem.findAll({
-        where: { skuId: skuIds },
-        attributes: ["skuId"],
-        raw: true,
-        transaction: t,
-      });
-
-      const blockedSkuIds = new Set(orderCnt.map((o) => o.skuId));
-      const blockedProductIds = new Set(
-        skus.filter((s) => blockedSkuIds.has(s.id)).map((s) => s.productId)
-      );
-
-      const deletableProductIds = ids.filter(
-        (pid) => !blockedProductIds.has(pid)
-      );
-      if (deletableProductIds.length === 0) {
-        return res.status(400).json({
-          message:
-            "Không thể xoá vì tất cả sản phẩm đã xuất hiện trong đơn hàng.\n" +
-            "Hãy giữ lại để bảo toàn lịch sử.",
-        });
-      }
-
-      const deletableSkuIds = skus
-        .filter((s) => deletableProductIds.includes(s.productId))
-        .map((s) => s.id);
-
-      await Promise.all([
-        CartItem.destroy({
-          where: { skuId: deletableSkuIds },
-          force: true,
-          transaction: t,
-        }),
-        +(await WishlistItem.destroy({
-          where: { productId: deletableProductIds },
-          force: true,
-          transaction: t,
-        })),
-        ProductMedia.destroy({
-          where: { skuId: deletableSkuIds },
-          force: true,
-          transaction: t,
-        }),
-        SkuVariantValue.destroy({
-          where: { skuId: deletableSkuIds },
-          force: true,
-          transaction: t,
-        }),
-        ProductSpec.destroy({
-          where: { productId: deletableProductIds },
-          force: true,
-          transaction: t,
-        }),
-        ProductInfo.destroy({
-          where: { productId: deletableProductIds },
-          force: true,
-          transaction: t,
-        }),
-        ProductVariant.destroy({
-          where: { productId: deletableProductIds },
-          force: true,
-          transaction: t,
-        }),
-        Sku.destroy({
-          where: { id: deletableSkuIds },
-          force: true,
-          transaction: t,
-        }),
-        Product.destroy({
-          where: { id: deletableProductIds },
-          force: true,
-          transaction: t,
-        }),
-      ]);
-
-      await t.commit();
-
-      const msgOk = `Đã xoá vĩnh viễn ${deletableProductIds.length} sản phẩm.`;
-      const msgBad = blockedProductIds.size
-        ? `\nKhông xoá ${blockedProductIds.size} sản phẩm vì đã có trong đơn hàng.`
-        : "";
-      return res.json({ message: msgOk + msgBad });
-    } catch (error) {
-      if (!t.finished) await t.rollback();
-      console.error("forceDeleteMany error:", error);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server", error: error.message });
     }
+
+    const opts = { force: true, transaction: t };
+
+    // 4. Xóa dữ liệu liên quan
+    await CartItem.destroy({ where: { skuId: skuIds }, ...opts });
+    await WishlistItem.destroy({ where: { productId: id }, ...opts });
+    await ProductView.destroy({ where: { productId: id }, ...opts }); 
+    await ProductMedia.destroy({ where: { skuId: skuIds }, ...opts });
+    await SkuVariantValue.destroy({ where: { skuId: skuIds }, ...opts });
+    await ProductSpec.destroy({ where: { productId: id }, ...opts });
+    await ProductInfo.destroy({ where: { productId: id }, ...opts });
+    await ProductVariant.destroy({ where: { productId: id }, ...opts });
+
+   
+    await Sku.destroy({ where: { id: skuIds }, ...opts });
+
+   
+    await product.destroy(opts);
+
+    
+    await t.commit();
+    return res.json({ message: "Đã xoá vĩnh viễn sản phẩm" });
+  } catch (err) {
+    if (!t.finished) await t.rollback();
+
+    if (err.name === "SequelizeForeignKeyConstraintError") {
+      return res.status(400).json({
+        message:
+          "Không thể xoá vĩnh viễn vì sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+      });
+    }
+
+    console.error("Lỗi forceDelete:", err);
+    return res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+}
+
+ static async forceDeleteMany(req, res) {
+  const t = await Product.sequelize.transaction();
+  try {
+    const { ids = [] } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+    }
+
+    const skus = await Sku.findAll({
+      where: { productId: ids },
+      attributes: ["id", "productId"],
+      raw: true,
+      transaction: t,
+    });
+    const skuIds = skus.map((s) => s.id);
+
+    const orderCnt = await OrderItem.findAll({
+      where: { skuId: skuIds },
+      attributes: ["skuId"],
+      raw: true,
+      transaction: t,
+    });
+    const blockedSkuIds = new Set(orderCnt.map((o) => o.skuId));
+    const blockedProductIds = new Set(
+      skus.filter((s) => blockedSkuIds.has(s.id)).map((s) => s.productId)
+    );
+
+    const deletableProductIds = ids.filter(
+      (pid) => !blockedProductIds.has(pid)
+    );
+    if (deletableProductIds.length === 0) {
+      await t.rollback();
+      return res.status(400).json({
+        message:
+          "Không thể xoá vì tất cả sản phẩm đã xuất hiện trong đơn hàng.\n" +
+          "Hãy giữ lại để bảo toàn lịch sử.",
+      });
+    }
+
+    const deletableSkuIds = skus
+      .filter((s) => deletableProductIds.includes(s.productId))
+      .map((s) => s.id);
+
+    const opts = { force: true, transaction: t };
+
+    const modelsToDelete = [
+      { m: CartItem, cond: { skuId: deletableSkuIds } },
+      { m: WishlistItem, cond: { productId: deletableProductIds } },
+      { m: ProductView, cond: { productId: deletableProductIds } },
+      { m: ProductMedia, cond: { skuId: deletableSkuIds } },
+      { m: SkuVariantValue, cond: { skuId: deletableSkuIds } },
+      { m: ProductSpec, cond: { productId: deletableProductIds } },
+      { m: ProductInfo, cond: { productId: deletableProductIds } },
+      { m: ProductVariant, cond: { productId: deletableProductIds } },
+      { m: Sku, cond: { id: deletableSkuIds } },
+      { m: Product, cond: { id: deletableProductIds } },
+    ];
+
+    for (const item of modelsToDelete) {
+      await item.m.destroy({ where: item.cond, ...opts });
+    }
+
+    await t.commit();
+
+    const msgOk = `Đã xoá vĩnh viễn ${deletableProductIds.length} sản phẩm.`;
+    const msgBad = blockedProductIds.size
+      ? `\nKhông xoá ${blockedProductIds.size} sản phẩm vì đã có trong đơn hàng.`
+      : "";
+    return res.json({ message: msgOk + msgBad });
+
+  } catch (error) {
+    if (!t.finished) await t.rollback();
+
+    if (error.name === "SequelizeForeignKeyConstraintError") {
+      return res.status(400).json({
+        message:
+          "Không thể xoá vĩnh viễn vì một số sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+      });
+    }
+
+    console.error("forceDeleteMany error:", error);
+    return res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+}
+
 
 }
 

@@ -174,21 +174,22 @@ async function getFee({
       continue;
     }
 
-    const requestBody = {
-      PRODUCT_TYPE: 'HH',
-      SENDER_PROVINCE: senderProvince,
-      SENDER_DISTRICT: senderDistrict,
-      SENDER_WARD: senderWard,
-      RECEIVER_PROVINCE: pvCode, // Sử dụng mã VTP đã được mapping
-      RECEIVER_DISTRICT: dtCode, // Sử dụng mã VTP đã được mapping
-      RECEIVER_WARD: wdCode,   // Sử dụng mã VTP đã được mapping
-      PRODUCT_WEIGHT: Math.max(Number(weight) || 0, 100),
-      PRODUCT_DIMENSION: `${Math.max(length || 0, 1)}x${Math.max(width || 0, 1)}x${Math.max(height || 0, 1)}`,
-      ORDER_SERVICE: svc,
-      ORDER_SERVICE_ADD: '',
-      NATIONAL_TYPE: 1,
-      ORDER_VALUE: Math.max(Number(orderValue) || 0, 100_000),
-    };
+   const requestBody = {
+  PRODUCT_TYPE: 'HH',
+  SENDER_PROVINCE: senderProvince,
+  SENDER_DISTRICT: senderDistrict,
+  SENDER_WARD: senderWard,
+  RECEIVER_PROVINCE: Number(pvCode),
+  RECEIVER_DISTRICT: Number(dtCode),
+  RECEIVER_WARD: wdCode ? Number(wdCode) : undefined,
+  PRODUCT_WEIGHT: Math.max(Number(weight) || 0, 100),
+  PRODUCT_DIMENSION: `${Math.max(length || 0, 1)}x${Math.max(width || 0, 1)}x${Math.max(height || 0, 1)}`,
+  ORDER_SERVICE: svc,
+  ORDER_SERVICE_ADD: '',
+  NATIONAL_TYPE: 1,
+  ORDER_VALUE: Math.max(Number(orderValue) || 0, 100_000),
+};
+
 
     try {
       console.log('\n[VTP] Đang gửi request body đến API getPrice →', JSON.stringify(requestBody, null, 2));

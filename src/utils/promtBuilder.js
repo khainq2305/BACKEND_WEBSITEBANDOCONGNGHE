@@ -1,15 +1,15 @@
 module.exports = [
   {
     match: /(shop hoạt động bao lâu|mở từ khi nào|ra đời khi nào|shop có lâu chưa|shop mới mở hả)/i,
-    response: `📅 Home Power đã hoạt động hơn 5 năm trong lĩnh vực điện máy gia dụng và luôn được khách hàng đánh giá cao về chất lượng dịch vụ và sản phẩm.`
+    response: `📅 ZYBERZONE đã hoạt động hơn 5 năm trong lĩnh vực điện máy gia dụng và luôn được khách hàng đánh giá cao về chất lượng dịch vụ và sản phẩm.`
   },
   {
     match: /(ai đang tư vấn|bạn là ai|có nhân viên không|gặp nhân viên thật|ai đang chat|nói chuyện với người thật)/i,
-    response: `🤖 Em là trợ lý ảo của Home Power. Nếu anh/chị cần hỗ trợ trực tiếp từ nhân viên, em có thể kết nối qua hotline <strong>1900 8922</strong> hoặc gửi tin nhắn fanpage ạ!`
+    response: `🤖 Em là trợ lý ảo của ZYBERZONE. Nếu anh/chị cần hỗ trợ trực tiếp từ nhân viên, em có thể kết nối qua hotline <strong>1900 8922</strong> hoặc gửi tin nhắn fanpage ạ!`
   },
   {
     match: /(feedback|đánh giá về shop|uy tín không|tin tưởng được không|khách hàng nói gì)/i,
-    response: `🌟 Home Power nhận được hàng nghìn phản hồi tích cực từ khách hàng về chất lượng sản phẩm, tốc độ giao hàng và hỗ trợ sau bán. Anh/chị có thể tham khảo đánh giá trực tiếp trên từng sản phẩm ạ!`
+    response: `🌟 ZYBERZONE nhận được hàng nghìn phản hồi tích cực từ khách hàng về chất lượng sản phẩm, tốc độ giao hàng và hỗ trợ sau bán. Anh/chị có thể tham khảo đánh giá trực tiếp trên từng sản phẩm ạ!`
   },
   {
     match: /(sau khi mua|chăm sóc khách hàng|bảo trì sản phẩm|hỗ trợ sau bán|liên hệ sau mua)/i,
@@ -17,7 +17,7 @@ module.exports = [
   },
   {
     match: /(chào|xin chào|tư vấn|giúp|mua gì|bắt đầu)/i,
-    response: `👋 Xin chào! Em là trợ lý ảo của Home Power. Anh/chị cần tư vấn sản phẩm nào ạ?`
+    response: `👋 Xin chào! Em là trợ lý ảo của ZYBERZONE. Anh/chị cần tư vấn sản phẩm nào ạ?`
   },
   {
     match: /(bực quá|mất dạy|dịch vụ tệ|tôi không mua nữa|không hài lòng|chậm quá)/i,
@@ -37,7 +37,7 @@ module.exports = [
   },
   {
     match: /(tên gì|có người yêu chưa|ai code mày|trợ lý ảo à|lương bao nhiêu)/i,
-    response: `😄 Em là trợ lý ảo Home Power, sinh ra từ dòng code với trái tim yêu khách hàng. Lương em là nụ cười của anh/chị đó ạ!`
+    response: `😄 Em là trợ lý ảo ZYBERZONE, sinh ra từ dòng code với trái tim yêu khách hàng. Lương em là nụ cười của anh/chị đó ạ!`
   },
   {
     match: /(liên hệ|hỗ trợ trực tiếp|số điện thoại|fanpage)/i,
@@ -45,7 +45,7 @@ module.exports = [
   },
   {
     match: /(uy tín|đáng tin|hàng thật|chính hãng|cam kết)/i,
-    response: `🌟 Home Power cam kết cung cấp sản phẩm chính hãng 100%, bảo hành đầy đủ và luôn đồng hành cùng khách hàng sau bán hàng.`
+    response: `🌟 ZYBERZONE cam kết cung cấp sản phẩm chính hãng 100%, bảo hành đầy đủ và luôn đồng hành cùng khách hàng sau bán hàng.`
   },
   {
     match: /(chính sách đổi trả|hoàn tiền|bảo hành|bao lâu bảo hành|trả hàng)/i,
