@@ -10,7 +10,7 @@ class PostController {
         title,
         content,
         category,
-        authorId = 1,
+        authorId,
         status = 0,
         orderIndex = 0,
         publishAt,
@@ -240,7 +240,7 @@ class PostController {
         tagInstances.push(tag);
       }
 
-      await newPost.addTags(tagInstances);
+      await post.setTags(tagInstances);
       return res.json({ message: "Cập nhật thành công", data: post });
     } catch (error) {
       console.error("UPDATE POST ERROR:", error);
@@ -350,6 +350,7 @@ class PostController {
       return res.status(500).json({ message: "Lỗi server khi xóa vĩnh viễn" });
     }
   }
+  
 }
 
 module.exports = PostController;

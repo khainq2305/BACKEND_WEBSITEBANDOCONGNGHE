@@ -72,8 +72,23 @@ class PermissionService {
         return matrix;
     }
 
-    async updatePermission({ roleId, subjectKey, actionKey, hasPermission }) {
-      
+    async updatePermission(updates) {
+        // Nếu là mảng, xử lý từng phần tử
+        if (Array.isArray(updates)) {
+            const results = [];
+            for (const update of updates) {
+                try {
+                    const message = await this.updatePermission(update);
+                    results.push({ ...update, success: true, message });
+                } catch (err) {
+                    results.push({ ...update, success: false, message: err.message });
+                }
+            }
+            return results;
+        }
+
+        // Trường hợp cũ: object đơn lẻ
+        const { roleId, subjectKey, actionKey, hasPermission } = updates;
         const subject = await Subject.findOne({ where: { key: subjectKey } });
         const action = await Action.findOne({ where: { key: actionKey } });
         if (!subject || !action) {

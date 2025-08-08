@@ -46,29 +46,28 @@ class PermissionController {
     }
 
     async updatePermission(req, res, next) {
-    try {
-        const { roleId, subject, action, hasPermission } = req.body;
-        console.log('req.body la',req.body)
+        const updates = req.body;
+        // Nếu là mảng, xử lý bulk
+        if (Array.isArray(updates)) {
+            const results = await permissionService.updatePermission(updates);
+            return res.status(200).json({ success: true, results });
+        }
+        // Nếu là object đơn lẻ, xử lý như cũ
+        const { roleId, subject, action, hasPermission } = updates;
         if (!roleId || !subject || !action || typeof hasPermission !== 'boolean') {
             return res.status(400).json({
                 success: false,
                 message: 'Thiếu dữ liệu đầu vào: roleId, subject, action, hasPermission là bắt buộc.'
             });
         }
-
         const message = await permissionService.updatePermission({
             roleId,
             subjectKey: subject,
             actionKey: action,
             hasPermission
         });
-
         res.status(200).json({ success: true, message });
-    } catch (err) {
-        console.log('Lỗi cập nhật quyền:', err.message);
-        res.status(500).json({ success: false, message: err.message });
     }
-}
 
 
     async getPermissionsByRole(req, res, next) {
