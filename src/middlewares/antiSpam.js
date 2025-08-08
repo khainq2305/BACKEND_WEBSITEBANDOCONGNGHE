@@ -22,18 +22,17 @@ const clientSpamGuard = (req, res, next) => {
     });
   }
 
-  if (last && now - last < 30 * 1000) {
-    const remaining = Math.ceil((30 * 1000 - (now - last)) / 1000);
+  // ✅ Giới hạn gửi 5 giây 1 lần (client)
+  if (last && now - last < 5 * 1000) {
+    const remaining = Math.ceil((5 * 1000 - (now - last)) / 1000);
     return res.status(429).json({
       message: `Bạn đang gửi quá nhanh. Vui lòng thử lại sau ${remaining} giây.`
     });
   }
 
-
   clientQuestionTimestamps.set(key, now);
   next();
 };
-
 
 const adminReplySpamGuard = (req, res, next) => {
   const key =
@@ -46,9 +45,11 @@ const adminReplySpamGuard = (req, res, next) => {
   const now = Date.now();
   const last = adminReplyTimestamps.get(key);
 
+  // ✅ Giới hạn gửi 5 giây 1 lần (admin)
   if (last && now - last < 5 * 1000) {
+    const remaining = Math.ceil((5 * 1000 - (now - last)) / 1000);
     return res.status(429).json({
-      message: 'Bạn đang trả lời quá nhanh. Thử lại sau vài giây.'
+      message: `Bạn đang trả lời quá nhanh. Vui lòng thử lại sau ${remaining} giây.`
     });
   }
 

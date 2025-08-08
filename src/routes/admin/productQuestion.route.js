@@ -7,7 +7,7 @@ const { authorize } = require('../../middlewares/authorize');
 router.use(checkJWT);
 router.use(attachUserDetail)
 router.use(authorize("ProductQA"))
-router.get('/all', controller.getAll);
+router.get('/', controller.getAll);
 
 router.get('/:id', controller.getById);
 

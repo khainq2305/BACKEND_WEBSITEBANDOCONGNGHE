@@ -1,76 +1,107 @@
-const { ProductQuestion, ProductAnswer, Product, User } = require('../../models');
+const { ProductQuestion, ProductAnswer, Product, User, Sequelize } = require('../../models');
+const { Op } = Sequelize;
 
 const adminProductQuestionController = {
     async getAll(req, res) {
         try {
-            const questions = await ProductQuestion.findAll({
+            const { page = 1, pageSize = 10, filter, search } = req.query;
+            const limit = parseInt(pageSize, 10);
+            const offset = (parseInt(page, 10) - 1) * limit;
+
+            const questionWhere = {};
+            const userWhere = {};
+            let isSearchActive = false;
+
+            if (filter === 'unanswered' || filter === 'Chờ trả lời') {
+                questionWhere.isAnswered = false;
+                questionWhere.isHidden = false;
+            } else if (filter === 'answered' || filter === 'Đã trả lời') {
+                questionWhere.isAnswered = true;
+                questionWhere.isHidden = false;
+            } else if (filter === 'hidden' || filter === 'Đã ẩn') {
+                questionWhere.isHidden = true;
+            } else {
+                questionWhere.isHidden = { [Op.in]: [true, false] };
+            }
+
+            if (search) {
+                isSearchActive = true;
+                questionWhere[Op.or] = [
+                    { content: { [Op.like]: `%${search}%` } },
+                    Sequelize.literal(`\`user\`.\`fullName\` LIKE '%${search}%'`),
+                    Sequelize.literal(`\`user\`.\`email\` LIKE '%${search}%'`)
+                ];
+            }
+
+
+            const { count, rows: questions } = await ProductQuestion.findAndCountAll({
+                where: questionWhere,
                 include: [
                     {
                         model: Product,
                         as: 'product',
-                        attributes: ['id', 'name']
+                        attributes: ['id', 'name'],
+                        required: false
                     },
                     {
                         model: User,
                         as: 'user',
-                        attributes: ['id', 'fullName', 'email']
+                        attributes: ['id', 'fullName', 'email'],
+                        ...(isSearchActive ? { where: userWhere, required: true } : { required: false })
                     }
                 ],
-                order: [['createdAt', 'DESC']]
+                order: [['createdAt', 'DESC']],
+                limit,
+                offset
             });
 
-            const questionIds = questions.map(q => q.id);
+            // Tính toán số lượng cho tất cả các tab
+            const [allCount, unansweredCount, answeredCount, hiddenCount] = await Promise.all([
+                ProductQuestion.count({
+                    where: { isHidden: { [Op.in]: [true, false] } }
+                }),
+                ProductQuestion.count({
+                    where: { isAnswered: false, isHidden: false }
+                }),
+                ProductQuestion.count({
+                    where: { isAnswered: true, isHidden: false }
+                }),
+                ProductQuestion.count({
+                    where: { isHidden: true }
+                })
+            ]);
 
-            const answers = await ProductAnswer.findAll({
-                where: {
-                    questionId: questionIds,
-                    parentId: null
+            const totalPages = Math.ceil(count / limit);
+
+            return res.json({
+                data: questions,
+                pagination: {
+                    totalItems: count,
+                    totalPages,
+                    currentPage: parseInt(page, 10),
+                    pageSize: limit
                 },
-                include: [
-                    {
-                        model: User,
-                        as: 'user',
-                        attributes: ['id', 'fullName', 'email']
-                    }
-                ],
-                order: [['createdAt', 'ASC']]
+                counts: {
+                    all: allCount,
+                    unanswered: unansweredCount,
+                    answered: answeredCount,
+                    hidden: hiddenCount
+                }
             });
-
-            const answersGrouped = {};
-            for (const ans of answers) {
-                const qid = ans.questionId;
-                if (!answersGrouped[qid]) answersGrouped[qid] = [];
-                answersGrouped[qid].push(ans.toJSON());
-            }
-
-            const result = questions.map(q => {
-                const qData = q.toJSON();
-                qData.answers = answersGrouped[q.id] || [];
-                return qData;
-            });
-
-            return res.json(result);
         } catch (error) {
             console.error('Lỗi getAll câu hỏi:', error);
             return res.status(500).json({ message: 'Lỗi khi lấy danh sách câu hỏi', error: error.message });
         }
     },
+
     async getById(req, res) {
         try {
             const { id } = req.params;
 
             const question = await ProductQuestion.findByPk(id, {
                 include: [
-                    {
-                        model: Product,
-                        as: 'product',
-                        attributes: ['id', 'name']
-                    },
-                    {
-                        model: User,
-                        as: 'user',
-                        attributes: ['id', 'fullName', 'email']
-                    }
+                    { model: Product, as: 'product', attributes: ['id', 'name'] },
+                    { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] }
                 ]
             });
 
@@ -78,13 +109,7 @@ const adminProductQuestionController = {
 
             const answers = await ProductAnswer.findAll({
                 where: { questionId: id },
-                include: [
-                    {
-                        model: User,
-                        as: 'user',
-                        attributes: ['id', 'fullName', 'email']
-                    }
-                ],
+                include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'email'] }],
                 order: [['createdAt', 'ASC']]
             });
 
@@ -117,7 +142,6 @@ const adminProductQuestionController = {
             }
             sortRepliesRecursively(rootAnswers);
 
-
             const result = question.toJSON();
             result.answers = rootAnswers;
 
@@ -134,7 +158,9 @@ const adminProductQuestionController = {
             const { content, parentId = null } = req.body;
             const userId = req.user?.id;
 
-            if (!content || !questionId) return res.status(400).json({ message: 'Thiếu nội dung hoặc ID.' });
+            if (!content || !questionId) {
+                return res.status(400).json({ message: 'Thiếu nội dung hoặc ID.' });
+            }
 
             const answer = await ProductAnswer.create({
                 questionId,
@@ -142,12 +168,18 @@ const adminProductQuestionController = {
                 content,
                 isOfficial: true,
                 parentId,
-                isHidden: false,
+                isHidden: false
             });
 
             await ProductQuestion.update({ isAnswered: true }, { where: { id: questionId } });
 
-            res.status(201).json(answer);
+            const fullAnswer = await ProductAnswer.findByPk(answer.id, {
+                include: [{ model: User, as: 'user', attributes: ['id', 'fullName', 'email'] }]
+            });
+
+            req.io?.emit('new-answer', fullAnswer);
+
+            res.status(201).json(fullAnswer);
         } catch (err) {
             console.error('Lỗi phản hồi:', err);
             res.status(500).json({ message: 'Lỗi phản hồi.', error: err.message });

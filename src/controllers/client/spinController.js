@@ -4,6 +4,7 @@ const {
     UserSpin,
     SpinHistory,
     Coupon,
+    CouponUser,
 } = require("../../models");
 const { Op } = require("sequelize");
 
@@ -17,6 +18,7 @@ class SpinController {
             const rewards = await SpinReward.findAll({
                 where: { isActive: true },
                 include: [{ model: Coupon, as: "coupon", attributes: ["type"] }],
+                order: [["id", "ASC"]],
             });
             return res.status(200).json(rewards);
         } catch (err) {
@@ -25,96 +27,82 @@ class SpinController {
         }
     }
 
+
     static async getSpinStatus(req, res) {
         try {
             if (!req.user || !req.user.id) {
-                return res.status(401).json({ message: "Người dùng chưa được xác thực." });
+                return res.status(200).json({ spinsLeft: 0, message: "Người dùng chưa được xác thực." });
             }
-            const userId = req.user.id;
-            const today = SpinController.getToday();
-            let spin = await UserSpin.findOne({ where: { userId, spinDate: today } });
-
-            if (!spin) {
-                spin = await UserSpin.create({ userId, spinDate: today, spinsLeft: 1 });
-            }
-
-            return res.status(200).json({ spinsLeft: spin.spins_left });
+            // 🚀 Cho quay vô hạn: luôn trả về số lớn
+            return res.status(200).json({ spinsLeft: 9999 });
         } catch (err) {
             console.error("getSpinStatus error:", err.message, err.stack);
             return res.status(500).json({ message: "Lỗi lấy lượt quay" });
         }
     }
-static async spin(req, res) {
-    try {
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({ message: "Người dùng chưa được xác thực." });
+
+    static async spin(req, res) {
+        try {
+            const userId = req.user.id;
+
+            // 🚀 Không check spinsLeft nữa → luôn cho quay
+            // Bỏ đoạn giảm spinsLeft
+            // if (spin.spinsLeft <= 0) { ... }
+
+            const rewards = await SpinReward.findAll({
+                where: { isActive: true },
+                include: [{ model: Coupon, as: "coupon", attributes: ["type"] }],
+                order: [["id", "ASC"]],
+            });
+
+            if (!rewards || rewards.length === 0) {
+                return res.status(500).json({ message: "Không có phần thưởng khả dụng" });
+            }
+
+            const totalProbability = rewards.reduce((sum, r) => sum + r.probability, 0);
+            const randomNumber = Math.random() * totalProbability;
+            let cumulativeProbability = 0;
+            let selectedReward = null;
+
+            for (const reward of rewards) {
+                cumulativeProbability += reward.probability;
+                if (randomNumber <= cumulativeProbability) {
+                    selectedReward = reward;
+                    break;
+                }
+            }
+
+            if (!selectedReward) {
+                return res.status(500).json({ message: "Lỗi hệ thống khi chọn phần thưởng" });
+            }
+
+            await SpinHistory.create({
+                userId,
+                rewardId: selectedReward.id,
+                rewardName: selectedReward.name,
+                rewardType: selectedReward.coupon?.type || "text",
+            });
+
+            if (selectedReward.couponId) {
+                await CouponUser.create({
+                    userId,
+                    couponId: selectedReward.couponId,
+                    used: false,
+                    assignedAt: new Date(),
+                });
+            }
+
+            return res.status(200).json({
+                reward: selectedReward.name,
+                rewardType: selectedReward.coupon?.type || "text",
+                rewardId: selectedReward.id,
+            });
+
+        } catch (err) {
+            console.error("spin error:", err.message, err.stack);
+            return res.status(500).json({ message: "Lỗi quay vòng" });
         }
-
-        const userId = req.user.id;
-        const today = SpinController.getToday();
-
-        // ✅ Dùng đúng camelCase field: userId, spinDate
-        let spin = await UserSpin.findOne({ where: { userId, spinDate: today } });
-        if (!spin) {
-            spin = await UserSpin.create({ userId, spinDate: today, spinsLeft: 1 });
-        }
-
-        if (spin.spinsLeft <= 0) {
-            return res.status(400).json({ message: "Hết lượt quay hôm nay" });
-        }
-
-        const rewards = await SpinReward.findAll({
-            where: { isActive: true },
-            include: [{ model: Coupon, as: "coupon", attributes: ["type"] }],
-        });
-
-        if (!rewards || rewards.length === 0) {
-            return res.status(500).json({ message: "Không có phần thưởng khả dụng" });
-        }
-
-        const segments = rewards.flatMap((reward) => {
-            const count = Math.round(reward.probability * 16);
-            return Array(count).fill(reward);
-        });
-
-        if (segments.length === 0) {
-            return res.status(500).json({ message: "Danh sách phần thưởng rỗng sau xử lý xác suất" });
-        }
-
-        const randomIndex = Math.floor(Math.random() * segments.length);
-        const selectedId = segments[randomIndex].id;
-
-        const selected = await SpinReward.findOne({
-            where: { id: selectedId },
-            include: [{ model: Coupon, as: "coupon", attributes: ["type"] }],
-        });
-
-        if (!selected) {
-            return res.status(500).json({ message: "Không tìm thấy phần thưởng" });
-        }
-
-        // ✅ Giảm spinsLeft đúng field
-        await spin.decrement("spinsLeft");
-
-        // ✅ Tạo lịch sử quay
-        await SpinHistory.create({
-            userId,
-            rewardId: selected.id,
-            rewardName: selected.name,
-            rewardType: selected.coupon?.type || "text",
-        });
-
-        return res.status(200).json({
-            reward: selected.name,
-            rewardType: selected.coupon?.type || "text",
-            index: randomIndex,
-        });
-    } catch (err) {
-        console.error("spin error:", err.message, err.stack);
-        return res.status(500).json({ message: "Lỗi quay vòng" });
     }
-}
-
 
 
 
@@ -125,7 +113,7 @@ static async spin(req, res) {
             }
             const userId = req.user.id;
             const history = await SpinHistory.findAll({
-                where: { where: { userId } },
+                where: { userId },
                 order: [["createdAt", "DESC"]],
                 limit: 10,
             });

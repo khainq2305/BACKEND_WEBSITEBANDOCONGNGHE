@@ -1,3 +1,4 @@
+// src/models/spinHistoryModel.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -16,6 +17,10 @@ const SpinHistory = sequelize.define('SpinHistory', {
     allowNull: true,
   },
   rewardName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  rewardNameWon: {    
     type: DataTypes.STRING,
     allowNull: true,
   },

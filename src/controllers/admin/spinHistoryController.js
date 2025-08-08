@@ -1,16 +1,18 @@
+// src/controllers/admin/spinHistoryController.js
 const { Op } = require('sequelize');
-const { SpinHistory, User, SpinReward, Coupon } = require('../../models');
+const { SpinHistory, User, SpinReward } = require('../../models');
 
 const spinHistoryController = {
   async getAll(req, res) {
   try {
+    console.log("Received query parameters (spinHistoryController.js):", req.query); 
+
     const {
       page = 1,
       limit = 10,
       search = '',
       userId = '',
       rewardId = 'all',
-      couponType = 'all'
     } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -22,6 +24,12 @@ const spinHistoryController = {
         attributes: ['fullName'],
         required: false,
       },
+      {
+        model: SpinReward,
+        as: 'reward',
+        attributes: ['name'],
+        required: false,
+      }
     ];
 
     if (search) {
@@ -36,32 +44,13 @@ const spinHistoryController = {
       whereClause.userId = parsedUserId;
     }
 
-    if (rewardId !== 'all') {
-      if (rewardId === 'none_won') {
-        whereClause.rewardId = { [Op.is]: null };
-      } else {
-        const parsedRewardId = parseInt(rewardId);
-        if (isNaN(parsedRewardId)) {
-          return res.status(400).json({ message: 'ID phần thưởng không hợp lệ.' });
-        }
-        whereClause.rewardId = parsedRewardId;
-      }
-    } else if (couponType !== 'all') {
-      includeOptions.push({
-        model: SpinReward,
-        as: 'reward',
-        required: true,
-        include: [
-          {
-            model: Coupon,
-            as: 'coupon',
-            where: { type: couponType },
-            required: true
-          }
-        ]
-      });
+    // Lọc Đã Trúng và Không Trúng dựa trên rewardName, vì rewardId không đáng tin cậy
+    if (rewardId === 'won') {
+      whereClause.rewardName = { [Op.not]: 'Chúc bạn may mắn lần sau' };
+    } else if (rewardId === 'none_won') {
+      whereClause.rewardName = 'Chúc bạn may mắn lần sau';
     }
-
+    
     const { rows, count } = await SpinHistory.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
@@ -70,21 +59,29 @@ const spinHistoryController = {
       include: includeOptions,
     });
 
+    const [totalAll, totalWon, totalNoneWon] = await Promise.all([
+      SpinHistory.count(),
+      SpinHistory.count({ where: { rewardName: { [Op.not]: 'Chúc bạn may mắn lần sau' } } }),
+      SpinHistory.count({ where: { rewardName: 'Chúc bạn may mắn lần sau' } }),
+    ]);
+
     return res.status(200).json({
       success: true,
       data: rows,
       total: count,
       currentPage: parseInt(page),
       totalPages: Math.ceil(count / parseInt(limit)),
-      counts: { all: count },
+      counts: { 
+        all: totalAll,
+        won: totalWon,
+        none_won: totalNoneWon,
+      },
     });
   } catch (err) {
     console.error('Lỗi khi lấy danh sách lịch sử quay:', err);
     return res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
-}
-,
-
+},
   async getById(req, res) {
     try {
       const { id } = req.params;
