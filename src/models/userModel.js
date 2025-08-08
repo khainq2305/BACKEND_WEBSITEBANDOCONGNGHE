@@ -18,11 +18,11 @@ const User = connection.define(
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    previousPassword: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Mật khẩu cũ gần nhất (hash)",
-    },
+    // previousPassword: {
+    //   type: DataTypes.STRING,
+    //   allowNull: true,
+    //   comment: "Mật khẩu cũ gần nhất (hash)",
+    // },
     passwordChangedAt: {
       type: DataTypes.DATE,
       allowNull: true,
