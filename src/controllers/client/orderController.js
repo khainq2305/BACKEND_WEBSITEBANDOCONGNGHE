@@ -5,6 +5,7 @@ const {
   FlashSaleCategory,
   UserAddress,
   Province,
+   Wallet, WalletTransaction,
   Product,
   Coupon,
   Category,
@@ -46,6 +47,23 @@ const { processSkuPrices } = require('../../helpers/priceHelper');
 
 const moment = require("moment"); // nếu chưa import
 const ShippingService = require("../../services/client/shippingService");
+async function finalizeCancellation(order, transaction, res, reason = null) {
+  order.status = 'cancelled';
+  order.cancelledAt = new Date();
+  if (reason && typeof reason === 'string') {
+    order.cancelReason = reason.trim();
+  }
+  await order.save({ transaction });
+
+  await transaction.commit();
+
+  return res.status(200).json({
+    message: "Huỷ đơn hàng thành công",
+    orderId: order.id,
+  });
+}
+
+
 class OrderController {
   // Bạn cần đảm bảo các models đã được import đúng cách
   // const { Order, OrderItem, Sku, FlashSale, FlashSaleItem, Coupon, CouponUser, UserPoint, Cart, CartItem, UserAddress, Province, District, Ward, PaymentMethod, ShippingProvider, Notification, NotificationUser } = require('../models');
@@ -327,7 +345,13 @@ class OrderController {
 
       const finalPrice = Math.max(0, totalPrice - couponDiscount + shippingFee - shippingDiscount - pointDiscountAmount);
 
-      const paymentStatus = ["momo", "vnpay", "zalopay", "atm", "stripe"].includes(validPayment.code.toLowerCase()) ? "waiting" : "unpaid";
+
+const paymentStatus = ["momo", "vnpay", "zalopay", "atm", "stripe"].includes(validPayment.code.toLowerCase())
+  ? "waiting"
+  : validPayment.code.toLowerCase() === "internalwallet"
+    ? "paid"
+    : "unpaid";
+
 
       const newOrder = await Order.create(
         {
@@ -354,7 +378,31 @@ class OrderController {
 
       newOrder.orderCode = `DH${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
+if (validPayment.code.toLowerCase() === 'internalwallet') {
 
+  const wallet = await Wallet.findOne({
+    where: { userId: user.id },
+    transaction: t,
+    lock: t.LOCK.UPDATE
+  });
+
+  if (!wallet || Number(wallet.balance) < finalPrice) {
+    await t.rollback();
+    return res.status(400).json({ message: 'Số dư ví không đủ để thanh toán.' });
+  }
+
+  // Trừ tiền
+  wallet.balance = Number(wallet.balance) - finalPrice;
+  await wallet.save({ transaction: t });
+
+  // Ghi giao dịch
+  await WalletTransaction.create({
+    walletId: wallet.id,
+     type: 'purchase', // ✅ sửa lại cho trùng ENUMm
+    amount: finalPrice,
+    description: `Thanh toán đơn hàng ${newOrder?.orderCode || '[chưa tạo]'}`,
+  }, { transaction: t });
+}
       if (validPayment.code.toLowerCase() === "vnpay") {
         newOrder.vnpOrderId = `${newOrder.orderCode}-${Date.now()}`;
         await newOrder.save({ transaction: t });
@@ -411,9 +459,18 @@ class OrderController {
       }
       const rewardPointsConversionRate = 4000;
       const rewardPoints = Math.floor(finalPrice / rewardPointsConversionRate);
-      if (rewardPoints > 0) {
-        await UserPoint.create({ userId: user.id, orderId: newOrder.id, points: rewardPoints, type: 'earn', description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}` }, { transaction: t });
-      }
+    if (rewardPoints > 0) {
+  await UserPoint.create({
+    userId: user.id,
+    orderId: newOrder.id,
+    points: rewardPoints,
+    type: 'earn',
+    description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
+   expiresAt: new Date(Date.now() + 1 * 60 * 1000) // ✅ hết hạn sau 1 phút
+
+  }, { transaction: t });
+}
+
 
       const payCode = validPayment.code.toLowerCase();
 
@@ -747,13 +804,15 @@ class OrderController {
             model: ReturnRequest,
             as: "returnRequest",
             required: false,
-            attributes: [
-              "id",
-              "status",
-              "returnCode",
-              "deadlineChooseReturnMethod",
-              "returnMethod",
-            ],
+              attributes: [
+    "id",
+    "status",
+    "returnCode",
+    "deadlineChooseReturnMethod",
+    "returnMethod",
+    "cancelledBy", // 👈 THÊM DÒNG NÀY
+  ],
+
             // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
             include: [ // Thêm include này để lấy ReturnRequestItem
               {
@@ -816,6 +875,8 @@ class OrderController {
             returnCode: order.returnRequest.returnCode,
             deadlineChooseReturnMethod: order.returnRequest.deadlineChooseReturnMethod,
             returnMethod: order.returnRequest.returnMethod || null,
+                  cancelledBy: order.returnRequest.cancelledBy || null, // ✅ THÊM DÒNG NÀY
+
             // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
             items: order.returnRequest.items // Bây giờ `items` sẽ có dữ liệu từ include
               ? order.returnRequest.items.map((item) => ({
@@ -885,11 +946,15 @@ class OrderController {
     try {
       const { id } = req.params;
       const { reason } = req.body || {};
-      const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
-      if (!reasonText?.trim()) {
-        return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
-      }
+     const reasonText = typeof reason === "string" ? reason : reason?.reason;
+
+if (!reasonText?.trim()) {
+  return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
+}
+
+   console.log("[DEBUG] req.body.reason:", req.body?.reason);
+console.log("[DEBUG] reasonText:", reasonText);
 
       const order = await Order.findByPk(id, {
         include: [{ model: PaymentMethod, as: "paymentMethod", attributes: ["code"] }],
@@ -924,6 +989,7 @@ class OrderController {
         } else if (payCode === "vnpay") {
           if (!order.vnpTransactionId || !order.paymentTime) return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
           payload.vnpTransactionId = order.vnpTransactionId;
+          payload.originalAmount = order.finalPrice; 
           payload.transDate = order.paymentTime;
         } else if (payCode === "stripe") {
           if (!order.stripePaymentIntentId) return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
@@ -946,6 +1012,37 @@ class OrderController {
       } else {
         order.paymentStatus = "unpaid";
       }
+// ✅ Trường hợp hoàn ví nội bộ thì xử lý riêng
+if (paid && payCode === "internalwallet") {
+  const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
+  if (!wallet) {
+    await t.rollback();
+    return res.status(400).json({ message: "Không tìm thấy ví người dùng" });
+  }
+
+  wallet.balance = (
+  Number(wallet.balance || 0) + Number(order.finalPrice || 0)
+).toFixed(2);
+
+  await wallet.save({ transaction: t });
+
+await WalletTransaction.create({
+  userId: order.userId,
+  walletId: wallet.id, // ← thêm dòng này
+  orderId: order.id,
+  type: 'refund',
+  amount: order.finalPrice,
+  description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode}`,
+}, { transaction: t });
+
+  order.paymentStatus = "refunded";
+  order.gatewayTransId = null;
+  await order.save({ transaction: t });
+
+  // ✅ Kết thúc luôn tại đây
+return await finalizeCancellation(order, t, res, reasonText); // ✅ thêm `res` vào tham số
+
+}
 
       order.status = "cancelled";
       order.cancelReason = reasonText.trim();

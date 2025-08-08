@@ -10,6 +10,12 @@ const UserPoint = sequelize.define('UserPoint', {
     type: DataTypes.ENUM('earn', 'spend', 'refund', 'expired'),
     allowNull: false,
   },
+  sourceType: {
+  type: DataTypes.ENUM('order', 'voucherExchange', 'birthday'),
+  allowNull: false,
+  defaultValue: 'order',
+},
+
   description: { type: DataTypes.STRING, allowNull: true },
   expiresAt: { type: DataTypes.DATE, allowNull: true },
 }, {

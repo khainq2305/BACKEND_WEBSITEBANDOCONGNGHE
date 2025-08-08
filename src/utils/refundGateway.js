@@ -1,6 +1,6 @@
 const vnpay = require('../services/client/vnpayService');
 const momo  = require('../services/client/momoService');
-const zalopay = require('../services/client/zalopayService'); // ⬅️ THÊM DÒNG NÀY
+const zalopay = require('../services/client/zalopayService'); 
 const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -11,7 +11,8 @@ module.exports = async function refundGateway(gateway, payload) {
     case 'vnpay': {
       console.log('[refundGateway] Gọi VNPAY refund:', payload);
 
-      const { orderCode, amount, vnpTransactionId, transDate } = payload;
+      const { orderCode, amount, vnpTransactionId, transDate, originalAmount } = payload;
+
 
       if (!vnpTransactionId || !transDate) {
         console.error('[refundGateway] ❌ Thiếu transactionId hoặc transDate cho VNPay');
@@ -27,6 +28,7 @@ module.exports = async function refundGateway(gateway, payload) {
         transactionId: vnpTransactionId,
         amount,
         transDate,
+        originalAmount, 
         user: 'admin',
       });
 

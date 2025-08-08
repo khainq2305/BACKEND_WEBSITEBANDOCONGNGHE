@@ -103,8 +103,7 @@ const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
   const vnp_RequestId = uuidv4().replace(/-/g, '').slice(0, 32);
   const vnp_Version = '2.1.0';
   const vnp_Command = 'refund';
-  const vnp_TransactionType = amount < originalAmount ? '02' : '01'; // ✅ Auto detect type
-
+  const vnp_TransactionType = '02'; // Full refund
   const vnp_TxnRef = orderCode;
   const vnp_Amount = Math.round(+amount) * 100;
   const vnp_TransactionNo = transactionId;

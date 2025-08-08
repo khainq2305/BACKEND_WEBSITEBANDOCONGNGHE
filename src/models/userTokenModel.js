@@ -26,10 +26,18 @@ const UserToken = connection.define("UserToken", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
- type: {
-  type: DataTypes.ENUM("passwordReset", "emailVerification", "changePasswordAttempt"),
+type: {
+  type: DataTypes.ENUM(
+    "passwordReset",
+    "emailVerification",
+    "changePasswordAttempt",
+    "walletPinSetup",
+    "walletPinReset" // ✅ thêm dòng này
+  ),
   allowNull: false,
 },
+
+
 
   lockedUntil: {
     type: DataTypes.DATE,

@@ -21,7 +21,8 @@ const sequelize = require('../config/database'); // Đảm bảo import đúng t
 
 cron.schedule('*/1 * * * *', async () => {
   try {
-    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+
 
     const expiredOrders = await Order.findAll({
       where: {
@@ -30,8 +31,9 @@ cron.schedule('*/1 * * * *', async () => {
           [Op.in]: ['waiting', 'unpaid']
         },
         createdAt: {
-          [Op.lt]: fifteenMinutesAgo
-        }
+  [Op.lt]: oneMinuteAgo
+}
+
       },
       include: [
         { model: OrderItem, as: 'items' },
@@ -104,23 +106,73 @@ cron.schedule('*/1 * * * *', async () => {
         await order.save({ transaction });
 
       
-        const slug = `order-${order.orderCode}`;
-        const existingNotif = await Notification.findOne({ where: { slug } });
-        if (!existingNotif) {
-          const notif = await Notification.create({
-            title: 'Đơn hàng tự huỷ',
-            message: `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
-            slug,
-            type: 'order',
-            referenceId: order.id,
-            link: `/user-profile/orders/${order.orderCode}`
-          }, { transaction });
+     const slug = `order-${order.orderCode}`;
+const existingNotif = await Notification.findOne({ where: { slug } });
 
-          await NotificationUser.create({
-            notificationId: notif.id,
-            userId: order.userId
-          }, { transaction });
-        }
+let notif = existingNotif;
+
+if (!existingNotif) {
+  const notif = await Notification.create({
+    title: 'Đơn hàng tự huỷ',
+    message: `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
+    slug,
+    type: 'order',
+    referenceId: order.id,
+    link: `/user-profile/orders/${order.orderCode}`,
+    startAt: new Date(),
+    isActive: true,
+  }, { transaction });
+
+  await NotificationUser.create({
+    notificationId: notif.id,
+    userId: order.userId
+  }, { transaction });
+
+  console.log(`[Cron] ✅ Tạo notification & user: ${slug}`);
+} else {
+  // ✅ CẬP NHẬT lại nội dung nếu đã tồn tại
+  existingNotif.title = 'Đơn hàng tự huỷ';
+  existingNotif.message = `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`;
+  existingNotif.startAt = new Date();
+  existingNotif.isActive = true;
+  await existingNotif.save({ transaction });
+
+  const existedUser = await NotificationUser.findOne({
+    where: {
+      notificationId: existingNotif.id,
+      userId: order.userId,
+    },
+  });
+  if (!existedUser) {
+    await NotificationUser.create({
+      notificationId: existingNotif.id,
+      userId: order.userId
+    }, { transaction });
+  }
+
+  console.log(`[Cron] 🔁 Cập nhật notification: ${slug}`);
+}
+
+
+// Tạo NotificationUser nếu chưa có
+if (order.userId) {
+  const existNU = await NotificationUser.findOne({
+    where: { notificationId: notif.id, userId: order.userId }
+  });
+
+  if (!existNU) {
+    await NotificationUser.create({
+      notificationId: notif.id,
+      userId: order.userId
+    }, { transaction });
+
+    console.log(`[Cron] ✅ Đã tạo NotificationUser cho userId=${order.userId}`);
+  } else {
+    console.log(`[Cron] 🔁 NotificationUser đã tồn tại`);
+  }
+} else {
+  console.error(`[Cron] ❌ order.userId bị null với orderCode: ${order.orderCode}`);
+}
 
        
         const emailMjmlContent = generateOrderCancellationHtml({
@@ -147,6 +199,17 @@ cron.schedule('*/1 * * * *', async () => {
 
         await transaction.commit();
         console.log(`[Cron] Đã huỷ và xử lý đơn ${order.orderCode}`);
+// 👉 Emit socket thông báo tới user
+const io = require('../socket'); // hoặc nơi bạn export io từ init
+io.to(`user-${order.userId}`).emit('new-client-notification', {
+  id: notif.id,
+  title: notif.title,
+  message: notif.message,
+  link: notif.link,
+  createdAt: notif.startAt,
+  isRead: false,
+  type: notif.type
+});
 
       } catch (innerErr) {
         await transaction.rollback();

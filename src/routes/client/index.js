@@ -29,6 +29,7 @@ const searchImageRoute = require("./searchImage.route");
 const chatboxRoutes = require("./chatbox.routes");
 const paymentRoutes = require("./payment.routes");
 const notificationRoutes = require("./notificationClient.route");
+const walletRoutes = require("./wallet.route");
 
 // Payment callbacks
 const paymentController = require("../../controllers/client/paymentController");
@@ -68,5 +69,6 @@ router.use("/productviews", productViewRoutes);
 router.use("/return-refund", returnRefundRoutes);
 router.use("/membership", membershipRoutes);
 router.use("/recommendations", recommendationRoutes);
+router.use("/wallet", walletRoutes);
 
 module.exports = router;

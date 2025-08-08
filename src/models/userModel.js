@@ -23,6 +23,13 @@ const User = connection.define(
       allowNull: true,
       comment: "Mật khẩu cũ gần nhất (hash)",
     },
+    walletEmailVerified: {
+  type: DataTypes.BOOLEAN,
+  allowNull: false,
+  defaultValue: false,
+  comment: "Người dùng đã xác minh email cho ví hay chưa",
+},
+
     passwordChangedAt: {
       type: DataTypes.DATE,
       allowNull: true,

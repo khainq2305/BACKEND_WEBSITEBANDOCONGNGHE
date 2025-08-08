@@ -7,7 +7,8 @@ const accessKey = process.env.MOMO_ACCESS_KEY;
 const secretKey = process.env.MOMO_SECRET_KEY;
 const redirectUrl = process.env.MOMO_REDIRECT_URL;
 async function createPaymentLink({ orderId, amount, orderInfo }) {
-  const ipnUrl = "https://437361babf31.ngrok-free.app/payment/momo-callback";
+const ipnUrl = process.env.MOMO_IPN_URL;
+
   const requestType = "captureWallet";
   const requestId = `${orderId}-${Date.now()}`;
   const extraData = "";
