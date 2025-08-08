@@ -18,6 +18,11 @@ const RefundRequest = sequelize.define('RefundRequest', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  refundedAt: {
+  type: DataTypes.DATE,
+  allowNull: true,
+},
+
   reason: {
     type: DataTypes.TEXT,
     allowNull: false,

@@ -18,7 +18,10 @@ const Order = sequelize.define('Order', {
     allowNull: true,
     comment: 'Mã đơn VNPay được sinh ra khi thanh toán (dùng để phân biệt mỗi lần retry)',
   },
-
+  vnpPayDate: { // <-- THÊM TRƯỜNG NÀY
+    type: DataTypes.DATE, // Hoặc DataTypes.STRING nếu bạn muốn lưu chuỗi YYYYMMDDHHmmss
+    allowNull: true,
+  },
   shippingProviderId: {
     type: DataTypes.INTEGER,
     allowNull: true, // null nếu chưa chọn (hoặc giao tay)

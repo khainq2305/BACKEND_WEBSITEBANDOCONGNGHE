@@ -12,6 +12,9 @@ const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
 //
+const Wallet = require("./Wallet");
+const WalletTransaction = require("./WalletTransaction");
+
 const ReturnRequest = require("./returnRequest");
 const StockLog = require("./StockLog")
 
@@ -657,6 +660,12 @@ UserPoint.belongsTo(User, { foreignKey: "userId", as: "user" });
 
 Order.hasMany(UserPoint, { foreignKey: "orderId", as: "pointLogs" });
 UserPoint.belongsTo(Order, { foreignKey: "orderId", as: "order" });
+// Ví nội bộ
+User.hasOne(Wallet, { foreignKey: "userId", as: "wallet" });
+Wallet.belongsTo(User, { foreignKey: "userId", as: "user" });
+
+Wallet.hasMany(WalletTransaction, { foreignKey: "walletId", as: "transactions" });
+WalletTransaction.belongsTo(Wallet, { foreignKey: "walletId", as: "wallet" });
 
 module.exports = {
   Sequelize,
@@ -670,6 +679,8 @@ module.exports = {
   RefundRequest,
   MembershipTier,
   MembershipLog,
+  Wallet,
+  WalletTransaction,
 
   ProductQuestion,
   ProductAnswer,

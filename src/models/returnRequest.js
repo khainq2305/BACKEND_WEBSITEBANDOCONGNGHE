@@ -10,6 +10,11 @@ const ReturnRequest = sequelize.define('ReturnRequest', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
+  cancelledBy: {
+  type: DataTypes.ENUM('user', 'admin'),
+  allowNull: true
+}
+,
   evidenceImages: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -36,6 +41,12 @@ deadlineChooseReturnMethod: {
   allowNull: true,
   comment: 'Hạn cuối để người dùng chọn phương thức trả hàng sau khi được duyệt',
 },
+dateChooseReturnMethod: {
+  type: DataTypes.DATE,
+  allowNull: true,
+  comment: 'Thời điểm người dùng chọn phương thức hoàn hàng',
+},
+
   // ✅ MỚI: Phương thức gửi hàng hoàn
   returnMethod: {
     type: DataTypes.ENUM('ghn_pickup', 'self_send'),

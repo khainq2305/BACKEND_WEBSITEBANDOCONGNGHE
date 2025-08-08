@@ -4,6 +4,7 @@ const {
   Order,
   OrderItem,
   Sku,
+  User,
   FlashSaleItem,
   Product,
   ReturnRequestItem ,
@@ -14,6 +15,7 @@ const {
 
 const refundGateway = require('../../utils/refundGateway');
 const calculateRefundAmount = require('../../utils/calculateRefundAmount');
+const { Op } = require('sequelize');
 
 const returnStock = async (orderItems, t) => {
   for (const it of orderItems) {
@@ -35,27 +37,91 @@ const returnStock = async (orderItems, t) => {
 };
 
 class ReturnController {
-  static async getReturnByOrder(req, res) {
-  try {
-    const { orderId } = req.params;
 
-    const whereClause = orderId && Number(orderId) !== 0 ? { orderId } : {};
+// File: src/controllers/admin/orderController.js
 
-    const requests = await ReturnRequest.findAll({
-      where: whereClause,
-      include: [{ model: Order, as: 'order' }],
-      order: [['createdAt', 'DESC']]
-    });
+static async getReturnByOrder(req, res) {
+    try {
+        const { orderId } = req.params;
+        const {
+            page = 1,
+            limit = 10,
+            search = '',
+            status,
+            startDate,
+            endDate
+        } = req.query;
 
-    return res.json({ data: requests });
-  } catch (error) {
-    console.error('Lỗi khi lấy yêu cầu trả hàng:', error);
-    return res.status(500).json({ message: 'Lỗi server' });
-  }
+        const offset = (page - 1) * limit;
+        const whereClause = {};
+        const includeClause = [
+            {
+                model: Order,
+                as: 'order',
+                required: false,
+                attributes: ['orderCode']
+            }
+        ];
+
+        // Lấy thống kê trạng thái riêng biệt (cho frontend)
+        const statusStats = await ReturnRequest.findAll({
+            attributes: [
+                'status',
+                [sequelize.fn('COUNT', sequelize.col('status')), 'count']
+            ],
+            group: ['status'],
+            raw: true
+        });
+
+        if (orderId && Number(orderId) !== 0) {
+            whereClause.orderId = orderId;
+        }
+
+        if (status) {
+            whereClause.status = status;
+        }
+
+        if (startDate || endDate) {
+            whereClause.createdAt = {};
+            if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
+            if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate + ' 23:59:59');
+        }
+
+        if (search) {
+            whereClause[Op.or] = [
+                { returnCode: { [Op.like]: `%${search}%` } },
+                { '$order.orderCode$': { [Op.like]: `%${search}%` } }
+            ];
+            includeClause[0].required = true;
+        }
+
+        const { count: totalItems, rows: data } = await ReturnRequest.findAndCountAll({
+            where: whereClause,
+            include: includeClause,
+            order: [['createdAt', 'DESC']],
+            offset,
+            limit: parseInt(limit),
+            subQuery: false
+        });
+
+        const totalPages = Math.ceil(totalItems / limit);
+
+        return res.json({
+            data,
+            totalItems,
+            totalPages,
+            currentPage: parseInt(page),
+            statusStats // 🔥 Trả về thống kê trạng thái
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy yêu cầu trả hàng:', error);
+        return res.status(500).json({ message: 'Lỗi server' });
+    }
 }
 
 
- static async updateReturnStatus(req, res) {
+
+static async updateReturnStatus(req, res) {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -92,25 +158,31 @@ class ReturnController {
     console.log(`[updateReturnStatus] ✅ Trạng thái hiện tại: ${request.status}`);
 
     const flow = {
-      pending: ['approved', 'rejected'],
-      approved: ['awaiting_pickup', 'pickup_booked'],
+      pending: ['approved', 'rejected', 'cancelled'],
+      approved: ['awaiting_pickup', 'pickup_booked', 'cancelled'],
       awaiting_pickup: ['received'],
       pickup_booked: ['received'],
       received: ['refunded'],
     };
 
     const next = flow[request.status] || [];
-    if (!next.includes(status)) {
+
+    // ✅ Cho phép hủy nếu là admin, không cần nằm trong flow
+    if (status === 'cancelled') {
+      request.cancelledBy = 'admin';
+    } else if (!next.includes(status)) {
       await t.rollback();
       return res.status(400).json({ message: `Không thể chuyển trạng thái từ "${request.status}" → "${status}"` });
     }
 
+    // ✅ Khi duyệt → set deadline chọn phương thức hoàn hàng
     if (request.status === 'pending' && status === 'approved') {
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 1);
       request.deadlineChooseReturnMethod = deadline;
     }
 
+    // ✅ Khi nhận hàng thành công → hoàn kho + tạo yêu cầu hoàn tiền
     if (status === 'received') {
       console.log('[updateReturnStatus] 🏬 Trả hàng → hoàn kho');
       await returnStock(request.order.items, t);
@@ -125,6 +197,7 @@ class ReturnController {
       }, { transaction: t });
     }
 
+    // ✅ Cập nhật trạng thái & ghi chú
     request.status = status;
     request.responseNote = responseNote;
 
@@ -145,6 +218,7 @@ class ReturnController {
     return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
   }
 }
+
 static async getReturnDetail(req, res) {
   try {
     const { id } = req.params;
@@ -181,28 +255,37 @@ static async getReturnDetail(req, res) {
               attributes: ['code']
             },
             {
+  model: User,
+  
+  attributes: ['id', 'email', 'fullName']
+}
+,
+            {
               model: ShippingProvider,
               as: 'shippingProvider',
               attributes: ['name']
             }
           ]
         },
+       {
+  model: ReturnRequestItem,
+  as: 'items',
+  include: [
+    {
+      model: Sku,
+      as: 'sku',
+      attributes: ['id', 'skuCode'],
+      include: [
         {
-          model: ReturnRequestItem,
-          as: 'items',
-          include: [
-            {
-              model: Sku,
-              as:'sku',
-              include: [
-                {
-                  model: Product,
-                  as: 'product'
-                }
-              ]
-            }
-          ]
-        },
+          model: Product,
+          as: 'product',
+          attributes: ['name']
+        }
+      ]
+    }
+  ]
+}
+,
         {
           model: RefundRequest,
           as: 'refundRequest',
@@ -215,16 +298,31 @@ static async getReturnDetail(req, res) {
       return res.status(404).json({ message: 'Không tìm thấy yêu cầu trả hàng' });
     }
 
-  const refundAmount = calculateRefundAmount(request);
+    const refundAmount = calculateRefundAmount(request);
 
+    // Tạo mảng proofs từ evidenceImages và evidenceVideos
+    const imageUrls = request.evidenceImages?.split(',').filter(Boolean) || [];
+    const videoUrls = request.evidenceVideos?.split(',').filter(Boolean) || [];
 
-    return res.json({ data: { ...request.toJSON(), refundAmount } });
+    const proofs = [
+      ...imageUrls.map((url) => ({ url, type: 'image' })),
+      ...videoUrls.map((url) => ({ url, type: 'video' }))
+    ];
+
+    return res.json({
+      data: {
+        ...request.toJSON(),
+        refundAmount,
+        proofs
+      }
+    });
 
   } catch (error) {
     console.error('[getReturnDetail]', error);
     return res.status(500).json({ message: 'Lỗi server khi lấy chi tiết trả hàng' });
   }
 }
+
 
 
 
@@ -269,7 +367,7 @@ static async updateRefundStatus(req, res) {
       return res.status(400).json({ message: 'Yêu cầu hoàn tiền không hợp lệ' });
     }
 
-    // Nếu admin xác nhận đã hoàn tiền
+    
     if (status === 'refunded') {
       const payCode = refund.order.paymentMethod?.code?.toLowerCase();
       const payload = {
@@ -323,7 +421,7 @@ static async updateRefundStatus(req, res) {
         payload.stripePaymentIntentId = refund.order.stripePaymentIntentId;
       }
 
-      // Gọi gateway để thực hiện hoàn tiền
+     
       const { ok, transId, rawResp } = await refundGateway(payCode, payload);
       if (!ok) {
         await t.rollback();
@@ -333,15 +431,17 @@ static async updateRefundStatus(req, res) {
 
       console.log('[✅ Refund Success]', rawResp);
 
-      // ✅ Hoàn tiền thành công
-      refund.gatewayTransId = transId || null;
-      refund.order.paymentStatus = 'refunded';
-      await refund.order.save({ transaction: t });
 
-      if (refund.order.returnRequest) {
-        refund.order.returnRequest.status = 'refunded';
-        await refund.order.returnRequest.save({ transaction: t });
-      }
+refund.gatewayTransId = transId || null;
+refund.refundedAt = new Date(); 
+refund.order.paymentStatus = 'refunded';
+await refund.order.save({ transaction: t });
+
+if (refund.order.returnRequest) {
+  refund.order.returnRequest.status = 'refunded';
+  await refund.order.returnRequest.save({ transaction: t });
+}
+
     }
 
     refund.status = status;

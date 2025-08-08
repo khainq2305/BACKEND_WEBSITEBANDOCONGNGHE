@@ -6,6 +6,7 @@ const {
   Province,
   Product,
   ReturnRequest,
+  RefundRequest,
   Sku,
   PaymentMethod,
     ReturnRequestItem, 
@@ -81,13 +82,19 @@ static async requestReturn(req, res) {
       return res.status(400).json({ message: `Sản phẩm trả hàng không nằm trong đơn: ${invalidSkuIds.join(", ")}` });
     }
 
-    const existing = await ReturnRequest.findOne({ where: { orderId: parsedOrderId } });
-    if (existing) {
-      return res.status(400).json({ message: "Đơn hàng đã có yêu cầu trả hàng trước đó" });
-    }
+  const existing = await ReturnRequest.findOne({
+  where: {
+    orderId: parsedOrderId
+  }
+});
 
-    const imageFiles = req.files?.images || [];
-    const videoFiles = req.files?.videos || [];
+if (existing && !(existing.status === 'cancelled' && existing.cancelledBy === 'user')) {
+  return res.status(400).json({ message: "Đơn hàng đã có yêu cầu trả hàng trước đó" });
+}
+
+
+  const imageFiles = Array.isArray(req.files?.images) ? req.files.images : [];
+const videoFiles = Array.isArray(req.files?.videos) ? req.files.videos : [];
 
     if (imageFiles.length === 0) {
       return res.status(400).json({ message: "Vui lòng tải lên ít nhất 1 hình ảnh bằng chứng" });
@@ -134,6 +141,9 @@ static async requestReturn(req, res) {
   } catch (err) {
     await t.rollback();
     console.error("🔥 Lỗi gửi yêu cầu trả hàng:", err);
+    console.error("🔥 Lỗi gửi yêu cầu trả hàng:", err.message);
+console.error("🔥 STACK:", err.stack);
+
     return res.status(500).json({ message: "Lỗi server khi gửi yêu cầu trả hàng" });
   }
 }
@@ -155,44 +165,56 @@ static async getReturnRequestDetail(req, res) {
     const returnRequest = await ReturnRequest.findOne({
       where: { id },
       include: [
-        {
-          model: Order,
-          as: "order",
-          include: [
-            {
-              model: OrderItem,
-              as: "items",
-              include: [
-                {
-                  model: Sku,
-                  include: [
-                    {
-                      model: Product,
-                      as: "product",
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: ReturnRequestItem,
-          as: "items",
-          include: [
-            {
-              model: Sku,
-              as: "sku",
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                },
-              ],
-            },
-          ],
-        },
-      ],
+  {
+    model: Order,
+    as: "order",
+    include: [
+      {
+        model: OrderItem,
+        as: "items",
+        include: [
+          {
+            model: Sku,
+            include: [
+              {
+                model: Product,
+                as: "product",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        model: PaymentMethod,
+        as: "paymentMethod",
+        attributes: ['code', 'name']
+      }
+    ],
+  },
+  {
+    model: ReturnRequestItem,
+    as: "items",
+    include: [
+      {
+        model: Sku,
+        as: "sku",
+        include: [
+          {
+            model: Product,
+            as: "product",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    model: RefundRequest,
+    as: "refundRequest", 
+    attributes: ['id', 'amount', 'status', 'refundedAt', 'responseNote', 'createdAt'],
+    required: false
+  }
+]
+
     });
 
     if (!returnRequest || !returnRequest.order || returnRequest.order.userId !== userId) {
@@ -239,9 +261,26 @@ static async getReturnRequestDetail(req, res) {
 
     console.log(`✅ Tổng tiền hoàn lại: ${refundAmount}`);
 
+    // ✅ Xác định hoàn tiền vào đâu
+    const order = returnRequest.order;
+    let refundDestination = "Không rõ";
+
+    if (order.paymentStatus === 'unpaid' || order.paymentMethodId === 1) {
+      refundDestination = "Chưa thanh toán";
+    } else if (order.momoOrderId) {
+      refundDestination = "Ví MoMo";
+    } else if (order.vnpTransactionId) {
+      refundDestination = "VNPAY";
+    } else if (order.zaloTransId) {
+      refundDestination = "ZaloPay";
+    } else if (order.stripePaymentIntentId) {
+      refundDestination = "Thẻ quốc tế (Stripe)";
+    }
+
     const response = {
       ...returnRequest.toJSON(),
       refundAmount,
+      refundDestination
     };
 
     return res.json({ data: response });
@@ -261,57 +300,52 @@ static async getReturnRequestDetail(req, res) {
    * @access Private (Auth user)
    */
   static async cancelReturnRequest(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user.id;
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
 
-      const returnRequest = await ReturnRequest.findOne({
-        where: { id },
-        include: {
-          model: Order,
-          as: "order",
-          where: { userId },
-          required: true,
-        },
-      });
+    const returnRequest = await ReturnRequest.findOne({
+      where: { id },
+      include: {
+        model: Order,
+        as: "order",
+        where: { userId },
+        required: true,
+      },
+    });
 
-      if (!returnRequest) {
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy yêu cầu trả hàng" });
-      }
-
-      if (!["pending", "approved"].includes(returnRequest.status)) {
-        return res
-          .status(400)
-          .json({ message: "Không thể hủy yêu cầu ở trạng thái hiện tại" });
-      }
-
-      returnRequest.status = "cancelled";
-      returnRequest.responseNote = "Người dùng tự hủy yêu cầu";
-      await returnRequest.save();
-
-      return res.json({ message: "Đã hủy yêu cầu trả hàng thành công" });
-    } catch (err) {
-      console.error("[cancelReturnRequest]", err);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server khi hủy yêu cầu trả hàng" });
+    if (!returnRequest) {
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
     }
+
+    if (!["pending", "approved"].includes(returnRequest.status)) {
+      return res.status(400).json({ message: "Không thể hủy yêu cầu ở trạng thái hiện tại" });
+    }
+
+    returnRequest.status = "cancelled";
+    returnRequest.responseNote = "Người dùng tự hủy yêu cầu";
+    returnRequest.cancelledBy = "user"; // 👈 thêm dòng này
+    await returnRequest.save();
+
+    return res.json({ message: "Đã hủy yêu cầu trả hàng thành công" });
+  } catch (err) {
+    console.error("[cancelReturnRequest]", err);
+    return res.status(500).json({ message: "Lỗi server khi hủy yêu cầu trả hàng" });
   }
+}
+
 
   /**
    * @description Người dùng xác nhận phương thức trả hàng (GHN lấy hàng hoặc tự gửi).
    * @route POST /api/client/return-refund/:id/choose-method
    * @access Private (Auth user)
    */
-  static async chooseReturnMethod(req, res) {
+static async chooseReturnMethod(req, res) {
   try {
     const { id } = req.params;
-    const { returnMethod, trackingCode } = req.body;
+    const { returnMethod } = req.body;
     const userId = req.user.id;
 
-    // 1️⃣ Tìm yêu cầu trả hàng kèm đơn, đảm bảo thuộc về user hiện tại
     const returnRequest = await ReturnRequest.findOne({
       where: { id },
       include: [
@@ -328,21 +362,18 @@ static async getReturnRequestDetail(req, res) {
       return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
     }
 
-    // 2️⃣ Chặn nếu đã chọn phương thức trả hàng rồi
     if (returnRequest.returnMethod) {
       return res.status(400).json({
         message: "Bạn đã chọn phương thức trả hàng rồi. Không thể thay đổi nữa.",
       });
     }
 
-    // 3️⃣ Chỉ cho phép chọn phương thức khi đã được admin duyệt
     if (returnRequest.status !== "approved") {
       return res.status(400).json({
         message: "Chỉ có thể chọn phương thức hoàn hàng khi yêu cầu ở trạng thái đã duyệt",
       });
     }
 
-    // 4️⃣ Kiểm tra hạn deadline chọn phương thức
     if (
       returnRequest.deadlineChooseReturnMethod &&
       new Date() > new Date(returnRequest.deadlineChooseReturnMethod)
@@ -352,21 +383,17 @@ static async getReturnRequestDetail(req, res) {
       });
     }
 
-    // 5️⃣ Validate input
     if (!["ghn_pickup", "self_send"].includes(returnMethod)) {
       return res.status(400).json({ message: "Phương thức hoàn hàng không hợp lệ" });
     }
 
-    // 6️⃣ Cập nhật phương thức + trạng thái
     returnRequest.returnMethod = returnMethod;
+    returnRequest.dateChooseReturnMethod = new Date();
 
     if (returnMethod === "self_send") {
-      if (trackingCode?.trim()) {
-        returnRequest.trackingCode = trackingCode.trim();
-      }
       returnRequest.status = "awaiting_pickup";
     } else {
-      returnRequest.status = "approved"; // GHN tới lấy – giữ nguyên
+      returnRequest.status = "approved";
     }
 
     await returnRequest.save();
@@ -377,11 +404,10 @@ static async getReturnRequestDetail(req, res) {
     });
   } catch (err) {
     console.error("[chooseReturnMethod]", err);
-    return res
-      .status(500)
-      .json({ message: "Lỗi server khi chọn phương thức hoàn hàng" });
+    return res.status(500).json({ message: "Lỗi server khi chọn phương thức hoàn hàng" });
   }
 }
+
 
 
   /**
@@ -493,9 +519,10 @@ static async bookReturnPickup(req, res) {
       from_name: addr?.name || "Khách hàng",
       from_phone: addr?.phone || "0123456789",
       from_address: addr?.address || "Địa chỉ không xác định",
-      from_ward_id: ghnWardCode,
-      from_district_id: ghnDistId,
-    
+ from_district_id: addr.district?.id,
+from_ward_id: addr.ward?.id,
+from_province_id: addr.province?.id,
+
       to_name: process.env.SHOP_NAME || "Kho Shop",
       to_phone: process.env.SHOP_PHONE || "0987654321",
       to_address: process.env.SHOP_ADDRESS || "Kho mặc định",

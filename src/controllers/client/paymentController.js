@@ -1,5 +1,5 @@
 const { Order, sequelize, PaymentMethod, User } = require("../../models");
-
+const crypto = require("crypto");
 const sendEmail = require("../../utils/sendEmail");
 const Stripe = require("stripe");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -9,6 +9,12 @@ const zaloPayService = require("../../services/client/zalopayService");
 const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
 const refundGateway = require("../../utils/refundGateway");
+const payos = require("../../services/client/payosSdkService"); // SDK mới
+function verifyPayosSignature(payload, signature, secretKey) {
+  const hmac = crypto.createHmac("sha256", secretKey);
+  hmac.update(JSON.stringify(payload));
+  return hmac.digest("hex") === signature;
+}
 
 const moment = require("moment");
 
@@ -54,44 +60,63 @@ class PaymentController {
   }
 
   static async momoCallback(req, res) {
-    try {
-      const isPost = Object.keys(req.body).length > 0;
-      const data = isPost ? req.body : req.query;
+  try {
+    const isPost = Object.keys(req.body).length > 0;
+    const data = isPost ? req.body : req.query;
 
-      const { orderId, resultCode, transId } = data;
+    const { orderId, resultCode, transId } = data;
+    const isSuccess = Number(resultCode) === 0;
 
-      console.log("🟣 [MoMo CALLBACK] HEADERS:", req.headers);
-      console.log("🟡 [MoMo CALLBACK] BODY:", data);
-      console.log("🔍 orderId:", orderId);
-      console.log("🔍 resultCode:", resultCode);
-      console.log("🔍 transId:", transId);
+    if (!transId) {
+      console.warn("⚠️ transId không tồn tại. Bỏ qua callback từ redirect.");
+      return res.end("OK");
+    }
 
-      const isSuccess = Number(resultCode) === 0;
+    let order = await Order.findOne({ where: { momoOrderId: orderId } });
+    if (!order)
+      order = await Order.findOne({ where: { orderCode: orderId } });
+    if (!order) return res.end("ORDER_NOT_FOUND");
 
-      // Nếu transId không có thì không lưu (chặn redirect giả mạo)
-      if (!transId) {
-        console.warn("⚠️ transId không tồn tại. Bỏ qua callback từ redirect.");
-        return res.end("OK");
-      }
-
-      let order = await Order.findOne({ where: { momoOrderId: orderId } });
-      if (!order)
-        order = await Order.findOne({ where: { orderCode: orderId } });
-      if (!order) return res.end("ORDER_NOT_FOUND");
-
+    if (order.paymentStatus !== "paid") {
       order.paymentStatus = "paid";
       order.momoTransId = transId;
       order.paymentTime = new Date();
       await order.save();
 
-      console.log("✅ Ghi nhận thanh toán MoMo:", order.toJSON());
+      // 🔄 Tìm hoặc cập nhật notification cũ
+      const existingNoti = await Notification.findOne({
+        where: { slug: `order-${order.orderCode}` },
+      });
 
-      return res.end("OK");
-    } catch (err) {
-      console.error("[MoMo CALLBACK] ❌ Lỗi xử lý:", err);
-      return res.status(500).end("ERROR");
+      if (existingNoti) {
+        existingNoti.title = "Thanh toán thành công";
+        existingNoti.message = `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`;
+        existingNoti.startAt = new Date();
+        existingNoti.isActive = true;
+        await existingNoti.save();
+      } else {
+        await Notification.create({
+          userId: order.userId,
+          title: "Thanh toán thành công",
+          message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`,
+          slug: `order-${order.orderCode}`,
+          type: "order",
+          referenceId: order.id,
+          link: `/user-profile?orderCode=${order.orderCode}`,
+          startAt: new Date(),
+          isActive: true,
+        });
+      }
     }
+
+    return res.end("OK");
+  } catch (err) {
+    console.error("[MoMo CALLBACK] Lỗi:", err);
+    return res.status(500).end("ERROR");
   }
+}
+
+
   static async zaloPay(req, res) {
     try {
       const { orderId } = req.body;
@@ -200,72 +225,80 @@ class PaymentController {
     }
   }
   // trong OrderController
-  static async vnpayCallback(req, res) {
-    try {
-      const raw = req.body.rawQuery;
-      const isFromFrontend = Boolean(raw);
+   static async vnpayCallback(req, res) {
+        try {
+          const raw = req.body.rawQuery;
+          const isFromFrontend = Boolean(raw);
 
-      // Parse query params (raw từ FE fetch hoặc query từ redirect)
-      const qs = raw
-        ? require("querystring").parse(raw, null, null, {
-            decodeURIComponent: (v) => v, // KHÔNG decode 2 lần
-          })
-        : req.query;
+          // Parse query params (raw từ FE fetch hoặc query từ redirect)
+          const qs = raw
+            ? require("querystring").parse(raw, null, null, {
+                decodeURIComponent: (v) => v, // KHÔNG decode 2 lần
+              })
+            : req.query;
 
-      const vnpTxnRef = qs.vnp_TxnRef; // Đây là vnpOrderId
-      const rspCode = qs.vnp_ResponseCode;
-      const secureHash = qs.vnp_SecureHash;
+          const vnpTxnRef = qs.vnp_TxnRef; // Đây là vnpOrderId
+          const rspCode = qs.vnp_ResponseCode;
+          const secureHash = qs.vnp_SecureHash;
 
-      console.log("[VNPay CALLBACK] vnpTxnRef:", vnpTxnRef);
-      console.log("[VNPay CALLBACK] Response Code:", rspCode);
+          console.log("[VNPay CALLBACK] vnpTxnRef:", vnpTxnRef);
+          console.log("[VNPay CALLBACK] Response Code:", rspCode);
+          console.log("[VNPay CALLBACK] vnp_PayDate:", qs.vnp_PayDate); // Log giá trị gốc từ VNPAY
 
-      // 1. Kiểm tra chữ ký
-      const isValid = vnpayService.verifySignature(qs, secureHash);
-      if (!isValid) {
-        console.warn("❌ Sai chữ ký!");
-        return res.status(400).end("INVALID_CHECKSUM");
+          // 1. Kiểm tra chữ ký
+          const isValid = vnpayService.verifySignature(qs, secureHash);
+          if (!isValid) {
+            console.warn("❌ Sai chữ ký!");
+            return res.status(400).end("INVALID_CHECKSUM");
+          }
+
+          // 2. Tìm đơn theo vnpOrderId
+          const order = await Order.findOne({
+            where: {
+              vnpOrderId: {
+                [Op.like]: `${vnpTxnRef}%`, // dùng LIKE để match bản ghi có thêm timestamp
+              },
+            },
+          });
+          if (!order) {
+            console.warn("❌ Không tìm thấy đơn với vnpOrderId:", vnpTxnRef);
+            return res.status(404).end("ORDER_NOT_FOUND");
+          }
+
+          // 3. Nếu thanh toán thành công
+          if (rspCode === "00") {
+            order.paymentStatus = "paid";
+            order.paymentTime = new Date();
+            order.vnpTransactionId = qs.vnp_TransactionNo;
+
+            // 💡 SỬA ĐỔI DÒNG NÀY: Chuyển đổi chuỗi vnp_PayDate sang đối tượng Date
+            // Sử dụng moment để parse chuỗi theo định dạng YYYYMMDDHHmmss
+            // và sau đó chuyển đổi thành đối tượng Date chuẩn của JavaScript.
+            order.vnpPayDate = moment(qs.vnp_PayDate, 'YYYYMMDDHHmmss').toDate();
+            console.log("[VNPay CALLBACK] vnpPayDate after parsing:", order.vnpPayDate); // Log giá trị sau khi parse
+
+            await order.save();
+            console.log(
+              `✅ Đơn ${order.orderCode} đã thanh toán VNPay thành công.`
+            );
+          } else {
+            // Giữ trạng thái "waiting", để CRON xử lý sau hoặc cho phép thanh toán lại
+            console.log(
+              `🔁 Đơn ${order.orderCode} bị huỷ hoặc lỗi VNPay, giữ trạng thái waiting.`
+            );
+          }
+
+          // 4. Nếu gọi từ frontend (fetch) → chỉ trả kết quả đơn giản
+          if (isFromFrontend) return res.end("OK");
+
+          // 5. Nếu redirect từ VNPay → điều hướng về trang xác nhận
+          const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
+          return res.redirect(redirectUrl);
+        } catch (err) {
+          console.error("[VNPay CALLBACK] Lỗi xử lý:", err);
+          return res.status(500).end("ERROR");
+        }
       }
-
-      // 2. Tìm đơn theo vnpOrderId
-      const order = await Order.findOne({
-        where: {
-          vnpOrderId: {
-            [Op.like]: `${vnpTxnRef}%`, // dùng LIKE để match bản ghi có thêm timestamp
-          },
-        },
-      });
-      if (!order) {
-        console.warn("❌ Không tìm thấy đơn với vnpOrderId:", vnpTxnRef);
-        return res.status(404).end("ORDER_NOT_FOUND");
-      }
-
-      // 3. Nếu thanh toán thành công
-      if (rspCode === "00") {
-        order.paymentStatus = "paid";
-        order.paymentTime = new Date();
-        order.vnpTransactionId = qs.vnp_TransactionNo;
-        await order.save();
-        console.log(
-          `✅ Đơn ${order.orderCode} đã thanh toán VNPay thành công.`
-        );
-      } else {
-        // Giữ trạng thái "waiting", để CRON xử lý sau hoặc cho phép thanh toán lại
-        console.log(
-          `🔁 Đơn ${order.orderCode} bị huỷ hoặc lỗi VNPay, giữ trạng thái waiting.`
-        );
-      }
-
-      // 4. Nếu gọi từ frontend (fetch) → chỉ trả kết quả đơn giản
-      if (isFromFrontend) return res.end("OK");
-
-      // 5. Nếu redirect từ VNPay → điều hướng về trang xác nhận
-      const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
-      return res.redirect(redirectUrl);
-    } catch (err) {
-      console.error("[VNPay CALLBACK] Lỗi xử lý:", err);
-      return res.status(500).end("ERROR");
-    }
-  }
 
   static async stripePay(req, res) {
     try {
@@ -486,15 +519,14 @@ class PaymentController {
           const user = await order.getUser(); // Giả sử mối quan hệ User với Order
           if (user) {
             const emailHtml = `
-                  <h2>Đơn hàng ${
-                    order.orderCode
-                  } của bạn đã thanh toán thành công!</h2>
+                  <h2>Đơn hàng ${order.orderCode
+              } của bạn đã thanh toán thành công!</h2>
                   <p>Xin chào ${user.fullName || "khách hàng"},</p>
                   <p>Chúng tôi đã nhận được thanh toán cho đơn hàng của bạn.</p>
                   <p>Mã đơn hàng: <b>${order.orderCode}</b></p>
                   <p>Tổng tiền đã thanh toán: <b>${order.finalPrice.toLocaleString(
-                    "vi-VN"
-                  )}₫</b></p>
+                "vi-VN"
+              )}₫</b></p>
                   <p>Phương thức thanh toán: <b>Stripe</b></p>
                   <p>Đơn hàng của bạn đang được xử lý và sẽ sớm được giao.</p>
                   <br />
@@ -605,6 +637,86 @@ class PaymentController {
     }
   }
 
+static async payosPay(req, res) {
+  try {
+    const { orderId } = req.body;
+    const order = await Order.findByPk(orderId);
+    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+    const numericOrderCode = parseInt(order.orderCode.replace(/\D/g, ''), 10);
+    const finalPrice = Math.round(Number(order.finalPrice));
+
+    if (!finalPrice || isNaN(finalPrice) || finalPrice <= 0 || finalPrice > 10000000000) {
+      console.error(`[payosPay] ❌ finalPrice không hợp lệ: ${order.finalPrice}`);
+      return res.status(400).json({ message: "Giá trị thanh toán không hợp lệ" });
+    }
+
+    const payosRes = await payos.createPaymentLink({
+      orderCode: numericOrderCode,
+      amount: finalPrice,
+      description: `Đơn ${order.orderCode}`, // < 25 ký tự
+      returnUrl: `${process.env.CLIENT_URL}/order-confirmation?orderCode=${order.orderCode}`,
+      cancelUrl: `${process.env.CLIENT_URL}/checkout`,
+      buyerName: order.fullName || 'Khách hàng',
+      buyerEmail: order.email || 'test@example.com',
+      buyerPhone: order.phone || '0912345678',
+      items: [
+        {
+          name: `Đơn ${order.orderCode}`,
+          quantity: 1,
+          price: finalPrice
+        }
+      ]
+    });
+
+    order.payosOrderId = numericOrderCode;
+    order.paymentStatus = "waiting";
+    await order.save();
+
+    console.log(`[payosPay] ✅ Tạo link PayOS thành công`);
+    return res.json({ payUrl: payosRes.checkoutUrl });
+  } catch (error) {
+    console.error("[payosPay] ❌ Lỗi khi tạo link PayOS:", error?.response?.data || error.message);
+    return res.status(500).json({ message: "Không thể tạo link PayOS" });
+  }
+}
+
+
+
+static async payosWebhook(req, res) {
+  try {
+    const { code, desc, success, data, signature } = req.body;
+
+    // Verify chữ ký
+    const isValid = verifyPayosSignature({ code, desc, success, data }, signature, process.env.PAYOS_CHECKSUM_KEY);
+    if (!isValid) {
+      console.error("❌ Invalid PayOS signature");
+      return res.status(400).json({ message: "Invalid signature" });
+    }
+
+    if (!success || code !== "00") {
+      console.warn("❗ Webhook trả về trạng thái thất bại");
+      return res.status(400).json({ message: "Giao dịch thất bại" });
+    }
+
+    const { orderCode, amount, transactionId } = data;
+
+    const order = await Order.findOne({ where: { payosOrderId: orderCode } });
+    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+    if (order.paymentStatus !== "paid") {
+      order.paymentStatus = "paid";
+      order.paymentTime = new Date();
+      order.payosTransactionId = transactionId;
+      await order.save();
+    }
+
+    return res.json({ message: "Đã xử lý webhook" });
+  } catch (err) {
+    console.error("[payosWebhook] ❌ Lỗi xử lý:", err);
+    return res.status(500).json({ message: "Lỗi webhook" });
+  }
+}
   static async payAgain(req, res) {
     try {
       const { id } = req.params;
