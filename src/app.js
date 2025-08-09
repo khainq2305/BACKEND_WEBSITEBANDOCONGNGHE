@@ -18,7 +18,24 @@ app.get('/health', (_req, res) => res.send('ok'));
 const allowOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9999')
   .split(',')
   .map(s => s.trim());
-app.use(cors({ origin: allowOrigins, credentials: true }));
+
+app.use((req, res, next) => {
+  console.log('🌐 Request Origin:', req.headers.origin);
+  console.log('✅ Allowed Origins:', allowOrigins);
+  next();
+});
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('❌ Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 // Stripe webhook (PHẢI trước express.json để giữ raw body)
 app.use(
