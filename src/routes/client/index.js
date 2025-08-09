@@ -3,7 +3,7 @@ const router = express.Router();
 
 const authRoutes = require("./auth.route");
 const shippingRoutes = require("./shipping.routes");
-const userAddressRoutes = require("./userAddress.route");
+const userAddressRoutes = require("./userAddress.route.js");
 const productRoutes = require("./product.route");
 const cartRoutes = require("./cart.route");
 const highlightedCategoryRoutes = require("./highlightedCategory.route");
