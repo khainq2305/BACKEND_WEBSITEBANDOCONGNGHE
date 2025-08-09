@@ -5,7 +5,9 @@ const Category = require("./categoryModel");
 const User = require("./userModel");
 const Role = require("./roleModel");
 const UserToken = require("./userTokenModel");
-const UserAddress = require("./UserAddress");
+
+const UserAddress = require("./userAddress");
+
 //
 const HighlightedCategoryItem = require("./HighlightedCategoryItem");
 const FlashSale = require("./flashsale.model");
