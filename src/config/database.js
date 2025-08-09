@@ -7,20 +7,21 @@ const connection = new Sequelize(
   process.env.DB_PASS,
   {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'postgres', // 🔹 đổi từ mysql -> postgres
+    port: process.env.DB_PORT, // <--- thêm dòng này
+    dialect: 'mysql',
     logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    }
+    // Nếu Railway yêu cầu SSL:
+    // dialectOptions: {
+    //   ssl: {
+    //     require: true,
+    //     rejectUnauthorized: false
+    //   }
+    // }
   }
 );
 
 connection.authenticate()
-  .then(() => console.log('✅ Kết nối PostgreSQL thành công!'))
-  .catch((err) => console.error('❌ Lỗi kết nối PostgreSQL:', err));
+  .then(() => console.log('✅ Kết nối MySQL thành công!'))
+  .catch((err) => console.error('❌ Lỗi kết nối MySQL:', err));
 
 module.exports = connection;
