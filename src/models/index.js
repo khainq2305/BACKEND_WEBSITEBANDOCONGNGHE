@@ -9,7 +9,7 @@ const UserToken = require("./userTokenModel");
 const UserAddress = require("./userAddress");
 
 //
-const HighlightedCategoryItem = require("./HighlightedCategoryItem");
+const HighlightedCategoryItem = require("./highlightedCategoryItem");
 const FlashSale = require("./flashsale.model");
 const FlashSaleItem = require("./flashsaleitem.model");
 const FlashSaleCategory = require("./flashsalecategory.model");
