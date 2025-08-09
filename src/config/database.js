@@ -1,6 +1,5 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
-const fs = require('fs');
 
 const connection = new Sequelize(
   process.env.DB_NAME,
@@ -13,10 +12,9 @@ const connection = new Sequelize(
     logging: false,
     dialectOptions: {
       ssl: {
-        // Đọc CA certificate từ file tải về Aiven
-        ca: fs.readFileSync(__dirname + '/certs/ca.pem')
+        ca: process.env.DB_CA_CERT
       },
-      connectTimeout: 60000 // 60 giây
+      connectTimeout: 60000
     },
     pool: {
       max: 10,
