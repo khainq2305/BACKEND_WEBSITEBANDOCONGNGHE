@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
+const fs = require('fs');
 
 const connection = new Sequelize(
   process.env.DB_NAME,
@@ -11,11 +12,20 @@ const connection = new Sequelize(
     dialect: 'mysql',
     logging: false,
     dialectOptions: {
+      ssl: {
+        // Đọc CA certificate từ file tải về Aiven
+        ca: fs.readFileSync(__dirname + '/certs/ca.pem')
+      },
       connectTimeout: 60000 // 60 giây
+    },
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 60000,
+      idle: 10000
     }
   }
 );
-
 
 connection.authenticate()
   .then(() => console.log('✅ Kết nối MySQL thành công!'))
