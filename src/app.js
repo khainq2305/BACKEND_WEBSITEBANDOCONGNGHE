@@ -1,48 +1,52 @@
-// server.js hoặc app.js
+// app.js
 const express = require('express');
-const app = express();
 const cors = require('cors');
 const path = require('path');
-const cookieParser = require('cookie-parser');
-const stripeWebhookRoute = require('./webhook/stripeWebhookRoute'); // <== thêm dòng này
-app.use('/orders', stripeWebhookRoute);
-app.use(cookieParser());
+const bodyParser = require('body-parser'); // chỉ để xử lý raw cho Stripe
+const stripeWebhookRoute = require('./webhook/stripeWebhookRoute'); // nếu bạn dùng Stripe
 
-const clientRoutes = require('./routes/client'); 
-const adminRoutes = require('./routes/admin'); 
+const clientRoutes = require('./routes/client');
+const adminRoutes  = require('./routes/admin');
+const sequelize    = require('./config/database');
 
-const sequelize = require('./config/database'); 
+const app = express();
 
+// Healthcheck cho Render
+app.get('/health', (_req, res) => res.send('ok'));
 
-sequelize.authenticate().then(() => {
- 
+// CORS qua ENV (prod không hard-code)
+const allowOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9999')
+  .split(',')
+  .map(s => s.trim());
+app.use(cors({ origin: allowOrigins, credentials: true }));
 
-require('./cron');
+// Stripe webhook (PHẢI trước express.json để giữ raw body)
+app.use(
+  '/orders/stripe/webhook',
+  bodyParser.raw({ type: 'application/json' }),
+  stripeWebhookRoute
+);
 
-
-}).catch(err => {
-  console.error("Lỗi kết nối MySQL:", err);
-});
-
-
-app.use(cors({
-  origin: [
-    'http://localhost:9999',
-    'https://ad1e-2402-800-6343-1157-602d-5d2b-2fa2-232d.ngrok-free.app'
-  ],
-  credentials: true
-}));
-
+// Parsers cho API thường
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
+// Static (lưu ý: Render không lưu bền uploads; nên dùng S3/Cloudinary cho file người dùng)
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
+// Routes chính
 app.use('/', clientRoutes);
-app.use('/admin', adminRoutes); 
+app.use('/admin', adminRoutes);
 
-
-
-
-
+// Kết nối DB + khởi cron (nếu có)
+(async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ MySQL connected');
+    require('./cron'); // chỉ chạy cron khi DB ok
+  } catch (err) {
+    console.error('❌ Lỗi kết nối MySQL:', err);
+  }
+})();
 
 module.exports = app;
