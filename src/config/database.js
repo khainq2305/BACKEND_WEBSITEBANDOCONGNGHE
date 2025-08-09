@@ -7,16 +7,15 @@ const connection = new Sequelize(
   process.env.DB_PASS,
   {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT, // <--- thêm dòng này
+    port: process.env.DB_PORT,
     dialect: 'mysql',
     logging: false,
-    // Nếu Railway yêu cầu SSL:
-    // dialectOptions: {
-    //   ssl: {
-    //     require: true,
-    //     rejectUnauthorized: false
-    //   }
-    // }
+    dialectOptions: {
+      ssl: {
+        require: true, // Bắt buộc SSL
+        rejectUnauthorized: false // Không từ chối nếu không có CA
+      }
+    }
   }
 );
 
