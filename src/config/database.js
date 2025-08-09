@@ -8,19 +8,19 @@ const connection = new Sequelize(
   {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: 'mysql',
+    dialect: 'postgres', // 🔹 đổi từ mysql -> postgres
     logging: false,
     dialectOptions: {
       ssl: {
-        require: true, // Bắt buộc SSL
-        rejectUnauthorized: false // Không từ chối nếu không có CA
+        require: true,
+        rejectUnauthorized: false
       }
     }
   }
 );
 
 connection.authenticate()
-  .then(() => console.log('✅ Kết nối MySQL thành công!'))
-  .catch((err) => console.error('❌ Lỗi kết nối MySQL:', err));
+  .then(() => console.log('✅ Kết nối PostgreSQL thành công!'))
+  .catch((err) => console.error('❌ Lỗi kết nối PostgreSQL:', err));
 
 module.exports = connection;
