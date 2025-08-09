@@ -122,7 +122,33 @@ if (!provider || !provider.isActive) {
       if (!selectedAddress) {
         return res.status(400).json({ message: "Địa chỉ người dùng không hợp lệ." });
       }
+/** 🔐 BẮT BUỘC GA KHI THANH TOÁN VÍ NỘI BỘ */
+if (validPayment.code?.toLowerCase() === 'internalwallet') {
+  // lấy mã 6 số từ body
+  const gaToken = (req.body.gaToken || '').trim();
 
+  // lấy secret GA của user
+  const userRow = await User.findByPk(user.id, { attributes: ['wallet2FASecret'] });
+  if (!userRow?.wallet2FASecret) {
+    return res.status(403).json({ message: 'Bạn cần bật Google Authenticator để thanh toán bằng ví.' });
+  }
+
+  // validate format + verify TOTP
+  if (!/^\d{6}$/.test(gaToken)) {
+    return res.status(400).json({ message: 'Thiếu hoặc sai mã Google Authenticator (6 số).' });
+  }
+
+  const ok = speakeasy.totp.verify({
+    secret: userRow.wallet2FASecret,
+    encoding: 'base32',
+    token: gaToken,
+    window: 1, // +/-30s
+  });
+
+  if (!ok) {
+    return res.status(400).json({ message: 'Mã Google Authenticator không hợp lệ hoặc đã hết hạn.' });
+  }
+}
       const now = new Date();
       const skuIdsToFetch = items.map((i) => i.skuId);
 

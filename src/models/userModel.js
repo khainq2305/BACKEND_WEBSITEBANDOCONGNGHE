@@ -29,7 +29,22 @@ const User = connection.define(
     //   defaultValue: false,
     //   comment: "Người dùng đã xác minh email cho ví hay chưa",
     // },
+wallet2FASecret: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: "Secret key cho Google Authenticator (Base32)"
+},
+wallet2FAStatus: {
+  type: DataTypes.ENUM("pending", "active"),
+  allowNull: true,
+  comment: "Trạng thái bật Google Authenticator cho ví (pending: mới tạo QR, active: đã xác minh OTP)"
+},
 
+wallet2FAEnabledAt: {
+  type: DataTypes.DATE,
+  allowNull: true,
+  comment: "Thời điểm xác minh OTP thành công và kích hoạt 2FA cho ví"
+},
     passwordChangedAt: {
       type: DataTypes.DATE,
       allowNull: true,
