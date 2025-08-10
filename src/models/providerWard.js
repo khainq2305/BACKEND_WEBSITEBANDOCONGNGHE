@@ -21,7 +21,7 @@ const ProviderWard = sequelize.define(
     }
   },
   {
-    tableName: 'providerWards',
+    tableName: 'providerwards',
     timestamps: false
   }
 );

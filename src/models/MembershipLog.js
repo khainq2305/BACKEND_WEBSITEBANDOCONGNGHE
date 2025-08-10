@@ -31,7 +31,7 @@ const MembershipLog = connection.define(
     },
   },
   {
-    tableName: "MembershipLogs",
+    tableName: "membershiplogs",
     timestamps: false,
   }
 );

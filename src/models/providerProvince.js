@@ -21,7 +21,7 @@ const ProviderProvince = sequelize.define(
     }
   },
   {
-    tableName: 'providerProvinces',
+    tableName: 'providerprovinces',
     timestamps: false
   }
 );

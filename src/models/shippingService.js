@@ -28,7 +28,7 @@ const ShippingService = sequelize.define(
     }
   },
   {
-    tableName: 'shippingServices',
+    tableName: 'shippingservices',
     timestamps: true,
     underscored: false,
     indexes: [

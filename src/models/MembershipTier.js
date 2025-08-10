@@ -39,7 +39,7 @@ const MembershipTier = connection.define(
     },
   },
   {
-    tableName: "MembershipTiers",
+    tableName: "membershiptiers",
     timestamps: true,
   }
 );

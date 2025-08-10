@@ -33,7 +33,7 @@ const sequelize = require('../config/database');
   allowNull: true
 }
   }, {
-    tableName: 'stockLogs'
+    tableName: 'stocklogs'
   });
 
 

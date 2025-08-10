@@ -11,7 +11,7 @@ const Province = sequelize.define('Province', {
     allowNull: false,
   },
 }, {
-  tableName: 'Provinces',
+  tableName: 'provinces',
   timestamps: false,
 });
 

@@ -25,7 +25,7 @@ const SpinHistory = sequelize.define('SpinHistory', {
     allowNull: true,
   },
 }, {
-  tableName: 'spinHistory',
+  tableName: 'spinhistory',
   timestamps: true,
 });
 

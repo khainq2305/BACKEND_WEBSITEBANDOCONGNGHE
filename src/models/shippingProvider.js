@@ -24,7 +24,7 @@ const ShippingProvider = sequelize.define(
     }
   },
   {
-    tableName: 'shippingProviders',
+    tableName: 'shippingproviders',
     timestamps: true,          // createdAt, updatedAt
     underscored: false         // camelCase giữ nguyên
   }
