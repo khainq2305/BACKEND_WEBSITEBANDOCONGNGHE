@@ -26,7 +26,7 @@ const ReturnRequestItem = sequelize.define('ReturnRequestItem', {
     defaultValue: 1
   }
 }, {
-  tableName: 'returnRequestItems',
+  tableName: 'returnrequestitems',
   timestamps: true
 });
 
