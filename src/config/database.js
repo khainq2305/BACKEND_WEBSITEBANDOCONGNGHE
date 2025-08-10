@@ -10,12 +10,14 @@ const connection = new Sequelize(
     port: process.env.DB_PORT,
     dialect: 'mysql',
     logging: false,
-    dialectOptions: {
-      ssl: {
-        ca: process.env.DB_CA_CERT
-      },
-      connectTimeout: 60000
-    },
+   dialectOptions: {
+  ssl: {
+    require: true,
+    rejectUnauthorized: false
+  },
+  connectTimeout: 60000
+}
+,
     pool: {
       max: 10,
       min: 0,
