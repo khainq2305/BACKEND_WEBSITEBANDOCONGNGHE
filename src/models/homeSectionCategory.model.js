@@ -25,7 +25,7 @@ const HomeSectionCategory = sequelize.define('HomeSectionCategory', {
     defaultValue: DataTypes.NOW,
   },
 }, {
-  tableName: 'homeSectionCategories',
+  tableName: 'homesectioncategories',
   timestamps: false,
   indexes: [
     {

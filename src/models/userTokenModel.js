@@ -70,7 +70,7 @@ type: {
     allowNull: false,
   },
 }, {
-  tableName: "userTokens",
+  tableName: "usertokens",
   timestamps: false,
 });
 
