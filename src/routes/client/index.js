@@ -46,7 +46,7 @@ router.use("/tin-noi-bat", postRoutes);
 router.use("/", flashSaleRoutes);
 router.use("/points", userPointRoutes);
 router.use("/payment", paymentRoutes);
-router.use("/api/client/categories", categoryRoutes);
+router.use("/categories", categoryRoutes);
 router.use("/", highlightedCategoryRoutes);
 router.use("/orders", orderRoutes);
 router.use("/", sectionClientRoutes);
