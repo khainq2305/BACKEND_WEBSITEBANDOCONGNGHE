@@ -102,7 +102,7 @@ class AuthController {
 
           <!-- Footer của Email -->
           <div style="background-color: #F8F8F8; padding: 25px 30px; text-align: center; border-top: 1px solid #EEE;">
-            <p style="font-size: 14px; color: #777; margin: 0;">&copy; ${new Date().getFullYear()} Homepowear. Mọi quyền được bảo lưu.</p>
+            <p style="font-size: 14px; color: #777; margin: 0;">&copy; ${new Date().getFullYear()} Cyberzone. Mọi quyền được bảo lưu.</p>
             <p style="font-size: 14px; color: #777; margin: 8px 0 0;">Cần hỗ trợ? <a href="mailto:support@example.com" style="color: #007BFF; text-decoration: none;">Liên hệ với chúng tôi</a>.</p>
           </div>
         </div>
@@ -237,7 +237,7 @@ class AuthController {
       const emailHtmlContent = `
       <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:20px auto;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.05);overflow:hidden">
         <div style="background:#E6F0F6;padding:30px 20px;text-align:center;border-bottom:1px solid #D6E0E6">
-          <!-- <img src="https://cdn.homepowear.vn/logo.svg" alt="Homepowear" style="max-width:150px;margin:0 auto 15px;display:block"> -->
+          <!-- <img src="https://cdn.Cyberzone.vn/logo.svg" alt="Cyberzone" style="max-width:150px;margin:0 auto 15px;display:block"> -->
           <h1 style="margin:0;font-size:26px;font-weight:600;color:#4A90E2">Xác Thực Địa Chỉ Email</h1>
         </div>
 
@@ -252,7 +252,7 @@ class AuthController {
         </div>
 
         <div style="background:#F8F8F8;padding:25px 30px;text-align:center;border-top:1px solid #EEE">
-          <p style="font-size:14px;color:#777;margin:0">&copy; ${new Date().getFullYear()} Homepowear. Mọi quyền được bảo lưu.</p>
+          <p style="font-size:14px;color:#777;margin:0">&copy; ${new Date().getFullYear()} Cyberzone. Mọi quyền được bảo lưu.</p>
           <p style="font-size:14px;color:#777;margin:8px 0 0">Cần hỗ trợ? <a href="mailto:support@example.com" style="color:#007BFF;text-decoration:none">Liên hệ với chúng tôi</a>.</p>
         </div>
       </div>
@@ -1209,7 +1209,7 @@ class AuthController {
       res.status(500).json({ message: "Lỗi server!" });
     }
   }
-  static async  getUserInfo(req, res) {
+  static async getUserInfo(req, res) {
     try {
       const token = req.headers.authorization?.split(" ")[1];
       if (!token) {

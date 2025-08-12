@@ -5,7 +5,8 @@ const {
   FlashSaleCategory,
   UserAddress,
   Province,
-   Wallet, WalletTransaction,
+  Wallet,
+  WalletTransaction,
   Product,
   Coupon,
   Category,
@@ -24,13 +25,13 @@ const {
   Notification,
 
   NotificationUser,
-  ProviderProvince, // <--- Đảm bảo đã import
-  ProviderDistrict, // <--- Đảm bảo đã import
-  ProviderWard, // <--- Đảm bảo đã import
+  ProviderProvince,
+  ProviderDistrict,
+  ProviderWard,
   Sku,
   PaymentMethod,
 } = require("../../models");
-const sendEmail = require("../../utils/sendEmail"); // đường dẫn chính xác tùy cấu trúc dự án
+const sendEmail = require("../../utils/sendEmail");
 const Stripe = require("stripe");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const axios = require("axios");
@@ -38,19 +39,23 @@ const momoService = require("../../services/client/momoService");
 const zaloPayService = require("../../services/client/zalopayService");
 const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
-const { Sequelize, Op } = require('sequelize');
-const { generateOrderConfirmationHtml } = require("../../utils/emailTemplates/orderConfirmationTemplate");
-const { generateOrderCancellationHtml } = require('../../utils/emailTemplates/orderCancellationTemplate');
-const mjml2html = require('mjml');
+const { Sequelize, Op } = require("sequelize");
+const {
+  generateOrderConfirmationHtml,
+} = require("../../utils/emailTemplates/orderConfirmationTemplate");
+const {
+  generateOrderCancellationHtml,
+} = require("../../utils/emailTemplates/orderCancellationTemplate");
+const mjml2html = require("mjml");
 const refundGateway = require("../../utils/refundGateway");
-const { processSkuPrices } = require('../../helpers/priceHelper');
+const { processSkuPrices } = require("../../helpers/priceHelper");
 
-const moment = require("moment"); // nếu chưa import
+const moment = require("moment");
 const ShippingService = require("../../services/client/shippingService");
 async function finalizeCancellation(order, transaction, res, reason = null) {
-  order.status = 'cancelled';
+  order.status = "cancelled";
   order.cancelledAt = new Date();
-  if (reason && typeof reason === 'string') {
+  if (reason && typeof reason === "string") {
     order.cancelReason = reason.trim();
   }
   await order.save({ transaction });
@@ -63,15 +68,7 @@ async function finalizeCancellation(order, transaction, res, reason = null) {
   });
 }
 
-
 class OrderController {
-  // Bạn cần đảm bảo các models đã được import đúng cách
-  // const { Order, OrderItem, Sku, FlashSale, FlashSaleItem, Coupon, CouponUser, UserPoint, Cart, CartItem, UserAddress, Province, District, Ward, PaymentMethod, ShippingProvider, Notification, NotificationUser } = require('../models');
-  // const { Op } = require('sequelize');
-  // const { sendEmail } = require('../utils/email');
-  // const ShippingService = require('../services/shippingService');
-  // const axios = require('axios');
-
   static async createOrder(req, res) {
     const t = await sequelize.transaction();
     try {
@@ -90,65 +87,94 @@ class OrderController {
         usePoints = false,
         pointsToSpend = 0,
       } = req.body;
-if (!req.body.shippingProviderId) {
-  return res.status(400).json({
-    message: "Vui lòng chọn phương thức vận chuyển trước khi đặt hàng."
-  });
-}
+      if (!req.body.shippingProviderId) {
+        return res.status(400).json({
+          message: "Vui lòng chọn phương thức vận chuyển trước khi đặt hàng.",
+        });
+      }
 
-// Kiểm tra provider có tồn tại và đang active
-const provider = await ShippingProvider.findByPk(req.body.shippingProviderId);
-if (!provider || !provider.isActive) {
-  return res.status(400).json({
-    message: "Phương thức vận chuyển không hợp lệ hoặc không khả dụng."
-  });
-}
+      const provider = await ShippingProvider.findByPk(
+        req.body.shippingProviderId
+      );
+      if (!provider || !provider.isActive) {
+        return res.status(400).json({
+          message: "Phương thức vận chuyển không hợp lệ hoặc không khả dụng.",
+        });
+      }
 
       if (!addressId || !items?.length || !paymentMethodId) {
-        return res.status(400).json({ message: "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán)." });
+        return res
+          .status(400)
+          .json({
+            message:
+              "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán).",
+          });
       }
 
       const [validPayment, selectedAddress] = await Promise.all([
         PaymentMethod.findByPk(paymentMethodId),
         UserAddress.findOne({
           where: { id: addressId, userId: user.id },
-          include: [{ model: Province, as: "province" }, { model: District, as: "district" }, { model: Ward, as: "ward" }],
+          include: [
+            { model: Province, as: "province" },
+            { model: District, as: "district" },
+            { model: Ward, as: "ward" },
+          ],
         }),
       ]);
 
       if (!validPayment) {
-        return res.status(400).json({ message: "Phương thức thanh toán không hợp lệ." });
+        return res
+          .status(400)
+          .json({ message: "Phương thức thanh toán không hợp lệ." });
       }
       if (!selectedAddress) {
-        return res.status(400).json({ message: "Địa chỉ người dùng không hợp lệ." });
+        return res
+          .status(400)
+          .json({ message: "Địa chỉ người dùng không hợp lệ." });
       }
-/** 🔐 BẮT BUỘC GA KHI THANH TOÁN VÍ NỘI BỘ */
-if (validPayment.code?.toLowerCase() === 'internalwallet') {
-  // lấy mã 6 số từ body
-  const gaToken = (req.body.gaToken || '').trim();
+      /** 🔐 BẮT BUỘC GA KHI THANH TOÁN VÍ NỘI BỘ */
+      if (validPayment.code?.toLowerCase() === "internalwallet") {
+        // lấy mã 6 số từ body
+        const gaToken = (req.body.gaToken || "").trim();
 
-  // lấy secret GA của user
-  const userRow = await User.findByPk(user.id, { attributes: ['wallet2FASecret'] });
-  if (!userRow?.wallet2FASecret) {
-    return res.status(403).json({ message: 'Bạn cần bật Google Authenticator để thanh toán bằng ví.' });
-  }
+        // lấy secret GA của user
+        const userRow = await User.findByPk(user.id, {
+          attributes: ["wallet2FASecret"],
+        });
+        if (!userRow?.wallet2FASecret) {
+          return res
+            .status(403)
+            .json({
+              message:
+                "Bạn cần bật Google Authenticator để thanh toán bằng ví.",
+            });
+        }
 
-  // validate format + verify TOTP
-  if (!/^\d{6}$/.test(gaToken)) {
-    return res.status(400).json({ message: 'Thiếu hoặc sai mã Google Authenticator (6 số).' });
-  }
+        // validate format + verify TOTP
+        if (!/^\d{6}$/.test(gaToken)) {
+          return res
+            .status(400)
+            .json({
+              message: "Thiếu hoặc sai mã Google Authenticator (6 số).",
+            });
+        }
 
-  const ok = speakeasy.totp.verify({
-    secret: userRow.wallet2FASecret,
-    encoding: 'base32',
-    token: gaToken,
-    window: 1, // +/-30s
-  });
+        const ok = speakeasy.totp.verify({
+          secret: userRow.wallet2FASecret,
+          encoding: "base32",
+          token: gaToken,
+          window: 1, // +/-30s
+        });
 
-  if (!ok) {
-    return res.status(400).json({ message: 'Mã Google Authenticator không hợp lệ hoặc đã hết hạn.' });
-  }
-}
+        if (!ok) {
+          return res
+            .status(400)
+            .json({
+              message: "Mã Google Authenticator không hợp lệ hoặc đã hết hạn.",
+            });
+        }
+      }
       const now = new Date();
       const skuIdsToFetch = items.map((i) => i.skuId);
 
@@ -167,7 +193,11 @@ if (validPayment.code?.toLowerCase() === 'internalwallet') {
             include: {
               model: FlashSale,
               as: "flashSale",
-              where: { isActive: true, startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
+              where: {
+                isActive: true,
+                startTime: { [Op.lte]: now },
+                endTime: { [Op.gte]: now },
+              },
               required: true,
             },
           },
@@ -175,28 +205,36 @@ if (validPayment.code?.toLowerCase() === 'internalwallet') {
       });
 
       if (skuList.length !== skuIdsToFetch.length) {
-        return res.status(400).json({ message: "Một hoặc nhiều sản phẩm không tồn tại trong hệ thống." });
+        return res
+          .status(400)
+          .json({
+            message: "Một hoặc nhiều sản phẩm không tồn tại trong hệ thống.",
+          });
       }
 
-      const skuMap = new Map(skuList.map(s => [s.id, s]));
-if (!validPayment) {
-  await t.rollback();
-  return res.status(400).json({ message: 'Phương thức thanh toán không hợp lệ.' });
-}
+      const skuMap = new Map(skuList.map((s) => [s.id, s]));
+      if (!validPayment) {
+        await t.rollback();
+        return res
+          .status(400)
+          .json({ message: "Phương thức thanh toán không hợp lệ." });
+      }
 
       // SỬA LỖI TRUY VẤN: Lấy các FlashSaleItem đang hoạt động bằng cách include model FlashSale
       const allActiveFlashSaleItems = await FlashSaleItem.findAll({
         where: { isActive: true }, // Kiểm tra isActive của FlashSaleItem
-        include: [{
-          model: FlashSale,
-          as: 'flashSale',
-          where: {
-            isActive: true,
-            startTime: { [Op.lte]: now },
-            endTime: { [Op.gte]: now }
+        include: [
+          {
+            model: FlashSale,
+            as: "flashSale",
+            where: {
+              isActive: true,
+              startTime: { [Op.lte]: now },
+              endTime: { [Op.gte]: now },
+            },
+            required: true,
           },
-          required: true
-        }]
+        ],
       });
       const allActiveFlashSaleItemsMap = new Map();
       for (const item of allActiveFlashSaleItems) {
@@ -212,19 +250,20 @@ if (!validPayment) {
         include: [
           {
             model: FlashSale,
-            as: 'flashSale',
+            as: "flashSale",
             where: {
               isActive: true,
               startTime: { [Op.lte]: now },
-              endTime: { [Op.gte]: now }
+              endTime: { [Op.gte]: now },
             },
-            required: true
-          }
-        ]
+            required: true,
+          },
+        ],
       });
       const allActiveCategoryDealsMap = new Map();
-      allActiveCategoryDeals.forEach(deal => {
-        const existingDeals = allActiveCategoryDealsMap.get(deal.categoryId) || [];
+      allActiveCategoryDeals.forEach((deal) => {
+        const existingDeals =
+          allActiveCategoryDealsMap.get(deal.categoryId) || [];
         existingDeals.push(deal);
         allActiveCategoryDealsMap.set(deal.categoryId, existingDeals);
       });
@@ -235,24 +274,39 @@ if (!validPayment) {
       for (const it of items) {
         const sku = skuMap.get(it.skuId);
         if (!sku) {
-          return res.status(400).json({ message: `Không tìm thấy SKU ${it.skuId}` });
+          return res
+            .status(400)
+            .json({ message: `Không tìm thấy SKU ${it.skuId}` });
         }
         if (it.quantity > sku.stock) {
-          return res.status(400).json({ message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.` });
+          return res
+            .status(400)
+            .json({
+              message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.`,
+            });
         }
 
-        const priceResult = processSkuPrices(sku, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+        const priceResult = processSkuPrices(
+          sku,
+          allActiveFlashSaleItemsMap,
+          allActiveCategoryDealsMap
+        );
 
         totalPrice += priceResult.price * it.quantity;
 
         let flashSaleItemId = null;
         // Chỉ gán flashSaleId nếu là flash sale item và flash sale đó chưa hết hàng
-        if (priceResult.flashSaleInfo?.type === 'item' && priceResult.flashSaleInfo.isSoldOut === false) {
-          flashSaleItemId = allActiveFlashSaleItems.find(fsItem =>
-            fsItem.flashSaleId === priceResult.flashSaleInfo.flashSaleId &&
-            fsItem.skuId === it.skuId &&
-            parseFloat(fsItem.salePrice) === priceResult.price
-          )?.id || null;
+        if (
+          priceResult.flashSaleInfo?.type === "item" &&
+          priceResult.flashSaleInfo.isSoldOut === false
+        ) {
+          flashSaleItemId =
+            allActiveFlashSaleItems.find(
+              (fsItem) =>
+                fsItem.flashSaleId === priceResult.flashSaleInfo.flashSaleId &&
+                fsItem.skuId === it.skuId &&
+                parseFloat(fsItem.salePrice) === priceResult.price
+            )?.id || null;
         }
 
         orderItemsToCreate.push({
@@ -284,7 +338,11 @@ if (!validPayment) {
         });
 
         if (!couponRecord) {
-          return res.status(400).json({ message: "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực." });
+          return res
+            .status(400)
+            .json({
+              message: "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.",
+            });
         }
 
         const usedByOthers = await Order.count({
@@ -294,8 +352,13 @@ if (!validPayment) {
           },
         });
 
-        if (couponRecord.totalQuantity && usedByOthers >= couponRecord.totalQuantity) {
-          return res.status(400).json({ message: "Mã giảm giá đã hết lượt sử dụng." });
+        if (
+          couponRecord.totalQuantity &&
+          usedByOthers >= couponRecord.totalQuantity
+        ) {
+          return res
+            .status(400)
+            .json({ message: "Mã giảm giá đã hết lượt sử dụng." });
         }
 
         const couponUser = await CouponUser.findOne({
@@ -304,19 +367,28 @@ if (!validPayment) {
           lock: t.LOCK.UPDATE,
         });
 
-        if (couponUser && couponUser.used >= (couponRecord.maxUsagePerUser || 1)) {
+        if (
+          couponUser &&
+          couponUser.used >= (couponRecord.maxUsagePerUser || 1)
+        ) {
           await t.rollback();
-          return res.status(400).json({ message: "Bạn đã sử dụng mã này tối đa." });
+          return res
+            .status(400)
+            .json({ message: "Bạn đã sử dụng mã này tối đa." });
         }
 
         if (couponRecord.discountType === "shipping") {
           shippingDiscount = Number(couponRecord.discountValue);
         } else {
-          couponDiscount = couponRecord.discountType === "percent"
-            ? Math.floor((totalPrice * couponRecord.discountValue) / 100)
-            : Number(couponRecord.discountValue);
+          couponDiscount =
+            couponRecord.discountType === "percent"
+              ? Math.floor((totalPrice * couponRecord.discountValue) / 100)
+              : Number(couponRecord.discountValue);
 
-          if (couponRecord.maxDiscountValue && couponDiscount > couponRecord.maxDiscountValue) {
+          if (
+            couponRecord.maxDiscountValue &&
+            couponDiscount > couponRecord.maxDiscountValue
+          ) {
             couponDiscount = couponRecord.maxDiscountValue;
           }
         }
@@ -325,10 +397,15 @@ if (!validPayment) {
       let shippingFee = Number(bodyShippingFee) || 0;
       let finalServiceCode = shippingService;
       let finalProviderId = shippingProviderId;
-      let calculatedLeadTime = shippingLeadTime ? new Date(shippingLeadTime) : null;
+      let calculatedLeadTime = shippingLeadTime
+        ? new Date(shippingLeadTime)
+        : null;
 
       if (shippingFee === 0 || !shippingProviderId) {
-        let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+        let weight = 0,
+          maxL = 0,
+          maxW = 0,
+          maxH = 0;
         for (const item of orderItemsToCreate) {
           const sku = skuMap.get(item.skuId);
           weight += (sku.weight || 500) * item.quantity;
@@ -338,7 +415,9 @@ if (!validPayment) {
         }
         weight = Math.max(1, weight);
 
-        const defaultProvider = await ShippingProvider.findOne({ where: { code: "ghn" } });
+        const defaultProvider = await ShippingProvider.findOne({
+          where: { code: "ghn" },
+        });
         if (!defaultProvider) {
           throw new Error("Hãng vận chuyển mặc định không được tìm thấy.");
         }
@@ -359,7 +438,11 @@ if (!validPayment) {
           serviceCode: finalServiceCode,
         };
 
-        const { fee, leadTime, serviceCode: newServiceCode } = await ShippingService.calcFee(calcFeeParams);
+        const {
+          fee,
+          leadTime,
+          serviceCode: newServiceCode,
+        } = await ShippingService.calcFee(calcFeeParams);
         shippingFee = fee;
         calculatedLeadTime = leadTime;
         finalServiceCode = newServiceCode || finalServiceCode;
@@ -370,31 +453,49 @@ if (!validPayment) {
 
       let pointDiscountAmount = 0;
       if (usePoints && pointsToSpend > 0) {
-        const usablePoints = (await UserPoint.sum("points", { where: { userId: user.id } })) - (await UserPoint.sum("points", { where: { userId: user.id, type: "spend" } }));
+        const usablePoints =
+          (await UserPoint.sum("points", { where: { userId: user.id } })) -
+          (await UserPoint.sum("points", {
+            where: { userId: user.id, type: "spend" },
+          }));
 
         if (usablePoints < pointsToSpend) {
           await t.rollback();
-          return res.status(400).json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
+          return res
+            .status(400)
+            .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
         }
 
         const pointsConversionRate = 4000;
         pointDiscountAmount = pointsToSpend * pointsConversionRate;
 
-        const tempFinalPriceForPointCheck = totalPrice - couponDiscount + shippingFee - shippingDiscount;
+        const tempFinalPriceForPointCheck =
+          totalPrice - couponDiscount + shippingFee - shippingDiscount;
         if (pointDiscountAmount > tempFinalPriceForPointCheck) {
           pointDiscountAmount = tempFinalPriceForPointCheck;
         }
       }
 
-      const finalPrice = Math.max(0, totalPrice - couponDiscount + shippingFee - shippingDiscount - pointDiscountAmount);
+      const finalPrice = Math.max(
+        0,
+        totalPrice -
+          couponDiscount +
+          shippingFee -
+          shippingDiscount -
+          pointDiscountAmount
+      );
 
-
-const paymentStatus = ["momo", "vnpay", "zalopay", "atm", "stripe"].includes(validPayment.code.toLowerCase())
-  ? "waiting"
-  : validPayment.code.toLowerCase() === "internalwallet"
-    ? "paid"
-    : "unpaid";
-
+      const paymentStatus = [
+        "momo",
+        "vnpay",
+        "zalopay",
+        "atm",
+        "stripe",
+      ].includes(validPayment.code.toLowerCase())
+        ? "waiting"
+        : validPayment.code.toLowerCase() === "internalwallet"
+        ? "paid"
+        : "unpaid";
 
       const newOrder = await Order.create(
         {
@@ -419,33 +520,42 @@ const paymentStatus = ["momo", "vnpay", "zalopay", "atm", "stripe"].includes(val
         { transaction: t }
       );
 
-      newOrder.orderCode = `DH${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
+      newOrder.orderCode = `DH${new Date()
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
-if (validPayment.code.toLowerCase() === 'internalwallet') {
+      if (validPayment.code.toLowerCase() === "internalwallet") {
+        const wallet = await Wallet.findOne({
+          where: { userId: user.id },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
 
-  const wallet = await Wallet.findOne({
-    where: { userId: user.id },
-    transaction: t,
-    lock: t.LOCK.UPDATE
-  });
+        if (!wallet || Number(wallet.balance) < finalPrice) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({ message: "Số dư ví không đủ để thanh toán." });
+        }
 
-  if (!wallet || Number(wallet.balance) < finalPrice) {
-    await t.rollback();
-    return res.status(400).json({ message: 'Số dư ví không đủ để thanh toán.' });
-  }
+        // Trừ tiền
+        wallet.balance = Number(wallet.balance) - finalPrice;
+        await wallet.save({ transaction: t });
 
-  // Trừ tiền
-  wallet.balance = Number(wallet.balance) - finalPrice;
-  await wallet.save({ transaction: t });
-
-  // Ghi giao dịch
-  await WalletTransaction.create({
-    walletId: wallet.id,
-     type: 'purchase', // ✅ sửa lại cho trùng ENUMm
-    amount: finalPrice,
-    description: `Thanh toán đơn hàng ${newOrder?.orderCode || '[chưa tạo]'}`,
-  }, { transaction: t });
-}
+        // Ghi giao dịch
+        await WalletTransaction.create(
+          {
+            walletId: wallet.id,
+            type: "purchase", // ✅ sửa lại cho trùng ENUMm
+            amount: finalPrice,
+            description: `Thanh toán đơn hàng ${
+              newOrder?.orderCode || "[chưa tạo]"
+            }`,
+          },
+          { transaction: t }
+        );
+      }
       if (validPayment.code.toLowerCase() === "vnpay") {
         newOrder.vnpOrderId = `${newOrder.orderCode}-${Date.now()}`;
         await newOrder.save({ transaction: t });
@@ -453,7 +563,10 @@ if (validPayment.code.toLowerCase() === 'internalwallet') {
 
       for (const item of orderItemsToCreate) {
         const sku = skuMap.get(item.skuId);
-        await OrderItem.create({ orderId: newOrder.id, ...item }, { transaction: t });
+        await OrderItem.create(
+          { orderId: newOrder.id, ...item },
+          { transaction: t }
+        );
         await sku.decrement("stock", { by: item.quantity, transaction: t });
 
         if (item.flashSaleId) {
@@ -463,18 +576,19 @@ if (validPayment.code.toLowerCase() === 'internalwallet') {
             lock: t.LOCK.UPDATE,
           });
           if (fsItemLocked) {
-            const newQuantity = Math.max(0, (fsItemLocked.quantity || 0) - item.quantity);
+            const newQuantity = Math.max(
+              0,
+              (fsItemLocked.quantity || 0) - item.quantity
+            );
             const newSoldCount = (fsItemLocked.soldCount || 0) + item.quantity;
             await fsItemLocked.update(
               {
                 quantity: newQuantity,
-                soldCount: newSoldCount
+                soldCount: newSoldCount,
               },
               { transaction: t }
             );
           }
-
-
         }
       }
 
@@ -491,29 +605,37 @@ if (validPayment.code.toLowerCase() === 'internalwallet') {
         await couponRecord.increment("usedCount", { by: 1, transaction: t });
       }
 
-
-
       if (cartItemIds.length) {
         await CartItem.destroy({ where: { id: cartItemIds }, transaction: t });
       }
 
       if (usePoints && pointsToSpend > 0 && pointDiscountAmount > 0) {
-        await UserPoint.create({ userId: user.id, orderId: newOrder.id, points: -pointsToSpend, type: 'spend', description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}` }, { transaction: t });
+        await UserPoint.create(
+          {
+            userId: user.id,
+            orderId: newOrder.id,
+            points: -pointsToSpend,
+            type: "spend",
+            description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}`,
+          },
+          { transaction: t }
+        );
       }
       const rewardPointsConversionRate = 4000;
       const rewardPoints = Math.floor(finalPrice / rewardPointsConversionRate);
-    if (rewardPoints > 0) {
-  await UserPoint.create({
-    userId: user.id,
-    orderId: newOrder.id,
-    points: rewardPoints,
-    type: 'earn',
-    description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
-   expiresAt: new Date(Date.now() + 1 * 60 * 1000) // ✅ hết hạn sau 1 phút
-
-  }, { transaction: t });
-}
-
+      if (rewardPoints > 0) {
+        await UserPoint.create(
+          {
+            userId: user.id,
+            orderId: newOrder.id,
+            points: rewardPoints,
+            type: "earn",
+            description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
+            expiresAt: new Date(Date.now() + 1 * 60 * 1000), // ✅ hết hạn sau 1 phút
+          },
+          { transaction: t }
+        );
+      }
 
       const payCode = validPayment.code.toLowerCase();
 
@@ -534,38 +656,42 @@ if (validPayment.code.toLowerCase() === 'internalwallet') {
         message = `Đơn ${newOrder.orderCode} đã được tạo. Vui lòng thanh toán khi nhận hàng.`;
       }
 
-      const notification = await Notification.create({
-        title,
-        message,
-        slug: `order-${newOrder.orderCode}`,
-        type: "order",
-        referenceId: newOrder.id,
-        link: `/user-profile/orders/${newOrder.orderCode}`
+      const notification = await Notification.create(
+        {
+          title,
+          message,
+          slug: `order-${newOrder.orderCode}`,
+          type: "order",
+          referenceId: newOrder.id,
+          link: `/user-profile/orders/${newOrder.orderCode}`,
+        },
+        { transaction: t }
+      );
 
-
-      }, { transaction: t });
-
-      await NotificationUser.create({ notificationId: notification.id, userId: user.id }, { transaction: t });
+      await NotificationUser.create(
+        { notificationId: notification.id, userId: user.id },
+        { transaction: t }
+      );
 
       // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
 
       // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
 
       // Cách 1: Sử dụng toán tử 3 ngôi
-const addressParts = [
-    selectedAddress.streetAddress,
-    selectedAddress.ward ? selectedAddress.ward.name : null,
-    selectedAddress.district ? selectedAddress.district.name : null,
-    selectedAddress.province ? selectedAddress.province.name : null,
-].filter(part => part);
+      const addressParts = [
+        selectedAddress.streetAddress,
+        selectedAddress.ward ? selectedAddress.ward.name : null,
+        selectedAddress.district ? selectedAddress.district.name : null,
+        selectedAddress.province ? selectedAddress.province.name : null,
+      ].filter((part) => part);
 
-      const fullUserAddress = addressParts.join(', ');
+      const fullUserAddress = addressParts.join(", ");
 
       const mjmlContent = generateOrderConfirmationHtml({
         orderCode: newOrder.orderCode,
         finalPrice: newOrder.finalPrice,
         totalPrice: newOrder.totalPrice,
-         paymentMethodName: validPayment.name,
+        paymentMethodName: validPayment.name,
         shippingFee: newOrder.shippingFee,
         couponDiscount: newOrder.couponDiscount,
         pointDiscountAmount: newOrder.pointDiscount,
@@ -575,16 +701,25 @@ const addressParts = [
         userAddress: fullUserAddress, // <-- Sử dụng biến mới đã xử lý
         orderItems: orderItemsForEmail,
         companyName: "Cyberzone",
-        companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+        companyLogoUrl:
+          "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
         companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
         companyPhone: "0878999894",
         companySupportEmail: "contact@cyberzone.com",
-        orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${newOrder.orderCode}`
+        orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${newOrder.orderCode}`,
       });
 
       // Biên dịch MJML sang HTML
       const { html: emailHtml } = mjml2html(mjmlContent);
-      try { await sendEmail(user.email, `Đơn hàng ${newOrder.orderCode} của bạn`, emailHtml); } catch (emailErr) { console.error("Lỗi gửi email:", emailErr); }
+      try {
+        await sendEmail(
+          user.email,
+          `Đơn hàng ${newOrder.orderCode} của bạn`,
+          emailHtml
+        );
+      } catch (emailErr) {
+        console.error("Lỗi gửi email:", emailErr);
+      }
 
       await t.commit();
 
@@ -602,7 +737,6 @@ const addressParts = [
         shippingService: finalServiceCode,
         shippingLeadTime: calculatedLeadTime,
       });
-
     } catch (err) {
       await t.rollback();
       let errorMessage = "Lỗi khi tạo đơn hàng";
@@ -615,7 +749,6 @@ const addressParts = [
       return res.status(500).json({ message: errorMessage });
     }
   }
-
 
   static async getById(req, res) {
     try {
@@ -674,7 +807,9 @@ const addressParts = [
       });
 
       if (!order) {
-        console.warn(`Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`);
+        console.warn(
+          `Không tìm thấy đơn hàng với mã: ${orderCode} và userId: ${user.id}`
+        );
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
@@ -697,7 +832,11 @@ const addressParts = [
       ]);
 
       const address = order.shippingAddress;
-      const fullAddress = `${address?.streetAddress || ""}, ${address?.ward?.name || ""}, ${address?.district?.name || ""}, ${address?.province?.name || ""}`.trim();
+      const fullAddress = `${address?.streetAddress || ""}, ${
+        address?.ward?.name || ""
+      }, ${address?.district?.name || ""}, ${
+        address?.province?.name || ""
+      }`.trim();
 
       const products = order.items.map((item) => ({
         skuId: item.skuId,
@@ -756,18 +895,18 @@ const addressParts = [
 
         paymentMethod: order.paymentMethod
           ? {
-            id: order.paymentMethod.id,
-            name: order.paymentMethod.name,
-            code: order.paymentMethod.code,
-          }
+              id: order.paymentMethod.id,
+              name: order.paymentMethod.name,
+              code: order.paymentMethod.code,
+            }
           : null,
 
         shippingProvider: order.shippingProvider
           ? {
-            id: order.shippingProvider.id,
-            name: order.shippingProvider.name,
-            code: order.shippingProvider.code,
-          }
+              id: order.shippingProvider.id,
+              name: order.shippingProvider.name,
+              code: order.shippingProvider.code,
+            }
           : null,
 
         userAddress: {
@@ -791,8 +930,6 @@ const addressParts = [
     }
   }
 
-
-
   static async uploadProof(req, res) {
     try {
       const { id } = req.params;
@@ -805,7 +942,6 @@ const addressParts = [
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
-      // Lưu URL lên trường proofUrl
       order.proofUrl = req.file.path;
       await order.save();
 
@@ -822,85 +958,84 @@ const addressParts = [
   static async getAllByUser(req, res) {
     try {
       const userId = req.user.id;
+      const page = Math.max(parseInt(req.query.page ?? "1", 10), 1);
+      const limit = Math.max(parseInt(req.query.limit ?? "10", 10), 1);
+      const offset = (page - 1) * limit;
 
-      const ordersFromDb = await Order.findAll({
-        where: { userId },
-        include: [
-          {
-            model: OrderItem,
-            as: "items",
-            include: [
-              {
-                model: Sku,
-                required: false,
-                include: [
-                  {
-                    model: Product,
-                    as: "product",
-                    required: false,
-                    paranoid: false,
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            model: ReturnRequest,
-            as: "returnRequest",
-            required: false,
+      const { rows: ordersFromDb, count: totalItems } =
+        await Order.findAndCountAll({
+          where: { userId },
+          include: [
+            {
+              model: OrderItem,
+              as: "items",
+              include: [
+                {
+                  model: Sku,
+                  required: false,
+                  include: [
+                    {
+                      model: Product,
+                      as: "product",
+                      required: false,
+                      paranoid: false,
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              model: ReturnRequest,
+              as: "returnRequest",
+              required: false,
               attributes: [
-    "id",
-    "status",
-    "returnCode",
-    "deadlineChooseReturnMethod",
-    "returnMethod",
-    "cancelledBy", // 👈 THÊM DÒNG NÀY
-  ],
+                "id",
+                "status",
+                "returnCode",
+                "deadlineChooseReturnMethod",
+                "returnMethod",
+                "cancelledBy",
+              ],
+              include: [
+                {
+                  model: ReturnRequestItem,
+                  as: "items",
+                  attributes: ["skuId", "quantity"],
+                  required: false,
+                },
+              ],
+            },
+            {
+              model: PaymentMethod,
+              as: "paymentMethod",
+              attributes: ["id", "name", "code"],
+              required: true,
+            },
+            {
+              model: UserAddress,
+              as: "shippingAddress",
+              include: [
+                { model: Province, as: "province" },
+                { model: District, as: "district" },
+                { model: Ward, as: "ward" },
+              ],
+              required: false,
+            },
+            {
+              model: UserPoint,
+              as: "pointLogs",
+              where: { type: "earn" },
+              required: false,
+              attributes: ["points"],
+            },
+          ],
+          order: [["createdAt", "DESC"]],
+          limit,
+          offset,
+          distinct: true,
+        });
 
-            // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
-            include: [ // Thêm include này để lấy ReturnRequestItem
-              {
-                model: ReturnRequestItem, // Đảm bảo bạn đã import model này
-                as: "items", // Tên alias của mối quan hệ trong model ReturnRequest của bạn (ví dụ: ReturnRequest hasMany ReturnRequestItem as 'items')
-                attributes: ["skuId", "quantity"], // Chỉ lấy các thuộc tính cần thiết để so sánh ở frontend
-                required: false, // Để vẫn lấy ReturnRequest nếu không có ReturnRequestItem nào
-              },
-            ],
-          },
-          {
-            model: PaymentMethod,
-            as: "paymentMethod",
-            attributes: ["id", "name", "code"],
-            required: true,
-          },
-          {
-            model: UserAddress,
-            as: "shippingAddress",
-            include: [
-              { model: Province, as: "province" },
-              { model: District, as: "district" },
-              { model: Ward, as: "ward" },
-            ],
-            required: false,
-          },
-          {
-            model: UserPoint,
-            as: "pointLogs", // ✅ phải trùng với alias trong model index.js
-            where: { type: "earn" },
-            required: false,
-            attributes: ["points"]
-          }
-
-          ,
-        ],
-        order: [["createdAt", "DESC"]],
-      });
-
-      if (!ordersFromDb) {
-        return res.json({ message: "Không có đơn hàng nào", data: [] });
-      }
-
-      const formattedOrders = ordersFromDb.map((order) => ({
+      const formattedOrders = (ordersFromDb || []).map((order) => ({
         id: order.id,
         status: order.status,
         paymentStatus: order.paymentStatus,
@@ -908,59 +1043,55 @@ const addressParts = [
         orderCode: order.orderCode,
         createdAt: order.createdAt,
         rewardPoints:
-          order.userPoints && order.userPoints.length > 0
-            ? order.userPoints.reduce((sum, p) => sum + p.points, 0)
+          order.pointLogs && order.pointLogs.length > 0
+            ? order.pointLogs.reduce((sum, p) => sum + p.points, 0)
             : 0,
-
-        returnRequest: order.returnRequest // Nếu order.returnRequest tồn tại
+        returnRequest: order.returnRequest
           ? {
-            id: order.returnRequest.id,
-            status: order.returnRequest.status,
-            returnCode: order.returnRequest.returnCode,
-            deadlineChooseReturnMethod: order.returnRequest.deadlineChooseReturnMethod,
-            returnMethod: order.returnRequest.returnMethod || null,
-                  cancelledBy: order.returnRequest.cancelledBy || null, // ✅ THÊM DÒNG NÀY
-
-            // ***** THAY ĐỔI QUAN TRỌNG TẠI ĐÂY *****
-            items: order.returnRequest.items // Bây giờ `items` sẽ có dữ liệu từ include
-              ? order.returnRequest.items.map((item) => ({
-                skuId: item.skuId,
-                quantity: item.quantity,
-              }))
-              : [], // Đảm bảo trả về mảng rỗng nếu không có item nào
-          }
+              id: order.returnRequest.id,
+              status: order.returnRequest.status,
+              returnCode: order.returnRequest.returnCode,
+              deadlineChooseReturnMethod:
+                order.returnRequest.deadlineChooseReturnMethod,
+              returnMethod: order.returnRequest.returnMethod || null,
+              cancelledBy: order.returnRequest.cancelledBy || null,
+              items:
+                order.returnRequest.items?.map((item) => ({
+                  skuId: item.skuId,
+                  quantity: item.quantity,
+                })) || [],
+            }
           : null,
         paymentMethod: order.paymentMethod
           ? {
-            id: order.paymentMethod.id,
-            name: order.paymentMethod.name,
-            code: order.paymentMethod.code,
-          }
+              id: order.paymentMethod.id,
+              name: order.paymentMethod.name,
+              code: order.paymentMethod.code,
+            }
           : null,
         shippingAddress: order.shippingAddress
           ? {
-            fullName: order.shippingAddress.fullName,
-            phone: order.shippingAddress.phone,
-            streetAddress: order.shippingAddress.streetAddress,
-            ward: {
-              name: order.shippingAddress.ward?.name,
-              code: order.shippingAddress.ward?.code,
-            },
-            district: {
-              name: order.shippingAddress.district?.name,
-              ghnCode: order.shippingAddress.district?.ghnCode,
-            },
-            province: {
-              name: order.shippingAddress.province?.name,
-            },
-          }
+              fullName: order.shippingAddress.fullName,
+              phone: order.shippingAddress.phone,
+              streetAddress: order.shippingAddress.streetAddress,
+              ward: {
+                name: order.shippingAddress.ward?.name,
+                code: order.shippingAddress.ward?.code,
+              },
+              district: {
+                name: order.shippingAddress.district?.name,
+                ghnCode: order.shippingAddress.district?.ghnCode,
+              },
+              province: {
+                name: order.shippingAddress.province?.name,
+              },
+            }
           : null,
         products: order.items.map((item) => {
           const productInfo = item.Sku?.product;
           const skuInfo = item.Sku;
           const pricePaid = item.price;
           const originalPriceFromSku = skuInfo?.originalPrice || 0;
-
           return {
             skuId: item.skuId,
             name: productInfo?.name || "Sản phẩm không tồn tại",
@@ -977,6 +1108,12 @@ const addressParts = [
       return res.json({
         message: "Lấy danh sách đơn hàng thành công",
         data: formattedOrders,
+        pagination: {
+          totalItems,
+          totalPages: Math.ceil(totalItems / limit),
+          currentPage: page,
+          limit,
+        },
       });
     } catch (error) {
       console.error("Lỗi khi lấy danh sách đơn hàng:", error);
@@ -984,24 +1121,27 @@ const addressParts = [
     }
   }
 
-
   static async cancel(req, res) {
     const t = await sequelize.transaction();
     try {
       const { id } = req.params;
       const { reason } = req.body || {};
 
-     const reasonText = typeof reason === "string" ? reason : reason?.reason;
+      const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
-if (!reasonText?.trim()) {
-  return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
-}
+      if (!reasonText?.trim()) {
+        return res
+          .status(400)
+          .json({ message: "Lý do huỷ đơn không được bỏ trống" });
+      }
 
-   console.log("[DEBUG] req.body.reason:", req.body?.reason);
-console.log("[DEBUG] reasonText:", reasonText);
+      console.log("[DEBUG] req.body.reason:", req.body?.reason);
+      console.log("[DEBUG] reasonText:", reasonText);
 
       const order = await Order.findByPk(id, {
-        include: [{ model: PaymentMethod, as: "paymentMethod", attributes: ["code"] }],
+        include: [
+          { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
+        ],
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
@@ -1018,28 +1158,45 @@ console.log("[DEBUG] reasonText:", reasonText);
 
       if (["shipping", "delivered", "completed"].includes(order.status)) {
         await t.rollback();
-        return res.status(400).json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
+        return res
+          .status(400)
+          .json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
       }
 
       const paid = order.paymentStatus === "paid";
       const payCode = order.paymentMethod?.code?.toLowerCase();
 
       if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
-        const payload = { orderCode: order.orderCode, amount: order.finalPrice };
+        const payload = {
+          orderCode: order.orderCode,
+          amount: order.finalPrice,
+        };
 
         if (payCode === "momo") {
-          if (!order.momoTransId) return res.status(400).json({ message: "Thiếu thông tin giao dịch MoMo" });
+          if (!order.momoTransId)
+            return res
+              .status(400)
+              .json({ message: "Thiếu thông tin giao dịch MoMo" });
           payload.momoTransId = order.momoTransId;
         } else if (payCode === "vnpay") {
-          if (!order.vnpTransactionId || !order.paymentTime) return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
+          if (!order.vnpTransactionId || !order.paymentTime)
+            return res
+              .status(400)
+              .json({ message: "Thiếu thông tin giao dịch VNPay" });
           payload.vnpTransactionId = order.vnpTransactionId;
-          payload.originalAmount = order.finalPrice; 
+          payload.originalAmount = order.finalPrice;
           payload.transDate = order.paymentTime;
         } else if (payCode === "stripe") {
-          if (!order.stripePaymentIntentId) return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
+          if (!order.stripePaymentIntentId)
+            return res
+              .status(400)
+              .json({ message: "Thiếu stripePaymentIntentId" });
           payload.stripePaymentIntentId = order.stripePaymentIntentId;
         } else if (payCode === "zalopay") {
-          if (!order.zaloTransId || !order.zaloAppTransId) return res.status(400).json({ message: "Thiếu thông tin giao dịch ZaloPay" });
+          if (!order.zaloTransId || !order.zaloAppTransId)
+            return res
+              .status(400)
+              .json({ message: "Thiếu thông tin giao dịch ZaloPay" });
           payload.zp_trans_id = order.zaloTransId;
           payload.app_trans_id = order.zaloAppTransId;
           payload.amount = Math.round(Number(order.finalPrice));
@@ -1056,43 +1213,53 @@ console.log("[DEBUG] reasonText:", reasonText);
       } else {
         order.paymentStatus = "unpaid";
       }
-// ✅ Trường hợp hoàn ví nội bộ thì xử lý riêng
-if (paid && payCode === "internalwallet") {
-  const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
-  if (!wallet) {
-    await t.rollback();
-    return res.status(400).json({ message: "Không tìm thấy ví người dùng" });
-  }
+      // ✅ Trường hợp hoàn ví nội bộ thì xử lý riêng
+      if (paid && payCode === "internalwallet") {
+        const wallet = await Wallet.findOne({
+          where: { userId: order.userId },
+          transaction: t,
+        });
+        if (!wallet) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({ message: "Không tìm thấy ví người dùng" });
+        }
 
-  wallet.balance = (
-  Number(wallet.balance || 0) + Number(order.finalPrice || 0)
-).toFixed(2);
+        wallet.balance = (
+          Number(wallet.balance || 0) + Number(order.finalPrice || 0)
+        ).toFixed(2);
 
-  await wallet.save({ transaction: t });
+        await wallet.save({ transaction: t });
 
-await WalletTransaction.create({
-  userId: order.userId,
-  walletId: wallet.id, // ← thêm dòng này
-  orderId: order.id,
-  type: 'refund',
-  amount: order.finalPrice,
-  description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode}`,
-}, { transaction: t });
+        await WalletTransaction.create(
+          {
+            userId: order.userId,
+            walletId: wallet.id, // ← thêm dòng này
+            orderId: order.id,
+            type: "refund",
+            amount: order.finalPrice,
+            description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode}`,
+          },
+          { transaction: t }
+        );
 
-  order.paymentStatus = "refunded";
-  order.gatewayTransId = null;
-  await order.save({ transaction: t });
+        order.paymentStatus = "refunded";
+        order.gatewayTransId = null;
+        await order.save({ transaction: t });
 
-  // ✅ Kết thúc luôn tại đây
-return await finalizeCancellation(order, t, res, reasonText); // ✅ thêm `res` vào tham số
-
-}
+        // ✅ Kết thúc luôn tại đây
+        return await finalizeCancellation(order, t, res, reasonText); // ✅ thêm `res` vào tham số
+      }
 
       order.status = "cancelled";
       order.cancelReason = reasonText.trim();
       await order.save({ transaction: t });
 
-      const orderItems = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
+      const orderItems = await OrderItem.findAll({
+        where: { orderId: order.id },
+        transaction: t,
+      });
 
       for (const item of orderItems) {
         // ✅ Cộng lại FlashSaleItem.quantity và trừ soldCount
@@ -1124,7 +1291,12 @@ return await finalizeCancellation(order, t, res, reasonText); // ✅ thêm `res`
         where: { orderId: order.id, userId: order.userId, type: "earn" },
         transaction: t,
       });
-      console.log("[DEBUG] couponId:", order.couponId, "| userId:", order.userId);
+      console.log(
+        "[DEBUG] couponId:",
+        order.couponId,
+        "| userId:",
+        order.userId
+      );
 
       // ✅ Hoàn lại lượt dùng mã giảm giá
       if (order.couponId != null) {
@@ -1140,61 +1312,76 @@ return await finalizeCancellation(order, t, res, reasonText); // ✅ thêm `res`
           transaction: t,
         });
       }
-// ✅ Tạo Notification nếu chưa có
-const slug = `user-cancel-order-${order.orderCode}`; // 👈 tránh trùng với các noti auto từ cron job
+      // ✅ Tạo Notification nếu chưa có
+      const slug = `user-cancel-order-${order.orderCode}`; // 👈 tránh trùng với các noti auto từ cron job
 
-let notif;
+      let notif;
 
-const existingNotif = await Notification.findOne({ where: { slug } });
+      const existingNotif = await Notification.findOne({ where: { slug } });
 
-if (!existingNotif) {
-  notif = await Notification.create({
-    title: "Đơn hàng bị huỷ",
-    message: `Đơn ${order.orderCode} đã bị huỷ bởi người dùng.`,
-    slug,
-    type: "order",
-    referenceId: order.id,
-    link: `/user-profile/orders/${order.orderCode}`,
-  }, { transaction: t });
+      if (!existingNotif) {
+        notif = await Notification.create(
+          {
+            title: "Đơn hàng bị huỷ",
+            message: `Đơn ${order.orderCode} đã bị huỷ bởi người dùng.`,
+            slug,
+            type: "order",
+            referenceId: order.id,
+            link: `/user-profile/orders/${order.orderCode}`,
+          },
+          { transaction: t }
+        );
 
-  await NotificationUser.create({
-    notificationId: notif.id,
-    userId: order.userId,
-  }, { transaction: t });
-} else {
-  notif = existingNotif; // 👈 gán lại để emit
-}
-  req.app.locals.io.to(`user-${order.userId}`).emit("new-client-notification", notif);
+        await NotificationUser.create(
+          {
+            notificationId: notif.id,
+            userId: order.userId,
+          },
+          { transaction: t }
+        );
+      } else {
+        notif = existingNotif; // 👈 gán lại để emit
+      }
+      req.app.locals.io
+        .to(`user-${order.userId}`)
+        .emit("new-client-notification", notif);
 
+      const user = await User.findByPk(order.userId, { transaction: t });
 
+      if (user?.email) {
+        const emailMjmlContent = generateOrderCancellationHtml({
+          orderCode: order.orderCode,
+          cancelReason: order.cancelReason,
+          userName: user.fullName || user.email || "Khách hàng",
+          orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
+          companyName: "Cyberzone",
+          companyLogoUrl:
+            "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+          companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+          companyPhone: "0878999894",
+          companySupportEmail: "contact@cyberzone.com",
+        });
 
-const user = await User.findByPk(order.userId, { transaction: t });
+        const { html: emailHtml } = mjml2html(emailMjmlContent);
 
-if (user?.email) {
-  const emailMjmlContent = generateOrderCancellationHtml({
-    orderCode: order.orderCode,
-    cancelReason: order.cancelReason,
-    userName: user.fullName || user.email || "Khách hàng",
-    orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
-    companyName: "Cyberzone",
-    companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
-    companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
-    companyPhone: "0878999894",
-    companySupportEmail: "contact@cyberzone.com",
-  });
-
-  const { html: emailHtml } = mjml2html(emailMjmlContent);
-
-  try {
-    await sendEmail(user.email, `Đơn hàng ${order.orderCode} đã bị hủy`, emailHtml);
-  } catch (emailErr) {
-    console.error(`[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
-  }
-}
-
+        try {
+          await sendEmail(
+            user.email,
+            `Đơn hàng ${order.orderCode} đã bị hủy`,
+            emailHtml
+          );
+        } catch (emailErr) {
+          console.error(
+            `[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`,
+            emailErr
+          );
+        }
+      }
 
       await t.commit();
-      return res.status(200).json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
+      return res
+        .status(200)
+        .json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
     } catch (err) {
       await t.rollback();
       console.error("[cancel][ERROR]", err);
@@ -1202,16 +1389,14 @@ if (user?.email) {
     }
   }
 
-
-
-
-
   static async lookupOrder(req, res) {
     try {
       const { code, phone } = req.query;
 
       if (!code || !phone) {
-        return res.status(400).json({ message: "Thiếu mã đơn hoặc số điện thoại" });
+        return res
+          .status(400)
+          .json({ message: "Thiếu mã đơn hoặc số điện thoại" });
       }
 
       const order = await Order.findOne({
@@ -1256,19 +1441,29 @@ if (user?.email) {
         ],
       });
 
-      if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+      if (!order)
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
 
       const plain = order.get({ plain: true });
 
       // ✅ Tính lại totalPrice nếu không có
       if (!plain.totalPrice || plain.totalPrice === 0) {
-        plain.totalPrice = plain.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        plain.totalPrice = plain.items.reduce(
+          (acc, item) => acc + item.price * item.quantity,
+          0
+        );
       }
 
       // ✅ Tìm tên địa chỉ từ ID (nếu đã có các bảng mapping)
-      const ward = plain.shippingAddress?.wardId ? await Ward.findByPk(plain.shippingAddress.wardId) : null;
-      const district = plain.shippingAddress?.districtId ? await District.findByPk(plain.shippingAddress.districtId) : null;
-      const province = plain.shippingAddress?.provinceId ? await Province.findByPk(plain.shippingAddress.provinceId) : null;
+      const ward = plain.shippingAddress?.wardId
+        ? await Ward.findByPk(plain.shippingAddress.wardId)
+        : null;
+      const district = plain.shippingAddress?.districtId
+        ? await District.findByPk(plain.shippingAddress.districtId)
+        : null;
+      const province = plain.shippingAddress?.provinceId
+        ? await Province.findByPk(plain.shippingAddress.provinceId)
+        : null;
 
       const fullAddress = [
         plain.shippingAddress?.streetAddress,
@@ -1304,8 +1499,6 @@ if (user?.email) {
       res.status(500).json({ message: "Lỗi server", error: err.message });
     }
   }
-
-
 
   static async reorder(req, res) {
     try {
@@ -1394,8 +1587,9 @@ if (user?.email) {
     try {
       const { districtId, wardId, items = [] } = req.body;
 
-      // 1️⃣ Lấy thông tin địa chỉ từ DB nội bộ
-      const district = await District.findByPk(districtId, { include: [Province] });
+      const district = await District.findByPk(districtId, {
+        include: [Province],
+      });
       const ward = await Ward.findByPk(wardId);
 
       if (!district || !district.Province)
@@ -1410,12 +1604,14 @@ if (user?.email) {
       const toDistrictName = district.name;
       const toWardName = ward.name;
 
-      // 2️⃣ Tính tổng trọng lượng và giá trị đơn hàng
       const skuList = await Sku.findAll({
         where: { id: items.map((i) => i.skuId) },
       });
       const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
-      let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+      let weight = 0,
+        maxL = 0,
+        maxW = 0,
+        maxH = 0;
       const orderValue = items.reduce((sum, it) => {
         const sku = skuMap[it.skuId];
         if (!sku) return sum;
@@ -1425,16 +1621,19 @@ if (user?.email) {
         maxH = Math.max(maxH, sku.height || 10);
         return sum + (it.price || 0) * (it.quantity || 1);
       }, 0);
-      weight ||= 1; maxL ||= 1; maxW ||= 1; maxH ||= 1;
+      weight ||= 1;
+      maxL ||= 1;
+      maxW ||= 1;
+      maxH ||= 1;
 
-      // 3️⃣ Lấy các hãng vận chuyển đang hoạt động
       const providers = await ShippingProvider.findAll({
-        where: { isActive: true }, // Bỏ loại trừ JNT, để logic này trong service
+        where: { isActive: true },
       });
       if (!providers.length)
-        return res.status(404).json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
+        return res
+          .status(404)
+          .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
 
-      // 4️⃣ Gọi service để tính phí cho TẤT CẢ các hãng
       const options = await Promise.all(
         providers.map(async (p) => {
           try {
@@ -1461,7 +1660,9 @@ if (user?.email) {
               leadTime,
             };
           } catch (err) {
-            console.warn(`[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`);
+            console.warn(
+              `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`
+            );
             return null;
           }
         })
@@ -1469,7 +1670,9 @@ if (user?.email) {
 
       const available = options.filter(Boolean);
       if (!available.length)
-        return res.status(404).json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
+        return res
+          .status(404)
+          .json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
 
       return res.json({ data: available });
     } catch (err) {
@@ -1480,7 +1683,6 @@ if (user?.email) {
       });
     }
   }
-
 }
 
 module.exports = OrderController;
