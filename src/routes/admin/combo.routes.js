@@ -6,6 +6,7 @@ const { attachUserDetail } = require("../../middlewares/getUserDetail ");
 const autoSlug = require("../../middlewares/autoSlug");
 const { Combo } = require("../../models");
 const { upload } = require("../../config/cloudinary");
+const { createComboValidator, updateComboValidator } = require("../../validations/comboValidator");
 
 // 🛡️ Auth
 router.use(checkJWT);
@@ -16,16 +17,24 @@ router.get("/", ComboController.getAll);
 router.get("/skus", ComboController.getAllSkus);
 router.get("/:slug", ComboController.getBySlug);
 
-// ✅ Chỉ giữ 1 route POST để tạo combo
+// ✅ Tạo combo
 router.post(
   "/",
   upload.single("thumbnail"),
+  createComboValidator,
   autoSlug(Combo),
   ComboController.create
 );
-router.put("/:slug", upload.single("thumbnail"), ComboController.update);
 
-router.put("/:slug", ComboController.update);
+// ✅ Cập nhật combo
+router.put(
+  "/:slug",
+  upload.single("thumbnail"),
+  updateComboValidator,
+  ComboController.update
+);
+
+// ✅ Soft delete / restore / delete nhiều
 router.patch("/restore/:id", ComboController.restore);
 router.delete("/force/:id", ComboController.delete);
 router.delete("/:id", ComboController.softDelete);

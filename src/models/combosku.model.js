@@ -15,6 +15,7 @@ const ComboSku = sequelize.define("ComboSku", {
     allowNull: false,
     defaultValue: 1,
   },
+  
 }, {
   tableName: "comboskus",
   timestamps: true, // ✅ Quan trọng: bật timestamps vì bảng có createdAt, updatedAt

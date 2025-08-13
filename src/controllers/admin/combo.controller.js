@@ -1,4 +1,4 @@
-const { Combo, ComboSku, Sku, Product } = require("../../models");
+const { Combo, ComboSku, Sku, Product, SkuVariantValue, VariantValue, Variant, ProductVariant, ProductVariantValue, Category} = require("../../models");
 
 class ComboController {
   static async getAll(req, res) {
@@ -13,26 +13,83 @@ class ComboController {
       return res.status(500).json({ message: "Lỗi lấy danh sách combo" });
     }
   }
-  static async getBySlug(req, res) {
-    try {
-      const combo = await Combo.findOne({
-        where: { slug: req.params.slug },
-        include: [
-          {
-            model: ComboSku,
-            as: "comboSkus",
-            include: [{ model: Sku, as: "sku" }],
-          },
-        ],
-      });
-      if (!combo)
-        return res.status(404).json({ message: "Combo không tồn tại" });
-      res.json(combo);
-    } catch (err) {
-      console.error("getBySlug Combo error:", err);
-      res.status(500).json({ message: "Lỗi server khi lấy combo" });
+static async getBySlug(req, res) {
+  try {
+    const combo = await Combo.findOne({
+      where: { slug: req.params.slug },
+      include: [
+        {
+          model: ComboSku,
+          as: "comboSkus",
+          include: [
+            {
+              model: Sku,
+              as: "sku",
+              include: [
+                {
+                  model: Product,
+                  as: "product",
+                  attributes: ["name", "thumbnail"]
+                },
+                {
+                  model: SkuVariantValue,
+                  as: "variantValues", // alias đúng từ Sku.hasMany(SkuVariantValue, { as: 'variantValues' })
+                  include: [
+                    {
+                      model: VariantValue,
+                      as: "variantValue", // alias đúng
+                      include: [
+                        {
+                          model: Variant,
+                          as: "variant", // alias đúng
+                          attributes: ["name"]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!combo) {
+      return res.status(404).json({ message: "Combo không tồn tại" });
     }
+
+    // ✅ Format dữ liệu
+    const formatted = {
+      ...combo.toJSON(),
+      comboSkus: combo.comboSkus.map((item) => {
+        const sku = item.sku || {};
+        const product = sku.product || {};
+        const variantValues = sku.variantValues || [];
+
+        return {
+          skuId: item.skuId,
+          quantity: item.quantity,
+          price: sku.price || 0,
+          stock: sku.stock || 0,
+          thumbnail: product.thumbnail || "/placeholder.png",
+          productName: product.name || "",
+          variants: variantValues.map((v) => ({
+            name: v.variantValue?.variant?.name || "",
+            value: v.variantValue?.value || ""
+          }))
+        };
+      })
+    };
+
+    return res.json(formatted);
+  } catch (err) {
+    console.error("getBySlug Combo error:", err);
+    res.status(500).json({ message: "Lỗi server khi lấy combo" });
   }
+}
+
+
   static async create(req, res) {
     try {
       const {
@@ -66,6 +123,41 @@ class ComboController {
           console.error("❌ Parse comboSkus error:", e);
           comboSkus = [];
         }
+      }
+      // 🔒 Kiểm tra slug đã tồn tại (kể cả soft-delete)
+      // 🔒 Kiểm tra trùng slug
+      // 🔒 Kiểm tra trùng slug
+      const existingSlug = await Combo.findOne({
+        where: { slug },
+        paranoid: false,
+      });
+      if (existingSlug) {
+        return res.status(400).json({
+          errors: [
+            {
+              field: "slug",
+              message: "Slug đã tồn tại, vui lòng sửa tên hoặc slug combo.",
+            },
+          ],
+        });
+      }
+
+      // 🔒 Kiểm tra trùng name
+      const existingName = await Combo.findOne({
+        where: {
+          name: name.trim(),
+        },
+        paranoid: false,
+      });
+      if (existingName) {
+        return res.status(400).json({
+          errors: [
+            {
+              field: "name",
+              message: "Tên combo đã tồn tại, vui lòng nhập tên khác.",
+            },
+          ],
+        });
       }
 
       // ✅ Tạo combo chính
@@ -113,6 +205,28 @@ class ComboController {
       console.log("👉 Params slug:", slug);
 
       const combo = await Combo.findOne({ where: { slug } });
+      const { Op } = require("sequelize"); // Đảm bảo dòng này có ở đầu file
+
+// 🔒 Kiểm tra trùng name (trừ combo hiện tại)
+const existingName = await Combo.findOne({
+  where: {
+    name: req.body.name.trim(),
+    id: { [Op.ne]: combo.id }, // khác chính nó
+  },
+  paranoid: false,
+});
+
+if (existingName) {
+  return res.status(400).json({
+    errors: [
+      {
+        field: "name",
+        message: "Tên combo đã tồn tại, vui lòng nhập tên khác.",
+      },
+    ],
+  });
+}
+
       if (!combo) {
         console.log("❌ Combo không tìm thấy với slug:", slug);
         return res.status(404).json({ message: "Không tìm thấy combo" });
@@ -195,7 +309,7 @@ class ComboController {
       res.status(500).json({ message: "Lỗi cập nhật combo" });
     }
   }
-
+  
   static async softDelete(req, res) {
     try {
       const id = req.params.id;
@@ -276,44 +390,107 @@ class ComboController {
       return res.status(500).json({ message: "Lỗi server khi xoá combo" });
     }
   }
-  static async getAllSkus(req, res) {
-    console.log("📥 [GET /admin/combos/skus] Yêu cầu lấy danh sách SKU");
+  // static async getAllSkus(req, res) {
+  //   console.log("📥 [GET /admin/combos/skus] Yêu cầu lấy danh sách SKU");
 
-    try {
-      const skus = await Sku.findAll({
-        include: [
-          {
-            model: Product,
-            as: "product", // ✅ Dùng đúng alias
-            attributes: ["name", "thumbnail"],
-          },
-        ],
-        attributes: ["id", "skuCode", "price", "originalPrice", "stock"],
-      });
+  //   try {
+  //     const skus = await Sku.findAll({
+  //       include: [
+  //         {
+  //           model: Product,
+  //           as: "product", // ✅ Dùng đúng alias
+  //           attributes: ["name", "thumbnail"],
+  //         },
+  //       ],
+  //       attributes: ["id", "skuCode", "price", "originalPrice", "stock"],
+  //     });
 
-      console.log("✅ Số lượng SKU tìm thấy:", skus.length);
+  //     console.log("✅ Số lượng SKU tìm thấy:", skus.length);
 
-      if (skus.length > 0) {
-        skus.forEach((sku, index) => {
-          console.log(`🔹 SKU #${index + 1}:`, {
-            id: sku.id,
-            code: sku.skuCode,
-            price: sku.price,
-            originalPrice: sku.originalPrice,
-            stock: sku.stock,
-            productName: sku?.Product?.name,
-          });
-        });
-      }
+  //     if (skus.length > 0) {
+  //       skus.forEach((sku, index) => {
+  //         console.log(`🔹 SKU #${index + 1}:`, {
+  //           id: sku.id,
+  //           code: sku.skuCode,
+  //           price: sku.price,
+  //           originalPrice: sku.originalPrice,
+  //           stock: sku.stock,
+  //           productName: sku?.product?.name,
+  //           thumbnail: sku?.product?.thumbnail,
+  //         });
+  //       });
+  //     }
 
-      return res.status(200).json(skus);
-    } catch (error) {
-      console.error("❌ Lỗi lấy danh sách SKU:", error.message, error.stack);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server khi lấy danh sách SKU" });
+  //     return res.status(200).json(skus);
+  //   } catch (error) {
+  //     console.error("❌ Lỗi lấy danh sách SKU:", error.message, error.stack);
+  //     return res
+  //       .status(500)
+  //       .json({ message: "Lỗi server khi lấy danh sách SKU" });
+  //   }
+  // }
+static async getAllSkus(req, res) {
+  console.log("📥 [GET /admin/combos/skus] yêu cầu lấy danh sách SKU");
+
+  try {
+const skus = await Sku.findAll({
+  attributes: ["id", "skuCode", "price", "originalPrice", "stock"], // <-- chỉ các cột có thật ở Sku
+  include: [
+    {
+      model: Product,
+      as: "product",
+      attributes: ["id", "name", "thumbnail", "categoryId"],        // thumbnail/name nằm ở Product
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name", "parentId"], required: false },
+      ],
+    },
+    {
+      model: SkuVariantValue,
+      as: "variantValues",
+      attributes: ["id"],
+      include: [
+        {
+          model: VariantValue,
+          as: "variantValue",
+          attributes: ["id", "value", "slug", "colorCode", "imageUrl"],
+          include: [{ model: Variant, as: "variant", attributes: ["id", "name", "type"] }],
+        },
+      ],
+    },
+  ],
+  order: [[{ model: Product, as: "product" }, "name", "ASC"]],
+});
+
+    console.log("✅ Tổng SKU:", skus.length);
+
+    // Thống kê theo Category (để debug dropdown)
+    const stat = {};
+    for (const s of skus) {
+      const catName = s?.product?.category?.name ?? "Chưa phân loại";
+      stat[catName] = (stat[catName] || 0) + 1;
     }
+    console.log("📊 Phân bố theo Category:", stat);
+
+    // Log vài item mẫu (1–3 chiếc) để kiểm
+    skus.slice(0, 3).forEach((sku, i) => {
+      console.log(`🔹 SKU #${i + 1}`, {
+        id: sku.id,
+        code: sku.skuCode,
+        product: sku.product?.name,
+        category: sku.product?.category?.name ?? null,
+      });
+    });
+
+    // Trả về dạng { data: [...] } để FE nhận ổn định
+    return res.status(200).json({ data: skus });
+  } catch (error) {
+    console.error("❌ Lỗi lấy danh sách SKU:", error);
+    return res.status(500).json({ message: "Lỗi server khi lấy danh sách SKU" });
   }
+}
+
+
+
 }
 
 module.exports = ComboController;
