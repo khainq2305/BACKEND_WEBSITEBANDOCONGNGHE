@@ -19,120 +19,69 @@ const {
 } = db;
 
 exports.searchByImage = async (req, res) => {
-  // ===== DEBUG helpers =====
   const startAt = Date.now();
-  const log = (...args) => console.log("[image-search]", ...args);
+  const log = (...a) => console.log("[image-search]", ...a);
 
   try {
-    // ---------- 1) Input & form-data ----------
     const filePath = req.file?.path;
-    if (!filePath) {
-      return res.status(400).json({ message: "Thiếu ảnh để tìm kiếm!" });
-    }
+    if (!filePath) return res.status(400).json({ message: "Thiếu ảnh để tìm kiếm!" });
 
     const FormData = require("form-data");
     const fs = require("fs");
     const path = require("path");
     const axios = require("axios");
 
+    // ---- build form-data
     const formData = new FormData();
     if (!/^https?:\/\//i.test(filePath)) {
       const abs = path.resolve(filePath);
       if (!fs.existsSync(abs)) {
-        log("Không tìm thấy file local:", abs);
+        log("Không thấy file local:", abs);
         return res.status(400).json({ message: "Không tìm thấy file ảnh upload." });
       }
       const stat = fs.statSync(abs);
       log("Ảnh local:", abs, "size:", stat.size);
       formData.append("image", fs.createReadStream(abs));
     } else {
-      // Ảnh là URL -> tải về bộ nhớ
-      const imgRes = await axios.get(filePath, { responseType: "arraybuffer", timeout: 30000 });
-      const ct = imgRes.headers["content-type"] || "image/jpeg";
-      log("Ảnh remote:", filePath, "content-type:", ct, "bytes:", imgRes.data?.length);
-      formData.append("image", Buffer.from(imgRes.data), { filename: "image", contentType: ct });
+      const img = await axios.get(filePath, { responseType: "arraybuffer", timeout: 30000 });
+      const ct = img.headers["content-type"] || "image/jpeg";
+      log("Ảnh remote:", filePath, "ct:", ct, "bytes:", img.data?.length);
+      formData.append("image", Buffer.from(img.data), { filename: "image", contentType: ct });
     }
 
-    // ---------- 2) Gọi Flask (có retry + ép IPv4 + keepAlive) ----------
-    const dns = require("dns");
-    const http = require("http");
-    const https = require("https");
-    dns.setDefaultResultOrder?.("ipv4first");
-
-    const httpAgent = new http.Agent({
-      keepAlive: true,
-      lookup: (host, opts, cb) => dns.lookup(host, { family: 4 }, cb),
-    });
-    const httpsAgent = new https.Agent({
-      keepAlive: true,
-      lookup: (host, opts, cb) => dns.lookup(host, { family: 4 }, cb),
-    });
-
+    // ---- call Flask (KHÔNG dùng custom Agent/lookup)
     const baseUrl = (process.env.FLASK_BASE_URL || "http://127.0.0.1:8000").trim().replace(/\/$/, "");
     log("FLASK_BASE_URL =", baseUrl);
 
-    const axiosOpts = {
-      headers: formData.getHeaders(),
+    const resp = await axios.post(`${baseUrl}/embed`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+        "User-Agent": "image-search/1.0",
+      },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
       timeout: 90000,
-      httpAgent,
-      httpsAgent,
-      validateStatus: (s) => s >= 200 && s < 500, // để mình tự xử lý 4xx/5xx
-    };
+    });
 
-    let flaskResponse;
-    let lastErr;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        log(`Gọi Flask /embed (attempt ${attempt})...`);
-        const t = Date.now();
-        const resp = await axios.post(`${baseUrl}/embed`, formData, axiosOpts);
-        log(`/embed HTTP`, resp.status, "ms:", Date.now() - t);
-
-        if (resp.status >= 200 && resp.status < 300) {
-          flaskResponse = resp;
-          break;
-        }
-        // trả về lỗi từ Flask
-        lastErr = new Error(`Flask trả về HTTP ${resp.status}`);
-        lastErr.response = resp;
-        if (![502, 503, 504].includes(resp.status)) break; // chỉ retry với lỗi tạm thời
-      } catch (e) {
-        lastErr = e;
-        const retriable =
-          ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN"].includes(e.code) ||
-          (e.response && [502, 503, 504].includes(e.response.status));
-        log(`Lỗi gọi Flask (attempt ${attempt}):`, e.code || e.message);
-        if (!retriable || attempt === 3) break;
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
-      }
-    }
-    if (!flaskResponse) {
-      // log chi tiết lỗi
-      if (lastErr?.response) {
-        log("Flask error body:", lastErr.response.data);
-        return res.status(500).json({
-          message: `Lỗi từ Flask API (${lastErr.response.status}): ${
-            lastErr.response.data?.error || JSON.stringify(lastErr.response.data)
-          }`,
-        });
-      }
+    log("/embed status:", resp.status);
+    if (resp.status < 200 || resp.status >= 300) {
       return res.status(500).json({
-        message: `Không kết nối được đến Flask API. Vui lòng kiểm tra Flask server. (${lastErr?.code || lastErr?.message || "UNKNOWN"})`,
+        message: `Lỗi từ Flask API (${resp.status}): ${
+          resp.data?.error || JSON.stringify(resp.data)
+        }`,
       });
     }
 
-    const queryEmbedding = flaskResponse.data?.vector;
+    const queryEmbedding = resp.data?.vector;
     if (!Array.isArray(queryEmbedding) || queryEmbedding.length < 100) {
       log("Vector không hợp lệ:", typeof queryEmbedding, "len:", queryEmbedding?.length);
       return res
         .status(500)
         .json({ message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn." });
     }
-    log("Vector OK, len:", queryEmbedding.length);
+    log("Vector OK len:", queryEmbedding.length);
 
-    // ---------- 3) Business: so khớp vector & dựng kết quả ----------
+    // ==== phần còn lại giữ nguyên business của bạn ====
     const ensureDiscount = (price, originalPrice, discountAmount, discountPercent) => {
       const p = Number(price) || 0;
       const op = Number(originalPrice) || 0;
@@ -147,6 +96,13 @@ exports.searchByImage = async (req, res) => {
     };
 
     const now = new Date();
+    const {
+      Product, Sku, ProductMedia, FlashSale, FlashSaleItem, FlashSaleCategory,
+    } = require("../../models");
+    const { Op, Sequelize } = require("sequelize");
+    const { processSkuPrices } = require("../../helpers/priceHelper");
+    const cosineSimilarity = require("cosine-similarity");
+
     const allActiveFlashSales = await FlashSale.findAll({
       where: { isActive: true, deletedAt: null, startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
       include: [
@@ -155,37 +111,23 @@ exports.searchByImage = async (req, res) => {
           as: "flashSaleItems",
           required: false,
           attributes: [
-            "id",
-            "flashSaleId",
-            "skuId",
-            "salePrice",
-            "quantity",
-            "maxPerUser",
-            [
-              Sequelize.literal(`(
-                SELECT COALESCE(SUM(oi.quantity), 0)
-                FROM orderitems oi
-                INNER JOIN orders o ON oi.orderId = o.id
-                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
-                  AND oi.skuId = flashSaleItems.skuId
-                  AND o.status IN ('completed', 'delivered')
-              )`),
-              "soldQuantityForFlashSaleItem",
-            ],
+            "id","flashSaleId","skuId","salePrice","quantity","maxPerUser",
+            [Sequelize.literal(`(
+              SELECT COALESCE(SUM(oi.quantity), 0)
+              FROM orderitems oi
+              INNER JOIN orders o ON oi.orderId = o.id
+              WHERE oi.flashSaleId = flashSaleItems.flashSaleId
+                AND oi.skuId = flashSaleItems.skuId
+                AND o.status IN ('completed', 'delivered')
+            )`),"soldQuantityForFlashSaleItem"],
           ],
-          include: [
-            {
-              model: Sku,
-              as: "sku",
-              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
-              include: [{ model: Product, as: "product", attributes: ["categoryId"] }],
-            },
-          ],
+          include: [{
+            model: Sku, as: "sku",
+            attributes: ["id","skuCode","price","originalPrice","stock","productId"],
+            include: [{ model: Product, as: "product", attributes: ["categoryId"] }],
+          }],
         },
-        {
-          model: FlashSaleCategory,
-          as: "categories",
-          required: false,
+        { model: FlashSaleCategory, as: "categories", required: false,
           include: [{ model: FlashSale, as: "flashSale", attributes: ["endTime"], required: false }],
         },
       ],
@@ -193,146 +135,93 @@ exports.searchByImage = async (req, res) => {
 
     const allActiveFlashSaleItemsMap = new Map();
     const allActiveCategoryDealsMap = new Map();
-
-    allActiveFlashSales.forEach((saleEvent) => {
-      const saleEndTime = saleEvent.endTime;
-      const saleId = saleEvent.id;
-
-      (saleEvent.flashSaleItems || []).forEach((fsi) => {
-        const sku = fsi.sku;
-        if (!sku) return;
+    allActiveFlashSales.forEach((sale) => {
+      const saleEndTime = sale.endTime; const saleId = sale.id;
+      (sale.flashSaleItems || []).forEach((fsi) => {
+        const sku = fsi.sku; if (!sku) return;
         const skuId = sku.id;
-        const flashItemSalePrice = parseFloat(fsi.salePrice);
-        const soldForThisItem = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0);
-        const flashLimit = fsi.quantity;
-        const isSoldOut = flashLimit != null && soldForThisItem >= flashLimit;
-
-        if (!allActiveFlashSaleItemsMap.has(skuId) || (!isSoldOut && flashItemSalePrice < allActiveFlashSaleItemsMap.get(skuId).salePrice)) {
-          allActiveFlashSaleItemsMap.set(skuId, {
-            salePrice: flashItemSalePrice,
-            quantity: flashLimit,
-            soldQuantity: soldForThisItem,
-            maxPerUser: fsi.maxPerUser,
-            flashSaleId: saleId,
-            flashSaleEndTime: saleEndTime,
-            isSoldOut,
-          });
+        const salePrice = parseFloat(fsi.salePrice);
+        const sold = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0);
+        const limit = fsi.quantity;
+        const soldOut = limit != null && sold >= limit;
+        if (!allActiveFlashSaleItemsMap.has(skuId) || (!soldOut && salePrice < allActiveFlashSaleItemsMap.get(skuId).salePrice)) {
+          allActiveFlashSaleItemsMap.set(skuId, { salePrice, quantity: limit, soldQuantity: sold, maxPerUser: fsi.maxPerUser, flashSaleId: saleId, flashSaleEndTime: saleEndTime, isSoldOut: soldOut });
         }
       });
-
-      (saleEvent.categories || []).forEach((fsc) => {
-        const categoryId = fsc.categoryId;
-        if (!allActiveCategoryDealsMap.has(categoryId)) allActiveCategoryDealsMap.set(categoryId, []);
-        allActiveCategoryDealsMap.get(categoryId).push({
-          discountType: fsc.discountType,
-          discountValue: fsc.discountValue,
-          priority: fsc.priority,
-          endTime: saleEndTime,
-          flashSaleId: saleId,
-          flashSaleCategoryId: fsc.id,
-        });
+      (sale.categories || []).forEach((fsc) => {
+        const list = allActiveCategoryDealsMap.get(fsc.categoryId) || [];
+        list.push({ discountType: fsc.discountType, discountValue: fsc.discountValue, priority: fsc.priority, endTime: saleEndTime, flashSaleId: saleId, flashSaleCategoryId: fsc.id });
+        allActiveCategoryDealsMap.set(fsc.categoryId, list);
       });
     });
 
     const productsWithEmbeddings = await Product.findAll({
       where: { imageVector: { [Op.ne]: null } },
-      attributes: ["id", "name", "slug", "thumbnail", "imageVector", "badge", "categoryId", "badgeImage"],
-      include: [
-        {
-          model: Sku,
-          as: "skus",
-          attributes: ["id", "price", "originalPrice", "stock", "skuCode"],
-          include: [{ model: ProductMedia, as: "ProductMedia", attributes: ["mediaUrl"], separate: true, limit: 1 }],
-        },
-      ],
+      attributes: ["id","name","slug","thumbnail","imageVector","badge","categoryId","badgeImage"],
+      include: [{
+        model: Sku, as: "skus",
+        attributes: ["id","price","originalPrice","stock","skuCode"],
+        include: [{ model: ProductMedia, as: "ProductMedia", attributes: ["mediaUrl"], separate: true, limit: 1 }],
+      }],
     });
 
     const scored = productsWithEmbeddings.map((p) => {
       const vector = JSON.parse(p.imageVector);
-      const score = require("cosine-similarity")(queryEmbedding, vector);
+      const score = cosineSimilarity(queryEmbedding, vector);
       return { product: p, score };
     });
 
-    const SIMILARITY_THRESHOLD = 0.8;
-    const MAX_RESULTS = 10;
+    const SIMILARITY_THRESHOLD = 0.8, MAX_RESULTS = 10;
+    const topResultsRaw = scored.filter(x => x.score >= SIMILARITY_THRESHOLD).sort((a,b)=>b.score-a.score).slice(0, MAX_RESULTS);
 
-    const topResultsRaw = scored
-      .filter((item) => item.score >= SIMILARITY_THRESHOLD)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_RESULTS);
+    const results = topResultsRaw.map(({ product, score }) => {
+      const skus = (product.skus || []).map((sku) => {
+        const helperInput = { ...sku.toJSON(), Product: { category: { id: product.categoryId } } };
+        const price = processSkuPrices(helperInput, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+        const finalPrice = Number(price.price) || Number(sku.price) || 0;
+        const finalOriginal = Number(price.originalPrice) || Number(sku.originalPrice) || 0;
+        const ensured = ensureDiscount(finalPrice, finalOriginal, price.discountAmount, price.discountPercent);
+        return { ...sku.toJSON(), price: finalPrice, originalPrice: finalOriginal, flashSaleInfo: price.flashSaleInfo, hasDeal: price.hasDeal, discountAmount: ensured.discountAmount, discountPercent: ensured.discountPercent };
+      }).sort((a,b)=>{
+        const af=a.flashSaleInfo?.dealApplied, bf=b.flashSaleInfo?.dealApplied;
+        if (af && !bf) return -1; if (!af && bf) return 1;
+        return (+a.price||0)-(+b.price||0);
+      });
 
-    const formattedResults = topResultsRaw.map(({ product, score }) => {
-      const skus = (product.skus || [])
-        .map((sku) => {
-          const skuDataForHelper = { ...sku.toJSON(), Product: { category: { id: product.categoryId } } };
-          const priceResults = processSkuPrices(skuDataForHelper, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
-          const finalPrice = Number(priceResults.price) || Number(sku.price) || 0;
-          const finalOriginal = Number(priceResults.originalPrice) || Number(sku.originalPrice) || 0;
-          const ensured = ensureDiscount(finalPrice, finalOriginal, priceResults.discountAmount, priceResults.discountPercent);
-          return {
-            ...sku.toJSON(),
-            price: finalPrice,
-            originalPrice: finalOriginal,
-            flashSaleInfo: priceResults.flashSaleInfo,
-            hasDeal: priceResults.hasDeal,
-            discountAmount: ensured.discountAmount,
-            discountPercent: ensured.discountPercent,
-          };
-        })
-        .sort((a, b) => {
-          const aHasFS = a.flashSaleInfo?.dealApplied;
-          const bHasFS = b.flashSaleInfo?.dealApplied;
-          if (aHasFS && !bHasFS) return -1;
-          if (!aHasFS && bHasFS) return 1;
-          return (+a.price || 0) - (+b.price || 0);
-        });
-
-      const primarySku = skus[0] || {};
-      const totalStock = (product.skus || []).reduce((s, x) => s + (parseInt(x.stock, 10) || 0), 0);
-      const ensuredTop = ensureDiscount(
-        primarySku.price,
-        primarySku.originalPrice,
-        primarySku.discountAmount,
-        primarySku.discountPercent
-      );
+      const primary = skus[0] || {};
+      const totalStock = (product.skus||[]).reduce((s,x)=>s+(parseInt(x.stock,10)||0),0);
+      const ensuredTop = ensureDiscount(primary.price, primary.originalPrice, primary.discountAmount, primary.discountPercent);
 
       return {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        thumbnail: product.thumbnail,
-        badge: product.badge,
-        image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
+        id: product.id, name: product.name, slug: product.slug,
+        thumbnail: product.thumbnail, badge: product.badge,
+        image: primary.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
         badgeImage: product.badgeImage,
-        price: primarySku.price,
-        oldPrice: primarySku.originalPrice,
-        originalPrice: primarySku.originalPrice,
-        discount: ensuredTop.discountPercent,
-        discountAmount: ensuredTop.discountAmount,
-        skus,
-        inStock: totalStock > 0,
-        similarity: score.toFixed(4),
+        price: primary.price, oldPrice: primary.originalPrice, originalPrice: primary.originalPrice,
+        discount: ensuredTop.discountPercent, discountAmount: ensuredTop.discountAmount,
+        skus, inStock: totalStock>0, similarity: score.toFixed(4),
       };
     });
 
-    log("OK, trả", formattedResults.length, "kết quả. ms:", Date.now() - startAt);
-    return res.status(200).json({ similarProducts: formattedResults });
+    log("OK ->", results.length, "results; ms:", Date.now() - startAt);
+    return res.status(200).json({ similarProducts: results });
   } catch (err) {
-    console.error("❌ Lỗi searchByImage:", err?.code || err?.message, err?.stack || "");
-    if (require("axios").isAxiosError(err)) {
+    const axios = require("axios");
+    console.error("❌ Lỗi searchByImage:", err.code || err.message);
+    if (axios.isAxiosError(err)) {
       if (err.response) {
         return res.status(500).json({
           message: `Lỗi từ Flask API (${err.response.status}): ${
             err.response.data?.error || JSON.stringify(err.response.data)
           }`,
         });
-      } else if (err.request) {
-        return res
-          .status(500)
-          .json({ message: `Không kết nối được đến Flask API. Vui lòng kiểm tra Flask server. (${err.code})` });
-      } else {
-        return res.status(500).json({ message: `Lỗi cấu hình request: ${err.message}` });
       }
+      if (err.request) {
+        return res.status(500).json({
+          message: `Không kết nối được đến Flask API. Vui lòng kiểm tra Flask server. (${err.code})`,
+        });
+      }
+      return res.status(500).json({ message: `Lỗi cấu hình request: ${err.message}` });
     }
     return res.status(500).json({ message: "Lỗi server khi tìm kiếm ảnh." });
   }
