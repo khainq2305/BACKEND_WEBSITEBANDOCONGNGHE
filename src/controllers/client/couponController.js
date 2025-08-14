@@ -13,7 +13,7 @@ const {
 const { formatCurrencyVND } = require('../../utils/formatCurrency');
 
 
-function formatCoupon(coupon, isApplicable, usedCount = 0) { // Thêm usedCount làm tham số
+function formatCoupon(coupon, isApplicable, usedCount = 0) { 
   return {
     id: coupon.id,
     code: coupon.code,
@@ -198,8 +198,8 @@ static async getAvailableCoupons(req, res) {
       const n = Number(req.query.skuId);
       if (!Number.isNaN(n)) skuIdsFromQuery.push(n);
     }
-
     skuIdsFromQuery = [...new Set(skuIdsFromQuery)];
+
     const orderTotalRaw = req.query.orderTotal;
     const orderTotal = Number(orderTotalRaw || 0);
 
@@ -207,11 +207,11 @@ static async getAvailableCoupons(req, res) {
     console.log("➡️ orderTotal (parsed):", orderTotal);
     console.log("➡️ skuIdsFromQuery:", skuIdsFromQuery);
 
+    // ✅ Lấy cả coupon sắp tới: chỉ cần đảm bảo chưa hết hạn
     const coupons = await Coupon.findAll({
       where: {
         isActive: true,
         deletedAt: null,
-        startTime: { [Op.lte]: now },
         endTime: { [Op.gte]: now },
       },
       include: [
@@ -223,7 +223,7 @@ static async getAvailableCoupons(req, res) {
           where: {
             [Op.or]: [
               { userId: userId },
-              { userId: { [Op.is]: null } }, // giúp include được luôn coupon public (type = public thì không có record trong bảng CouponUser)
+              { userId: { [Op.is]: null } }, // giúp include được coupon public
             ],
           },
           paranoid: false,
@@ -240,30 +240,33 @@ static async getAvailableCoupons(req, res) {
       paranoid: false,
     });
 
-    // Đếm lượt đã dùng cho tất cả coupon trước (để tránh gọi nhiều lần count trong map)
-    const couponIds = coupons.map(c => c.id);
-    const usedCounts = await Order.findAll({
-      where: {
-        couponId: couponIds,
-        status: { [Op.notIn]: ["cancelled", "failed"] },
-      },
-      attributes: ['couponId', [sequelize.fn('COUNT', sequelize.col('couponId')), 'usedCount']],
-      group: ['couponId']
-    });
+    // ✅ Đếm đã dùng (bỏ qua nếu không có coupon nào)
+    const couponIds = coupons.map((c) => c.id);
+    let usedCountMap = {};
+    if (couponIds.length) {
+      const usedCounts = await Order.findAll({
+        where: {
+          couponId: { [Op.in]: couponIds },
+          status: { [Op.notIn]: ["cancelled", "failed"] },
+        },
+        attributes: ["couponId", [sequelize.fn("COUNT", sequelize.col("couponId")), "usedCount"]],
+        group: ["couponId"],
+      });
 
-    const usedCountMap = {};
-    usedCounts.forEach(item => {
-      usedCountMap[item.couponId] = Number(item.get('usedCount'));
-    });
+      usedCountMap = {};
+      usedCounts.forEach((item) => {
+        usedCountMap[item.couponId] = Number(item.get("usedCount"));
+      });
+    }
 
     const data = coupons
       .filter((coupon) => {
-        // ⚠️ Lọc lại cho chắc chắn — nếu là private mà không gán user thì bỏ
+        // ⚠️ Nếu là private mà không gán user thì bỏ
         if (coupon.type === "private") {
           const allowedUserIds = coupon.users.map((u) => u.userId);
           return allowedUserIds.includes(userId);
         }
-        return true; // public luôn giữ lại
+        return true; // public giữ lại
       })
       .map((coupon) => {
         const allowedUserIds = coupon.users.map((u) => u.userId);
@@ -280,12 +283,15 @@ static async getAvailableCoupons(req, res) {
 
         const usedCount = usedCountMap[coupon.id] || 0;
 
-        const hasRemainingUsage =
-          typeof coupon.totalQuantity === 'number'
-            ? (coupon.totalQuantity === 0 ? false : usedCount < coupon.totalQuantity)
-            : true;
+        // 🔧 Nếu totalQuantity = 0 là không giới hạn => đổi thành unlimited
+        const unlimited = coupon.totalQuantity === null || typeof coupon.totalQuantity === "undefined";
+        const hasRemainingUsage = unlimited ? true : (coupon.totalQuantity === 0 ? true : usedCount < coupon.totalQuantity);
 
-        const isApplicable = userHasAccess && skuMatched && orderValid && hasRemainingUsage;
+        const hasStarted = coupon.startTime <= now;
+        const stillValid = coupon.endTime >= now;
+
+        // ✅ Chỉ áp dụng khi đã bắt đầu
+        const isApplicable = hasStarted && stillValid && userHasAccess && skuMatched && orderValid && hasRemainingUsage;
 
         console.log("------------------------------------------------------------");
         console.log(`🎟️ [Coupon Check] "${coupon.title || coupon.code}"`);
@@ -309,10 +315,24 @@ static async getAvailableCoupons(req, res) {
           timeNow: now,
           startTime: coupon.startTime,
           endTime: coupon.endTime,
-          timeValid: coupon.startTime <= now && coupon.endTime >= now
+          hasStarted,
+          stillValid,
+          timeValid: hasStarted && stillValid,
         });
 
-        return formatCoupon(coupon, isApplicable, usedCount);
+        const base = formatCoupon(coupon, isApplicable, usedCount);
+        return {
+          ...base,
+          isActiveNow: hasStarted && stillValid,
+          isUpcoming: !hasStarted && stillValid, // 🆕 FE có thể hiển thị "Sắp diễn ra"
+          startsInMs: !hasStarted ? (coupon.startTime - now) : 0, // tiện cho countdown nếu cần
+        };
+      })
+      // (Tùy chọn) Sắp xếp: active trước, rồi upcoming
+      .sort((a, b) => {
+        if (a.isActiveNow !== b.isActiveNow) return a.isActiveNow ? -1 : 1;
+        if (a.isUpcoming !== b.isUpcoming) return a.isUpcoming ? -1 : 1;
+        return 0;
       });
 
     return res.json({ data });
@@ -321,6 +341,7 @@ static async getAvailableCoupons(req, res) {
     return res.status(500).json({ message: "Lỗi server", error: err.message });
   }
 }
+
 
 
 

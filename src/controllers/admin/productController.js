@@ -20,7 +20,7 @@ const slugify = require("slugify");
 const {
   generateImageEmbedding,
 } = require("../../services/client/FlaskEmbeddingService");
-
+const dayjs = require("dayjs");
 const axios = require("axios");
 const FormData = require("form-data");
 const { Op, fn, col, literal, Sequelize } = require("sequelize");
@@ -247,25 +247,33 @@ class ProductController {
           );
         }
       }
-      try {
-        const embedding = await generateImageEmbedding(finalThumb);
-        if (embedding) {
-          product.imageVector = JSON.stringify(embedding);
-          await product.save({ transaction: t });
-        } else {
-          console.warn(
-            `[ProductController] Không nhận được vector từ Flask cho ${product.id}`
+      t.afterCommit(async () => {
+        try {
+          const embedding = await generateImageEmbedding(finalThumb);
+          if (embedding) {
+            await Product.update(
+              {
+                imageVector: JSON.stringify(embedding),
+                imageVectorUrl: finalThumb,
+              },
+              { where: { id: product.id } }
+            );
+          }
+        } catch (err) {
+          console.error(
+            "[ProductController] Lỗi tạo vector (post-commit):",
+            err
           );
         }
-      } catch (err) {
-        console.error(`[ProductController] Lỗi tạo vector từ Flask:`, err);
-      }
+      });
       await t.commit();
+
       return res.status(201).json({
         message: "Thêm sản phẩm thành công",
         data: product,
       });
     } catch (error) {
+        console.error('❌ ERROR CREATE PRODUCT:', err);
       await t.rollback();
       console.error("Lỗi tạo sản phẩm:", error);
       return res.status(500).json({
@@ -316,7 +324,6 @@ class ProductController {
 
       const productId = product.id;
 
-      // Xử lý slug nếu đổi tên
       let newSlug = product.slug;
       if (name && name !== product.name) {
         const baseSlug = slugify(name, { lower: true, strict: true });
@@ -365,7 +372,6 @@ class ProductController {
       );
       const finalBadgeImg =
         uploadedBadge?.path || badgeImage || product.badgeImage;
-      let imageVectorValue = product.imageVector; // Giữ vector cũ mặc định
 
       let imageUrlForVector = finalThumbnail;
 
@@ -378,6 +384,7 @@ class ProductController {
           const primarySkuIndex = skus.findIndex(
             (s) => s.id === primarySkuData.id || !s.id
           );
+
           const newPrimarySkuImageFile = req.files?.find(
             (f) => f.fieldname === `media_sku_${primarySkuIndex}`
           );
@@ -393,83 +400,22 @@ class ProductController {
         }
       }
 
-      // `product.imageVectorUrl` là tên cột đúng trong database của bạn nếu bạn có
-      const currentImageUrlInDbForVector = product.imageVectorUrl;
+      const baseUpdatePayload = {
+        name,
+        slug: newSlug,
+        description,
+        shortDescription,
+        thumbnail: finalThumbnail,
+        orderIndex,
+        isActive,
+        badgeImage: finalBadgeImg,
+        hasVariants,
+        categoryId,
+        brandId,
+        badge,
+      };
 
-      if (
-        imageUrlForVector &&
-        (imageUrlForVector !== currentImageUrlInDbForVector ||
-          !product.imageVector) && // Dùng product.imageVector
-        (imageUrlForVector.startsWith("http://") ||
-          imageUrlForVector.startsWith("https://"))
-      ) {
-        try {
-          const formDataForFlask = new FormData();
-          const imageRes = await axios.get(imageUrlForVector, {
-            responseType: "arraybuffer",
-          });
-          formDataForFlask.append("image", Buffer.from(imageRes.data), {
-            filename: "image.jpg",
-            contentType: "image/jpeg",
-          });
-
-          const flaskResponse = await axios.post(
-            FLASK_EMBED_API_URL,
-            formDataForFlask,
-            {
-              headers: formDataForFlask.getHeaders(),
-              maxBodyLength: Infinity,
-              maxContentLength: Infinity,
-              timeout: 60000,
-            }
-          );
-
-          const newVector = flaskResponse.data.vector;
-          if (Array.isArray(newVector) && newVector.length > 0) {
-            imageVectorValue = JSON.stringify(newVector); // Gán vào biến `imageVectorValue`
-            // product.imageVectorUrl = imageUrlForVector; // Nếu bạn có cột này và muốn update
-            console.log(
-              `✅ Đã tạo và cập nhật vector ảnh cho sản phẩm ${product.name}`
-            );
-          } else {
-            console.warn(
-              `⚠️ Flask API trả về vector không hợp lệ cho ảnh: ${imageUrlForVector}. Giữ vector cũ.`
-            );
-          }
-        } catch (flaskError) {
-          console.error(
-            `❌ Lỗi khi gửi ảnh đến Flask để tạo vector cho ${imageUrlForVector}:`,
-            flaskError.message
-          );
-        }
-      } else if (
-        !imageUrlForVector ||
-        !(
-          imageUrlForVector.startsWith("http://") ||
-          imageUrlForVector.startsWith("https://")
-        )
-      ) {
-        console.warn(
-          `Ảnh sản phẩm ${product.name} không có URL hợp lệ để tạo vector: ${imageUrlForVector}.`
-        );
-      }
-      await product.update(
-        {
-          name,
-          slug: newSlug,
-          description,
-          shortDescription,
-          thumbnail: finalThumbnail,
-          orderIndex,
-          isActive,
-          badgeImage: finalBadgeImg,
-          hasVariants,
-          categoryId,
-          brandId,
-          badge,
-        },
-        { transaction: t }
-      );
+      await product.update(baseUpdatePayload, { transaction: t });
 
       await ProductVariant.destroy({ where: { productId }, transaction: t });
       for (const variant of variants) {
@@ -495,8 +441,9 @@ class ProductController {
         }
         return code;
       };
+
       const getFileType = (url) => {
-        const ext = url.split(".").pop().toLowerCase();
+        const ext = (url?.split(".").pop() || "").toLowerCase();
         return ["mp4", "mov", "avi", "webm"].includes(ext) ? "video" : "image";
       };
 
@@ -545,6 +492,7 @@ class ProductController {
               { transaction: t }
             );
           }
+
           for (const valId of sku.variantValueIds || []) {
             await SkuVariantValue.create(
               { skuId, variantValueId: valId },
@@ -592,6 +540,7 @@ class ProductController {
               { transaction: t }
             );
           }
+
           for (const valId of sku.variantValueIds || []) {
             await SkuVariantValue.create(
               { skuId, variantValueId: valId },
@@ -601,18 +550,43 @@ class ProductController {
         }
       }
 
-      const skuIdsToDelete = [...existingMap.keys()].filter(
-        (id) => !seenSkuIds.has(id)
-      );
-      await ProductMedia.destroy({
-        where: { skuId: { [Op.in]: skuIdsToDelete } },
-        transaction: t,
-      });
-      await SkuVariantValue.destroy({
-        where: { skuId: { [Op.in]: skuIdsToDelete } },
-        transaction: t,
-      });
-      await Sku.destroy({ where: { id: skuIdsToDelete }, transaction: t });
+      const skuIdsToDelete = [...existingMap.keys()].filter(id => !seenSkuIds.has(id));
+
+if (skuIdsToDelete.length > 0) {
+  const usedRows = await OrderItem.findAll({
+    attributes: ["skuId"],
+    where: { skuId: { [Op.in]: skuIdsToDelete } },
+    raw: true,
+    transaction: t,
+  });
+
+  const usedSet  = new Set(usedRows.map(r => r.skuId));
+  const toArchive = skuIdsToDelete.filter(id => usedSet.has(id));
+  const toDelete  = skuIdsToDelete.filter(id => !usedSet.has(id));
+
+  if (toArchive.length > 0) {
+    await Sku.update(
+      { isActive: false },
+      { where: { id: { [Op.in]: toArchive } }, transaction: t }
+    );
+  }
+
+  if (toDelete.length > 0) {
+    await ProductMedia.destroy({
+      where: { skuId: { [Op.in]: toDelete } },
+      transaction: t,
+    });
+    await SkuVariantValue.destroy({
+      where: { skuId: { [Op.in]: toDelete } },
+      transaction: t,
+    });
+    await Sku.destroy({
+      where: { id: { [Op.in]: toDelete } },
+      transaction: t,       
+    });
+  }
+}
+
 
       await ProductInfo.destroy({ where: { productId }, transaction: t });
       if (infoContent) {
@@ -638,7 +612,94 @@ class ProductController {
         }
       }
 
+      async function buildImageBuffer(src) {
+        if (!src) return null;
+        try {
+          if (src.startsWith("http://") || src.startsWith("https://")) {
+            const resp = await axios.get(src, { responseType: "arraybuffer" });
+            return Buffer.from(resp.data);
+          }
+          const fs = require("fs");
+          if (fs.existsSync(src)) {
+            return fs.readFileSync(src);
+          }
+          return null;
+        } catch (e) {
+          console.warn("⚠️ Không thể đọc ảnh để tạo buffer:", e.message);
+          return null;
+        }
+      }
+
+      async function generateVectorAndSave(imageSrc) {
+        const buf = await buildImageBuffer(imageSrc);
+        if (!buf) {
+          console.warn(
+            `⚠️ Bỏ qua tạo vector vì không đọc được ảnh: ${imageSrc}`
+          );
+          return;
+        }
+
+        try {
+          const FormData = require("form-data");
+          const formData = new FormData();
+          formData.append("image", buf, {
+            filename: "image.jpg",
+            contentType: "image/jpeg",
+          });
+
+          const flaskResponse = await axios.post(
+            FLASK_EMBED_API_URL,
+            formData,
+            {
+              headers: formData.getHeaders(),
+              maxBodyLength: Infinity,
+              maxContentLength: Infinity,
+              timeout: 60000,
+            }
+          );
+
+          const newVector = flaskResponse?.data?.vector;
+          if (Array.isArray(newVector) && newVector.length > 0) {
+            const updatePayload = { imageVector: JSON.stringify(newVector) };
+
+            if ("imageVectorUrl" in product.dataValues) {
+              updatePayload.imageVectorUrl = imageSrc;
+            }
+            await Product.update(updatePayload, { where: { id: productId } });
+            console.log(
+              `✅ Đã tạo & lưu imageVector cho sản phẩm ${product.name}`
+            );
+          } else {
+            console.warn(
+              `⚠️ Flask trả vector không hợp lệ cho ảnh: ${imageSrc}`
+            );
+          }
+        } catch (e) {
+          console.error(
+            `❌ Lỗi tạo vector từ Flask cho ảnh: ${imageSrc}`,
+            e.message
+          );
+        }
+      }
+
+      const currentImageUrlInDbForVector = product.imageVectorUrl;
+      const needReembed =
+        imageUrlForVector &&
+        (imageUrlForVector !== currentImageUrlInDbForVector ||
+          !product.imageVector);
+
+      if (needReembed) {
+        t.afterCommit(async () => {
+          try {
+            await generateVectorAndSave(imageUrlForVector, product.id);
+          } catch (e) {
+            console.error("Vector post-commit failed:", e.message);
+          }
+        });
+      }
+
       await t.commit();
+
       return res.json({
         message: "Cập nhật sản phẩm thành công",
         data: product,
@@ -651,6 +712,7 @@ class ProductController {
         .json({ message: "Lỗi server", error: error.message });
     }
   }
+
   static async updateOrderIndexBulk(req, res) {
     const t = await Product.sequelize.transaction();
     try {
@@ -660,31 +722,30 @@ class ProductController {
         return res.status(400).json({ message: "Danh sách không hợp lệ." });
       }
 
- 
       for (const item of items) {
         if (!item.id || item.orderIndex == null || item.categoryId == null) {
           return res.status(400).json({ message: "Thiếu thông tin sản phẩm." });
         }
       }
 
-    
       const categoryIds = [...new Set(items.map((item) => item.categoryId))];
       if (categoryIds.length !== 1) {
-        return res.status(400).json({ message: "Chỉ được sắp xếp sản phẩm trong cùng một danh mục." });
+        return res.status(400).json({
+          message: "Chỉ được sắp xếp sản phẩm trong cùng một danh mục.",
+        });
       }
 
       const categoryId = categoryIds[0];
 
-    
       for (const item of items) {
         await Product.update(
           { orderIndex: item.orderIndex },
           {
             where: {
               id: item.id,
-              categoryId: categoryId 
+              categoryId: categoryId,
             },
-            transaction: t
+            transaction: t,
           }
         );
       }
@@ -696,132 +757,151 @@ class ProductController {
       console.error("updateOrderIndexBulk LỖI:", error);
       return res.status(500).json({
         message: "Lỗi cập nhật thứ tự sản phẩm.",
-        error: error.message
+        error: error.message,
       });
     }
   }
 
+ static async getAll(req, res) {
+  const t0 = Date.now();
+  try {
+    const {
+      filter = "all",
+      search = "",
+      categoryId,
+      page = 1,
+      limit = 10,
+      createdFrom,
+      createdTo,
+      startDate,
+      endDate,
+    } = req.query;
 
-  static async getAll(req, res) {
+    const pageNum  = Number(page)  || 1;
+    const limitNum = Number(limit) || 10;
+    const offset   = (pageNum - 1) * limitNum;
+
+   
+
+    const whereClause = {};
+    let paranoid = true;
+
+    if (filter === "active") whereClause.isActive = true;
+    else if (filter === "inactive") whereClause.isActive = false;
+    else if (filter === "deleted") {
+      whereClause.deletedAt = { [Op.ne]: null };
+      paranoid = false;
+    }
+
+    if (search) {
+      const like = { [Op.like]: `%${search}%` };
+      whereClause[Op.or] = [{ name: like }, { slug: like }];
+    }
+    if (categoryId) whereClause.categoryId = categoryId;
+
+    const normalizeDate = (str) => {
+      if (!str || typeof str !== "string") return "";
+      const s = str.trim();
+      if (!s) return "";
+      if (s.includes("/")) {
+        const [d, m, y] = s.split("/");
+        return `${y}-${m}-${d}`;
+      }
+      return s;
+    };
+
+    const fromStr = normalizeDate(createdFrom ?? startDate ?? "");
+    const toStr   = normalizeDate(createdTo   ?? endDate   ?? "");
+ 
+    if (fromStr || toStr) {
+      let gte = fromStr ? new Date(`${fromStr}T00:00:00`) : undefined;
+      let lte = toStr   ? new Date(`${toStr}T23:59:59`) : undefined;
+
+      const gteValid = gte instanceof Date && !Number.isNaN(gte?.getTime());
+      const lteValid = lte instanceof Date && !Number.isNaN(lte?.getTime());
+
+      if (gteValid && lteValid && gte > lte) { const tmp = gte; gte = lte; lte = tmp; }
+
+      const createdAt = {};
+      if (gteValid) createdAt[Op.gte] = gte;
+      if (lteValid) createdAt[Op.lte] = lte;
+      if (gteValid || lteValid) whereClause.createdAt = createdAt;
+
+      
+    }
+
+
+
+    const findOpts = {
+      where: whereClause,
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name"] },
+        { model: Sku,      as: "skus",     attributes: ["stock"] },
+      ],
+      attributes: { include: ["deletedAt"] },
+      order: categoryId ? [["orderIndex", "ASC"]] : [["createdAt", "DESC"]],
+      offset,
+      limit: limitNum,
+      paranoid,
+      distinct: true, 
+
+    };
+
+   
+
+    const result = await Product.findAndCountAll(findOpts);
+
+    const products   = result.rows || [];
+    const totalItems = Array.isArray(result.count) ? result.count.length : result.count;
+
+  
+    for (const p of products) {
+      const stocks = p.skus?.map((s) => s.stock || 0) || [];
+      const totalStock = stocks.reduce((sum, v) => sum + v, 0);
+      const anyLow = stocks.some((s) => s <= 5);
+      p.setDataValue("totalStock", totalStock);
+      p.setDataValue("lowStockWarning", anyLow);
+    }
+
+    const totalPages = Math.ceil((Number(totalItems) || 0) / limitNum);
+  
+
+    let activeCount = 0, inactiveCount = 0, deletedCount = 0, lowStockCount = 0;
     try {
-      const {
-        filter = "all",
-        search = "",
-        categoryId,
-        page = 1,
-        limit = 10,
-      } = req.query;
-
-      const offset = (page - 1) * limit;
-      const whereClause = {};
-
-      let paranoid = true;
-
-      if (filter === "active") {
-        whereClause.isActive = true;
-      } else if (filter === "inactive") {
-        whereClause.isActive = false;
-      } else if (filter === "deleted") {
-        whereClause.deletedAt = { [Op.ne]: null };
-        paranoid = false;
-      }
-
-      if (search) {
-        const searchCondition = { [Op.like]: `%${search}%` };
-        whereClause[Op.or] = [
-          { name: searchCondition },
-          { slug: searchCondition },
-        ];
-      }
-
-      if (categoryId) {
-        whereClause.categoryId = categoryId;
-      }
-
-      const { rows: products, count: totalItems } =
-        await Product.findAndCountAll({
-          where: whereClause,
+      const counts = await Promise.all([
+        Product.count({ where: { isActive: true,  deletedAt: null } }),
+        Product.count({ where: { isActive: false, deletedAt: null } }),
+        Product.count({ where: { deletedAt: { [Op.ne]: null } }, paranoid: false }),
+        Product.count({
           include: [
-            {
-              model: Category,
-              as: "category",
-              attributes: ["id", "name"],
-            },
-            {
-              model: Sku,
-              as: "skus",
-              attributes: ["stock"],
-            },
+            { model: Sku, as: "skus", attributes: [], where: { stock: { [Op.lte]: 5 } }, required: true },
           ],
-          attributes: {
-            include: ["deletedAt"],
-          },
-          order: categoryId
-            ? [["orderIndex", "ASC"]]
-            : [["createdAt", "DESC"]],
-
-          offset: parseInt(offset),
-          limit: parseInt(limit),
-          paranoid,
-        });
-      for (const p of products) {
-        const stocks = p.skus?.map((sku) => sku.stock || 0) || [];
-        const totalStock = stocks.reduce((sum, val) => sum + val, 0);
-        const anyLow = stocks.some((s) => s <= 5);
-
-        p.setDataValue('totalStock', totalStock);
-        p.setDataValue('lowStockWarning', anyLow);
-      }
-
-
-      const totalPages = Math.ceil(totalItems / limit);
-      const [activeCount, inactiveCount, deletedCount, lowStockCount] =
-        await Promise.all([
-          Product.count({ where: { isActive: true, deletedAt: null } }),
-          Product.count({ where: { isActive: false, deletedAt: null } }),
-          Product.count({
-            where: { deletedAt: { [Op.ne]: null } },
-            paranoid: false,
-          }),
-          Product.count({
-            include: [
-              {
-                model: Sku,
-                as: "skus",
-                attributes: [],
-                where: {
-                  stock: { [Op.lte]: 5 },
-                },
-                required: true,
-              },
-            ],
-            where: {
-              deletedAt: null,
-            },
-          }),
-        ]);
-
-      res.json({
-        data: products,
-        pagination: {
-          totalItems,
-          totalPages,
-          currentPage: parseInt(page),
-          limit: parseInt(limit),
-        },
-        counts: {
-          all: activeCount + inactiveCount,
-          active: activeCount,
-          inactive: inactiveCount,
-          deleted: deletedCount,
-          lowStock: lowStockCount,
-        },
-      });
-    } catch (error) {
-      console.error("Lỗi getAll:", error);
-      res.status(500).json({ message: "Lỗi server", error: error.message });
+          where: { deletedAt: null },
+          distinct: true, 
+          
+        }),
+      ]);
+      [activeCount, inactiveCount, deletedCount, lowStockCount] = counts;
+    } catch (e) {
+      console.error("[PRODUCT][COUNT_ERR]", e?.message || e);
     }
+
+    res.json({
+      data: products,
+      pagination: { totalItems, totalPages, currentPage: pageNum, limit: limitNum },
+      counts: { all: activeCount + inactiveCount, active: activeCount, inactive: inactiveCount, deleted: deletedCount, lowStock: lowStockCount },
+      debug: { where: whereClause, paranoid, tookMs: Date.now() - t0 },
+    });
+  } catch (error) {
+    console.error("[PRODUCT][GET_ALL_ERROR]", {
+      message: error?.message, name: error?.name,
+      stack: error?.stack?.split("\n").slice(0,3).join(" | "),
+      parent: error?.parent?.message, sql: error?.parent?.sql
+    });
+    res.status(500).json({ message: "Lỗi máy chủ", error: error?.message || "Unknown error" });
   }
+}
+
 
   static async getCategoryTree(req, res) {
     try {
@@ -980,7 +1060,7 @@ class ProductController {
             mediaUrls: (sku.ProductMedia || [])
               .sort((a, b) => a.sortOrder - b.sortOrder)
               .map((m) => ({
-                id: m.mediaUrl, // tạm lấy mediaUrl làm id
+                id: m.mediaUrl,
                 url: m.mediaUrl,
                 type: m.type || getFileType(m.mediaUrl),
               })),
@@ -1082,7 +1162,7 @@ class ProductController {
       }
 
       await product.restore();
-      const restoredProduct = await Product.findOne({ where: { id } }); 
+      const restoredProduct = await Product.findOne({ where: { id } });
       req.auditNewValue = restoredProduct.toJSON();
       res.json({ message: "Đã khôi phục sản phẩm", data: restoredProduct });
     } catch (error) {
@@ -1107,166 +1187,160 @@ class ProductController {
     }
   }
 
- static async forceDelete(req, res) {
-  const t = await Product.sequelize.transaction();
-  try {
-    const { id } = req.params;
+  static async forceDelete(req, res) {
+    const t = await Product.sequelize.transaction();
+    try {
+      const { id } = req.params;
 
-    // 1. Tìm sản phẩm kể cả đã xoá mềm
-    const product = await Product.findByPk(id, {
-      paranoid: false,
-      transaction: t,
-    });
-    if (!product) {
-      await t.rollback();
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
-    }
-
-    // 2. Lấy tất cả SKU của sản phẩm
-    const skus = await Sku.findAll({
-      where: { productId: id },
-      attributes: ["id"],
-      raw: true,
-      transaction: t,
-    });
-    const skuIds = skus.map((s) => s.id);
-
-   
-    const usedInOrder = await OrderItem.count({
-      where: { skuId: skuIds },
-      transaction: t,
-    });
-    if (usedInOrder > 0) {
-      await t.rollback();
-      return res.status(400).json({
-        message:
-          "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
-          "Hãy giữ lại để bảo toàn lịch sử.",
+      const product = await Product.findByPk(id, {
+        paranoid: false,
+        transaction: t,
       });
-    }
+      if (!product) {
+        await t.rollback();
+        return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
+      }
 
-    const opts = { force: true, transaction: t };
-
-    // 4. Xóa dữ liệu liên quan
-    await CartItem.destroy({ where: { skuId: skuIds }, ...opts });
-    await WishlistItem.destroy({ where: { productId: id }, ...opts });
-    await ProductView.destroy({ where: { productId: id }, ...opts }); 
-    await ProductMedia.destroy({ where: { skuId: skuIds }, ...opts });
-    await SkuVariantValue.destroy({ where: { skuId: skuIds }, ...opts });
-    await ProductSpec.destroy({ where: { productId: id }, ...opts });
-    await ProductInfo.destroy({ where: { productId: id }, ...opts });
-    await ProductVariant.destroy({ where: { productId: id }, ...opts });
-
-   
-    await Sku.destroy({ where: { id: skuIds }, ...opts });
-
-   
-    await product.destroy(opts);
-
-    
-    await t.commit();
-    return res.json({ message: "Đã xoá vĩnh viễn sản phẩm" });
-  } catch (err) {
-    if (!t.finished) await t.rollback();
-
-    if (err.name === "SequelizeForeignKeyConstraintError") {
-      return res.status(400).json({
-        message:
-          "Không thể xoá vĩnh viễn vì sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+      const skus = await Sku.findAll({
+        where: { productId: id },
+        attributes: ["id"],
+        raw: true,
+        transaction: t,
       });
-    }
+      const skuIds = skus.map((s) => s.id);
 
-    console.error("Lỗi forceDelete:", err);
-    return res.status(500).json({ message: "Lỗi server", error: err.message });
+      const usedInOrder = await OrderItem.count({
+        where: { skuId: skuIds },
+        transaction: t,
+      });
+      if (usedInOrder > 0) {
+        await t.rollback();
+        return res.status(400).json({
+          message:
+            "Không thể xoá vĩnh viễn vì sản phẩm đã từng xuất hiện trong đơn hàng.\n" +
+            "Hãy giữ lại để bảo toàn lịch sử.",
+        });
+      }
+
+      const opts = { force: true, transaction: t };
+
+      await CartItem.destroy({ where: { skuId: skuIds }, ...opts });
+      await WishlistItem.destroy({ where: { productId: id }, ...opts });
+      await ProductView.destroy({ where: { productId: id }, ...opts });
+      await ProductMedia.destroy({ where: { skuId: skuIds }, ...opts });
+      await SkuVariantValue.destroy({ where: { skuId: skuIds }, ...opts });
+      await ProductSpec.destroy({ where: { productId: id }, ...opts });
+      await ProductInfo.destroy({ where: { productId: id }, ...opts });
+      await ProductVariant.destroy({ where: { productId: id }, ...opts });
+
+      await Sku.destroy({ where: { id: skuIds }, ...opts });
+
+      await product.destroy(opts);
+
+      await t.commit();
+      return res.json({ message: "Đã xoá vĩnh viễn sản phẩm" });
+    } catch (err) {
+      if (!t.finished) await t.rollback();
+
+      if (err.name === "SequelizeForeignKeyConstraintError") {
+        return res.status(400).json({
+          message:
+            "Không thể xoá vĩnh viễn vì sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+        });
+      }
+
+      console.error("Lỗi forceDelete:", err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server", error: err.message });
+    }
   }
-}
 
- static async forceDeleteMany(req, res) {
-  const t = await Product.sequelize.transaction();
-  try {
-    const { ids = [] } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
-    }
+  static async forceDeleteMany(req, res) {
+    const t = await Product.sequelize.transaction();
+    try {
+      const { ids = [] } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+      }
 
-    const skus = await Sku.findAll({
-      where: { productId: ids },
-      attributes: ["id", "productId"],
-      raw: true,
-      transaction: t,
-    });
-    const skuIds = skus.map((s) => s.id);
-
-    const orderCnt = await OrderItem.findAll({
-      where: { skuId: skuIds },
-      attributes: ["skuId"],
-      raw: true,
-      transaction: t,
-    });
-    const blockedSkuIds = new Set(orderCnt.map((o) => o.skuId));
-    const blockedProductIds = new Set(
-      skus.filter((s) => blockedSkuIds.has(s.id)).map((s) => s.productId)
-    );
-
-    const deletableProductIds = ids.filter(
-      (pid) => !blockedProductIds.has(pid)
-    );
-    if (deletableProductIds.length === 0) {
-      await t.rollback();
-      return res.status(400).json({
-        message:
-          "Không thể xoá vì tất cả sản phẩm đã xuất hiện trong đơn hàng.\n" +
-          "Hãy giữ lại để bảo toàn lịch sử.",
+      const skus = await Sku.findAll({
+        where: { productId: ids },
+        attributes: ["id", "productId"],
+        raw: true,
+        transaction: t,
       });
-    }
+      const skuIds = skus.map((s) => s.id);
 
-    const deletableSkuIds = skus
-      .filter((s) => deletableProductIds.includes(s.productId))
-      .map((s) => s.id);
-
-    const opts = { force: true, transaction: t };
-
-    const modelsToDelete = [
-      { m: CartItem, cond: { skuId: deletableSkuIds } },
-      { m: WishlistItem, cond: { productId: deletableProductIds } },
-      { m: ProductView, cond: { productId: deletableProductIds } },
-      { m: ProductMedia, cond: { skuId: deletableSkuIds } },
-      { m: SkuVariantValue, cond: { skuId: deletableSkuIds } },
-      { m: ProductSpec, cond: { productId: deletableProductIds } },
-      { m: ProductInfo, cond: { productId: deletableProductIds } },
-      { m: ProductVariant, cond: { productId: deletableProductIds } },
-      { m: Sku, cond: { id: deletableSkuIds } },
-      { m: Product, cond: { id: deletableProductIds } },
-    ];
-
-    for (const item of modelsToDelete) {
-      await item.m.destroy({ where: item.cond, ...opts });
-    }
-
-    await t.commit();
-
-    const msgOk = `Đã xoá vĩnh viễn ${deletableProductIds.length} sản phẩm.`;
-    const msgBad = blockedProductIds.size
-      ? `\nKhông xoá ${blockedProductIds.size} sản phẩm vì đã có trong đơn hàng.`
-      : "";
-    return res.json({ message: msgOk + msgBad });
-
-  } catch (error) {
-    if (!t.finished) await t.rollback();
-
-    if (error.name === "SequelizeForeignKeyConstraintError") {
-      return res.status(400).json({
-        message:
-          "Không thể xoá vĩnh viễn vì một số sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+      const orderCnt = await OrderItem.findAll({
+        where: { skuId: skuIds },
+        attributes: ["skuId"],
+        raw: true,
+        transaction: t,
       });
-    }
+      const blockedSkuIds = new Set(orderCnt.map((o) => o.skuId));
+      const blockedProductIds = new Set(
+        skus.filter((s) => blockedSkuIds.has(s.id)).map((s) => s.productId)
+      );
 
-    console.error("forceDeleteMany error:", error);
-    return res.status(500).json({ message: "Lỗi server", error: error.message });
+      const deletableProductIds = ids.filter(
+        (pid) => !blockedProductIds.has(pid)
+      );
+      if (deletableProductIds.length === 0) {
+        await t.rollback();
+        return res.status(400).json({
+          message:
+            "Không thể xoá vì tất cả sản phẩm đã xuất hiện trong đơn hàng.\n" +
+            "Hãy giữ lại để bảo toàn lịch sử.",
+        });
+      }
+
+      const deletableSkuIds = skus
+        .filter((s) => deletableProductIds.includes(s.productId))
+        .map((s) => s.id);
+
+      const opts = { force: true, transaction: t };
+
+      const modelsToDelete = [
+        { m: CartItem, cond: { skuId: deletableSkuIds } },
+        { m: WishlistItem, cond: { productId: deletableProductIds } },
+        { m: ProductView, cond: { productId: deletableProductIds } },
+        { m: ProductMedia, cond: { skuId: deletableSkuIds } },
+        { m: SkuVariantValue, cond: { skuId: deletableSkuIds } },
+        { m: ProductSpec, cond: { productId: deletableProductIds } },
+        { m: ProductInfo, cond: { productId: deletableProductIds } },
+        { m: ProductVariant, cond: { productId: deletableProductIds } },
+        { m: Sku, cond: { id: deletableSkuIds } },
+        { m: Product, cond: { id: deletableProductIds } },
+      ];
+
+      for (const item of modelsToDelete) {
+        await item.m.destroy({ where: item.cond, ...opts });
+      }
+
+      await t.commit();
+
+      const msgOk = `Đã xoá vĩnh viễn ${deletableProductIds.length} sản phẩm.`;
+      const msgBad = blockedProductIds.size
+        ? `\nKhông xoá ${blockedProductIds.size} sản phẩm vì đã có trong đơn hàng.`
+        : "";
+      return res.json({ message: msgOk + msgBad });
+    } catch (error) {
+      if (!t.finished) await t.rollback();
+
+      if (error.name === "SequelizeForeignKeyConstraintError") {
+        return res.status(400).json({
+          message:
+            "Không thể xoá vĩnh viễn vì một số sản phẩm vẫn còn dữ liệu liên quan (VD: lượt xem, đánh giá, bình luận...).",
+        });
+      }
+
+      console.error("forceDeleteMany error:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server", error: error.message });
+    }
   }
-}
-
-
 }
 
 module.exports = ProductController;

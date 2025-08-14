@@ -5,7 +5,7 @@ module.exports = async function autoCancelReturnRequests() {
   try {
     const now = new Date();
 
-    // 1. Huỷ yêu cầu chưa chọn phương thức sau deadline
+
     const expiredNoMethod = await ReturnRequest.findAll({
       where: {
         status: 'approved',
@@ -20,7 +20,7 @@ module.exports = async function autoCancelReturnRequests() {
       await req.save();
     }
 
-    // 2. Huỷ yêu cầu self_send nhưng không nhập trackingCode sau 3 ngày
+
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 3);
 

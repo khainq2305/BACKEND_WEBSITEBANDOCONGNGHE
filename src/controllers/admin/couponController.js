@@ -4,6 +4,7 @@ const {
   Role,
   CouponUser,
   CouponItem,
+  SpinReward,
   User,
   Sku,
 } = require("../../models");
@@ -256,15 +257,33 @@ class CouponController {
     try {
       const { id } = req.params;
       const coupon = await Coupon.findOne({ where: { id }, paranoid: false });
-      if (!coupon)
+      if (!coupon) {
         return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+      }
+
+      const hasUsed = await CouponUser.findOne({
+        where: { couponId: id, used: 1 },
+      });
+      if (hasUsed) {
+        return res.status(400).json({
+          message: "Không thể xoá mã giảm giá vì đã được sử dụng",
+        });
+      }
 
       await coupon.destroy({ force: true });
       res.json({ message: "Đã xoá vĩnh viễn" });
     } catch (err) {
-      res
-        .status(500)
-        .json({ message: " Lỗi xoá vĩnh viễn", error: err.message });
+      if (err.name === "SequelizeForeignKeyConstraintError") {
+        return res.status(400).json({
+          message: "Không thể xoá mã giảm giá vì đang được sử dụng",
+        });
+      }
+
+      console.error("forceDelete error:", err);
+      res.status(500).json({
+        message: "Lỗi xoá vĩnh viễn",
+        error: err.message,
+      });
     }
   }
 
@@ -272,42 +291,95 @@ class CouponController {
     const t = await sequelize.transaction();
     try {
       const { ids } = req.body;
-      if (!Array.isArray(ids))
+      if (!Array.isArray(ids)) {
         return res.status(400).json({ message: "Danh sách ID không hợp lệ" });
+      }
 
-     
+      const usedCoupons = await CouponUser.findAll({
+        where: {
+          couponId: { [Op.in]: ids },
+          used: 1,
+        },
+        attributes: ["couponId"],
+        group: ["couponId"],
+      });
+
+      const usedCouponIds = usedCoupons.map((c) => c.couponId);
+
+      if (usedCouponIds.length === ids.length) {
+        return res.status(400).json({
+          message: "Không thể xoá các mã giảm giá vì đã được sử dụng",
+          usedCouponIds,
+        });
+      }
+
+      const deletableIds = ids.filter((id) => !usedCouponIds.includes(id));
+
+      if (deletableIds.length === 0) {
+        return res.status(400).json({
+          message: "Không có mã nào đủ điều kiện xoá",
+        });
+      }
+
       await CouponUser.destroy({
-        where: { couponId: { [Op.in]: ids } },
+        where: { couponId: { [Op.in]: deletableIds } },
         force: true,
         transaction: t,
       });
       await CouponItem.destroy({
-        where: { couponId: { [Op.in]: ids } },
+        where: { couponId: { [Op.in]: deletableIds } },
+        force: true,
+        transaction: t,
+      });
+      await SpinReward.destroy({
+        where: { couponId: { [Op.in]: deletableIds } },
         force: true,
         transaction: t,
       });
 
       await Coupon.destroy({
-        where: { id: { [Op.in]: ids } },
+        where: { id: { [Op.in]: deletableIds } },
         force: true,
         transaction: t,
       });
 
       await t.commit();
-      res.json({ message: "Đã xoá vĩnh viễn nhiều mã" });
+
+      let msg = `Đã xoá vĩnh viễn ${deletableIds.length} mã`;
+      if (usedCouponIds.length > 0) {
+        msg += `. ${usedCouponIds.length} mã đã bị bỏ qua vì đã được sử dụng`;
+      }
+
+      res.json({
+        message: msg,
+        deletedIds: deletableIds,
+        skippedIds: usedCouponIds,
+      });
     } catch (err) {
       await t.rollback();
+
+      if (err.name === "SequelizeForeignKeyConstraintError") {
+        return res.status(400).json({
+          message: "Không thể xoá mã giảm giá vì đang được sử dụng",
+        });
+      }
+
       console.error("forceDeleteMany error:", err);
-      res
-        .status(500)
-        .json({ message: "Lỗi xoá vĩnh viễn nhiều", error: err.message });
+      res.status(500).json({
+        message: "Lỗi xoá vĩnh viễn nhiều",
+        error: err.message,
+      });
     }
   }
 
   static async getUsers(req, res) {
     try {
       const list = await User.findAll({
-        where: { deletedAt: null },
+        where: {
+          deletedAt: {
+            [Op.is]: null,
+          },
+        },
         include: [
           {
             model: Role,
@@ -372,7 +444,6 @@ class CouponController {
             attributes: ["skuId"],
             paranoid: false,
           },
-          
         ],
         paranoid: false,
       });
@@ -385,7 +456,6 @@ class CouponController {
         ...coupon.toJSON(),
         userIds: coupon.users?.map((c) => c.userId) || [],
         productIds: coupon.products?.map((c) => c.skuId) || [],
-
       });
     } catch (err) {
       console.error("Lỗi getById:", err);

@@ -23,28 +23,24 @@ const User = connection.define(
       allowNull: true,
       comment: "Mật khẩu cũ gần nhất (hash)",
     },
-    // walletEmailVerified: {
-    //   type: DataTypes.BOOLEAN,
-    //   allowNull: false,
-    //   defaultValue: false,
-    //   comment: "Người dùng đã xác minh email cho ví hay chưa",
-    // },
-wallet2FASecret: {
-  type: DataTypes.STRING,
-  allowNull: true,
-  comment: "Secret key cho Google Authenticator (Base32)"
-},
-wallet2FAStatus: {
-  type: DataTypes.ENUM("pending", "active"),
-  allowNull: true,
-  comment: "Trạng thái bật Google Authenticator cho ví (pending: mới tạo QR, active: đã xác minh OTP)"
-},
 
-wallet2FAEnabledAt: {
-  type: DataTypes.DATE,
-  allowNull: true,
-  comment: "Thời điểm xác minh OTP thành công và kích hoạt 2FA cho ví"
-},
+    wallet2FASecret: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Secret key cho Google Authenticator (Base32)",
+    },
+    wallet2FAStatus: {
+      type: DataTypes.ENUM("pending", "active"),
+      allowNull: true,
+      comment:
+        "Trạng thái bật Google Authenticator cho ví (pending: mới tạo QR, active: đã xác minh OTP)",
+    },
+
+    wallet2FAEnabledAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Thời điểm xác minh OTP thành công và kích hoạt 2FA cho ví",
+    },
     passwordChangedAt: {
       type: DataTypes.DATE,
       allowNull: true,
@@ -112,9 +108,13 @@ wallet2FAEnabledAt: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "MembershipTiers", // tên bảng đúng trong DB
+        model: "MembershipTiers",
         key: "id",
       },
+    },
+    deletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     totalSpent: {
       type: DataTypes.INTEGER,

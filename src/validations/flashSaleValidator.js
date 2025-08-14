@@ -11,6 +11,7 @@ const validateFlashSale = async (req, res, next) => {
 
   const { title, startTime, endTime, items, categories } = req.body;
   const orderIndexRaw = req.body.orderIndex;
+
   if (
     orderIndexRaw !== undefined &&
     orderIndexRaw !== null &&
@@ -48,17 +49,6 @@ const validateFlashSale = async (req, res, next) => {
   const isValidStart = startTime && validator.isISO8601(startTime);
   const isValidEnd = endTime && validator.isISO8601(endTime);
 
-  if (!isEdit && isValidStart) {
-    const now = new Date();
-    const start = new Date(startTime);
-    if (start < now) {
-      errors.push({
-        field: "startTime",
-        message: "Thời gian bắt đầu không được nằm trong quá khứ",
-      });
-    }
-  }
-
   if (!isValidStart) {
     errors.push({ field: "startTime", message: "Thời gian bắt đầu không hợp lệ" });
   }
@@ -82,7 +72,7 @@ const validateFlashSale = async (req, res, next) => {
     if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
       errors.push({
         field: "bannerImage",
-        message: "Chỉ chấp nhận ảnh .jpg, .jpeg, .png",
+        message: "Chỉ chấp nhận ảnh .jpg, .jpeg, .png, .webp",
       });
     }
   }
@@ -110,46 +100,44 @@ const validateFlashSale = async (req, res, next) => {
 
   if (parsedItems.length) {
     const skuIds = parsedItems.map((i) => i.skuId);
-    const skusInDB = await Sku.findAll({
-      where: { id: { [Op.in]: skuIds } },
-      attributes: ["id", "originalPrice"],
-    });
+   const skusInDB = await Sku.findAll({
+  where: { id: { [Op.in]: skuIds } },
+  attributes: ["id", "originalPrice", "stock"],
+});
 
-    const priceMap = skusInDB.reduce((acc, s) => {
-      acc[s.id] = Number(s.originalPrice);
-      return acc;
-    }, {});
+const priceMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.originalPrice)]));
+const stockMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.stock)]));
+
+
+   
 
     parsedItems.forEach((item, index) => {
       const ori = priceMap[item.skuId];
-      if (ori !== undefined && Number(item.salePrice) >= ori) {
+
+      if (item.salePrice == null || item.salePrice === "") {
+        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale là bắt buộc" });
+      } else if (Number(item.salePrice) < 0) {
+        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale không được âm" });
+      } else if (ori !== undefined && Number(item.salePrice) >= ori) {
         errors.push({
           field: `items[${index}].salePrice`,
           message: "Giá sale phải nhỏ hơn giá gốc",
         });
       }
 
-      if (item.salePrice == null || item.salePrice === "") {
-        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale là bắt buộc" });
-      } else if (Number(item.salePrice) < 0) {
-        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale không được âm" });
-      }
-
       const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
       if (!Number.isInteger(qty) || qty < 0) {
         errors.push({ field: `items[${index}].quantity`, message: "Số lượng phải là số nguyên >= 0" });
       }
+const stock = stockMap[item.skuId];
+if (stock !== undefined && Number.isFinite(stock) && qty > stock) {
+  errors.push({
+    field: `items[${index}].quantity`,
+    message: `Không vượt quá tồn kho (${stock})`,
+  });
+}
 
-      if (isEdit && existingItemsMap[item.skuId]) {
-        const old = existingItemsMap[item.skuId];
-        const soldCount = Math.max(old.originalQuantity - old.quantity, 0);
-        if (qty < soldCount) {
-          errors.push({
-            field: `items[${index}].quantity`,
-            message: `Không thể đặt số lượng nhỏ hơn số đã bán (${soldCount})`,
-          });
-        }
-      }
+     
     });
   }
 
@@ -169,24 +157,24 @@ const validateFlashSale = async (req, res, next) => {
 
   parsedCategories.forEach((cat, index) => {
     const discountType = cat.discountType || "percent";
-    const discountValueStr = cat.discountValue;
+    const valStr = cat.discountValue;
 
-    if (discountValueStr == null || discountValueStr === "" || isNaN(Number(discountValueStr))) {
+    if (valStr == null || valStr === "" || isNaN(Number(valStr))) {
       errors.push({
         field: `categories[${index}].discountValue`,
         message: "Giá trị giảm là bắt buộc",
       });
     } else {
-      const discountValue = Number(discountValueStr);
+      const val = Number(valStr);
       if (discountType === "percent") {
-        if (discountValue <= 0 || discountValue > 100) {
+        if (val <= 0 || val > 100) {
           errors.push({
             field: `categories[${index}].discountValue`,
             message: "% phải từ 1 đến 100",
           });
         }
       } else {
-        if (discountValue <= 0) {
+        if (val <= 0) {
           errors.push({
             field: `categories[${index}].discountValue`,
             message: "Phải là số dương",

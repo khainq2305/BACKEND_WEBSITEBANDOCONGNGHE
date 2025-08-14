@@ -46,8 +46,6 @@ const validateCoupon = async (req, res, next) => {
     });
   }
 
-  
-
   if (maxUsagePerUser === undefined || maxUsagePerUser === "") {
     errors.push({
       field: "maxUsagePerUser",
@@ -131,16 +129,15 @@ const validateCoupon = async (req, res, next) => {
   }
 
   if (
-  totalQuantity !== undefined &&
-  totalQuantity !== "" &&
-  (isNaN(totalQuantity) || Number(totalQuantity) < 0)
-) {
-  errors.push({
-    field: "totalQuantity",
-    message: "Tổng số lượng không hợp lệ",
-  });
-}
-
+    totalQuantity !== undefined &&
+    totalQuantity !== "" &&
+    (isNaN(totalQuantity) || Number(totalQuantity) < 0)
+  ) {
+    errors.push({
+      field: "totalQuantity",
+      message: "Tổng số lượng không hợp lệ",
+    });
+  }
 
   if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) < 0) {
     errors.push({
@@ -199,19 +196,6 @@ const validateCoupon = async (req, res, next) => {
       message: "Ngày kết thúc phải sau ngày bắt đầu",
     });
   }
-if (!isUpdate && validator.isISO8601(startTime)) {
-  const now = new Date();
-  const start = new Date(startTime);
-
-  if (start < now) {
-    errors.push({
-      field: "startTime",
-      message: "Ngày bắt đầu không được trong quá khứ",
-    });
-  }
-}
-
-
 
   const existing = await Coupon.findOne({
     where: {

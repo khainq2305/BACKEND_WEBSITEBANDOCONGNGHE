@@ -103,12 +103,10 @@ class OrderController {
       }
 
       if (!addressId || !items?.length || !paymentMethodId) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán).",
-          });
+        return res.status(400).json({
+          message:
+            "Thiếu dữ liệu đơn hàng (địa chỉ, sản phẩm, hoặc phương thức thanh toán).",
+        });
       }
 
       const [validPayment, selectedAddress] = await Promise.all([
@@ -143,21 +141,16 @@ class OrderController {
           attributes: ["wallet2FASecret"],
         });
         if (!userRow?.wallet2FASecret) {
-          return res
-            .status(403)
-            .json({
-              message:
-                "Bạn cần bật Google Authenticator để thanh toán bằng ví.",
-            });
+          return res.status(403).json({
+            message: "Bạn cần bật Google Authenticator để thanh toán bằng ví.",
+          });
         }
 
         // validate format + verify TOTP
         if (!/^\d{6}$/.test(gaToken)) {
-          return res
-            .status(400)
-            .json({
-              message: "Thiếu hoặc sai mã Google Authenticator (6 số).",
-            });
+          return res.status(400).json({
+            message: "Thiếu hoặc sai mã Google Authenticator (6 số).",
+          });
         }
 
         const ok = speakeasy.totp.verify({
@@ -168,11 +161,9 @@ class OrderController {
         });
 
         if (!ok) {
-          return res
-            .status(400)
-            .json({
-              message: "Mã Google Authenticator không hợp lệ hoặc đã hết hạn.",
-            });
+          return res.status(400).json({
+            message: "Mã Google Authenticator không hợp lệ hoặc đã hết hạn.",
+          });
         }
       }
       const now = new Date();
@@ -205,11 +196,9 @@ class OrderController {
       });
 
       if (skuList.length !== skuIdsToFetch.length) {
-        return res
-          .status(400)
-          .json({
-            message: "Một hoặc nhiều sản phẩm không tồn tại trong hệ thống.",
-          });
+        return res.status(400).json({
+          message: "Một hoặc nhiều sản phẩm không tồn tại trong hệ thống.",
+        });
       }
 
       const skuMap = new Map(skuList.map((s) => [s.id, s]));
@@ -279,11 +268,9 @@ class OrderController {
             .json({ message: `Không tìm thấy SKU ${it.skuId}` });
         }
         if (it.quantity > sku.stock) {
-          return res
-            .status(400)
-            .json({
-              message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.`,
-            });
+          return res.status(400).json({
+            message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.`,
+          });
         }
 
         const priceResult = processSkuPrices(
@@ -338,11 +325,9 @@ class OrderController {
         });
 
         if (!couponRecord) {
-          return res
-            .status(400)
-            .json({
-              message: "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.",
-            });
+          return res.status(400).json({
+            message: "Mã giảm giá không hợp lệ hoặc đã hết hiệu lực.",
+          });
         }
 
         const usedByOthers = await Order.count({
@@ -547,7 +532,7 @@ class OrderController {
         await WalletTransaction.create(
           {
             walletId: wallet.id,
-            type: "purchase", // ✅ sửa lại cho trùng ENUMm
+            type: "purchase",
             amount: finalPrice,
             description: `Thanh toán đơn hàng ${
               newOrder?.orderCode || "[chưa tạo]"
@@ -600,7 +585,6 @@ class OrderController {
           lock: t.LOCK.UPDATE,
         });
 
-        // ✅ Ghi nhận luôn nếu coupon được dùng (bất kể discount > 0 hay không)
         await couponUser.increment("used", { by: 1, transaction: t });
         await couponRecord.increment("usedCount", { by: 1, transaction: t });
       }
@@ -631,7 +615,7 @@ class OrderController {
             points: rewardPoints,
             type: "earn",
             description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
-            expiresAt: new Date(Date.now() + 1 * 60 * 1000), // ✅ hết hạn sau 1 phút
+            expiresAt: new Date(Date.now() + 1 * 60 * 1000),
           },
           { transaction: t }
         );
@@ -656,28 +640,50 @@ class OrderController {
         message = `Đơn ${newOrder.orderCode} đã được tạo. Vui lòng thanh toán khi nhận hàng.`;
       }
 
-      const notification = await Notification.create(
+      const clientNotification = await Notification.create(
         {
           title,
           message,
           slug: `order-${newOrder.orderCode}`,
           type: "order",
-          referenceId: newOrder.id,
+          targetRole: "client",
+          targetId: newOrder.id,
           link: `/user-profile/orders/${newOrder.orderCode}`,
+          isGlobal: false,
         },
         { transaction: t }
       );
 
       await NotificationUser.create(
-        { notificationId: notification.id, userId: user.id },
+        {
+          notificationId: clientNotification.id,
+          userId: user.id,
+          isRead: false,
+        },
         { transaction: t }
       );
 
-      // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
+      const buyer = await User.findByPk(user.id, {
+        attributes: ["fullName"],
+        transaction: t,
+      });
 
-      // Thay thế đoạn code tạo mjmlContent cũ bằng đoạn code này:
+      await Notification.create(
+        {
+          title: "Có đơn hàng mới",
+          message: `Đơn ${newOrder.orderCode} vừa được đặt bởi ${
+            buyer?.fullName || "Khách hàng"
+          }.`,
+          slug: `order-admin-${newOrder.orderCode}`,
+          type: "order",
+          targetRole: "admin",
+          targetId: newOrder.id,
+          link: `/admin/orders/${newOrder.id}`,
+          isGlobal: true,
+        },
+        { transaction: t }
+      );
 
-      // Cách 1: Sử dụng toán tử 3 ngôi
       const addressParts = [
         selectedAddress.streetAddress,
         selectedAddress.ward ? selectedAddress.ward.name : null,
@@ -698,7 +704,7 @@ class OrderController {
         rewardPoints,
         userName: selectedAddress.fullName,
         userPhone: selectedAddress.phone,
-        userAddress: fullUserAddress, // <-- Sử dụng biến mới đã xử lý
+        userAddress: fullUserAddress,
         orderItems: orderItemsForEmail,
         companyName: "Cyberzone",
         companyLogoUrl:
@@ -709,7 +715,6 @@ class OrderController {
         orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${newOrder.orderCode}`,
       });
 
-      // Biên dịch MJML sang HTML
       const { html: emailHtml } = mjml2html(mjmlContent);
       try {
         await sendEmail(

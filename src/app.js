@@ -20,8 +20,6 @@ const allowOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9999')
   .map(s => s.trim());
 
 app.use((req, res, next) => {
-  console.log('🌐 Request Origin:', req.headers.origin);
-  console.log('✅ Allowed Origins:', allowOrigins);
   next();
 });
 
@@ -30,7 +28,6 @@ app.use(cors({
     if (!origin || allowOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('❌ Blocked by CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },

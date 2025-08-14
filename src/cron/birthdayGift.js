@@ -4,63 +4,61 @@ const {
   User,
   CouponUser,
   Notification,
-  NotificationUser
+  NotificationUser,
 } = require("../models");
 
 const sendEmail = require("../utils/sendEmail");
-
-// ID của mã giảm giá sinh nhật (bạn cấu hình mã này trước)
 const BIRTHDAY_COUPON_ID = 29;
 
 cron.schedule("* * * * *", async () => {
-
   try {
     const today = new Date();
     const day = today.getDate();
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
 
-    // Tìm user có sinh nhật hôm nay và chưa nhận voucher trong năm hiện tại
     const birthdayUsers = await User.findAll({
       where: {
         [Op.and]: [
-     Sequelize.where(Sequelize.fn("DAY", Sequelize.col("dateOfBirth")), day),
-Sequelize.where(Sequelize.fn("MONTH", Sequelize.col("dateOfBirth")), month),
+          Sequelize.where(
+            Sequelize.fn("DAY", Sequelize.col("dateOfBirth")),
+            day
+          ),
+          Sequelize.where(
+            Sequelize.fn("MONTH", Sequelize.col("dateOfBirth")),
+            month
+          ),
 
           {
             [Op.or]: [
               { receivedBirthdayVoucherYear: null },
-              { receivedBirthdayVoucherYear: { [Op.ne]: year } }
-            ]
-          }
-        ]
-      }
+              { receivedBirthdayVoucherYear: { [Op.ne]: year } },
+            ],
+          },
+        ],
+      },
     });
 
     if (!birthdayUsers.length) {
       return console.log("🎉 Không có user sinh nhật hôm nay.");
     }
 
-    console.log(`🎁 Đang xử lý ${birthdayUsers.length} user sinh nhật hôm nay.`);
-
     for (const user of birthdayUsers) {
       const { id: userId, email, fullName } = user;
 
-      // Gắn coupon cho user
       await CouponUser.create({
         userId,
-        couponId: BIRTHDAY_COUPON_ID
+        couponId: BIRTHDAY_COUPON_ID,
       });
 
-      // Cập nhật user đã nhận voucher trong năm
       await user.update({ receivedBirthdayVoucherYear: year });
 
-      // Tạo notification
       const notification = await Notification.create({
         title: "🎁 Chúc mừng sinh nhật!",
-        message: "Bạn đã nhận được một mã giảm giá đặc biệt nhân dịp sinh nhật 🎉",
-        imageUrl: "https://example.com/birthday-banner.png", // link ảnh tùy chỉnh
-        link: "/khuyen-mai", // đường dẫn tùy chỉnh
+        message:
+          "Bạn đã nhận được một mã giảm giá đặc biệt nhân dịp sinh nhật 🎉",
+        imageUrl: "https://example.com/birthday-banner.png",
+        link: "/khuyen-mai",
         type: "promotion",
         slug: `birthday-voucher-${userId}-${Date.now()}`,
         isGlobal: false,
@@ -70,7 +68,7 @@ Sequelize.where(Sequelize.fn("MONTH", Sequelize.col("dateOfBirth")), month),
 
       await NotificationUser.create({
         userId,
-        notificationId: notification.id
+        notificationId: notification.id,
       });
 
       // Gửi email
@@ -83,7 +81,11 @@ Sequelize.where(Sequelize.fn("MONTH", Sequelize.col("dateOfBirth")), month),
       `;
 
       if (email) {
-        await sendEmail(email, "🎁 Mừng sinh nhật! Nhận ngay ưu đãi đặc biệt", html);
+        await sendEmail(
+          email,
+          "🎁 Mừng sinh nhật! Nhận ngay ưu đãi đặc biệt",
+          html
+        );
       }
 
       console.log(`🎉 Gửi thành công cho userId ${userId}`);

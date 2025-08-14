@@ -19,6 +19,8 @@ const WalletTransaction = require("./WalletTransaction");
 
 const ReturnRequest = require("./returnRequest");
 const StockLog = require("./StockLog")
+const BannerCate = require("./bannercate");
+const BannerItem = require("./banneritem");
 
 const ProductHomeSection = require("./productHomeSection");
 const ProductInfo = require("./productinfo.model");
@@ -374,7 +376,7 @@ Product.belongsToMany(Variant, {
   through: ProductVariant,
   foreignKey: "productId",
   otherKey: "variantId",
-  as: "variants", // alias này chỉ cần nếu bạn muốn dùng product.variants sau này
+  as: "variants", 
 });
 
 Variant.belongsToMany(Product, {
@@ -457,27 +459,44 @@ PaymentTransaction.belongsTo(PaymentMethod, {
 });
 
 //
-Banner.belongsTo(Category, {
-  foreignKey: "categoryId",
-  as: "category",
+// Banner <-> Category (qua bảng BannerCate)
+Banner.belongsToMany(Category, {
+  through: BannerCate,
+  foreignKey: "bannerId",
+  otherKey: "categoryId",
+  as: "categories"
 });
-Category.hasMany(Banner, {
+Category.belongsToMany(Banner, {
+  through: BannerCate,
   foreignKey: "categoryId",
-  as: "banners",
+  otherKey: "bannerId",
+  as: "banners"
 });
+
+// Banner <-> BannerItem (1-n)
+Banner.hasMany(BannerItem, { foreignKey: "bannerId", as: "items" });
+BannerItem.belongsTo(Banner, { foreignKey: "bannerId", as: "banner" });
+
 User.hasMany(ProductView, { foreignKey: "userId", as: "productViews" });
 ProductView.belongsTo(User, { foreignKey: "userId", as: "user" });
 
 Product.hasMany(ProductView, { foreignKey: "productId", as: "views" });
 ProductView.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
-Banner.belongsTo(Product, {
-  foreignKey: "productId",
-  as: "product",
+BannerItem.belongsTo(Product, { foreignKey: "productId", as: "product" });
+Product.hasMany(BannerItem, { foreignKey: "productId", as: "bannerItems" });
+Banner.belongsToMany(Product, {
+  through: { model: BannerItem, unique: false },
+  foreignKey: 'bannerId',
+  otherKey: 'productId',
+  as: 'products'
 });
-Product.hasMany(Banner, {
-  foreignKey: "productId",
-  as: "banners",
+
+Product.belongsToMany(Banner, {
+  through: { model: BannerItem, unique: false },
+  foreignKey: 'productId',
+  otherKey: 'bannerId',
+  as: 'banners'
 });
 
 //
@@ -762,6 +781,8 @@ module.exports = {
   ProviderProvince,
   ProviderDistrict,
   ProviderWard,
+BannerCate,
+BannerItem,
 
   SpinReward,
   UserSpin,

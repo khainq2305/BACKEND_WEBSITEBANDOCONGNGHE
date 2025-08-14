@@ -79,7 +79,7 @@ const Product = sequelize.define(
   {
     tableName: "products",
     timestamps: true,
-    paranoid: true, // dùng để tự động xử lý soft-delete qua deletedAt
+    paranoid: true,
   }
 );
 

@@ -36,27 +36,12 @@ const validateBanner = async (req, res, next) => {
     });
   }
 
-  // === 2. Ngày
   const isValidStart = startDate && validator.isISO8601(startDate);
   const isValidEnd = endDate && validator.isISO8601(endDate);
 
-  if (startDate) {
-    if (!isValidStart) {
-      errors.push({ field: "startDate", message: "Ngày bắt đầu không hợp lệ" });
-    } else if (!isEdit) {
-      const now = new Date();
-      const start = new Date(startDate);
-      if (start < now) {
-        errors.push({
-          field: "startDate",
-          message: "Ngày bắt đầu không được nằm trong quá khứ",
-        });
-      }
-    }
-
-
+  if (startDate && !isValidStart) {
+    errors.push({ field: "startDate", message: "Ngày bắt đầu không hợp lệ" });
   }
-
 
   if (endDate && !isValidEnd) {
     errors.push({ field: "endDate", message: "Ngày kết thúc không hợp lệ" });
@@ -85,11 +70,9 @@ const validateBanner = async (req, res, next) => {
 
   const slug = slugify(title.trim(), { lower: true, strict: true });
   const slugCheckWhere = { slug };
-
   if (isEdit && currentBannerId) {
     slugCheckWhere.id = { [Op.ne]: currentBannerId };
   }
-
   const existing = await Banner.findOne({ where: slugCheckWhere });
   if (existing) {
     errors.push({ field: "title", message: "Tiêu đề đã tồn tại" });

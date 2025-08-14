@@ -18,8 +18,8 @@ const Banner = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    linkUrl: {
-      type: DataTypes.STRING,
+     linkUrl: {
+      type: DataTypes.TEXT('long'), 
       allowNull: true,
     },
     altText: {

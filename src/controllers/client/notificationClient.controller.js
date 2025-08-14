@@ -3,50 +3,59 @@ const { Notification, NotificationUser } = require("../../models");
 const { Op } = require("sequelize");
 
 const NotificationClientController = {
-  async getForCurrentUser(req, res) {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
+  async  getForCurrentUser(req, res) {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ message: "Chưa đăng nhập" });
 
-    try {
-      const notifications = await Notification.findAll({
-        where: {
-          isActive: true,
-          [Op.or]: [{ startAt: null }, { startAt: { [Op.lte]: new Date() } }],
-          [Op.or]: [
-            { isGlobal: true },
-            { "$notificationUsers.userId$": userId },
-          ],
-        },
+  const role = req.user?.role === "admin" ? "admin" : "client";
 
-        include: [
+  try {
+    const notifications = await Notification.findAll({
+      where: {
+        isActive: true,
+        [Op.and]: [
+          { [Op.or]: [{ startAt: null }, { startAt: { [Op.lte]: new Date() } }] },
           {
-            model: NotificationUser,
-            as: "notificationUsers",
-            required: false,
-            where: { userId },
-            attributes: ["isRead", "readAt"],
+            [Op.or]: [
+              {
+                [Op.and]: [
+                  { isGlobal: true },
+                  { targetRole: { [Op.in]: [role, null] } },
+                ],
+              },
+              { "$notificationUsers.userId$": userId },
+            ],
           },
         ],
-        order: [
-          ["startAt", "DESC"],
-          ["createdAt", "DESC"],
-        ],
-      });
+      },
+      include: [
+        {
+          model: NotificationUser,
+          as: "notificationUsers",
+          required: false,
+          where: { userId },
+          attributes: ["isRead", "readAt"]
+        },
+      ],
+      order: [
+        ["startAt", "DESC"],
+        ["createdAt", "DESC"],
+      ],
+    });
 
-      const formatted = notifications.map((n) => {
-        const noti = n.toJSON();
-        const userLink = noti.notificationUsers?.[0];
-        noti.isRead = userLink?.isRead === true;
-        delete noti.notificationUsers;
-        return noti;
-      });
+    const formatted = notifications.map(n => {
+      const obj = n.toJSON();
+      obj.isRead = obj.notificationUsers?.[0]?.isRead === true;
+      delete obj.notificationUsers;
+      return obj;
+    });
 
-      return res.json(formatted);
-    } catch (err) {
-      console.error("Lỗi lấy thông báo client:", err);
-      return res.status(500).json({ message: "Lỗi máy chủ" });
-    }
-  },
+    return res.json(formatted);
+  } catch (err) {
+    return res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+}
+,
 
   async markAsRead(req, res) {
     const userId = req.user?.id;

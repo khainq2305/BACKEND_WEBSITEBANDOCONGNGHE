@@ -330,296 +330,177 @@ const NotificationController = {
     }
   },
 
-  // async getByRole(req, res) {
-  //   try {
-  //     const userId = req.user.id;
-  //     const roleId = req.user.roleId || req.user.roles?.[0]?.id;
 
-  //     console.log("🔐 USER:", req.user);
-  //     console.log("🔎 Extracted roleId:", roleId);
+  async getByRole(req, res) {
+    try {
+      const userId = req.user.id;
+      const roleId = req.user.roleId || req.user.roles?.[0]?.id;
 
-  //     if (!roleId) {
-  //       return res.status(403).json({ message: "Thiếu roleId" });
-  //     }
-
-  //     // 🎯 Chỉ cho các role: Admin, Sales, Kế toán (roleId 1, 3, 5)
-  //     if (![1, 3, 5].includes(roleId)) {
-  //       return res.json([]);
-  //     }
-
-  //     // ✅ Thông báo gán trực tiếp qua NotificationUser
-  //     let notificationTypeFilter = {};
-
-  //     if (roleId === 5) {
-  //       notificationTypeFilter.type = "order";
-  //     } else if (roleId === 3) {
-  //       notificationTypeFilter.type = "system";
-  //     }
-
-  //     const notiUsers = await NotificationUser.findAll({
-  //       where: { userId },
-  //       include: [
-  //         {
-  //           model: Notification,
-  //           where: {
-  //             isActive: true,
-  //             ...notificationTypeFilter,
-  //           },
-  //           required: true,
-  //         },
-  //       ],
-  //     });
-
-  //     const notiFromUsers = notiUsers.map((n) => ({
-  //       ...n.Notification.toJSON(),
-  //       isRead: n.isRead,
-  //       source: "user",
-  //     }));
-
-  //     // ✅ Thông báo global theo role
-  //     let globalNotifications = [];
-
-  //     if (roleId === 1) {
-  //       globalNotifications = await Notification.findAll({
-  //         where: { isGlobal: true, isActive: true },
-  //       });
-  //     } else if (roleId === 5) {
-  //       globalNotifications = await Notification.findAll({
-  //         where: {
-  //           isGlobal: true,
-  //           isActive: true,
-  //           type: "order",
-  //         },
-  //       });
-  //     } else if (roleId === 3) {
-  //       globalNotifications = await Notification.findAll({
-  //         where: {
-  //           isGlobal: true,
-  //           isActive: true,
-  //           type: "system",
-  //         },
-  //       });
-  //     }
-
-  //     const notiFromGlobal = globalNotifications.map((n) => ({
-  //       ...n.toJSON(),
-  //       isRead: false,
-  //       source: "global",
-  //     }));
-
-  //     // ✅ Gộp và sắp xếp
-  //     const result = [...notiFromUsers, ...notiFromGlobal];
-  //     result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  //     // ✅ Log kết quả
-  //     console.log("📥 Tổng thông báo gửi về:", result.length);
-  //     result.forEach((n) =>
-  //       console.log(
-  //         `📌 [${n.source.toUpperCase()}] ${n.title} | type: ${
-  //           n.type
-  //         } | isRead: ${n.isRead}`
-  //       )
-  //     );
-
-  //     return res.json(result);
-  //   } catch (err) {
-  //     console.error("❌ Lỗi getByRole:", err);
-  //     return res.status(500).json({ message: "Lỗi máy chủ" });
-  //   }
-  // },
-async getByRole(req, res) {
-  try {
-    const userId = req.user.id;
-    const roleId = req.user.roleId || req.user.roles?.[0]?.id;
-
-    if (!roleId) {
-      return res.status(403).json({ message: "Thiếu roleId" });
-    }
-
-    if (![1, 3, 5].includes(roleId)) {
-      return res.json([]);
-    }
-
-    let notificationTypeFilter = {};
-
-    if (roleId === 5) {
-      notificationTypeFilter.type = "order";
-    } else if (roleId === 3) {
-      notificationTypeFilter.type = "system";
-    }
-
-    const notiUsers = await NotificationUser.findAll({
-      where: { userId },
-      include: [
-        {
-          model: Notification,
-          where: {
-            isActive: true,
-            ...notificationTypeFilter,
-          },
-          required: true,
-        },
-      ],
-    });
-
-    const notiFromUsers = notiUsers.map((n) => ({
-      ...n.Notification.toJSON(),
-      isRead: n.isRead,
-      source: "user",
-    }));
-
-    // Lấy global notifications
-    let globalNotifications = [];
-
-    if (roleId === 1) {
-      globalNotifications = await Notification.findAll({
-        where: { isGlobal: true, isActive: true },
-      });
-    } else if (roleId === 5) {
-      globalNotifications = await Notification.findAll({
-        where: {
-          isGlobal: true,
-          isActive: true,
-          type: "order",
-        },
-      });
-    } else if (roleId === 3) {
-      globalNotifications = await Notification.findAll({
-        where: {
-          isGlobal: true,
-          isActive: true,
-          type: "system",
-        },
-      });
-    }
-
-    // Map global notifications có kiểm tra isRead dựa trên NotificationUser
-    const notiFromGlobal = await Promise.all(
-      globalNotifications.map(async (n) => {
-        const record = await NotificationUser.findOne({
-          where: {
-            notificationId: n.id,
-            userId,
-          },
-        });
-        return {
-          ...n.toJSON(),
-          isRead: record ? record.isRead : false,
-          source: "global",
-        };
-      })
-    );
-
-    // Gộp 2 mảng và lọc duplicate notification theo id
-    const combined = [...notiFromUsers, ...notiFromGlobal];
-
-    const map = new Map();
-    for (const n of combined) {
-      if (!map.has(n.id)) {
-        map.set(n.id, n);
+      if (!roleId) {
+        return res.status(403).json({ message: "Thiếu roleId" });
       }
-    }
 
-    const result = Array.from(map.values()).sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+      if (![1, 3, 5].includes(roleId)) {
+        return res.json([]);
+      }
 
-    return res.json(result);
-  } catch (err) {
-    console.error("❌ Lỗi getByRole:", err);
-    return res.status(500).json({ message: "Lỗi máy chủ" });
-  }
-},
+      const typeByRole = {
+        5: "order",
+        3: "system",
+        1: null
+      };
 
+      const notificationTypeFilter = {
+        targetRole: "admin", // chỉ lấy thông báo cho admin
+        ...(typeByRole[roleId] ? { type: typeByRole[roleId] } : {})
+      };
 
-async markAsRead(req, res) {
-  try {
-    const { id } = req.params; // notificationId
-    const userId = req.user?.id;
+      const notiUsers = await NotificationUser.findAll({
+        where: { userId },
+        include: [
+          {
+            model: Notification,
+            where: { isActive: true, ...notificationTypeFilter },
+            required: true,
+          },
+        ],
+      });
 
-    if (!id || !userId) {
-      return res.status(400).json({ message: 'Thiếu thông tin' });
-    }
+      const notiFromUsers = notiUsers.map(n => ({
+        ...n.Notification.toJSON(),
+        isRead: n.isRead,
+        source: "user",
+      }));
 
-    // Tìm hoặc tạo bản ghi notificationUser
-    const [record, created] = await NotificationUser.findOrCreate({
-      where: { notificationId: id, userId },
-      defaults: { isRead: true, readAt: new Date() },
-    });
-
-    // Nếu bản ghi đã tồn tại nhưng chưa đọc thì update
-    if (!created && !record.isRead) {
-      record.isRead = true;
-      record.readAt = new Date();
-      await record.save();
-    }
-
-    return res.json({ message: 'Đã đánh dấu là đã đọc' });
-  } catch (error) {
-    console.error('Lỗi markAsRead:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ' });
-  }
-},
-async markAllAsRead(req, res) {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: "Thiếu thông tin người dùng" });
-    }
-
-    // Lấy tất cả thông báo global, active cùng trạng thái đã đọc của user
-    const globalNotifications = await Notification.findAll({
-      where: {
+      const globalWhere = {
         isGlobal: true,
         isActive: true,
-      },
-      include: [
-        {
-          model: NotificationUser,
-          as: "notificationUsers",  // PHẢI CÓ alias đúng
-          required: false,
-          where: { userId },
-          attributes: ["id", "isRead", "readAt"],
-        },
-      ],
-    });
+        targetRole: "admin",
+        ...(typeByRole[roleId] ? { type: typeByRole[roleId] } : {})
+      };
 
-    const toUpdateIds = [];
-    const toInsertData = [];
+      const globalNotifications = await Notification.findAll({ where: globalWhere });
 
-    globalNotifications.forEach((notification) => {
-      const record = notification.notificationUsers?.[0];
-      if (record) {
-        if (!record.isRead) {
-          toUpdateIds.push(record.id);
-        }
-      } else {
-        toInsertData.push({
-          notificationId: notification.id,
-          userId,
-          isRead: true,
-          readAt: new Date(),
-        });
-      }
-    });
-
-    if (toInsertData.length > 0) {
-      await NotificationUser.bulkCreate(toInsertData);
-    }
-
-    if (toUpdateIds.length > 0) {
-      await NotificationUser.update(
-        { isRead: true, readAt: new Date() },
-        { where: { id: toUpdateIds } }
+      const notiFromGlobal = await Promise.all(
+        globalNotifications.map(async n => {
+          const record = await NotificationUser.findOne({
+            where: { notificationId: n.id, userId },
+          });
+          return {
+            ...n.toJSON(),
+            isRead: record ? record.isRead : false,
+            source: "global",
+          };
+        })
       );
-    }
 
-    return res.status(200).json({ message: "Đã đánh dấu tất cả là đã đọc" });
-  } catch (err) {
-    console.error("❌ markAllAsRead error:", err);
-    return res.status(500).json({ message: "Lỗi máy chủ khi đánh dấu đã đọc" });
+      const combined = [...notiFromUsers, ...notiFromGlobal];
+      const uniqueMap = new Map();
+      for (const n of combined) {
+        if (!uniqueMap.has(n.id)) {
+          uniqueMap.set(n.id, n);
+        }
+      }
+
+      const result = Array.from(uniqueMap.values()).sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      return res.json(result);
+    } catch (err) {
+      console.error("❌ Lỗi getByRole:", err);
+      return res.status(500).json({ message: "Lỗi máy chủ" });
+    }
+  },
+
+  async markAsRead(req, res) {
+    try {
+      const { id } = req.params; // notificationId
+      const userId = req.user?.id;
+
+      if (!id || !userId) {
+        return res.status(400).json({ message: 'Thiếu thông tin' });
+      }
+
+      // Tìm hoặc tạo bản ghi notificationUser
+      const [record, created] = await NotificationUser.findOrCreate({
+        where: { notificationId: id, userId },
+        defaults: { isRead: true, readAt: new Date() },
+      });
+
+      // Nếu bản ghi đã tồn tại nhưng chưa đọc thì update
+      if (!created && !record.isRead) {
+        record.isRead = true;
+        record.readAt = new Date();
+        await record.save();
+      }
+
+      return res.json({ message: 'Đã đánh dấu là đã đọc' });
+    } catch (error) {
+      console.error('Lỗi markAsRead:', error);
+      return res.status(500).json({ message: 'Lỗi máy chủ' });
+    }
+  },
+  async markAllAsRead(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Thiếu thông tin người dùng" });
+      }
+
+      // Lấy tất cả thông báo global, active cùng trạng thái đã đọc của user
+      const globalNotifications = await Notification.findAll({
+        where: {
+          isGlobal: true,
+          isActive: true,
+        },
+        include: [
+          {
+            model: NotificationUser,
+            as: "notificationUsers",  // PHẢI CÓ alias đúng
+            required: false,
+            where: { userId },
+            attributes: ["id", "isRead", "readAt"],
+          },
+        ],
+      });
+
+      const toUpdateIds = [];
+      const toInsertData = [];
+
+      globalNotifications.forEach((notification) => {
+        const record = notification.notificationUsers?.[0];
+        if (record) {
+          if (!record.isRead) {
+            toUpdateIds.push(record.id);
+          }
+        } else {
+          toInsertData.push({
+            notificationId: notification.id,
+            userId,
+            isRead: true,
+            readAt: new Date(),
+          });
+        }
+      });
+
+      if (toInsertData.length > 0) {
+        await NotificationUser.bulkCreate(toInsertData);
+      }
+
+      if (toUpdateIds.length > 0) {
+        await NotificationUser.update(
+          { isRead: true, readAt: new Date() },
+          { where: { id: toUpdateIds } }
+        );
+      }
+
+      return res.status(200).json({ message: "Đã đánh dấu tất cả là đã đọc" });
+    } catch (err) {
+      console.error("❌ markAllAsRead error:", err);
+      return res.status(500).json({ message: "Lỗi máy chủ khi đánh dấu đã đọc" });
+    }
   }
-}
 
 
 

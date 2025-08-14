@@ -124,141 +124,159 @@ class FlashSaleController {
     }
   }
 
-static async update(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { slug } = req.params;
-    const flashSale = await FlashSale.findOne({ where: { slug } });
-    if (!flashSale) return res.status(404).json({ message: "Không tìm thấy" });
+  static async update(req, res) {
+    const t = await sequelize.transaction();
+    try {
+      const { slug } = req.params;
+      const flashSale = await FlashSale.findOne({ where: { slug } });
+      if (!flashSale)
+        return res.status(404).json({ message: "Không tìm thấy" });
 
-    const { title, description, startTime, endTime, isActive, bgColor } = req.body;
-    const items = req.body.items ? JSON.parse(req.body.items) : [];
-    const categories = req.body.categories ? JSON.parse(req.body.categories) : [];
+      const { title, description, startTime, endTime, isActive, bgColor } =
+        req.body;
+      const items = req.body.items ? JSON.parse(req.body.items) : [];
+      const categories = req.body.categories
+        ? JSON.parse(req.body.categories)
+        : [];
 
-    const updateData = {
-      title,
-      description,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-      slug: slugify(title || "", {
-        lower: true,
-        strict: true,
-        remove: /[*+~.()'"!:@]/g,
-      }),
-      isActive,
-      bgColor,
-    };
+      const updateData = {
+        title,
+        description,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        slug: slugify(title || "", {
+          lower: true,
+          strict: true,
+          remove: /[*+~.()'"!:@]/g,
+        }),
+        isActive,
+        bgColor,
+      };
 
-    if (req.file) updateData.bannerUrl = req.file.path;
+      if (req.file) updateData.bannerUrl = req.file.path;
 
-    // Handle orderIndex reorder
-    const newOrderIndex = parseInt(req.body.orderIndex);
-    const currentOrderIndex = flashSale.orderIndex;
-    if (!isNaN(newOrderIndex)) {
-      const hasConflict = await FlashSale.findOne({
-        where: { orderIndex: newOrderIndex, id: { [Op.ne]: flashSale.id } },
+      // Handle orderIndex reorder
+      const newOrderIndex = parseInt(req.body.orderIndex);
+      const currentOrderIndex = flashSale.orderIndex;
+      if (!isNaN(newOrderIndex)) {
+        const hasConflict = await FlashSale.findOne({
+          where: { orderIndex: newOrderIndex, id: { [Op.ne]: flashSale.id } },
+        });
+
+        if (hasConflict || newOrderIndex !== currentOrderIndex) {
+          if (newOrderIndex > currentOrderIndex) {
+            await FlashSale.decrement("orderIndex", {
+              by: 1,
+              where: {
+                orderIndex: {
+                  [Op.gt]: currentOrderIndex,
+                  [Op.lte]: newOrderIndex,
+                },
+              },
+              transaction: t,
+            });
+          } else {
+            await FlashSale.increment("orderIndex", {
+              by: 1,
+              where: {
+                orderIndex: {
+                  [Op.gte]: newOrderIndex,
+                  [Op.lt]: currentOrderIndex,
+                },
+              },
+              transaction: t,
+            });
+          }
+          updateData.orderIndex = newOrderIndex;
+        }
+      }
+
+      await flashSale.update(updateData, { transaction: t });
+
+      // Handle FlashSaleItems
+      const existingItems = await FlashSaleItem.findAll({
+        where: { flashSaleId: flashSale.id },
+        transaction: t,
+      });
+      const existingMap = new Map(existingItems.map((it) => [it.skuId, it]));
+
+      const incomingSkuIds = items.map((i) => i.skuId || i.id);
+      await FlashSaleItem.destroy({
+        where: {
+          flashSaleId: flashSale.id,
+          skuId: { [Op.notIn]: incomingSkuIds },
+        },
+        transaction: t,
       });
 
-      if (hasConflict || newOrderIndex !== currentOrderIndex) {
-        if (newOrderIndex > currentOrderIndex) {
-          await FlashSale.decrement("orderIndex", {
-            by: 1,
-            where: {
-              orderIndex: { [Op.gt]: currentOrderIndex, [Op.lte]: newOrderIndex },
+      for (const item of items) {
+        const skuId = item.skuId || item.id;
+        const incomingQty = parseInt(item.quantity);
+        const oldItem = existingMap.get(skuId);
+
+        if (oldItem) {
+          const soldCount = Math.max(
+            oldItem.originalQuantity - oldItem.quantity,
+            0
+          );
+          const newOriginalQuantity = Math.max(
+            incomingQty + soldCount,
+            soldCount
+          );
+          const newQuantity = newOriginalQuantity - soldCount;
+
+          await oldItem.update(
+            {
+              salePrice: item.salePrice,
+              quantity: newQuantity,
+              originalQuantity: newOriginalQuantity,
+              maxPerUser: item.maxPerUser,
+              note: item.note || "",
             },
-            transaction: t,
-          });
+            { transaction: t }
+          );
         } else {
-          await FlashSale.increment("orderIndex", {
-            by: 1,
-            where: {
-              orderIndex: { [Op.gte]: newOrderIndex, [Op.lt]: currentOrderIndex },
+          await FlashSaleItem.create(
+            {
+              skuId,
+              salePrice: item.salePrice,
+              quantity: incomingQty,
+              originalQuantity: incomingQty,
+              maxPerUser: item.maxPerUser,
+              note: item.note || "",
+              flashSaleId: flashSale.id,
             },
-            transaction: t,
-          });
+            { transaction: t }
+          );
         }
-        updateData.orderIndex = newOrderIndex;
       }
-    }
 
-    await flashSale.update(updateData, { transaction: t });
+      // Handle FlashSaleCategory
+      await FlashSaleCategory.destroy({
+        where: { flashSaleId: flashSale.id },
+        transaction: t,
+      });
 
-    // Handle FlashSaleItems
-    const existingItems = await FlashSaleItem.findAll({
-      where: { flashSaleId: flashSale.id },
-      transaction: t,
-    });
-    const existingMap = new Map(existingItems.map(it => [it.skuId, it]));
-
-    const incomingSkuIds = items.map(i => i.skuId || i.id);
-    await FlashSaleItem.destroy({
-      where: {
-        flashSaleId: flashSale.id,
-        skuId: { [Op.notIn]: incomingSkuIds },
-      },
-      transaction: t,
-    });
-
-    for (const item of items) {
-      const skuId = item.skuId || item.id;
-      const incomingQty = parseInt(item.quantity);
-      const oldItem = existingMap.get(skuId);
-
-      if (oldItem) {
-        const soldCount = Math.max(oldItem.originalQuantity - oldItem.quantity, 0);
-        const newOriginalQuantity = Math.max(incomingQty + soldCount, soldCount);
-        const newQuantity = newOriginalQuantity - soldCount;
-
-        await oldItem.update({
-          salePrice: item.salePrice,
-          quantity: newQuantity,
-          originalQuantity: newOriginalQuantity,
-          maxPerUser: item.maxPerUser,
-          note: item.note || "",
-        }, { transaction: t });
-      } else {
-        await FlashSaleItem.create({
-          skuId,
-          salePrice: item.salePrice,
-          quantity: incomingQty,
-          originalQuantity: incomingQty,
-          maxPerUser: item.maxPerUser,
-          note: item.note || "",
+      if (categories.length > 0) {
+        const catData = categories.map((cat) => ({
+          categoryId: cat.categoryId,
+          discountType: cat.discountType || "percent",
+          discountValue: cat.discountValue,
+          maxPerUser: cat.maxPerUser,
           flashSaleId: flashSale.id,
-        }, { transaction: t });
+        }));
+        await FlashSaleCategory.bulkCreate(catData, { transaction: t });
       }
+
+      await t.commit();
+      req.app.locals.io.emit("flash-sale-updated");
+      res.json({ message: "Cập nhật thành công" });
+    } catch (err) {
+      await t.rollback();
+      console.error("Lỗi cập nhật Flash Sale:", err);
+      res.status(500).json({ message: "Lỗi server: " + err.message });
     }
-
-    // Handle FlashSaleCategory
-    await FlashSaleCategory.destroy({
-      where: { flashSaleId: flashSale.id },
-      transaction: t,
-    });
-
-    if (categories.length > 0) {
-      const catData = categories.map(cat => ({
-        categoryId: cat.categoryId,
-        discountType: cat.discountType || "percent",
-        discountValue: cat.discountValue,
-        maxPerUser: cat.maxPerUser,
-        flashSaleId: flashSale.id,
-      }));
-      await FlashSaleCategory.bulkCreate(catData, { transaction: t });
-    }
-
-    await t.commit();
-    req.app.locals.io.emit("flash-sale-updated");
-    res.json({ message: "Cập nhật thành công" });
-  } catch (err) {
-    await t.rollback();
-    console.error("Lỗi cập nhật Flash Sale:", err);
-    res.status(500).json({ message: "Lỗi server: " + err.message });
   }
-}
-
-
-
-
 
   static async create(req, res) {
     const t = await sequelize.transaction();
@@ -461,40 +479,100 @@ static async update(req, res) {
   }
 
   static async getAvailableSkus(req, res) {
-    try {
-      const skus = await Sku.findAll({
-        where: {
-          isActive: true,
-          deletedAt: null,
-        },
-        include: [
-          {
-            model: Product,
-            as: "product",
-            attributes: ["name"],
-          },
-        ],
-        order: [["createdAt", "DESC"]],
-      });
+  try {
+    const { Op } = require('sequelize');
+    const { Sku, Product, ProductMedia } = require('../../models');
+    const { search = '', page: pageRaw = '1', limit: limitRaw = '10' } = req.query;
 
-      const result = skus.map((sku) => ({
+    const page = Math.max(1, parseInt(pageRaw, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10) || 10));
+    const offset = (page - 1) * limit;
+
+    const keyword = (search || '').trim();
+    const where =
+      keyword === ''
+        ? { isActive: true, deletedAt: null }
+        : {
+            isActive: true,
+            deletedAt: null,
+            [Op.or]: [
+              { skuCode: { [Op.like]: `%${keyword}%` } },
+              { '$product.name$': { [Op.like]: `%${keyword}%` } },
+            ],
+          };
+
+    const productWhere = { isActive: true, deletedAt: null };
+
+    const { rows, count } = await Sku.findAndCountAll({
+      where,
+      include: [
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['name', 'thumbnail'],
+          where: productWhere,
+          required: true,
+        },
+        {
+          model: ProductMedia,
+          as: 'ProductMedia',
+          attributes: ['id', 'mediaUrl', 'type', 'sortOrder', 'skuId'],
+          required: false,
+          separate: true,
+          order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
+      subQuery: false,
+    });
+
+    const data = rows.map((sku) => {
+      const p = sku.product || {};
+      const opn = sku.originalPrice != null ? Number(sku.originalPrice) : null;
+      const labelPrice = opn != null && !Number.isNaN(opn) ? opn.toLocaleString('vi-VN') : '0';
+
+      const media = (sku.ProductMedia || []).map((m) => ({
+        id: m.id,
+        mediaUrl: m.mediaUrl,
+        type: m.type,
+        sortOrder: m.sortOrder,
+        skuId: m.skuId,
+      }));
+
+      
+      const primaryImage = media[0]?.mediaUrl || p.thumbnail || null;
+
+      return {
         id: sku.id,
         skuCode: sku.skuCode,
-        productName: sku.product?.name ?? "",
+        productName: p.name ?? '',
         price: sku.price,
         originalPrice: sku.originalPrice,
         stock: sku.stock,
-        label: `${sku.product?.name} - ${
-          sku.skuCode
-        } - ${sku.originalPrice?.toLocaleString("vi-VN")}đ`,
-      }));
+        label: `${p.name ?? ''} - ${sku.skuCode ?? ''} - ${labelPrice}đ`,
+        media,
+        primaryImage,
+      };
+    });
 
-      res.json(result);
-    } catch (err) {
-      console.error("Lỗi lấy SKU:", err);
-      res.status(500).json({ message: "Lỗi server khi lấy danh sách SKU" });
-    }
+    res.json({
+      data,
+      pagination: {
+        page,
+        limit,
+        totalItems: count,
+        totalPages: Math.max(1, Math.ceil(count / limit)),
+      },
+    });
+  } catch (err) {
+    console.error('[getAvailableSkus] Error:', err);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách SKU', error: err.message });
   }
+}
+
 
   static async getAvailableCategoriesWithTree(req, res) {
     try {

@@ -3,9 +3,8 @@ const { Order } = require("../models");
 const { Op } = require("sequelize");
 
 cron.schedule("* * * * *", async () => {
-  // Mỗi phút quét đơn delivered > 1 phút → auto completed
   const now = new Date();
-  const threshold = new Date(now.getTime() - 60 * 1000); // 1 phút trước
+  const threshold = new Date(now.getTime() - 60 * 1000); 
 
   const orders = await Order.findAll({
     where: {
