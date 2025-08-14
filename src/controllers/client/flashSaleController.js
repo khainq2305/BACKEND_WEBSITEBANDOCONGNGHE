@@ -6,81 +6,120 @@ const {
 const { Sequelize, Op } = require('sequelize');
 
 class FlashSaleClientController {
-  static async getAll(req, res) {
+static async getAll(req, res) {
     try {
+        const now = new Date();
+
         const allSales = await FlashSale.findAll({
             where: {
                 isActive: true,
                 deletedAt: null,
                 [Op.or]: [
-                    { startTime: { [Op.lte]: new Date() }, endTime: { [Op.gte]: new Date() } },
-                    { startTime: { [Op.gt]: new Date() } }
+                    { startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
+                    { startTime: { [Op.gt]: now } }
                 ]
             },
-            include: [{
-                model: FlashSaleItem,
-                as: 'flashSaleItems',
-                include: [{
-                    model: Sku,
-                    as: 'sku',
-                    required: true,
-                    where: { isActive: true, deletedAt: null },
-                    attributes: [
-                        'id', 'skuCode', 'price', 'originalPrice', 'stock',
-                        [Sequelize.literal(`(SELECT COALESCE(SUM(oi.quantity),0) FROM orderitems oi INNER JOIN orders o ON oi.orderId = o.id WHERE oi.skuId = \`flashSaleItems->sku\`.\`id\` AND o.status IN ('completed', 'delivered'))`), 'totalSoldCount'],
-                        [Sequelize.literal(`(SELECT AVG(r.rating) FROM reviews r WHERE r.skuId = \`flashSaleItems->sku\`.\`id\`)`), 'averageRating']
-                    ],
-                    include: [{
-                        model: Product,
-                        as: 'product',
-                        where: { deletedAt: null },
-                        attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
-                    }, {
-                        model: ProductMedia,
-                        as: 'ProductMedia',
-                        attributes: ['mediaUrl', 'type', 'sortOrder'],
-                        required: false
-                    }]
-                }]
-            }, {
-                model: FlashSaleCategory,
-                as: 'categories',
-                attributes: ['id', 'discountType', 'discountValue', 'maxPerUser', 'priority'],
-                include: [{
-                    model: Category,
-                    as: 'category',
-                    attributes: ['id', 'name', 'slug'],
-                    where: { deletedAt: null },
-                    include: [{
-                        model: Product,
-                        as: 'products',
-                        where: { deletedAt: null },
-                        attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage'],
-                        include: [{
+            include: [
+                {
+                    model: FlashSaleItem,
+                    as: 'flashSaleItems',
+                    include: [
+                        {
                             model: Sku,
-                            as: 'skus',
+                            as: 'sku',
                             required: true,
                             where: { isActive: true, deletedAt: null },
                             attributes: [
                                 'id', 'skuCode', 'price', 'originalPrice', 'stock',
-                                [Sequelize.literal(`(SELECT COALESCE(SUM(oi.quantity),0) FROM orderitems oi INNER JOIN orders o ON oi.orderId = o.id WHERE oi.skuId = \`categories->category->products->skus\`.\`id\` AND o.status IN ('completed', 'delivered'))`), 'totalSoldCount'],
-                                [Sequelize.literal(`(SELECT AVG(r.rating) FROM reviews r WHERE r.skuId = \`categories->category->products->skus\`.\`id\`)`), 'averageRating']
+                                [Sequelize.literal(`(
+                                    SELECT COALESCE(SUM(oi.quantity),0)
+                                    FROM orderitems oi
+                                    INNER JOIN orders o ON oi.orderId = o.id
+                                    WHERE oi.skuId = \`flashSaleItems->sku\`.\`id\`
+                                    AND o.status IN ('completed', 'delivered')
+                                )`), 'totalSoldCount'],
+                                [Sequelize.literal(`(
+                                    SELECT AVG(r.rating)
+                                    FROM reviews r
+                                    WHERE r.skuId = \`flashSaleItems->sku\`.\`id\`
+                                )`), 'averageRating']
                             ],
-                            include: [{
-                                model: Product,
-                                as: 'product',
-                                where: { deletedAt: null },
-                                attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
-                            }, {
-                                model: ProductMedia,
-                                as: 'ProductMedia',
-                                attributes: ['mediaUrl', 'type', 'sortOrder'],
-                                required: false
-                            }]
-                        }]
-                    }]
-                }]
-            }],
+                            include: [
+                                {
+                                    model: Product,
+                                    as: 'product',
+                                    where: { deletedAt: null },
+                                    attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
+                                },
+                                {
+                                    model: ProductMedia,
+                                    as: 'ProductMedia',
+                                    attributes: ['mediaUrl', 'type', 'sortOrder'],
+                                    required: false
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: FlashSaleCategory,
+                    as: 'categories',
+                    attributes: ['id', 'discountType', 'discountValue', 'maxPerUser', 'priority'],
+                    include: [
+                        {
+                            model: Category,
+                            as: 'category',
+                            attributes: ['id', 'name', 'slug'],
+                            where: { deletedAt: null },
+                            include: [
+                                {
+                                    model: Product,
+                                    as: 'products',
+                                    where: { deletedAt: null },
+                                    attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage'],
+                                    include: [
+                                        {
+                                            model: Sku,
+                                            as: 'skus',
+                                            required: true,
+                                            where: { isActive: true, deletedAt: null },
+                                            attributes: [
+                                                'id', 'skuCode', 'price', 'originalPrice', 'stock',
+                                                [Sequelize.literal(`(
+                                                    SELECT COALESCE(SUM(oi.quantity),0)
+                                                    FROM orderitems oi
+                                                    INNER JOIN orders o ON oi.orderId = o.id
+                                                    WHERE oi.skuId = \`categories->category->products->skus\`.\`id\`
+                                                    AND o.status IN ('completed', 'delivered')
+                                                )`), 'totalSoldCount'],
+                                                [Sequelize.literal(`(
+                                                    SELECT AVG(r.rating)
+                                                    FROM reviews r
+                                                    WHERE r.skuId = \`categories->category->products->skus\`.\`id\`
+                                                )`), 'averageRating']
+                                            ],
+                                            include: [
+                                                {
+                                                    model: Product,
+                                                    as: 'product',
+                                                    where: { deletedAt: null },
+                                                    attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage']
+                                                },
+                                                {
+                                                    model: ProductMedia,
+                                                    as: 'ProductMedia',
+                                                    attributes: ['mediaUrl', 'type', 'sortOrder'],
+                                                    required: false
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
             order: [
                 ['orderIndex', 'ASC'],
                 ['startTime', 'ASC']
@@ -88,11 +127,28 @@ class FlashSaleClientController {
         });
 
         const processedSales = allSales.map(flashSale => {
-            const now = new Date();
-            const isActive = now >= flashSale.startTime && now <= flashSale.endTime;
+            const start = new Date(flashSale.startTime);
+            const end = new Date(flashSale.endTime);
+
+            const nowUTC = now.getTime();
+            const startUTC = start.getTime();
+            const endUTC = end.getTime();
+
+            let status, countdownTo;
+            if (nowUTC >= startUTC && nowUTC <= endUTC) {
+                status = 'live';
+                countdownTo = flashSale.endTime;
+            } else if (nowUTC < startUTC) {
+                status = 'upcoming';
+                countdownTo = flashSale.startTime;
+            } else {
+                status = 'ended';
+                countdownTo = null;
+            }
+
+            const isActive = status === 'live';
             const allSkusInSale = new Map();
 
-            // Lấy SKU từ flashSaleItems
             flashSale.flashSaleItems?.forEach(item => {
                 if (item.sku) {
                     const finalSku = item.sku.get({ plain: true });
@@ -104,7 +160,7 @@ class FlashSaleClientController {
                         flashSaleId: flashSale.id,
                         isSoldOut: item.quantity <= 0,
                         limitPerUser: item.maxPerUser,
-                        isFlashSaleItem: true,
+                        isFlashSaleItem: true
                     };
                     finalSku.salePrice = item.salePrice;
                     finalSku.soldCount = sold;
@@ -112,7 +168,6 @@ class FlashSaleClientController {
                 }
             });
 
-            // Lấy SKU từ categories, tránh lặp lại SKU đã có
             flashSale.categories?.forEach(cat => {
                 cat.category?.products?.forEach(prod => {
                     prod.skus?.forEach(sku => {
@@ -121,6 +176,7 @@ class FlashSaleClientController {
                             const basePrice = finalSku.originalPrice ?? finalSku.price;
                             const { discountType, discountValue, maxPerUser } = cat;
                             let newPrice = basePrice;
+
                             if (isActive) {
                                 newPrice = discountType === 'percent'
                                     ? basePrice * (100 - discountValue) / 100
@@ -134,7 +190,7 @@ class FlashSaleClientController {
                                     flashSaleId: flashSale.id,
                                     isSoldOut: finalSku.stock <= 0,
                                     limitPerUser: maxPerUser,
-                                    isFlashSaleItem: false,
+                                    isFlashSaleItem: false
                                 };
                                 finalSku.soldCount = parseInt(finalSku.totalSoldCount || 0);
                             } else {
@@ -148,18 +204,18 @@ class FlashSaleClientController {
                 });
             });
 
-            // Gán lại danh sách SKU đã xử lý vào flashSaleItems và categories
             const processedFlashSale = flashSale.get({ plain: true });
+            processedFlashSale.status = status;
+            processedFlashSale.countdownTo = countdownTo;
+
             processedFlashSale.flashSaleItems = processedFlashSale.flashSaleItems?.map(item => {
                 const skuData = allSkusInSale.get(item.skuId);
                 if (skuData) {
-                    return {
-                        ...item,
-                        sku: skuData,
-                    };
+                    return { ...item, sku: skuData };
                 }
                 return item;
             });
+
             processedFlashSale.categories = processedFlashSale.categories?.map(cat => {
                 const processedCat = { ...cat };
                 processedCat.category.products = processedCat.category.products?.map(prod => {
@@ -175,16 +231,19 @@ class FlashSaleClientController {
                 });
                 return processedCat;
             });
-            
+
             return processedFlashSale;
         });
 
         res.json({ data: processedSales });
     } catch (err) {
-        console.error('Lỗi getAll Flash Sale (client):', err);
         res.status(500).json({ message: 'Lỗi server', error: err.message });
     }
 }
+
+
+
+
 }
 
 module.exports = FlashSaleClientController;

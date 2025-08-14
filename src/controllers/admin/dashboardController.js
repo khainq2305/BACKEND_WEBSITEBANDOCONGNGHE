@@ -150,21 +150,18 @@ class DashboardController {
         }
     }
 
-    // 4. Lấy dữ liệu Top sản phẩm bán chạy (TopProductsChart & TopProductsTable)
+    // 4. Lấy dữ liệu Top 5 sản phẩm bán chạy (TopProductsChart & TopProductsTable)
     static async getTopSellingProducts(req, res) {
         try {
-            const { from, to } = req.query;
-            const dateFilter = DashboardController.getDateFilter(from, to);
-
+            // Đã loại bỏ dateFilter
             const topProducts = await OrderItem.findAll({
                 attributes: [
                     [fn('SUM', col('OrderItem.quantity')), 'sold'],
-                    [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'], // Dùng OrderItem.price
-                    // THÊM CÁC THUỘC TÍNH CỦA PRODUCT VÀO CẤP CAO NHẤT (ALIAS)
+                    [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
                     [col('sku->product.id'), 'id'],
                     [col('sku->product.name'), 'name'],
                     [col('sku->product.thumbnail'), 'image'],
-                    [col('sku->product.categoryId'), 'categoryId'], // Đảm bảo có categoryId cho Product
+                    [col('sku->product.categoryId'), 'categoryId'],
                 ],
                 include: [
                     {
@@ -172,24 +169,21 @@ class DashboardController {
                         as: 'order',
                         attributes: [],
                         where: {
-                            createdAt: dateFilter,
                             status: 'completed',
                         },
                     },
                     {
                         model: Sku,
-                        
-                        attributes: ['productId'], // LẤY productId TỪ SKU
+                        attributes: ['productId'],
                         include: [
                             {
                                 model: Product,
-                                as: 'product', // Alias này phải khớp với Sku.belongsTo(Product, {as: 'product'})
-                                attributes: [], // BỎ attributes ở đây vì đã lấy ở cấp trên
+                                as: 'product',
+                                attributes: [],
                             }
                         ]
                     },
                 ],
-                // SỬA CHÍNH XÁC MỆNH ĐỀ GROUP BY NÀY ĐỂ DÙNG ALIAS ĐẦY ĐỦ CỦA SEQUELIZE
                 group: [
                     'sku.productId',
                     'sku->product.id',
@@ -203,13 +197,13 @@ class DashboardController {
             });
 
             const formattedProducts = topProducts.map(item => ({
-                id: item.id, // Lấy từ alias top-level
-                name: item.name, // Lấy từ alias top-level
-                image: item.image || '/placeholder.svg?height=50&width=50', // Lấy từ alias top-level
+                id: item.id,
+                name: item.name,
+                image: item.image || '/placeholder.svg?height=50&width=50',
                 sold: parseInt(item.sold),
                 revenue: parseFloat(item.revenue),
-                variant: 'Nhiều biến thể', // Giá trị mặc định
-                category: item.categoryId // Lấy từ alias top-level
+                variant: 'Nhiều biến thể',
+                category: item.categoryId
             }));
 
             res.json(formattedProducts);
@@ -219,28 +213,25 @@ class DashboardController {
         }
     }
 
-    // 5. Lấy dữ liệu Top sản phẩm được yêu thích (FavoriteProductsChart & FavoriteProductsTable)
+    // 5. Lấy dữ liệu Top 5 sản phẩm được yêu thích (FavoriteProductsChart & FavoriteProductsTable)
     static async getFavoriteProducts(req, res) {
         try {
-            const { from, to } = req.query;
-
             const favoriteProducts = await WishlistItem.findAll({
                 attributes: [
                     'productId',
-                    [fn('COUNT', col('productId')), 'wishlistCount'], // Lấy wishlistCount
-                    // THÊM CÁC THUỘC TÍNH CỦA PRODUCT VÀO CẤP CAO NHẤT (ALIAS)
+                    [fn('COUNT', col('productId')), 'wishlistCount'],
                     [col('product.name'), 'name'],
                     [col('product.thumbnail'), 'image'],
                     [col('product.categoryId'), 'categoryId'],
                 ],
-                group: ['productId', 'product.id', 'product.name', 'product.thumbnail', 'product.categoryId'], // Group theo tất cả các cột được SELECT
+                group: ['productId', 'product.id', 'product.name', 'product.thumbnail', 'product.categoryId'],
                 order: [[literal('wishlistCount'), 'DESC']],
                 limit: 5,
                 include: [
                     {
                         model: Product,
                         as: 'product',
-                        attributes: [], // BỎ attributes ở đây vì đã lấy ở cấp trên
+                        attributes: [],
                     },
                 ],
                 raw: true,
@@ -260,5 +251,109 @@ class DashboardController {
             res.status(500).json({ message: "Lỗi server khi lấy dữ liệu sản phẩm yêu thích", error: error.message });
         }
     }
+
+    static async getAllTopSellingProducts(req, res) {
+        try {
+            // Đã loại bỏ dateFilter để lấy toàn bộ dữ liệu
+            const topProducts = await OrderItem.findAll({
+                attributes: [
+                    [fn('SUM', col('OrderItem.quantity')), 'sold'],
+                    [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
+                    [col('sku->product.id'), 'id'],
+                    [col('sku->product.name'), 'name'],
+                    [col('sku->product.thumbnail'), 'image'],
+                    [col('sku->product.categoryId'), 'categoryId'],
+                ],
+                include: [
+                    {
+                        model: Order,
+                        as: 'order',
+                        attributes: [],
+                        where: {
+                            status: 'completed',
+                        },
+                    },
+                    {
+                        model: Sku,
+                        attributes: ['productId'],
+                        include: [
+                            {
+                                model: Product,
+                                as: 'product',
+                                attributes: [],
+                            }
+                        ]
+                    },
+                ],
+                group: [
+                    'sku.productId',
+                    'sku->product.id',
+                    'sku->product.name',
+                    'sku->product.thumbnail',
+                    'sku->product.categoryId'
+                ],
+                order: [[literal('sold'), 'DESC']],
+                raw: true,
+            });
+
+            const formattedProducts = topProducts.map(item => ({
+                id: item.id,
+                name: item.name,
+                image: item.image || '/placeholder.svg?height=50&width=50',
+                sold: parseInt(item.sold),
+                revenue: parseFloat(item.revenue),
+                variant: 'Nhiều biến thể',
+                category: item.categoryId
+            }));
+
+            res.json({
+                data: formattedProducts,
+            });
+        } catch (error) {
+            console.error("GET ALL TOP SELLING PRODUCTS ERROR:", error);
+            res.status(500).json({ message: "Lỗi server khi lấy dữ liệu toàn bộ sản phẩm bán chạy", error: error.message });
+        }
+    }
+
+    static async getAllFavoriteProducts(req, res) {
+        try {
+            const favoriteProducts = await WishlistItem.findAll({
+                attributes: [
+                    'productId',
+                    [fn('COUNT', col('productId')), 'wishlistCount'],
+                    [col('product.name'), 'name'],
+                    [col('product.thumbnail'), 'image'],
+                    [col('product.categoryId'), 'categoryId'],
+                ],
+                group: ['productId', 'product.id', 'product.name', 'product.thumbnail', 'product.categoryId'],
+                order: [[literal('wishlistCount'), 'DESC']],
+                include: [
+                    {
+                        model: Product,
+                        as: 'product',
+                        attributes: [],
+                    },
+                ],
+                raw: true,
+            });
+
+            const formattedProducts = favoriteProducts.map(item => ({
+                id: item.productId,
+                name: item.name,
+                image: item.image || '/placeholder.svg?height=50&width=50',
+                wishlistCount: parseInt(item.wishlistCount),
+                category: item.categoryId,
+            }));
+
+            res.json({
+                data: formattedProducts,
+            });
+        } catch (error) {
+            console.error("GET ALL FAVORITE PRODUCTS ERROR:", error);
+            res.status(500).json({ message: "Lỗi server khi lấy dữ liệu toàn bộ sản phẩm yêu thích", error: error.message });
+        }
+    }
+
 }
+
 module.exports = DashboardController;

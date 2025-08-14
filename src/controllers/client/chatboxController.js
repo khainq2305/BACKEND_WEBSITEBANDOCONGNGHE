@@ -10,21 +10,28 @@ const {
     SkuVariantValue,
     VariantValue,
     Variant,
-    OrderItem, // THÊM DÒNG NÀY VÀO
-    Order,     // THÊM DÒNG NÀY VÀO
-    Review,    // THÊM DÒNG NÀY VÀO
+    OrderItem,
+    Order,
+    Review,
 } = require("../../models");
 const { Op, Sequelize } = require("sequelize");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { formatCurrencyVND } = require("../../utils/number");
-
 const { processSkuPrices } = require('../../helpers/priceHelper');
-
+const { askLLMStructured } = require("../ai/aiStructured");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+function normalizeVN(str = '') {
+    return str
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
 }
 
 class ChatboxController {
@@ -148,7 +155,8 @@ class ChatboxController {
                 await this.loadFlashSaleData();
             }
 
-            const { type, data, isProductDetail, message: replyMessage } = await this.processChatMessage(message.trim());
+            const { type, data, isProductDetail, replyMessage } =
+                await this.processChatMessage(message.trim());
 
             return res.status(200).json({
                 message: "Thành công",
@@ -167,362 +175,147 @@ class ChatboxController {
 
     async processChatMessage(message) {
         const lower = message.toLowerCase();
-        const productKeywords = [
-            "quạt", "quạt điều hoà", "tủ lạnh", "máy lọc nước", "máy lọc không khí",
-            "máy xay", "máy sấy tóc", "nồi chiên", "lò vi sóng", "nồi cơm điện",
-            "máy pha cà phê", "máy hút bụi", "tivi", "máy lạnh", "máy rửa chén",
-            "robot hút bụi", "máy nước nóng", "đèn sưởi", "loa", "bếp từ"
+        const msgNorm = normalizeVN(lower);
+        const tokens = msgNorm.split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 2);
+
+        // Score liên quan cho product
+        function relevanceScore(p) {
+            const nameNorm = normalizeVN(p.name || '');
+            const brandNorm = normalizeVN(p.brand || '');
+            const catNorm = normalizeVN(p.category || '');
+            let score = 0;
+
+            for (const t of tokens) {
+                const inBrand = brandNorm.includes(t);
+                const inName = nameNorm.includes(t);
+                const inCat = catNorm.includes(t);
+
+                if (inBrand) score += 10;   // ưu tiên brand
+                if (inName) score += 6;
+                if (inCat) score += 3;
+
+                // bonus nếu bắt đầu bằng từ khóa
+                if (brandNorm.startsWith(t)) score += 3;
+                if (nameNorm.startsWith(t)) score += 2;
+
+                // bonus match nguyên cụm (vd: "mitsubishi electric")
+                const phrase = tokens.join(' ');
+                if (phrase.length >= 2) {
+                    if (brandNorm.includes(phrase)) score += 4;
+                    if (nameNorm.includes(phrase)) score += 2;
+                }
+            }
+            return score;
+        }
+
+        // Thông điệp và regex chặn off-topic
+        const OFFTOPIC_MSG =
+            '🙏 Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!';
+
+        const RE_OFFTOPIC_HARD =
+            /(bóng\s*đá|world\s*cup|euro\s*\d{2,4}|bóng rổ|game|liên quân|free\s*fire|pubg|tiktok|idol|chính trị|bầu cử|người yêu|tán tỉnh|ai code mày|lập trình|viết code|hack|crack)/i;
+
+        // Intent thương mại dùng cho whitelist
+        const RE = {
+            greet: /(chào|xin chào|hello|hi|tư vấn|giúp|mua gì|bắt đầu)/i,
+            discount: /(giảm giá|khuyến mãi|sale|flash\s*sale)/i,
+            shipping: /(giao hàng|vận chuyển|ship hàng|đặt hàng|mua online)/i,
+            warranty: /(bảo hành|bảo trì)/i,
+            returnRefund: /(đổi trả|hoàn tiền|trả hàng)/i,
+            contact: /(liên hệ|cửa hàng|shop ở đâu|địa chỉ|chi nhánh)/i,
+            worktime: /(làm việc|giờ mở cửa|thời gian làm việc)/i,
+            payment: /(thanh toán|trả tiền|cách thanh toán|quẹt thẻ)/i,
+            trust: /(uy tín|đáng tin|chính hãng|hàng thật|giả|bảo đảm|bảo mật)/i,
+            compare: /(so sánh|khác gì|cái nào ngon hơn|loại nào ngon hơn|nên chọn cái nào)/i,
+            stock: /(còn hàng không|có sẵn không|hết hàng chưa|có không vậy)/i,
+            install: /(lắp đặt|gắn tận nơi|hướng dẫn dùng|xài sao|khó dùng quá)/i,
+            family: /(cho mẹ xài|cho ba mẹ|người già dùng được không|bé dùng được không)/i,
+            orderHistory: /(tôi có đặt chưa|đặt rồi mà|kiểm tra giúp đơn cũ|mua hồi trước|lịch sử mua hàng)/i,
+            fun: /(có đẹp trai không|có người yêu chưa|trợ lý ảo à|ai code mày|tán tao đi|đang rảnh không|mày mấy tuổi|lương bao nhiêu)/i,
+            angry: /(bực quá|mất dạy|chậm quá|không hài lòng|dịch vụ tệ|hủy đơn đi|tôi không mua nữa)/i,
+            energy: /(tiết kiệm điện|hao điện không|xài có tốn điện không|eco|công suất bao nhiêu)/i,
+            invoice: /(hóa đơn|xuất hóa đơn|vat|giấy tờ|bảo hành giấy|giấy tờ mua hàng)/i,
+            app: /(app|ứng dụng|tải app|theo dõi đơn|kiểm tra đơn|nhận được chưa|mã vận đơn)/i,
+            social: /(shopee|lazada|tiki|mạng xã hội|mua ngoài sàn|sàn thương mại)/i,
+            smallRoom: /(phòng nhỏ|nhà nhỏ|phòng trọ|diện tích nhỏ|nhà thuê)/i,
+            cancelOrChange: /(hủy đơn|dừng lại|đổi địa chỉ|thay địa chỉ|sai địa chỉ|đặt nhầm|chuyển giúp đơn)/i,
+            allProducts: /(xem tất cả|xem hết|tất cả sản phẩm)/i,
+            newArrivals: /(hàng mới|sản phẩm mới|về hàng chưa|có hàng mới|sản phẩm hot)/i,
+            loyal: /(ưu đãi|thành viên|tích điểm|chương trình khách hàng|khách thân thiết)/i,
+            deliveryTime: /(khi nào nhận|bao lâu có hàng|thời gian nhận hàng|giao mấy ngày)/i,
+            categoriesAsk: /(danh mục|nhóm hàng|loại sản phẩm|loại hàng|thiết bị nào)/i,
+            detail: /(xem|chi tiết|thông tin).*sản phẩm\s+(.+)/i,
+            brandIntent: /(?:thuong\s*hieu|thuong-hieu|thuonghieu|thương\s*hiệu)\s+(.+)|(?:cua|của)\s+(.+)/i,
+        };
+
+        const RE_COMMERCE_INTENTS = [
+            RE.greet, RE.discount, RE.shipping, RE.warranty, RE.returnRefund, RE.contact,
+            RE.worktime, RE.payment, RE.trust, RE.compare, RE.stock, RE.install, RE.family,
+            RE.orderHistory, RE.energy, RE.invoice, RE.app, RE.social, RE.smallRoom,
+            RE.cancelOrChange, RE.allProducts, RE.newArrivals, RE.loyal, RE.deliveryTime,
+            RE.categoriesAsk, RE.detail, RE.brandIntent
         ];
 
+        // 1) Off-topic cứng -> từ chối ngay
+        if (RE_OFFTOPIC_HARD.test(lower)) {
+            return { type: 'text', data: OFFTOPIC_MSG, isProductDetail: false };
+        }
+
+        // 2) Lấy dữ liệu TRƯỚC khi dùng (tránh dùng biến trước khi khởi tạo)
         const [products, categories, brands] = await Promise.all([
-            this.fetchChatProducts({ limit: 50, allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap, allActiveCategoryDealsMap: this.allActiveCategoryDealsMap }),
+            this.fetchChatProducts({
+                limit: 50,
+                allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap,
+                allActiveCategoryDealsMap: this.allActiveCategoryDealsMap
+            }),
             Category.findAll({ where: { isActive: true }, attributes: ['id', 'name'] }),
             Brand.findAll({ where: { isActive: true }, attributes: ['name', 'description'] })
         ]);
 
-        for (const keyword of productKeywords) {
-            if ((lower.includes('mua') || lower.includes('cần') || lower.includes('muốn') || lower.includes('xem')) &&
-                lower.includes(keyword)) {
-                const matched = products.filter(p =>
-                    p.name.toLowerCase().includes(keyword) ||
-                    p.category?.toLowerCase().includes(keyword)
-                );
-                if (matched.length) {
-                    return {
-                        type: 'product_grid',
-                        data: {
-                            title: `Các sản phẩm liên quan đến "${keyword}"`,
-                            products: matched
-                        },
-                        isProductDetail: false
-                    };
-                } else {
-                    return {
-                        type: 'text',
-                        data: `😔 Hiện tại chưa có sản phẩm nào liên quan đến "${keyword}".`,
-                        isProductDetail: false
-                    };
-                }
+        // 3) Guard: nếu không có intent thương mại và không “đụng” dữ liệu cửa hàng -> chặn
+        const brandSet = new Set(brands.map(b => normalizeVN(b.name || '')));
+        const catSet = new Set(categories.map(c => normalizeVN(c.name || '')));
+
+        let hitsFromData = 0;
+        for (const t of tokens) { if (brandSet.has(t)) { hitsFromData = 1; break; } }
+        if (!hitsFromData) {
+            for (const t of tokens) { if (catSet.has(t)) { hitsFromData = 1; break; } }
+        }
+        if (!hitsFromData) {
+            for (const p of products) {
+                const nm = normalizeVN(p.name || '');
+                if (tokens.some(t => nm.includes(t))) { hitsFromData = 1; break; }
             }
         }
 
-        if (/(shop hoạt động bao lâu|mở từ khi nào|ra đời khi nào|shop có lâu chưa|shop mới mở hả)/.test(lower)) {
-            return {
-                type: 'text',
-                data: `📅 **ZYBERZONE** đã hoạt động hơn 5 năm trong lĩnh vực điện máy gia dụng và luôn được khách hàng đánh giá cao về chất lượng dịch vụ và sản phẩm.`,
-                isProductDetail: false
-            };
+        const hasCommerceIntent = RE_COMMERCE_INTENTS.some(re => re.test(lower));
+        if (!hasCommerceIntent && !hitsFromData) {
+            return { type: 'text', data: OFFTOPIC_MSG, isProductDetail: false };
         }
-        if (/(ai đang tư vấn|bạn là ai|có nhân viên không|ai đang chat|gặp nhân viên thật|nói chuyện với người thật)/.test(lower)) {
-            return {
-                type: 'text',
-                data: `🤖 Em là trợ lý ảo của **ZYBERZONE**. Nếu anh/chị cần hỗ trợ trực tiếp từ nhân viên, em có thể kết nối qua hotline **1900 8922** hoặc gửi tin nhắn fanpage ạ!`,
-                isProductDetail: false
-            };
-        }
-        if (/(khách hàng nói gì|feedback|đánh giá về shop|uy tín không|tin tưởng được không)/.test(lower)) {
-            return {
-                type: 'text',
-                data: `🌟 **ZYBERZONE** nhận được hàng nghìn phản hồi tích cực từ khách hàng về chất lượng sản phẩm, tốc độ giao hàng và hỗ trợ sau bán. Anh/chị có thể tham khảo đánh giá trực tiếp trên từng sản phẩm ạ!`,
-                isProductDetail: false
-            };
-        }
-        if (/(sau khi mua|hỗ trợ sau bán|chăm sóc khách hàng|liên hệ sau mua|bảo trì sản phẩm)/.test(lower)) {
-            return {
-                type: 'text',
-                data: `🙋‍♂️ Sau khi mua, nếu có bất kỳ thắc mắc nào về sản phẩm hoặc cần hỗ trợ kỹ thuật, anh/chị cứ nhắn với em hoặc gọi **1900 8922**. Đội ngũ kỹ thuật bên em luôn sẵn sàng hỗ trợ ạ!`,
-                isProductDetail: false
-            };
-        }
-        if (/(có đẹp trai không|có người yêu chưa|trợ lý ảo à|ai code mày|tán tao đi|đang rảnh không)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '😄 Em là trợ lý ảo chỉ giỏi bán hàng và hỗ trợ thôi ạ, còn tán tỉnh chắc cần update phiên bản mới rồi đó anh/chị!',
-                isProductDetail: false
-            };
-        }
-        if (/(bực quá|mất dạy|chậm quá|không hài lòng|dịch vụ tệ|hủy đơn đi|tôi không mua nữa)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '😥 Em rất xin lỗi nếu trải nghiệm chưa tốt. Anh/chị vui lòng để lại số điện thoại hoặc chi tiết, bên em sẽ gọi lại hỗ trợ ngay ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(so sánh|khác gì|cái nào ngon hơn|loại nào ngon hơn|nên chọn cái nào)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🤔 Anh/chị vui lòng cho biết đang phân vân giữa những sản phẩm nào ạ? Em sẽ giúp so sánh chi tiết để dễ chọn hơn!',
-                isProductDetail: false
-            };
-        }
-        if (/(còn hàng không|có sẵn không|hết hàng chưa|có không vậy)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📦 Anh/chị vui lòng cho em biết tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(lắp đặt|gắn tận nơi|hướng dẫn dùng|xài sao|khó dùng quá)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🔧 Bên em có hỗ trợ hướng dẫn sử dụng và lắp đặt tận nơi tùy sản phẩm. Anh/chị cần hỗ trợ dòng nào, em gửi hướng dẫn nhé!',
-                isProductDetail: false
-            };
-        }
-        if (/(cho mẹ xài|cho ba mẹ|người già dùng được không|bé dùng được không)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '👨‍👩‍👧 Em rất hiểu nhu cầu này ạ! Nếu anh/chị mô tả cụ thể hơn về người dùng và mục đích, em sẽ gợi ý sản phẩm phù hợp nhất!',
-                isProductDetail: false
-            };
-        }
-        if (/(tôi có đặt chưa|đặt rồi mà|kiểm tra giúp đơn cũ|mua hồi trước|lịch sử mua hàng)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📄 Anh/chị vui lòng để lại số điện thoại đặt hàng, em sẽ kiểm tra lịch sử đơn giúp ngay nhé!',
-                isProductDetail: false
-            };
-        }
-        if (/(có người yêu chưa|tên gì|nam hay nữ|sống bao lâu|mày mấy tuổi|lương bao nhiêu)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '😄 Em là trợ lý ảo **ZYBERZONE**, sinh ra từ dòng code với trái tim yêu khách hàng. Lương em là nụ cười của anh/chị đó ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(gợi ý giúp|mua loại nào|giới thiệu sản phẩm|chọn giùm|giúp chọn|cần tư vấn mua)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🤖 Anh/chị có thể nói rõ hơn về ngân sách, diện tích phòng, số người dùng,... để em lọc và giới thiệu sản phẩm phù hợp nhất ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(tiết kiệm điện|hao điện không|xài có tốn điện không|eco không|công suất bao nhiêu)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '⚡ Rất nhiều sản phẩm bên em có chế độ tiết kiệm điện (Inverter / ECO). Anh/chị cần em kiểm tra dòng nào cụ thể không ạ?',
-            };
-        }
-        if (/(hóa đơn|xuất hóa đơn|VAT|giấy tờ|bảo hành giấy|giấy tờ mua hàng)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📑 Dạ bên em hỗ trợ xuất hóa đơn VAT đầy đủ nếu anh/chị có yêu cầu. Vui lòng để lại thông tin doanh nghiệp nếu cần xuất nhé!',
-                isProductDetail: false
-            };
-        }
-        if (/(app|ứng dụng|tải app|theo dõi đơn|kiểm tra đơn|nhận được chưa|mã vận đơn)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📲 Anh/chị có thể theo dõi đơn hàng bằng cách đăng nhập vào website hoặc kiểm tra qua email/sms. Nếu cần mã đơn, em tra giúp liền!',
-                isProductDetail: false
-            };
-        }
-        if (/(shopee|lazada|tiki|mạng xã hội|có trên|mua ngoài sàn|sàn thương mại)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🛒 Hiện tại **ZYBERZONE** chỉ bán chính thức trên website này để đảm bảo chất lượng và hỗ trợ tốt nhất. Anh/chị đặt tại đây là yên tâm nhất ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(dễ vệ sinh|rửa được không|tiết kiệm điện|an toàn không|xài hao điện không)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '♻️ Sản phẩm bên em luôn được chọn lọc kỹ để đảm bảo an toàn, tiết kiệm điện và dễ sử dụng. Anh/chị cần dòng nào cụ thể, em gửi thông tin chi tiết ngay!',
-                isProductDetail: false
-            };
-        }
-        if (/(phòng nhỏ|nhà nhỏ|phòng trọ|diện tích nhỏ|nhà thuê)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🏠 Dạ với không gian nhỏ, em có thể gợi ý sản phẩm nhỏ gọn, tiết kiệm diện tích và tiện lợi. Anh/chị mô tả kỹ hơn diện tích/phòng nào nhé!',
-                isProductDetail: false
-            };
-        }
-        if (/(hủy đơn|dừng lại|đổi địa chỉ|thay địa chỉ|sai địa chỉ|đặt nhầm|chuyển giúp đơn)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '⚠️ Anh/chị vui lòng nhắn mã đơn hoặc số điện thoại đặt hàng, em sẽ hỗ trợ hủy hoặc điều chỉnh đơn ngay nhé!',
-                isProductDetail: false
-            };
-        }
-        if (/(xem tất cả|xem hết|tất cả sản phẩm)/.test(lower)) {
+
+        // ====== Các nhánh intent bình thường ======
+        if (RE.greet.test(lower)) {
             return {
                 type: 'product_grid',
-                data: {
-                    title: 'Tất cả sản phẩm hiện có',
-                    products: products
-                },
-                isProductDetail: false
-            };
-        }
-        if (/(thanh toán|trả tiền|cách thanh toán|thanh toán như thế nào|quẹt thẻ)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '💳 Hiện tại bên em hỗ trợ thanh toán bằng tiền mặt khi nhận hàng (COD), chuyển khoản ngân hàng, và cả quẹt thẻ tại cửa hàng. Anh/chị yên tâm lựa chọn nhé!',
-                isProductDetail: false
-            };
-        }
-        if (
-            /(chính hãng|hàng thật|giả|bảo đảm|bảo mật)/.test(lower) &&
-            !/giảm giá/.test(lower)
-        ) {
-            return {
-                type: 'text',
-                data: '🔒 **ZYBERZONE** cam kết 100% sản phẩm chính hãng, có nguồn gốc rõ ràng và hỗ trợ bảo hành đầy đủ. Quý khách có thể yên tâm mua sắm!',
+                replyMessage: `<p>👋 Xin chào! Em là trợ lý ảo của <b>Home Power</b>. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`,
+                data: { title: 'Một số sản phẩm nổi bật', products: products.slice(0, 6) },
                 isProductDetail: false
             };
         }
 
-        if (/(nên mua|loại nào tốt|phù hợp|gợi ý|hợp với tôi|chọn giúp|sản phẩm tốt nhất)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🤖 Anh/chị có thể mô tả nhu cầu của mình như diện tích phòng, ngân sách, hay thói quen sử dụng. Em sẽ tư vấn chi tiết sản phẩm phù hợp nhất ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(kích hoạt bảo hành|bảo hành điện tử|cách kích hoạt|bảo hành online)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📱 Sản phẩm bên em thường được kích hoạt bảo hành tự động hoặc qua app hãng. Nếu cần hỗ trợ, anh/chị gửi mã sản phẩm cho em kiểm tra ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(phụ kiện|tặng kèm|kèm theo|có gì trong hộp|trong hộp có gì)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '📦 Hầu hết sản phẩm đều đi kèm đầy đủ phụ kiện tiêu chuẩn từ hãng. Nếu anh/chị cần kiểm tra chi tiết, em có thể gửi thông tin cụ thể ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(hàng mới|sản phẩm mới|về hàng chưa|có hàng mới|sản phẩm hot)/.test(lower)) {
-            return {
-                type: 'product_grid',
-                data: {
-                    title: '🔔 Một số sản phẩm mới về',
-                    products: products.slice(0, 4)
-                },
-                isProductDetail: false
-            };
-        }
-        if (/(ưu đãi|thành viên|tích điểm|chương trình khách hàng|khách thân thiết)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🎁 Anh/chị đăng ký tài khoản sẽ được tích điểm, nhận ưu đãi sinh nhật và các chương trình giảm giá dành riêng cho thành viên ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(khi nào nhận|bao lâu có hàng|thời gian nhận hàng|giao mấy ngày)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🕒 Thời gian giao hàng trung bình từ 1-3 ngày tùy khu vực. Sau khi đặt hàng, bên em sẽ gọi xác nhận và báo thời gian cụ thể luôn ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(danh mục|nhóm hàng|loại sản phẩm|loại hàng|thiết bị nào)/.test(lower)) {
-            const categoryListText = categories.map(c => `• ${c.name}`).join('\n');
-            return {
-                type: 'text',
-                data: `<p>📂 Danh mục sản phẩm hiện có:</p><pre>${categoryListText}</pre>`,
-                isProductDetail: false
-            };
-        }
-        for (const brand of brands) {
-            if (lower.includes(brand.name.toLowerCase()) && lower.includes('nổi bật')) {
-                return {
-                    type: 'text',
-                    data: `📌 **${brand.name}**: ${brand.description || 'Chưa có mô tả chi tiết.'}`,
-                    isProductDetail: false
-                };
-            }
-        }
-        const viewDetail = lower.match(/(xem|chi tiết|thông tin).*sản phẩm (.+)/);
-        if (viewDetail) {
-            const keyword = viewDetail[2].trim();
-            const found = products.find(p => p.name.toLowerCase().includes(keyword));
-            if (found) {
-                // Truyền các Map Flash Sale đã tải vào fetchProductDetail
-                const productDetailData = await this.fetchProductDetail(found.id, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap);
-                if (productDetailData) {
-                    return { type: 'product_detail', data: productDetailData, isProductDetail: true };
-                } else {
-                    return { type: 'text', data: `Không tìm thấy chi tiết sản phẩm này.`, isProductDetail: false };
-                }
-            } else {
-                return {
-                    type: 'text', data: `Không tìm thấy sản phẩm "${keyword}".`,
-                    isProductDetail: false
-                };
-            }
-        }
-        if (/(giao hàng|vận chuyển|ship hàng|đặt hàng|mua online)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🚚 Dạ bên em hỗ trợ giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị chỉ cần đặt hàng trên website hoặc nhắn với em để được hỗ trợ nhé!',
-                isProductDetail: false
-            };
-        }
-
-        if (/(bảo hành|bảo trì)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🛠️ Tất cả sản phẩm đều được bảo hành chính hãng từ 6-24 tháng tùy loại. Anh/chị yên tâm khi mua sắm tại **ZYBERZONE** ạ!',
-                isProductDetail: false
-            };
-        }
-
-        if (/(đổi trả|hoàn tiền|trả hàng)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🔄 Dạ bên em hỗ trợ đổi trả trong vòng 7 ngày nếu sản phẩm có lỗi từ nhà sản xuất. Anh/chị nhớ giữ hóa đơn và bao bì đầy đủ nhé!',
-                isProductDetail: false
-            };
-        }
-
-        if (/(shop ở đâu|địa chỉ|chi nhánh|cửa hàng)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '🏬 Hiện tại bên em đang bán hàng online toàn quốc. Nếu cần hỗ trợ trực tiếp, anh/chị có thể liên hệ hotline **1900 8922** hoặc fanpage nhé!',
-                isProductDetail: false
-            };
-        }
-
-        if (/(làm việc|giờ mở cửa|thời gian làm việc)/.test(lower)) {
-            return {
-                type: 'text',
-                data: '⏰ Dạ bên em hỗ trợ từ 8:00 đến 21:00 mỗi ngày, kể cả cuối tuần và ngày lễ. Anh/chị cần hỗ trợ lúc nào cũng có nhân viên online ạ!',
-                isProductDetail: false
-            };
-        }
-        if (/(chào|xin chào|tư vấn|giúp|mua gì|bắt đầu)/.test(lower)) {
-            return {
-                type: 'product_grid',
-                replyMessage: `<p>👋 Xin chào! Em là trợ lý ảo của **Home Power**. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`,
-                data: {
-                    title: 'Một số sản phẩm nổi bật',
-                    products: products.slice(0, 6)
-                },
-                isProductDetail: false
-            };
-        }
-
-        if (/giảm giá|khuyến mãi/.test(lower)) {
+        if (RE.discount.test(lower)) {
             const saleItems = products.filter(p => p.discount && p.discount >= 1);
-
             const tableRows = saleItems.slice(0, 5).map(p => [
                 `<a href='/product/${p.slug}' class='text-blue-600 underline'>${p.name}</a>`,
                 `${formatCurrencyVND(p.price)}`,
                 p.soldCount > 999 ? `${Math.floor(p.soldCount / 1000)}k+` : `${p.soldCount}`
             ]);
-
             return {
                 type: 'product_grid',
                 data: {
                     title: 'Sản phẩm đang giảm giá',
                     descriptionTop: '🔥 Dưới đây là các sản phẩm đang khuyến mãi nổi bật:',
-                    table: {
-                        headers: ['Tên sản phẩm', 'Giá (VNĐ)', 'Đã bán'],
-                        rows: tableRows
-                    },
+                    table: { headers: ['Tên sản phẩm', 'Giá (VNĐ)', 'Đã bán'], rows: tableRows },
                     products: saleItems,
                     noteAfterGrid: '💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!'
                 },
@@ -530,115 +323,178 @@ class ChatboxController {
             };
         }
 
-
-        function normalizeVN(str) {
-            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        if (RE.shipping.test(lower)) {
+            return { type: 'text', data: '🚚 Bên em giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị đặt trực tiếp trên website hoặc nhắn với em nhé!', isProductDetail: false };
+        }
+        if (RE.payment.test(lower)) {
+            return { type: 'text', data: '💳 Hỗ trợ COD, chuyển khoản ngân hàng, và quẹt thẻ tại cửa hàng. Anh/chị chọn phương thức tiện nhất nhé!', isProductDetail: false };
+        }
+        if (RE.warranty.test(lower)) {
+            return { type: 'text', data: '🛠️ Tất cả sản phẩm bảo hành chính hãng 6–24 tháng (tuỳ loại). Anh/chị yên tâm mua sắm tại <b>ZYBERZONE</b> ạ!', isProductDetail: false };
+        }
+        if (RE.returnRefund.test(lower)) {
+            return { type: 'text', data: '🔄 Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!', isProductDetail: false };
+        }
+        if (RE.contact.test(lower)) {
+            return { type: 'text', data: '🏬 Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!', isProductDetail: false };
+        }
+        if (RE.worktime.test(lower)) {
+            return { type: 'text', data: '⏰ Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.', isProductDetail: false };
+        }
+        if (RE.trust.test(lower) && !RE.discount.test(lower)) {
+            return { type: 'text', data: '🔒 <b>ZYBERZONE</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!', isProductDetail: false };
+        }
+        if (RE.compare.test(lower)) {
+            return { type: 'text', data: '🤔 Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!', isProductDetail: false };
+        }
+        if (RE.stock.test(lower)) {
+            return { type: 'text', data: '📦 Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!', isProductDetail: false };
+        }
+        if (RE.install.test(lower)) {
+            return { type: 'text', data: '🔧 Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!', isProductDetail: false };
+        }
+        if (RE.family.test(lower)) {
+            return { type: 'text', data: '👨‍👩‍👧 Nếu anh/chị mô tả cụ thể người dùng/mục đích, em sẽ gợi ý đúng nhu cầu hơn ạ!', isProductDetail: false };
+        }
+        if (RE.orderHistory.test(lower)) {
+            return { type: 'text', data: '📄 Anh/chị để lại số điện thoại đặt hàng, em kiểm tra lịch sử đơn ngay nhé!', isProductDetail: false };
+        }
+        if (RE.fun.test(lower)) {
+            // Off-topic mềm -> điều hướng
+            return { type: 'text', data: OFFTOPIC_MSG, isProductDetail: false };
+        }
+        if (RE.angry.test(lower)) {
+            return { type: 'text', data: '😥 Em xin lỗi nếu trải nghiệm chưa tốt. Anh/chị để lại số ĐT hoặc chi tiết, bên em sẽ gọi hỗ trợ ngay ạ!', isProductDetail: false };
+        }
+        if (RE.energy.test(lower)) {
+            return { type: 'text', data: '⚡ Nhiều sản phẩm có Inverter/ECO tiết kiệm điện. Anh/chị cần dòng nào em kiểm tra cụ thể nhé!', isProductDetail: false };
+        }
+        if (RE.invoice.test(lower)) {
+            return { type: 'text', data: '📑 Bên em xuất hoá đơn VAT đầy đủ khi anh/chị yêu cầu. Cho em xin thông tin DN nếu cần nhé!', isProductDetail: false };
+        }
+        if (RE.app.test(lower)) {
+            return { type: 'text', data: '📲 Theo dõi đơn bằng cách đăng nhập website, hoặc kiểm tra email/SMS. Cần mã đơn? Em tra ngay!', isProductDetail: false };
+        }
+        if (RE.social.test(lower)) {
+            return { type: 'text', data: '🛒 Hiện <b>ZYBERZONE</b> chỉ bán chính thức trên website để đảm bảo dịch vụ & bảo hành tốt nhất ạ!', isProductDetail: false };
+        }
+        if (RE.smallRoom.test(lower)) {
+            return { type: 'text', data: '🏠 Không gian nhỏ nên chọn sản phẩm gọn, tiết kiệm diện tích. Anh/chị mô tả diện tích/phòng để em tư vấn ạ!', isProductDetail: false };
+        }
+        if (RE.cancelOrChange.test(lower)) {
+            return { type: 'text', data: '⚠️ Anh/chị gửi mã đơn hoặc số ĐT đặt hàng, em hỗ trợ hủy/chỉnh sửa ngay nhé!', isProductDetail: false };
+        }
+        if (RE.allProducts.test(lower)) {
+            return { type: 'product_grid', data: { title: 'Tất cả sản phẩm hiện có', products }, isProductDetail: false };
+        }
+        if (RE.newArrivals.test(lower)) {
+            return { type: 'product_grid', data: { title: '🔔 Sản phẩm mới về', products: products.slice(0, 4) }, isProductDetail: false };
+        }
+        if (RE.loyal.test(lower)) {
+            return { type: 'text', data: '🎁 Đăng ký tài khoản để tích điểm, nhận ưu đãi sinh nhật và khuyến mãi riêng cho thành viên nhé!', isProductDetail: false };
+        }
+        if (RE.deliveryTime.test(lower)) {
+            return { type: 'text', data: '🕒 Giao hàng trung bình 1–3 ngày (tuỳ khu vực). Sau khi đặt, bên em sẽ gọi xác nhận & báo thời gian cụ thể.', isProductDetail: false };
+        }
+        if (RE.categoriesAsk.test(lower)) {
+            const categoryListText = categories.map(c => `• ${c.name}`).join('\n');
+            return { type: 'text', data: `<p>📂 Danh mục sản phẩm hiện có:</p><pre>${categoryListText}</pre>`, isProductDetail: false };
         }
 
-        const brandMatch = lower.match(/thương hiệu (.+)|của (.+)/);
-        if (brandMatch) {
-            const brandKeyword = (brandMatch[1] || brandMatch[2]).trim();
-            const matched = products.filter(p => p.brand?.toLowerCase().includes(brandKeyword));
+        // 6) Intent: "thương hiệu X" / "của X"
+        const brandIntent = msgNorm.match(/(?:thuong\s*hieu|thuong-hieu|thuonghieu|thương\s*hiệu)\s+(.+)|(?:cua|của)\s+(.+)/);
+        if (brandIntent) {
+            const kw = (brandIntent[1] || brandIntent[2] || '').replace(/[?.!,;:]+$/, '').trim();
+            const kwTokens = kw.split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 2);
+
+            const matched = products
+                .map(p => {
+                    const oldTokens = tokens.slice();
+                    tokens.length = 0; tokens.push(...kwTokens);
+                    const s = relevanceScore(p);
+                    tokens.length = 0; tokens.push(...oldTokens);
+                    return { p, s };
+                })
+                .filter(x => x.s > 0)
+                .sort((a, b) => b.s - a.s || (b.p.soldCount || 0) - (a.p.soldCount || 0))
+                .map(x => x.p);
+
             if (matched.length) {
-                return {
-                    type: 'product_grid',
-                    data: {
-                        title: `Sản phẩm của thương hiệu ${brandKeyword}`,
-                        products: matched
-                    },
-                    isProductDetail: false
-                };
-            } else {
-                return {
-                    type: 'text',
-                    data: `😔 Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${brandKeyword}".`,
-                    isProductDetail: false
-                };
+                return { type: 'product_grid', data: { title: `Sản phẩm của thương hiệu ${kw}`, products: matched.slice(0, 50) }, isProductDetail: false };
             }
+            return { type: 'text', data: `😔 Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${kw}".`, isProductDetail: false };
         }
 
-
-        if (lower.includes('mua online')) {
-            return {
-                type: 'text',
-                data: '✅ Anh/chị hoàn toàn có thể mua hàng online trên website. Chúng tôi giao hàng tận nơi toàn quốc!',
-                isProductDetail: false
-            };
-        }
-
-        if (lower.includes('liên hệ') || lower.includes('cửa hàng')) {
-            return {
-                type: 'text',
-                data: '📞 Anh/chị có thể gọi hotline **1900 8922** hoặc nhắn tin qua fanpage để được hỗ trợ.',
-            };
-        }
-
-        if (lower.includes('uy tín') || lower.includes('đáng tin')) {
-            return {
-                type: 'text',
-                data: '🌟 Chúng tôi cam kết cung cấp sản phẩm chính hãng 100%, có nguồn gốc rõ ràng và hỗ trợ bảo hành đầy đủ. Quý khách có thể yên tâm mua sắm!',
-                isProductDetail: false
-            };
-        }
+        // 7) Intent: danh mục (match theo tên category không dấu)
         for (const cat of categories) {
-            if (normalizeVN(lower).includes(normalizeVN(cat.name))) {
-                const matched = products.filter(
-                    p => normalizeVN(p.category)?.includes(normalizeVN(cat.name))
-                );
+            const catNorm = normalizeVN(cat.name || '');
+            if (catNorm && msgNorm.includes(catNorm)) {
+                const matched = products.filter(p => normalizeVN(p.category || '').includes(catNorm));
                 if (matched.length) {
-                    return {
-                        type: 'product_grid',
-                        data: {
-                            title: `Sản phẩm thuộc danh mục "${cat.name}"`,
-                            products: matched
-                        },
-                        isProductDetail: false
-                    };
-                } else {
-                    return {
-                        type: 'text',
-                        data: `😔 Hiện chưa có sản phẩm nào trong danh mục "${cat.name}" cả ạ.`,
-                        isProductDetail: false
-                    };
+                    return { type: 'product_grid', data: { title: `Sản phẩm thuộc danh mục "${cat.name}"`, products: matched }, isProductDetail: false };
                 }
+                return { type: 'text', data: `😔 Hiện chưa có sản phẩm nào trong danh mục "${cat.name}" cả ạ.`, isProductDetail: false };
             }
         }
 
+        // 8) Intent: xem chi tiết "xem/chi tiết/thông tin sản phẩm XXX"
+        const mDetail = lower.match(RE.detail);
+        if (mDetail) {
+            const keyword = (mDetail[2] || '').trim();
+            const found = products.find(p => normalizeVN(p.name).includes(normalizeVN(keyword)));
+            if (found) {
+                const productDetailData = await this.fetchProductDetail(
+                    found.id,
+                    this.allActiveFlashSaleItemsMap,
+                    this.allActiveCategoryDealsMap
+                );
+                if (productDetailData) {
+                    return { type: 'product_detail', data: productDetailData, isProductDetail: true };
+                }
+                return { type: 'text', data: `Không tìm thấy chi tiết sản phẩm này.`, isProductDetail: false };
+            }
+            return { type: 'text', data: `Không tìm thấy sản phẩm "${keyword}".`, isProductDetail: false };
+        }
 
-        const matchedProducts = products.filter(p => lower.includes(p.name.toLowerCase()));
+        // 9) Tìm theo token (tên/brand/category) – linh hoạt cho mọi câu tự do
+        const matchedProducts = products
+            .map(p => ({ p, s: relevanceScore(p) }))
+            .filter(x => x.s > 0)
+            .sort((a, b) => b.s - a.s || (b.p.soldCount || 0) - (a.p.soldCount || 0))
+            .map(x => x.p);
 
         if (matchedProducts.length > 0) {
             return {
                 type: 'product_grid',
-                data: {
-                    title: 'Sản phẩm phù hợp với yêu cầu',
-                    products: matchedProducts
-                },
+                data: { title: `Kết quả cho: "${message}"`, products: matchedProducts.slice(0, 50) },
                 isProductDetail: false
             };
-        } else {
-            if (genAI) {
-                try {
-                    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-                    const result = await model.generateContent(message);
-                    const aiResponse = result.text();
-                    return { type: 'text', data: aiResponse, isProductDetail: false };
-                } catch (aiError) {
-                    console.error("Gemini AI error:", aiError);
+        }
+
+        // 10) Nếu vẫn không ra -> hỏi LLM có schema
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                const structured = await askLLMStructured(message);
+                if (structured.type === 'product_detail') {
                     return {
                         type: 'text',
-                        data: `😔 Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.`,
+                        data: '<p>Em đã tìm thấy chi tiết sản phẩm. Anh/Chị bấm vào sản phẩm trong danh sách để xem thêm nhé!</p>',
                         isProductDetail: false
                     };
                 }
-            } else {
                 return {
-                    type: 'text',
-                    data: `😔 Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.`,
-                    isProductDetail: false
+                    type: structured.type,
+                    data: structured.content,
+                    isProductDetail: structured.isProductDetail,
+                    replyMessage: structured.replyMessage || undefined
                 };
+            } catch (aiError) {
+                console.error("Gemini structured error:", aiError);
+                return { type: 'text', data: '😔 Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.', isProductDetail: false };
             }
         }
+
+        return { type: 'text', data: '😔 Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.', isProductDetail: false };
     }
 
     async fetchChatProducts({ limit = 50, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap } = {}) {
@@ -893,9 +749,9 @@ class ChatboxController {
             category: productData.category?.name,
             skus: productData.skus,
             defaultSku: productData.defaultSku,
-            rating: averageRatingForProductDetail, // Thêm averageRating cho chi tiết sản phẩm
-            soldCount: totalSoldForProductDetail,  // Thêm soldCount cho chi tiết sản phẩm
-            // Các trường khác bạn muốn hiển thị trong chi tiết sản phẩm
+            rating: averageRatingForProductDetail,
+            soldCount: totalSoldForProductDetail,
+
         };
     }
 

@@ -1,6 +1,8 @@
---index-url https://download.pytorch.org/whl/cpu
-torch
-flask
-flask-cors
-Pillow
-git+https://github.com/openai/CLIP.git
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.8.0+cpu
+Flask>=3.0
+flask-cors>=4.0
+Pillow>=10.0
+git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1

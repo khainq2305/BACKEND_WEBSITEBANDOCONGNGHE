@@ -30,9 +30,7 @@ exports.searchByImage = async (req, res) => {
     if (!filePath.startsWith("http://") && !filePath.startsWith("https://")) {
       formData.append("image", fs.createReadStream(path.resolve(filePath)));
     } else {
-      const imageRes = await axios.get(filePath, {
-        responseType: "arraybuffer",
-      });
+      const imageRes = await axios.get(filePath, { responseType: "arraybuffer" });
       formData.append("image", Buffer.from(imageRes.data), {
         filename: "image.jpg",
         contentType: "image/jpeg",
@@ -41,7 +39,8 @@ exports.searchByImage = async (req, res) => {
 
     const flaskResponse = await axios.post(
       "http://127.0.0.1:8000/embed",
-      formData, {
+      formData,
+      {
         headers: formData.getHeaders(),
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
@@ -54,7 +53,27 @@ exports.searchByImage = async (req, res) => {
         message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn.",
       });
     }
-    
+
+    // ===== Helper: tính giảm giá fallback =====
+    const ensureDiscount = (price, originalPrice, discountAmount, discountPercent) => {
+      const p = Number(price) || 0;
+      const op = Number(originalPrice) || 0;
+      let amt = Number(discountAmount) || 0;
+      let pct = Number(discountPercent) || 0;
+
+      if ((!pct || pct <= 0) && op > 0 && p > 0 && p < op) {
+        pct = Math.round(((op - p) / op) * 100);
+      }
+      if ((!amt || amt <= 0) && op > 0 && p > 0 && p < op) {
+        amt = op - p;
+      }
+      if (pct < 0) pct = 0;
+      if (pct > 100) pct = 100;
+      if (amt < 0) amt = 0;
+
+      return { discountAmount: amt, discountPercent: pct };
+    };
+
     const now = new Date();
     const allActiveFlashSales = await FlashSale.findAll({
       where: {
@@ -77,13 +96,13 @@ exports.searchByImage = async (req, res) => {
             "maxPerUser",
             [
               Sequelize.literal(`(
-                                SELECT COALESCE(SUM(oi.quantity), 0)
-                                FROM orderitems oi
-                                INNER JOIN orders o ON oi.orderId = o.id
-                                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
-                                AND oi.skuId = flashSaleItems.skuId
-                                AND o.status IN ('completed', 'delivered')
-                            )`),
+                SELECT COALESCE(SUM(oi.quantity), 0)
+                FROM orderitems oi
+                INNER JOIN orders o ON oi.orderId = o.id
+                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
+                  AND oi.skuId = flashSaleItems.skuId
+                  AND o.status IN ('completed', 'delivered')
+              )`),
               "soldQuantityForFlashSaleItem",
             ],
           ],
@@ -91,17 +110,8 @@ exports.searchByImage = async (req, res) => {
             {
               model: Sku,
               as: "sku",
-              attributes: [
-                "id",
-                "skuCode",
-                "price",
-                "originalPrice",
-                "stock",
-                "productId",
-              ],
-              include: [
-                { model: Product, as: "product", attributes: ["categoryId"] },
-              ],
+              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
+              include: [{ model: Product, as: "product", attributes: ["categoryId"] }],
             },
           ],
         },
@@ -109,14 +119,7 @@ exports.searchByImage = async (req, res) => {
           model: FlashSaleCategory,
           as: "categories",
           required: false,
-          include: [
-            {
-              model: FlashSale,
-              as: "flashSale",
-              attributes: ["endTime"],
-              required: false,
-            },
-          ],
+          include: [{ model: FlashSale, as: "flashSale", attributes: ["endTime"], required: false }],
         },
       ],
     });
@@ -133,19 +136,14 @@ exports.searchByImage = async (req, res) => {
         if (!sku) return;
         const skuId = sku.id;
         const flashItemSalePrice = parseFloat(fsi.salePrice);
-        const soldForThisItem = parseInt(
-          fsi.dataValues.soldQuantityForFlashSaleItem || 0
-        );
+        const soldForThisItem = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0);
         const flashLimit = fsi.quantity;
 
-        const isSoldOutForThisItem =
-          flashLimit != null && soldForThisItem >= flashLimit;
+        const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
 
         if (
           !allActiveFlashSaleItemsMap.has(skuId) ||
-          (!isSoldOutForThisItem &&
-            flashItemSalePrice <
-            allActiveFlashSaleItemsMap.get(skuId).salePrice)
+          (!isSoldOutForThisItem && flashItemSalePrice < allActiveFlashSaleItemsMap.get(skuId).salePrice)
         ) {
           allActiveFlashSaleItemsMap.set(skuId, {
             salePrice: flashItemSalePrice,
@@ -174,7 +172,7 @@ exports.searchByImage = async (req, res) => {
         });
       });
     });
-    
+
     const productsWithEmbeddings = await Product.findAll({
       where: { imageVector: { [Op.ne]: null } },
       attributes: [
@@ -226,36 +224,52 @@ exports.searchByImage = async (req, res) => {
             ...sku.toJSON(),
             Product: { category: { id: product.categoryId } },
           };
+
+          // Giá sau khi áp dụng flash sale / category deal (nếu có)
           const priceResults = processSkuPrices(
             skuDataForHelper,
             allActiveFlashSaleItemsMap,
             allActiveCategoryDealsMap
           );
 
+          // Đồng bộ giá gốc và giảm giá (fallback nếu thiếu)
+          const finalPrice = Number(priceResults.price) || Number(sku.price) || 0;
+          const finalOriginal = Number(priceResults.originalPrice) || Number(sku.originalPrice) || 0;
+
+          const ensured = ensureDiscount(
+            finalPrice,
+            finalOriginal,
+            priceResults.discountAmount,
+            priceResults.discountPercent
+          );
+
           return {
             ...sku.toJSON(),
-            price: priceResults.price,
-            originalPrice: priceResults.originalPrice,
+            price: finalPrice,
+            originalPrice: finalOriginal,
             flashSaleInfo: priceResults.flashSaleInfo,
             hasDeal: priceResults.hasDeal,
-            discountAmount: priceResults.discountAmount,
-            discountPercent: priceResults.discountPercent,
+            discountAmount: ensured.discountAmount,
+            discountPercent: ensured.discountPercent,
           };
         })
         .sort((a, b) => {
           const aHasActiveFS = a.flashSaleInfo?.dealApplied;
           const bHasActiveFS = b.flashSaleInfo?.dealApplied;
-
           if (aHasActiveFS && !bHasActiveFS) return -1;
           if (!aHasActiveFS && bHasActiveFS) return 1;
-
           return (+a.price || 0) - (+b.price || 0);
         });
 
       const primarySku = skus[0] || {};
+      const totalStock = (product.skus || []).reduce((s, x) => s + (parseInt(x.stock, 10) || 0), 0);
 
-      const totalStock = (product.skus || []).reduce(
-        (s, x) => s + (parseInt(x.stock, 10) || 0), 0
+      // Fallback cuối cho payload FE
+      const ensuredTop = ensureDiscount(
+        primarySku.price,
+        primarySku.originalPrice,
+        primarySku.discountAmount,
+        primarySku.discountPercent
       );
 
       return {
@@ -267,11 +281,11 @@ exports.searchByImage = async (req, res) => {
         image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
         badgeImage: product.badgeImage,
         price: primarySku.price,
-        oldPrice: primarySku.originalPrice,
-        originalPrice: primarySku.originalPrice,
-        discount: primarySku.discountPercent,
-        discountAmount: primarySku.discountAmount,
-        skus: skus,
+        oldPrice: primarySku.originalPrice,       // FE dùng oldPrice để gạch
+        originalPrice: primarySku.originalPrice,  // vẫn giữ cho rõ ràng
+        discount: ensuredTop.discountPercent,     // % hiển thị góc thẻ
+        discountAmount: ensuredTop.discountAmount,// số tiền "Tiết kiệm"
+        skus,
         inStock: totalStock > 0,
         similarity: score.toFixed(4),
       };
@@ -292,14 +306,13 @@ exports.searchByImage = async (req, res) => {
           message: `Không kết nối được đến Flask API. Vui lòng kiểm tra Flask server. (${err.code})`,
         });
       } else {
-        return res
-          .status(500)
-          .json({ message: `Lỗi cấu hình request: ${err.message}` });
+        return res.status(500).json({ message: `Lỗi cấu hình request: ${err.message}` });
       }
     }
     return res.status(500).json({ message: "Lỗi server khi tìm kiếm ảnh." });
   }
 };
+
 
 exports.searchByName = async (req, res) => {
   try {
