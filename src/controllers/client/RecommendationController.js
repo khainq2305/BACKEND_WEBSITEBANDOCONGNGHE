@@ -1,5 +1,3 @@
-// controllers/RecommendationController.js
-
 require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -78,7 +76,8 @@ class RecommendationController {
                 include: [{
                     model: Product,
                     as: 'product',
-                    attributes: ['id', 'name', 'description'],
+                    attributes: ['id', 'name', 'description', 'categoryId', 'brandId', 'isActive'],
+                    where: { isActive: true }, // Lấy sản phẩm đang hoạt động
                     include: [
                         { model: Category, as: 'category', attributes: ['name'] },
                         { model: Brand, as: 'brand', attributes: ['name'] }
@@ -101,8 +100,6 @@ class RecommendationController {
     }
 
     static async _getUserPurchasedProducts(userId, limit = 5) {
-        console.log("DEBUG: Checking sequelize instance (inside _getUserPurchasedProducts):", !!sequelize);
-
         if (!User || !Order || !OrderItem || !Sku || !Product || !Category || !Brand || !sequelize) {
             console.warn("WARN: [_getUserPurchasedProducts] Required models or sequelize instance missing.");
             return [];
@@ -113,6 +110,8 @@ class RecommendationController {
                     P.id,
                     P.name,
                     P.description,
+                    P.categoryId,
+                    P.brandId,
                     Cat.name AS category_name,
                     B.name AS brand_name,
                     MAX(O.createdAt) AS last_purchased_at
@@ -129,8 +128,8 @@ class RecommendationController {
                 LEFT JOIN
                     Brands B ON P.brandId = B.id
                 WHERE
-                    O.userId = :userId AND O.status IN ('completed', 'delivered')
-                GROUP BY P.id, P.name, P.description, category_name, brand_name
+                    O.userId = :userId AND O.status IN ('completed', 'delivered') AND P.deletedAt IS NULL AND P.isActive = TRUE
+                GROUP BY P.id, P.name, P.description, P.categoryId, P.brandId, category_name, brand_name
                 ORDER BY
                     last_purchased_at DESC
                 LIMIT :limit;
@@ -146,6 +145,8 @@ class RecommendationController {
                 id: row.id,
                 name: row.name,
                 description: row.description,
+                categoryId: row.categoryId,
+                brandId: row.brandId,
                 category: { name: row.category_name },
                 brand: { name: row.brand_name }
             }));
@@ -164,7 +165,8 @@ class RecommendationController {
         }
         try {
             const product = await Product.findByPk(productId, {
-                attributes: ['id', 'name', 'description'],
+                attributes: ['id', 'name', 'description', 'categoryId', 'brandId', 'isActive'],
+                where: { isActive: true }, // Lấy sản phẩm đang hoạt động
                 include: [
                     { model: Category, as: 'category', attributes: ['name'] },
                     { model: Brand, as: 'brand', attributes: ['name'] }
@@ -222,24 +224,11 @@ class RecommendationController {
                 return { gender: null, age: null };
             }
 
-            // --- Logging thêm để debug giá trị dateOfBirth ---
-            console.log(`DEBUG: [_getUserDemographics] User ${userId} fetched:`, user.toJSON());
-            // --- End Logging ---
-
             let age = null;
             if (user.dateOfBirth) {
-                // --- Logging thêm để debug quá trình tính tuổi ---
-                console.log(`DEBUG: [_getUserDemographics] dateOfBirth from DB:`, user.dateOfBirth);
-                // --- End Logging ---
-
                 const today = new Date();
                 const birthDate = new Date(user.dateOfBirth);
 
-                // --- Logging thêm để debug quá trình parse ngày ---
-                console.log(`DEBUG: [_getUserDemographics] Parsed birthDate:`, birthDate);
-                // --- End Logging ---
-
-                // Kiểm tra xem birthDate có hợp lệ không
                 if (isNaN(birthDate.getTime())) {
                     console.error(`ERROR: [_getUserDemographics] Invalid dateOfBirth for user ${userId}:`, user.dateOfBirth);
                     age = null;
@@ -250,9 +239,6 @@ class RecommendationController {
                         calculatedAge--;
                     }
                     age = calculatedAge;
-                    // --- Logging thêm để debug tuổi đã tính ---
-                    console.log(`DEBUG: [_getUserDemographics] Calculated age:`, age);
-                    // --- End Logging ---
                 }
             }
 
@@ -266,10 +252,94 @@ class RecommendationController {
         }
     }
 
+    static async _getRelatedProductsForPrompt(userId, currentProductId) {
+        if (!Product || !Category || !Brand || !ProductView || !Order) {
+            console.warn("WARN: [_getRelatedProductsForPrompt] Required models missing. Skipping related products retrieval.");
+            return [];
+        }
+
+        const relatedIds = new Set();
+        const relatedCategoryIds = new Set();
+        const relatedBrandIds = new Set();
+
+        const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
+        recentlyViewed.forEach(p => {
+            if (p.categoryId) relatedCategoryIds.add(p.categoryId);
+            if (p.brandId) relatedBrandIds.add(p.brandId);
+        });
+
+        const purchasedProducts = await RecommendationController._getUserPurchasedProducts(userId, 5);
+        purchasedProducts.forEach(p => {
+            if (p.categoryId) relatedCategoryIds.add(p.categoryId);
+            if (p.brandId) relatedBrandIds.add(p.brandId);
+        });
+
+        if (currentProductId) {
+            const currentProduct = await Product.findByPk(currentProductId, { attributes: ['categoryId', 'brandId', 'isActive'], where: { isActive: true } });
+            if (currentProduct) {
+                if (currentProduct.categoryId) relatedCategoryIds.add(currentProduct.categoryId);
+                if (currentProduct.brandId) relatedBrandIds.add(currentProduct.brandId);
+            }
+        }
+
+        const excludedIds = new Set([
+            ...recentlyViewed.map(p => p.id),
+            ...purchasedProducts.map(p => p.id),
+        ]);
+        if (currentProductId) excludedIds.add(currentProductId);
+
+        console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Category IDs: ${Array.from(relatedCategoryIds).join(', ')}`);
+        console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Brand IDs: ${Array.from(relatedBrandIds).join(', ')}`);
+        console.log(`DEBUG: [_getRelatedProductsForPrompt] Excluded Product IDs: ${Array.from(excludedIds).join(', ')}`);
+
+        let relatedProducts = [];
+        const limit = 50;
+
+        const whereClause = {
+            id: { [Op.notIn]: Array.from(excludedIds) },
+            isActive: true, // Điều kiện lấy sản phẩm đang hoạt động
+            [Op.or]: []
+        };
+        
+        if (relatedCategoryIds.size > 0) {
+            whereClause[Op.or].push({ categoryId: { [Op.in]: Array.from(relatedCategoryIds) } });
+        }
+        if (relatedBrandIds.size > 0) {
+            whereClause[Op.or].push({ brandId: { [Op.in]: Array.from(relatedBrandIds) } });
+        }
+
+        if (relatedCategoryIds.size > 0 || relatedBrandIds.size > 0) {
+            relatedProducts = await Product.findAll({
+                where: whereClause,
+                attributes: ['id', 'name', 'description'],
+                order: [['createdAt', 'DESC']],
+                limit: limit,
+                paranoid: false
+            });
+        }
+
+        if (relatedProducts.length === 0) {
+            console.log("WARN: [_getRelatedProductsForPrompt] No related products found. Falling back to popular products.");
+            relatedProducts = await Product.findAll({
+                attributes: ['id', 'name', 'description'],
+                where: { 
+                    id: { [Op.notIn]: Array.from(excludedIds) },
+                    isActive: true, // Điều kiện lấy sản phẩm đang hoạt động
+                },
+                order: [[sequelize.literal('(SELECT COUNT(*) FROM `OrderItems` as `oi` WHERE oi.skuId IN (SELECT id FROM `Skus` WHERE productId = `Product`.id))'), 'DESC']],
+                limit: limit,
+                paranoid: false
+            });
+        }
+        
+        console.log(`DEBUG: [_getRelatedProductsForPrompt] Found ${relatedProducts.length} related products for prompt.`);
+        return relatedProducts;
+    }
+
     static async _buildGeminiRecommendationPrompt(userId, currentProductId = null) {
         let prompt = "Bạn là một chuyên gia gợi ý sản phẩm cho một trang thương mại điện tử. " +
-                     "Dựa trên lịch sử hành vi của người dùng (bao gồm lịch sử xem, mua, tìm kiếm) và thông tin cá nhân (giới tính, độ tuổi), " +
-                     "hãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm.";
+                    "Dựa trên lịch sử hành vi của người dùng (bao gồm lịch sử xem, mua, tìm kiếm) và thông tin cá nhân (giới tính, độ tuổi), " +
+                    "hãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm.";
         prompt += " Các gợi ý phải phù hợp với sở thích thể hiện qua các dữ liệu được cung cấp.";
 
         const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
@@ -278,11 +348,16 @@ class RecommendationController {
         const userDemographics = await RecommendationController._getUserDemographics(userId);
         const currentProduct = currentProductId ? await RecommendationController._getProductDetailsForGemini(currentProductId) : null;
 
-        const allAvailableProducts = await Product.findAll({
-            attributes: ['id', 'name', 'description'],
-            limit: 500,
-            paranoid: false
+        console.log("DEBUG: [_buildGeminiRecommendationPrompt] Dữ liệu người dùng: ", {
+            gender: userDemographics.gender,
+            age: userDemographics.age,
+            currentProduct: currentProduct?.name,
+            recentlyViewedCount: recentlyViewed.length,
+            purchasedProductsCount: purchasedProducts.length,
+            searchHistoryCount: searchHistory.length
         });
+
+        const productsForPrompt = await RecommendationController._getRelatedProductsForPrompt(userId, currentProductId);
 
         if (userDemographics.gender || userDemographics.age) {
             prompt += "\n\nThông tin cá nhân của người dùng:";
@@ -318,10 +393,22 @@ class RecommendationController {
                 prompt += `\n- "${keyword}"`;
             });
         }
-
-        if (allAvailableProducts.length > 0) {
-            prompt += "\n\nDưới đây là danh sách CÁC SẢN PHẨM HIỆN CÓ trong kho của chúng tôi. Bạn CHỈ ĐƯỢC GỢI Ý các sản phẩm CÓ TRONG DANH SÁCH NÀY. Mỗi sản phẩm kèm theo mô tả để bạn hiểu rõ hơn về chúng:";
-            allAvailableProducts.forEach(p => {
+        
+        if (productsForPrompt.length > 0) {
+            prompt += "\n\nDưới đây là danh sách CÁC SẢN PHẨM trong kho mà bạn có thể gợi ý. Bạn CHỈ ĐƯỢC GỢI Ý các sản phẩm CÓ TRONG DANH SÁCH NÀY. Mỗi sản phẩm kèm theo mô tả:";
+            productsForPrompt.forEach(p => {
+                prompt += `\n- ID: ${p.id}, Tên: "${p.name}", Mô tả: "${p.description || 'không có'}"`;
+            });
+        } else {
+            prompt += "\n\nDưới đây là một số sản phẩm phổ biến mà bạn có thể cân nhắc gợi ý:";
+            const popularProducts = await Product.findAll({
+                attributes: ['id', 'name', 'description'],
+                where: { isActive: true },
+                order: [[sequelize.literal('(SELECT COUNT(*) FROM `OrderItems` as `oi` WHERE oi.skuId IN (SELECT id FROM `Skus` WHERE productId = `Product`.id))'), 'DESC']],
+                limit: 20,
+                paranoid: false
+            });
+            popularProducts.forEach(p => {
                 prompt += `\n- ID: ${p.id}, Tên: "${p.name}", Mô tả: "${p.description || 'không có'}"`;
             });
         }
@@ -462,7 +549,8 @@ class RecommendationController {
                     where: {
                         id: {
                             [Op.in]: recommendedProductIds
-                        }
+                        },
+                        isActive: true
                     },
                     attributes: [
                         'id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'

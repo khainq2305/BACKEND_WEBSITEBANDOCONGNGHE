@@ -14,11 +14,11 @@ const {
   SkuVariantValue,
   VariantValue,
   Variant,
-} = require("../../models"); // Adjust path as per your project structure
+} = require("../../models"); 
 const { Sequelize, Op } = require("sequelize");
 
 // Import the helper function
-const { processSkuPrices } = require("../../helpers/priceHelper"); // Adjust path as per your project structure
+const { processSkuPrices } = require("../../helpers/priceHelper"); 
 
 class CartController {
   static async addToCart(req, res) {
@@ -28,7 +28,7 @@ class CartController {
 
       console.log(`--- [addToCart] Bắt đầu xử lý thêm vào giỏ hàng cho userId: ${userId}, skuId: ${skuId}, quantity: ${quantity} ---`);
 
-      // 1. Find the SKU and its product category
+   
       const sku = await Sku.findByPk(skuId, {
         include: [
           { model: Product, as: "product", attributes: ["categoryId"] },
@@ -48,7 +48,7 @@ class CartController {
       console.log(`[addToCart] SKU ${skuId} (stock: ${sku.stock}) hợp lệ.`);
 
 
-      // 2. Find or create the user's cart
+     
       const [cart, createdCart] = await Cart.findOrCreate({
         where: { userId },
         defaults: { userId },
@@ -56,7 +56,7 @@ class CartController {
       console.log(`[addToCart] Giỏ hàng cho userId ${userId} đã ${createdCart ? 'được tạo mới' : 'tồn tại'} (cartId: ${cart.id}).`);
 
 
-      // 3. Check for existing item in cart
+      
       const existingItem = await CartItem.findOne({
         where: { cartId: cart.id, skuId },
       });
@@ -64,7 +64,7 @@ class CartController {
       console.log(`[addToCart] Sản phẩm SKU ${skuId} hiện có trong giỏ hàng: ${currentQty} sản phẩm.`);
 
 
-      // 4. Fetch all active flash sales with necessary details
+     
       const now = new Date();
       const allActiveFlashSales = await FlashSale.findAll({
         where: {
