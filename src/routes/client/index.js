@@ -33,8 +33,9 @@ const walletRoutes = require("./wallet.route");
 
 // Payment callbacks
 const paymentController = require("../../controllers/client/paymentController");
-router.post("/payment/momo-callback", paymentController.momoCallback);
-router.get("/payment/momo-callback", paymentController.momoCallback);
+// router.post("/payment/momo-callback", paymentController.momoCallback);
+// router.get("/payment/momo-callback", paymentController.momoCallback);
+router.all("/payment/momo-callback", express.json(), paymentController.momoCallback);
 router.post("/payment/zalopay-callback", paymentController.zaloCallback);
 router.get("/payment/zalopay-callback", paymentController.zaloCallback);
 router.post("/payment/vnpay-callback", paymentController.vnpayCallback);
