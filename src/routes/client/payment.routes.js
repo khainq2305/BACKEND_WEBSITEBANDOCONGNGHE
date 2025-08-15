@@ -6,16 +6,13 @@ const bodyParser = require('body-parser');
 const { checkJWT } = require('../../middlewares/checkJWT');
 
 router.post('/momo', checkJWT, PaymentController.momoPay);
-router.get('/momo-callback', PaymentController.momoCallback);
-router.post('/momo-callback', PaymentController.momoCallback);
+
 
 router.post('/zalopay', checkJWT, PaymentController.zaloPay);
-router.get('/zalopay-callback', PaymentController.zaloCallback);
-router.post('/zalopay-callback', PaymentController.zaloCallback);
+
 
 router.post('/vnpay', checkJWT, PaymentController.vnpay);
-router.get('/vnpay-callback', PaymentController.vnpayCallback);
-router.post('/vnpay-callback', PaymentController.vnpayCallback);
+
 
 
 router.post('/stripe', checkJWT, PaymentController.stripePay);

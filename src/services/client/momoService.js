@@ -44,7 +44,7 @@ async function createPaymentLink({ orderId, amount, orderInfo }) {
     throw new Error("Thiếu biến môi trường MoMo");
   }
 
-  const requestType = "captureWallet";
+  const requestType = "payWithATM"; // <— thay vì "captureWallet"
   const requestId   = `${orderId}-${Date.now()}`;
   const extraData   = "";
 
