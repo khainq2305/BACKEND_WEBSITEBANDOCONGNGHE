@@ -21,7 +21,6 @@ function verifyPayosSignature(payload, signature, secretKey) {
 const moment = require("moment");
 
 const { Op } = require("sequelize");
-import crypto from "crypto";
 
 // ===== verify chữ ký IPN (v2) =====
 function buildRawSigIPN(b) {
