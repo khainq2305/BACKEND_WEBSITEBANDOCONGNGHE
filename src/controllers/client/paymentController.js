@@ -59,10 +59,17 @@ class PaymentController {
     }
   }
 
-  static async momoCallback(req, res) {
+static async momoCallback(req, res) {
   try {
     const isPost = Object.keys(req.body).length > 0;
     const data = isPost ? req.body : req.query;
+
+    console.log("===== MoMo CALLBACK START =====");
+    console.log("📩 Method:", req.method);
+    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+    console.log("💡 Query:", JSON.stringify(req.query, null, 2));
+    console.log("🔍 Parsed Data:", JSON.stringify(data, null, 2));
+    console.log("===== MoMo CALLBACK END =====");
 
     const { orderId, resultCode, transId } = data;
     const isSuccess = Number(resultCode) === 0;
@@ -83,7 +90,6 @@ class PaymentController {
       order.paymentTime = new Date();
       await order.save();
 
-      // 🔄 Tìm hoặc cập nhật notification cũ
       const existingNoti = await Notification.findOne({
         where: { slug: `order-${order.orderCode}` },
       });
@@ -115,6 +121,7 @@ class PaymentController {
     return res.status(500).end("ERROR");
   }
 }
+
 
 
   static async zaloPay(req, res) {
