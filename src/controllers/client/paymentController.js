@@ -61,38 +61,46 @@ class PaymentController {
 
 static async momoCallback(req, res) {
   try {
-    const isPost = Object.keys(req.body).length > 0;
-    const data = isPost ? req.body : req.query;
-
     console.log("===== MoMo CALLBACK START =====");
     console.log("📩 Method:", req.method);
-    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
-    console.log("💡 Query:", JSON.stringify(req.query, null, 2));
-    console.log("🔍 Parsed Data:", JSON.stringify(data, null, 2));
-    console.log("===== MoMo CALLBACK END =====");
+    console.log("📦 Body:", req.body);
+    console.log("💡 Query:", req.query);
+    console.log("🔍 Headers:", req.headers);
+    console.log("🌐 IP:", req.ip);
+
+    const isPost = Object.keys(req.body).length > 0;
+    const data = isPost ? req.body : req.query;
 
     const { orderId, resultCode, transId } = data;
     const isSuccess = Number(resultCode) === 0;
 
+    console.log("🔍 Parsed Data:", data);
+
+    // Nếu không có transId => là redirect từ browser, không xử lý thanh toán
     if (!transId) {
-      console.warn("⚠️ transId không tồn tại. Bỏ qua callback từ redirect.");
-      return res.end("OK");
+      console.warn("⚠️ Callback từ redirect (không có transId) => Bỏ qua cập nhật thanh toán.");
+      return res.status(200).send("OK - Redirect received");
     }
 
+    // Tìm đơn hàng
     let order = await Order.findOne({ where: { momoOrderId: orderId } });
-    if (!order)
-      order = await Order.findOne({ where: { orderCode: orderId } });
-    if (!order) return res.end("ORDER_NOT_FOUND");
+    if (!order) order = await Order.findOne({ where: { orderCode: orderId } });
 
-    if (order.paymentStatus !== "paid") {
+    if (!order) {
+      console.error("❌ ORDER_NOT_FOUND:", orderId);
+      return res.status(404).send("ORDER_NOT_FOUND");
+    }
+
+    // Chỉ cập nhật nếu chưa "paid" và thanh toán thành công
+    if (isSuccess && order.paymentStatus !== "paid") {
       order.paymentStatus = "paid";
       order.momoTransId = transId;
       order.paymentTime = new Date();
       await order.save();
 
-      const existingNoti = await Notification.findOne({
-        where: { slug: `order-${order.orderCode}` },
-      });
+      // 🔄 Tìm hoặc cập nhật notification cũ
+      const slug = `order-${order.orderCode}`;
+      const existingNoti = await Notification.findOne({ where: { slug } });
 
       if (existingNoti) {
         existingNoti.title = "Thanh toán thành công";
@@ -105,7 +113,7 @@ static async momoCallback(req, res) {
           userId: order.userId,
           title: "Thanh toán thành công",
           message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`,
-          slug: `order-${order.orderCode}`,
+          slug,
           type: "order",
           referenceId: order.id,
           link: `/user-profile?orderCode=${order.orderCode}`,
@@ -113,14 +121,18 @@ static async momoCallback(req, res) {
           isActive: true,
         });
       }
+
+      console.log(`✅ Đơn hàng ${order.orderCode} đã được cập nhật là "paid".`);
     }
 
-    return res.end("OK");
+    console.log("===== MoMo CALLBACK END =====");
+    return res.status(200).send("OK");
   } catch (err) {
     console.error("[MoMo CALLBACK] Lỗi:", err);
-    return res.status(500).end("ERROR");
+    return res.status(500).send("ERROR");
   }
 }
+
 
 
 
