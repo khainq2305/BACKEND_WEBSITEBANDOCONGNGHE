@@ -66,7 +66,7 @@ exports.searchByImage = async (req, res) => {
     log(`/embed status: ${resp.status} ct: ${ct} body[0..200]: ${bodyPreview}`);
 
     if (resp.status !== 200) {
-      return res.status(502).json({
+      return res.status(resp.status).json({
         message: `Flask trả về status ${resp.status}`,
         meta: {
           contentType: ct,
