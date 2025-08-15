@@ -3,22 +3,56 @@ const axios = require("axios");
 const crypto = require("crypto");
 
 const partnerCode = process.env.MOMO_PARTNER_CODE;
-const accessKey = process.env.MOMO_ACCESS_KEY;
-const secretKey = process.env.MOMO_SECRET_KEY;
+const accessKey   = process.env.MOMO_ACCESS_KEY;
+const secretKey   = process.env.MOMO_SECRET_KEY;
 const redirectUrl = process.env.MOMO_REDIRECT_URL;
+
+function mask(str, keep = 4) {
+  if (!str) return str;
+  const s = String(str);
+  return s.length <= keep ? "*".repeat(s.length) : s.slice(0, keep) + "****";
+}
+
+function logEnvOnce() {
+  if (logEnvOnce._printed) return;
+  logEnvOnce._printed = true;
+  console.log("[MoMo ENV] ",
+    {
+      MOMO_PARTNER_CODE : partnerCode,
+      MOMO_ACCESS_KEY   : mask(accessKey),
+      MOMO_SECRET_KEY   : mask(secretKey),
+      MOMO_REDIRECT_URL : redirectUrl,
+      NODE_ENV          : process.env.NODE_ENV,
+      // để chắc chắn Render đang dùng IPN nào
+      MOMO_IPN_URL      : process.env.MOMO_IPN_URL
+    }
+  );
+}
+
 async function createPaymentLink({ orderId, amount, orderInfo }) {
-const ipnUrl = process.env.MOMO_IPN_URL;
+  logEnvOnce();
+  const ipnUrl = process.env.MOMO_IPN_URL;
+
+  if (!partnerCode || !accessKey || !secretKey || !redirectUrl || !ipnUrl) {
+    console.error("[MoMo CREATE] Thiếu ENV!", {
+      hasPartner    : !!partnerCode,
+      hasAccess     : !!accessKey,
+      hasSecret     : !!secretKey,
+      hasRedirect   : !!redirectUrl,
+      hasIpn        : !!ipnUrl,
+    });
+    throw new Error("Thiếu biến môi trường MoMo");
+  }
 
   const requestType = "captureWallet";
-  const requestId = `${orderId}-${Date.now()}`;
-  const extraData = "";
+  const requestId   = `${orderId}-${Date.now()}`;
+  const extraData   = "";
 
   const rawSignature = [
     `accessKey=${accessKey}`,
     `amount=${Math.round(amount)}`,
     `extraData=${extraData}`,
     `ipnUrl=${ipnUrl}`,
-    
     `orderId=${orderId}`,
     `orderInfo=${orderInfo}`,
     `partnerCode=${partnerCode}`,
@@ -47,21 +81,45 @@ const ipnUrl = process.env.MOMO_IPN_URL;
     lang: "vi",
   };
 
-  const { data } = await axios.post(
-    "https://test-payment.momo.vn/v2/gateway/api/create",
-    payload,
-    { headers: { "Content-Type": "application/json" } }
-  );
+  // ==== DEBUG ====
+  console.log("[MoMo CREATE] Payload:", {
+    ...payload,
+    accessKey  : mask(accessKey),
+    signature  : mask(signature, 8),
+    secretKey  : undefined, // ko log secret
+  });
+  console.log("[MoMo CREATE] rawSignature:", rawSignature);
 
-  return data;
+  const http = axios.create({
+    timeout: 15000,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  try {
+    const { data } = await http.post(
+      "https://test-payment.momo.vn/v2/gateway/api/create",
+      payload
+    );
+    console.log("[MoMo CREATE] Response:", data);
+    return data;
+  } catch (err) {
+    console.error(
+      "[MoMo CREATE] Error:",
+      err.response?.status,
+      err.response?.data || err.message
+    );
+    throw err;
+  }
 }
 
 async function refund({ orderCode, amount, momoTransId, description = "" }) {
+  logEnvOnce();
+
   if (!momoTransId) throw new Error("Thiếu momoTransId – không thể hoàn tiền");
 
   const requestId = `${orderCode}-RF-${Date.now()}`;
-  const orderId = requestId;
-  const transId = String(momoTransId);
+  const orderId   = requestId;
+  const transId   = String(momoTransId);
 
   const rawSignature =
     `accessKey=${accessKey}&amount=${Math.round(amount)}` +
@@ -84,25 +142,31 @@ async function refund({ orderCode, amount, momoTransId, description = "" }) {
     description,
     signature,
     lang: "vi",
-   
   };
+
+  console.log("[MoMo REFUND] Payload:", {
+    ...payload,
+    accessKey : mask(accessKey),
+    signature : mask(signature, 8),
+  });
+  console.log("[MoMo REFUND] rawSignature:", rawSignature);
 
   try {
     const { data } = await axios.post(
       "https://test-payment.momo.vn/v2/gateway/api/refund",
       payload,
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { "Content-Type": "application/json" }, timeout: 15000 }
     );
-
+    console.log("[MoMo REFUND] Response:", data);
     return data;
   } catch (error) {
+    console.error(
+      "[MoMo REFUND] Error:",
+      error.response?.status,
+      error.response?.data || error.message
+    );
     throw error;
   }
-
-  return data;
 }
 
-module.exports = {
-  createPaymentLink,
-  refund,
-};
+module.exports = { createPaymentLink, refund };

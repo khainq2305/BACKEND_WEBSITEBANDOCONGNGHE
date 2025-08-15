@@ -1,31 +1,27 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch, clip
+from dotenv import load_dotenv
+load_dotenv()
+
 from PIL import Image, UnidentifiedImageError
 import io, os, logging
-# Giới hạn luồng để giảm RAM/CPU trên máy nhỏ
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
 import torch
 torch.set_num_threads(1)
-
-# Khởi tạo Flask App
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Cấu hình CORS
 origins = [o.strip() for o in (os.getenv("CORS_ORIGIN") or "*").split(",")]
 CORS(app, origins=origins, supports_credentials=True)
-
-# Kiểm tra thiết bị có sẵn
 device = "cuda" if torch.cuda.is_available() else "cpu"
 app.logger.info(f"Using device: {device}")
 
-# Khai báo biến global cho model và preprocess
 model = None
 preprocess = None
-MODEL_NAME = "ViT-B/32"   # thay vì "RN50"
+MODEL_NAME = "ViT-B/32"  
 
 
 def get_model():
@@ -66,13 +62,13 @@ def embed_image():
         app.logger.exception("Cannot identify image file")
         return jsonify({"error": "Invalid image data"}), 400
 
-    # Tải mô hình khi cần
+  
     try:
         model_loaded, preprocess_loaded = get_model()
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500
 
-    # Xử lý ảnh và tạo embedding
+   
     try:
         image_input = preprocess_loaded(image).unsqueeze(0).to(device)
         with torch.no_grad():
