@@ -3,6 +3,12 @@ from flask_cors import CORS
 import torch, clip
 from PIL import Image, UnidentifiedImageError
 import io, os, logging
+# Giới hạn luồng để giảm RAM/CPU trên máy nhỏ
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+import torch
+torch.set_num_threads(1)
 
 # Khởi tạo Flask App
 app = Flask(__name__)
