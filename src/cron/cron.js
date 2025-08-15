@@ -13,27 +13,22 @@ const {
   FlashSaleItem,
   UserPoint,
 } = require("../models");
-
 const mjml2html = require("mjml");
 const {
   generateOrderCancellationHtml,
 } = require("../utils/emailTemplates/orderCancellationTemplate");
 const { sendEmail } = require("../utils/sendEmail");
-const sequelize = require("../config/database"); // Đảm bảo import đúng transaction
+const sequelize = require("../config/database");
 
 cron.schedule("*/1 * * * *", async () => {
   try {
-    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
 
     const expiredOrders = await Order.findAll({
       where: {
         status: "processing",
-        paymentStatus: {
-          [Op.in]: ["waiting", "unpaid"],
-        },
-        createdAt: {
-          [Op.lt]: oneMinuteAgo,
-        },
+        paymentStatus: { [Op.in]: ["waiting", "unpaid"] },
+        createdAt: { [Op.lt]: fifteenMinutesAgo },
       },
       include: [
         { model: OrderItem, as: "items" },
@@ -48,37 +43,27 @@ cron.schedule("*/1 * * * *", async () => {
     });
 
     if (!cancellableOrders.length) {
-      console.log(
-        `[Cron] Không có đơn hàng quá hạn cần huỷ (${new Date().toLocaleString()})`
-      );
+      console.log(`[Cron] Không có đơn hàng quá hạn cần huỷ (${new Date().toLocaleString()})`);
       return;
     }
 
     for (const order of cancellableOrders) {
       const transaction = await sequelize.transaction();
-
       try {
-        const orderItems = order.items;
-
-        for (const item of orderItems) {
-          // ✅ Trả lại tồn kho
+        for (const item of order.items) {
           await Sku.increment("stock", {
             by: item.quantity,
             where: { id: item.skuId },
             transaction,
           });
 
-          // ✅ Trả lại FlashSaleItem nếu có
           if (item.flashSaleId) {
             await FlashSaleItem.update(
               {
                 quantity: Sequelize.literal(`quantity + ${item.quantity}`),
                 soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
               },
-              {
-                where: { id: item.flashSaleId },
-                transaction,
-              }
+              { where: { id: item.flashSaleId }, transaction }
             );
           }
         }
@@ -109,11 +94,10 @@ cron.schedule("*/1 * * * *", async () => {
 
         const slug = `order-${order.orderCode}`;
         const existingNotif = await Notification.findOne({ where: { slug } });
-
         let notif = existingNotif;
 
         if (!existingNotif) {
-          const notif = await Notification.create(
+          notif = await Notification.create(
             {
               title: "Đơn hàng tự huỷ",
               message: `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
@@ -128,16 +112,12 @@ cron.schedule("*/1 * * * *", async () => {
           );
 
           await NotificationUser.create(
-            {
-              notificationId: notif.id,
-              userId: order.userId,
-            },
+            { notificationId: notif.id, userId: order.userId },
             { transaction }
           );
 
           console.log(`[Cron] ✅ Tạo notification & user: ${slug}`);
         } else {
-          // ✅ CẬP NHẬT lại nội dung nếu đã tồn tại
           existingNotif.title = "Đơn hàng tự huỷ";
           existingNotif.message = `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`;
           existingNotif.startAt = new Date();
@@ -145,17 +125,11 @@ cron.schedule("*/1 * * * *", async () => {
           await existingNotif.save({ transaction });
 
           const existedUser = await NotificationUser.findOne({
-            where: {
-              notificationId: existingNotif.id,
-              userId: order.userId,
-            },
+            where: { notificationId: existingNotif.id, userId: order.userId },
           });
           if (!existedUser) {
             await NotificationUser.create(
-              {
-                notificationId: existingNotif.id,
-                userId: order.userId,
-              },
+              { notificationId: existingNotif.id, userId: order.userId },
               { transaction }
             );
           }
@@ -163,7 +137,6 @@ cron.schedule("*/1 * * * *", async () => {
           console.log(`[Cron] 🔁 Cập nhật notification: ${slug}`);
         }
 
-        // Tạo NotificationUser nếu chưa có
         if (order.userId) {
           const existNU = await NotificationUser.findOne({
             where: { notificationId: notif.id, userId: order.userId },
@@ -171,23 +144,13 @@ cron.schedule("*/1 * * * *", async () => {
 
           if (!existNU) {
             await NotificationUser.create(
-              {
-                notificationId: notif.id,
-                userId: order.userId,
-              },
+              { notificationId: notif.id, userId: order.userId },
               { transaction }
             );
-
-            console.log(
-              `[Cron] ✅ Đã tạo NotificationUser cho userId=${order.userId}`
-            );
+            console.log(`[Cron] ✅ Đã tạo NotificationUser cho userId=${order.userId}`);
           } else {
             console.log(`[Cron] 🔁 NotificationUser đã tồn tại`);
           }
-        } else {
-          console.error(
-            `[Cron] ❌ order.userId bị null với orderCode: ${order.orderCode}`
-          );
         }
 
         const emailMjmlContent = generateOrderCancellationHtml({
@@ -213,17 +176,14 @@ cron.schedule("*/1 * * * *", async () => {
               emailHtml
             );
           } catch (emailErr) {
-            console.error(
-              `[Cron] Lỗi gửi email hủy đơn ${order.orderCode}:`,
-              emailErr
-            );
+            console.error(`[Cron] Lỗi gửi email hủy đơn ${order.orderCode}:`, emailErr);
           }
         }
 
         await transaction.commit();
         console.log(`[Cron] Đã huỷ và xử lý đơn ${order.orderCode}`);
-        // 👉 Emit socket thông báo tới user
-        const io = require("../socket"); // hoặc nơi bạn export io từ init
+
+        const io = require("../socket");
         io.to(`user-${order.userId}`).emit("new-client-notification", {
           id: notif.id,
           title: notif.title,
@@ -239,9 +199,7 @@ cron.schedule("*/1 * * * *", async () => {
       }
     }
 
-    console.log(
-      `[Cron] Hoàn tất quá trình huỷ đơn quá hạn (${new Date().toLocaleString()})`
-    );
+    console.log(`[Cron] Hoàn tất quá trình huỷ đơn quá hạn (${new Date().toLocaleString()})`);
   } catch (err) {
     console.error("[Cron] Lỗi tổng quát khi chạy cron huỷ đơn quá hạn:", err);
   }
