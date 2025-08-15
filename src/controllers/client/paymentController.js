@@ -24,101 +24,79 @@ const { Op } = require("sequelize");
 
 class PaymentController {
   static async momoPay(req, res) {
-    try {
-      const { orderId } = req.body;
-      const order = await Order.findByPk(orderId);
+  try {
+    const { orderId } = req.body;
+    const order = await Order.findByPk(orderId);
+    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
 
-      if (!order)
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    // Gửi orderCode cho MoMo
+    const momoOrderId = order.orderCode;
 
-      // ✅ Gửi orderCode cho MoMo (sẽ nhận lại trong callback)
-      const momoOrderId = order.orderCode;
+    // Tạo link thanh toán (service đã return kèm requestId)
+    const momoRes = await momoService.createPaymentLink({
+      orderId: momoOrderId,
+      amount: order.finalPrice,
+      orderInfo: `Thanh toán đơn hàng ${order.orderCode}`,
+    });
 
-      const momoRes = await momoService.createPaymentLink({
-        orderId: momoOrderId, // ✅ gửi orderCode
-        amount: order.finalPrice,
-        orderInfo: `Thanh toán đơn hàng ${order.orderCode}`,
-      });
-
-      if (momoRes.resultCode !== 0) {
-        return res.status(400).json({
-          message: "Lỗi tạo thanh toán MoMo",
-          momoRes,
-        });
-      }
-
-      // ✅ Lưu orderCode vào cột riêng nếu cần kiểm tra
-      order.momoOrderId = momoOrderId;
-      order.paymentStatus = "waiting";
-      await order.save();
-
-      return res.json({ payUrl: momoRes.payUrl });
-    } catch (error) {
-      console.error("MoMo error:", error);
-      return res
-        .status(500)
-        .json({ message: "Lỗi khi tạo link thanh toán MoMo" });
+    if (momoRes.resultCode !== 0) {
+      return res.status(400).json({ message: "Lỗi tạo thanh toán MoMo", momoRes });
     }
-  }
 
+    // LƯU requestId để fallback query transId khi callback thiếu
+    order.momoOrderId   = momoOrderId;
+    order.momoRequestId = momoRes.requestId || null;
+    order.paymentStatus = "waiting";
+    await order.save();
+
+    return res.json({ payUrl: momoRes.payUrl });
+  } catch (error) {
+    console.error("[MoMo PAY] error:", error);
+    return res.status(500).json({ message: "Lỗi khi tạo link thanh toán MoMo" });
+  }
+}
+
+// ===================== 2) CALLBACK (redirect + IPN, có fallback query) =====================
 static async momoCallback(req, res) {
   const start = Date.now();
   try {
-    const ip =
-      (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim() ||
-      req.ip ||
-      req.connection?.remoteAddress ||
-      "";
     const hasBody = Object.keys(req.body || {}).length > 0;
     const data = hasBody ? req.body : req.query;
 
-    // Lấy field quan trọng (có gì log nấy)
     const {
-      orderId,
-      resultCode,
-      transId,
+      orderId,        // = orderCode bạn đã gửi
+      resultCode,     // "0" = success
+      transId,        // chỉ có ở IPN; redirect thường không có
       amount,
-      requestId,
+      requestId,      // dùng để query fallback nếu thiếu transId
       partnerCode,
       payType,
       message,
       signature,
     } = data || {};
+
     const isSuccess = Number(resultCode) === 0;
 
-    // ====== LOG ĐẦU VÀO ======
+    // Log gọn
     console.log("[MoMo CALLBACK] hit", {
       t: new Date().toISOString(),
       method: req.method,
-      ip,
-      ua: req.get("user-agent"),
-      ctype: req.get("content-type"),
       hasBody,
       bodyKeys: Object.keys(req.body || {}),
       queryKeys: Object.keys(req.query || {}),
       summary: {
-        orderId,
-        resultCode,
-        hasTransId: !!transId,
-        hasSignature: !!signature,
-        amount,
-        payType,
-        partnerCode,
-        requestId,
-        message,
+        orderId, resultCode, hasTransId: !!transId, hasSignature: !!signature,
+        amount, payType, partnerCode, requestId, message
       },
     });
 
-   
-    // ====== (Khuyến nghị) nếu muốn nghiêm ngặt: chỉ xử khi resultCode === 0 ======
+    // Chỉ xử thành công
     if (!isSuccess) {
-      console.warn(
-        `[MoMo CALLBACK] resultCode=${resultCode} != 0 -> skip update.`
-      );
+      console.warn(`[MoMo CALLBACK] resultCode=${resultCode} != 0 -> skip`);
       return res.type("text/plain").end("OK");
     }
 
-    // ====== TÌM ĐƠN ======
+    // Tìm đơn
     let order =
       (await Order.findOne({ where: { momoOrderId: orderId } })) ||
       (await Order.findOne({ where: { orderCode: orderId } }));
@@ -128,54 +106,75 @@ static async momoCallback(req, res) {
       return res.type("text/plain").end("ORDER_NOT_FOUND");
     }
 
-    // ====== KHỚP SỐ TIỀN (nếu IPN có trả amount) ======
-    if (amount != null) {
-      const ipnAmount = Number(amount);
-      const dbAmount = Number(order.finalPrice);
-      if (!Number.isNaN(ipnAmount) && !Number.isNaN(dbAmount)) {
-        if (ipnAmount !== dbAmount) {
-          console.warn(
-            `[MoMo CALLBACK] amount mismatch -> IPN=${ipnAmount} DB=${dbAmount}. Skip update.`
-          );
-          return res.type("text/plain").end("OK");
-        }
+    // Chuẩn hoá dữ liệu hiệu lực (có thể được lấp từ fallback)
+    let effectiveTransId  = transId || null;
+    let effectiveAmount   = amount != null ? Number(amount) : null;
+    let effectiveRespTime = Date.now();
+
+    // Nếu thiếu transId (redirect) → Fallback query MoMo để lấy transId chính thức
+    if (!effectiveTransId) {
+      const reqIdForQuery = requestId || order.momoRequestId || null;
+      const q = await momoService.queryPayment({ orderId, requestId: reqIdForQuery });
+      if (q?.transId) {
+        effectiveTransId  = q.transId;
+        effectiveAmount   = q.amount ?? effectiveAmount;
+        effectiveRespTime = q.responseTime ?? effectiveRespTime;
+        console.log("[MoMo CALLBACK] Fallback transId =", effectiveTransId);
+      } else {
+        console.warn("[MoMo CALLBACK] No transId & query failed -> keep pending");
+        return res.type("text/plain").end("OK");
       }
     }
 
-    // ====== IDEMPOTENT ======
+    // Khớp số tiền nếu có
+    if (effectiveAmount != null) {
+      const ipnAmount = Number(effectiveAmount);
+      const dbAmount  = Number(order.finalPrice);
+      if (!Number.isNaN(ipnAmount) && !Number.isNaN(dbAmount) && ipnAmount !== dbAmount) {
+        console.warn(`[MoMo CALLBACK] amount mismatch ipn=${ipnAmount} db=${dbAmount} -> skip`);
+        return res.type("text/plain").end("OK");
+      }
+    }
+
+    // Idempotent: nếu đã paid thì chỉ backfill transId nếu trước đó chưa có
     if (order.paymentStatus === "paid") {
-      console.log(
-        "[MoMo CALLBACK] already paid ->",
-        order.orderCode,
-        "transId:",
-        order.momoTransId
-      );
+      if (!order.momoTransId && effectiveTransId) {
+        await order.update({
+          momoTransId: effectiveTransId,
+          paymentTime: new Date(effectiveRespTime),
+        });
+        console.log("[MoMo CALLBACK] backfilled transId for", order.orderCode);
+      } else {
+        console.log("[MoMo CALLBACK] already paid:", order.orderCode);
+      }
       return res.type("text/plain").end("OK");
     }
 
-    // ====== CẬP NHẬT TRẠNG THÁI ======
-    order.paymentStatus = "paid";
-    order.paymentMethod = "MOMO";
-    order.momoTransId = transId;
-    order.paymentTime = new Date();
-    await order.save();
-
-    console.log("[MoMo CALLBACK] ✅ updated order ->", {
-      orderCode: order.orderCode,
-      transId: order.momoTransId,
-      paymentStatus: order.paymentStatus,
+    // Cập nhật trạng thái
+    await order.update({
+      paymentStatus: "paid",
+      paymentMethod: "MOMO",
+      momoTransId: effectiveTransId,
+      paymentTime: new Date(effectiveRespTime),
     });
 
-    // ====== THÔNG BÁO ======
+    console.log("[MoMo CALLBACK] ✅ updated", {
+      orderCode: order.orderCode,
+      transId : effectiveTransId,
+      amount  : effectiveAmount,
+      status  : "paid",
+    });
+
+    // Notification
     const slug = `order-${order.orderCode}`;
-    const existingNoti = await Notification.findOne({ where: { slug } });
-    if (existingNoti) {
-      existingNoti.title = "Thanh toán thành công";
-      existingNoti.message = `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`;
-      existingNoti.startAt = new Date();
-      existingNoti.isActive = true;
-      await existingNoti.save();
-      console.log("[MoMo CALLBACK] 🔔 updated notification:", slug);
+    const ex = await Notification.findOne({ where: { slug } });
+    if (ex) {
+      await ex.update({
+        title: "Thanh toán thành công",
+        message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`,
+        startAt: new Date(),
+        isActive: true,
+      });
     } else {
       await Notification.create({
         userId: order.userId,
@@ -188,19 +187,16 @@ static async momoCallback(req, res) {
         startAt: new Date(),
         isActive: true,
       });
-      console.log("[MoMo CALLBACK] 🔔 created notification:", slug);
     }
 
-    // ====== KẾT THÚC ======
-    res.type("text/plain").end("OK");
+    return res.type("text/plain").end("OK");
   } catch (err) {
-    console.error("[MoMo CALLBACK] ❌ error:", err);
+    console.error("[MoMo CALLBACK] error:", err);
     return res.status(500).type("text/plain").end("ERROR");
   } finally {
     console.log("[MoMo CALLBACK] done in", Date.now() - start, "ms");
   }
 }
-
 
 
 
