@@ -109,12 +109,7 @@ static async momoCallback(req, res) {
       },
     });
 
-    // ====== REDIRECT: không có transId -> bỏ qua ======
-    if (!transId) {
-      console.warn("[MoMo CALLBACK] no transId -> redirect callback, ignore.");
-      return res.type("text/plain").end("OK");
-    }
-
+   
     // ====== (Khuyến nghị) nếu muốn nghiêm ngặt: chỉ xử khi resultCode === 0 ======
     if (!isSuccess) {
       console.warn(
