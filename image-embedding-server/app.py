@@ -25,7 +25,8 @@ app.logger.info(f"Using device: {device}")
 # Khai báo biến global cho model và preprocess
 model = None
 preprocess = None
-MODEL_NAME = "RN50"
+MODEL_NAME = "ViT-B/32"   # thay vì "RN50"
+
 
 def get_model():
     """Tải và trả về mô hình CLIP, sử dụng lazy loading."""
