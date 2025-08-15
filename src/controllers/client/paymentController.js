@@ -21,7 +21,35 @@ function verifyPayosSignature(payload, signature, secretKey) {
 const moment = require("moment");
 
 const { Op } = require("sequelize");
+import crypto from "crypto";
 
+// ===== verify chữ ký IPN (v2) =====
+function buildRawSigIPN(b) {
+  // Chú ý: thứ tự field phải khớp tài liệu MoMo v2 bạn dùng
+  return (
+    `accessKey=${process.env.MOMO_ACCESS_KEY}` +
+    `&amount=${b.amount}` +
+    `&extraData=${b.extraData || ""}` +
+    `&message=${b.message}` +
+    `&orderId=${b.orderId}` +
+    `&orderInfo=${b.orderInfo}` +
+    `&orderType=${b.orderType}` +
+    `&partnerCode=${b.partnerCode}` +
+    `&payType=${b.payType}` +
+    `&requestId=${b.requestId}` +
+    `&responseTime=${b.responseTime}` +
+    `&resultCode=${b.resultCode}` +
+    `&transId=${b.transId}`
+  );
+}
+function verifyIPN(body) {
+  const raw = buildRawSigIPN(body);
+  const expected = crypto
+    .createHmac("sha256", process.env.MOMO_SECRET_KEY)
+    .update(raw)
+    .digest("hex");
+  return expected === body.signature;
+}
 class PaymentController {
    static async momoPay(req, res) {
     try {
@@ -63,73 +91,92 @@ class PaymentController {
     }
   }
 
-  // Callback từ MoMo
-  static async momoCallback(req, res) {
-    try {
-      const isPost = Object.keys(req.body).length > 0;
-      const data = isPost ? req.body : req.query;
+ 
 
-      const { orderId, resultCode, transId } = data;
-      const isSuccess = Number(resultCode) === 0;
+// ===== GIỮ 1 ENDPOINT: redirect & IPN cùng path =====
+static async momoCallback(req, res) {
+  try {
+    const isIPN = req.method === "POST" && req.body && req.body.signature;
 
-      // Callback khi user redirect từ MoMo về, chưa có transId
-      if (!transId) {
-        console.warn("⚠️ transId không tồn tại. Bỏ qua callback từ redirect.");
-        return res.end("OK");
-      }
-
-      // 1️⃣ Tìm đơn hàng bằng momoOrderId trước
-      let order = await Order.findOne({ where: { momoOrderId: orderId } });
-
-      // 2️⃣ Nếu không có thì thử tìm bằng orderCode
-      if (!order) {
-        order = await Order.findOne({ where: { orderCode: orderId } });
-      }
-
-      if (!order) {
-        console.warn(`❌ Không tìm thấy đơn hàng với orderId: ${orderId}`);
-        return res.end("ORDER_NOT_FOUND");
-      }
-
-      // 3️⃣ Cập nhật trạng thái khi thanh toán thành công
-      if (isSuccess && order.paymentStatus !== "paid") {
-        order.paymentStatus = "paid";
-        order.momoTransId = transId;
-        order.paymentTime = new Date();
-        await order.save();
-
-        // 🔄 Cập nhật hoặc tạo thông báo
-        const existingNoti = await Notification.findOne({
-          where: { slug: `order-${order.orderCode}` },
-        });
-
-        if (existingNoti) {
-          existingNoti.title = "Thanh toán thành công";
-          existingNoti.message = `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`;
-          existingNoti.startAt = new Date();
-          existingNoti.isActive = true;
-          await existingNoti.save();
-        } else {
-          await Notification.create({
-            userId: order.userId,
-            title: "Thanh toán thành công",
-            message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`,
-            slug: `order-${order.orderCode}`,
-            type: "order",
-            referenceId: order.id,
-            link: `/user-profile?orderCode=${order.orderCode}`,
-            startAt: new Date(),
-            isActive: true,
-          });
-        }
-      }
-
+    // 1) REDIRECT: không có signature => KHÔNG cập nhật
+    if (!isIPN) {
+      // có thể redirect về /order-confirmation?orderCode=... nếu muốn
       return res.end("OK");
-    } catch (err) {
-      console.error("[MoMo CALLBACK] Lỗi:", err);
-      return res.status(500).end("ERROR");
     }
+
+    // 2) IPN: TRẢ 200 NGAY (tránh timeout/cold start), xử lý sau
+    res.json({ resultCode: 0, message: "Confirm Success" });
+
+    queueMicrotask(async () => {
+      try {
+        const b = req.body;
+
+        // Verify chữ ký + trạng thái thành công
+        if (!verifyIPN(b)) {
+          console.warn("[MoMo IPN] Signature sai -> bỏ qua");
+          return;
+        }
+        if (Number(b.resultCode) !== 0) return;
+
+        // Tìm đơn theo momoOrderId trước, không có thì orderCode
+        let order =
+          (await Order.findOne({ where: { momoOrderId: b.orderId } })) ||
+          (await Order.findOne({ where: { orderCode: b.orderId } }));
+
+        if (!order) {
+          console.warn(`[MoMo IPN] Không tìm thấy đơn: ${b.orderId}`);
+          return;
+        }
+
+        // Khớp số tiền
+        if (Number(b.amount) !== Number(order.finalPrice)) {
+          console.warn(
+            `[MoMo IPN] Sai amount: IPN=${b.amount} DB=${order.finalPrice}`
+          );
+          return;
+        }
+
+        // Cập nhật trạng thái
+        if (order.paymentStatus !== "paid") {
+          order.paymentStatus = "paid";
+          order.momoTransId = b.transId;
+          order.paymentMethod = "MOMO";
+          order.paymentTime = new Date(Number(b.responseTime) || Date.now());
+          await order.save();
+
+          // Thông báo như code của bạn
+          const slug = `order-${order.orderCode}`;
+          const existingNoti = await Notification.findOne({ where: { slug } });
+          if (existingNoti) {
+            existingNoti.title = "Thanh toán thành công";
+            existingNoti.message = `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`;
+            existingNoti.startAt = new Date();
+            existingNoti.isActive = true;
+            await existingNoti.save();
+          } else {
+            await Notification.create({
+              userId: order.userId,
+              title: "Thanh toán thành công",
+              message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua MoMo.`,
+              slug,
+              type: "order",
+              referenceId: order.id,
+              link: `/user-profile?orderCode=${order.orderCode}`,
+              startAt: new Date(),
+              isActive: true,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[MoMo IPN] Lỗi xử lý async:", e);
+      }
+    });
+  } catch (err) {
+    console.error("[MoMo CALLBACK] Lỗi:", err);
+    return res.status(500).end("ERROR");
   }
+}
+
 
 
 
