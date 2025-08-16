@@ -17,8 +17,8 @@ router.post('/vnpay', checkJWT, PaymentController.vnpay);
 
 router.post('/stripe', checkJWT, PaymentController.stripePay);
 router.post('/stripe-webhook', bodyParser.raw({ type: 'application/json' }), PaymentController.handleStripeWebhook);
-router.post('/payos', checkJWT, PaymentController.payosPay);
-router.post('/payos-webhook', PaymentController.payosWebhook);
+router.post('/payos',checkJWT, PaymentController.payosPay);
+
 
 router.post('/generate-vietqr', PaymentController.generateVietQR);
 router.post('/:id/proof', checkJWT, upload.single('proof'), PaymentController.uploadProof);

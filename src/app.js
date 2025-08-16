@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser'); // chỉ để xử lý raw cho Stripe
 const stripeWebhookRoute = require('./webhook/stripeWebhookRoute'); // nếu bạn dùng Stripe
-
+const payosWebhookRoute = require('./webhook/payosWebhookRoute');
 const clientRoutes = require('./routes/client');
 const adminRoutes  = require('./routes/admin');
 const sequelize    = require('./config/database');
@@ -39,6 +39,13 @@ app.use(
   '/orders/stripe/webhook',
   bodyParser.raw({ type: 'application/json' }),
   stripeWebhookRoute
+);
+
+// app.js
+app.use(
+  "/payment/payos-webhook", // hoặc "/orders/payos/webhook"
+  express.json(),
+  require("./webhook/payosWebhookRoute")
 );
 
 // Parsers cho API thường

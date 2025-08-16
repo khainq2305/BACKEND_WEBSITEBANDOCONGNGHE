@@ -5,8 +5,6 @@ const validateVariantValue = async (req, res, next) => {
   const { value, variantId, sortOrder } = req.body;
   const { id } = req.params;
   const errors = [];
-
-  // ⚠️ ép boolean từ string nếu dùng FormData
   req.body.isActive = req.body.isActive === 'true';
 
   if (!value || value.trim() === '') {

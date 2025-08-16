@@ -4,6 +4,7 @@ const {
   sequelize,
   UserAddress,
   Province,
+  User,
   Product,
   ReturnRequest,
   RefundRequest,
@@ -28,133 +29,156 @@ const ShippingService = require("../../services/client/shippingService"); // Đi
 const { Op } = require("sequelize");
 
 class ReturnRefundController {
-  /**
-   * @description Gửi yêu cầu trả hàng/hoàn tiền cho một đơn hàng.
-   * @route POST /api/client/return-refund/request
-   * @access Private (Auth user)
-   */
+ 
 static async requestReturn(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    console.log("🧾 [requestReturn] req.body:", req.body);
-    console.log("🧾 [requestReturn] req.files:", req.files);
-
-    const { orderId, reason, itemsToReturn, detailedReason } = req.body;
-    const userId = req.user.id;
-
-    const parsedOrderId = Number(orderId);
-    if (isNaN(parsedOrderId)) {
-      return res.status(400).json({ message: "orderId không hợp lệ" });
-    }
-
-    if (!reason || reason.trim() === "") {
-      return res.status(400).json({ message: "Vui lòng chọn lý do hoàn hàng" });
-    }
-
-    let parsedItems;
+    const t = await sequelize.transaction();
     try {
-      parsedItems = JSON.parse(itemsToReturn);
-      if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
-        throw new Error();
-      }
-    } catch {
-      return res.status(400).json({ message: "Vui lòng chọn ít nhất một sản phẩm để trả" });
+        const { orderId, reason, itemsToReturn, detailedReason } = req.body;
+        const userId = req.user.id;
+
+        const parsedOrderId = Number(orderId);
+        if (isNaN(parsedOrderId)) {
+            await t.rollback();
+            return res.status(400).json({ message: "orderId không hợp lệ" });
+        }
+
+        if (!reason || reason.trim() === "") {
+            await t.rollback();
+            return res.status(400).json({ message: "Vui lòng chọn lý do hoàn hàng" });
+        }
+
+        let parsedItems;
+        try {
+            parsedItems = JSON.parse(itemsToReturn);
+            if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+                throw new Error();
+            }
+        } catch {
+            await t.rollback();
+            return res.status(400).json({ message: "Vui lòng chọn ít nhất một sản phẩm để trả" });
+        }
+
+        const skuIds = parsedItems.map((item) => item.skuId);
+
+        // ✅ Cập nhật: Thêm User vào include để tránh lỗi
+        const order = await Order.findOne({
+            where: { id: parsedOrderId, userId },
+            include: [
+                { model: OrderItem, as: "items", attributes: ["skuId", "quantity"] },
+              
+            ],
+            transaction: t,
+            lock: t.LOCK.UPDATE
+        });
+
+        if (!order) {
+            await t.rollback();
+            return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        }
+
+        if (!["completed", "delivered"].includes(order.status)) {
+            await t.rollback();
+            return res.status(400).json({ message: "Chỉ có thể trả hàng với đơn đã giao hoặc hoàn thành" });
+        }
+
+        const validSkuIds = order.items.map((i) => i.skuId);
+        const invalidSkuIds = skuIds.filter((id) => !validSkuIds.includes(id));
+        if (invalidSkuIds.length > 0) {
+            await t.rollback();
+            return res.status(400).json({ message: `Sản phẩm trả hàng không nằm trong đơn: ${invalidSkuIds.join(", ")}` });
+        }
+
+        const existing = await ReturnRequest.findOne({
+            where: {
+                orderId: parsedOrderId
+            }
+        });
+
+        if (existing && !(existing.status === 'cancelled' && existing.cancelledBy === 'user')) {
+            await t.rollback();
+            return res.status(400).json({ message: "Đơn hàng đã có yêu cầu trả hàng trước đó" });
+        }
+
+        const imageFiles = Array.isArray(req.files?.images) ? req.files.images : [];
+        const videoFiles = Array.isArray(req.files?.videos) ? req.files.videos : [];
+
+        if (imageFiles.length === 0) {
+            await t.rollback();
+            return res.status(400).json({ message: "Vui lòng tải lên ít nhất 1 hình ảnh bằng chứng" });
+        }
+        if (imageFiles.length > 6) {
+            await t.rollback();
+            return res.status(400).json({ message: "Chỉ được tải lên tối đa 6 hình ảnh" });
+        }
+        if (videoFiles.length > 1) {
+            await t.rollback();
+            return res.status(400).json({ message: "Chỉ được tải lên 1 video" });
+        }
+
+        const imageUrls = imageFiles.map((f) => f.path).join(",") || null;
+        const videoUrls = videoFiles.map((f) => f.path).join(",") || null;
+
+        const returnReq = await ReturnRequest.create({
+            orderId: parsedOrderId,
+            reason,
+            detailedReason: detailedReason?.trim() || null,
+            evidenceImages: imageUrls,
+            evidenceVideos: videoUrls,
+            status: "pending",
+            returnCode: "RR" + Date.now(),
+        }, { transaction: t });
+
+        for (const item of parsedItems) {
+            if (!item.quantity || item.quantity <= 0) {
+                await t.rollback();
+                return res.status(400).json({ message: `Số lượng không hợp lệ cho SKU ${item.skuId}` });
+            }
+
+            await ReturnRequestItem.create({
+                returnRequestId: returnReq.id,
+                skuId: item.skuId,
+                quantity: item.quantity,
+            }, { transaction: t });
+        }
+
+        const adminNotifTitle = 'Có yêu cầu trả hàng mới';
+        const adminNotifMessage = `Đơn hàng ${order.orderCode} có yêu cầu trả hàng mới. Vui lòng xem xét và xử lý.`;
+
+        // ✅ Cập nhật: Đảm bảo order.user tồn tại trước khi tạo notification
+        if (order.user?.id) {
+            const adminNotification = await Notification.create({
+                title: adminNotifTitle,
+                message: adminNotifMessage,
+                slug: `admin-return-request-${returnReq.id}`,
+                type: 'order',
+                targetRole: 'admin',
+                targetId: returnReq.id,
+                link: `/admin/return-requests/${returnReq.id}`,
+                isGlobal: true,
+            }, { transaction: t });
+
+            req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotification);
+        }
+
+        await t.commit();
+        return res.status(201).json({
+            message: "Đã gửi yêu cầu trả hàng thành công",
+            data: returnReq,
+        });
+
+    } catch (err) {
+        if (!t.finished) {
+            await t.rollback();
+        }
+        // ✅ Cập nhật: Log lỗi chi tiết để dễ dàng gỡ lỗi
+        console.error("🔥 Lỗi server khi gửi yêu cầu trả hàng:", err);
+        return res.status(500).json({ message: "Lỗi server khi gửi yêu cầu trả hàng" });
     }
-
-    const skuIds = parsedItems.map((item) => item.skuId);
-
-    const order = await Order.findOne({
-      where: { id: parsedOrderId, userId },
-      include: [{ model: OrderItem, as: "items", attributes: ["skuId", "quantity"] }],
-    });
-
-    if (!order) {
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    if (!["completed", "delivered"].includes(order.status)) {
-      return res.status(400).json({ message: "Chỉ có thể trả hàng với đơn đã giao hoặc hoàn thành" });
-    }
-
-    const validSkuIds = order.items.map((i) => i.skuId);
-    const invalidSkuIds = skuIds.filter((id) => !validSkuIds.includes(id));
-    if (invalidSkuIds.length > 0) {
-      return res.status(400).json({ message: `Sản phẩm trả hàng không nằm trong đơn: ${invalidSkuIds.join(", ")}` });
-    }
-
-  const existing = await ReturnRequest.findOne({
-  where: {
-    orderId: parsedOrderId
-  }
-});
-
-if (existing && !(existing.status === 'cancelled' && existing.cancelledBy === 'user')) {
-  return res.status(400).json({ message: "Đơn hàng đã có yêu cầu trả hàng trước đó" });
 }
 
 
-  const imageFiles = Array.isArray(req.files?.images) ? req.files.images : [];
-const videoFiles = Array.isArray(req.files?.videos) ? req.files.videos : [];
 
-    if (imageFiles.length === 0) {
-      return res.status(400).json({ message: "Vui lòng tải lên ít nhất 1 hình ảnh bằng chứng" });
-    }
-    if (imageFiles.length > 6) {
-      return res.status(400).json({ message: "Chỉ được tải lên tối đa 6 hình ảnh" });
-    }
-    if (videoFiles.length > 1) {
-      return res.status(400).json({ message: "Chỉ được tải lên 1 video" });
-    }
-
-    const imageUrls = imageFiles.map((f) => f.path).join(",") || null;
-    const videoUrls = videoFiles.map((f) => f.path).join(",") || null;
-
-    const returnReq = await ReturnRequest.create({
-      orderId: parsedOrderId,
-      reason,
-      detailedReason: detailedReason?.trim() || null,
-      evidenceImages: imageUrls,
-      evidenceVideos: videoUrls,
-      status: "pending",
-      returnCode: "RR" + Date.now(),
-    }, { transaction: t });
-
-    for (const item of parsedItems) {
-      if (!item.quantity || item.quantity <= 0) {
-        await t.rollback();
-        return res.status(400).json({ message: `Số lượng không hợp lệ cho SKU ${item.skuId}` });
-      }
-
-      await ReturnRequestItem.create({
-        returnRequestId: returnReq.id,
-        skuId: item.skuId,
-        quantity: item.quantity,
-      }, { transaction: t });
-    }
-
-    await t.commit();
-    return res.status(201).json({
-      message: "Đã gửi yêu cầu trả hàng thành công",
-      data: returnReq,
-    });
-
-  } catch (err) {
-    await t.rollback();
-    console.error("🔥 Lỗi gửi yêu cầu trả hàng:", err);
-    console.error("🔥 Lỗi gửi yêu cầu trả hàng:", err.message);
-console.error("🔥 STACK:", err.stack);
-
-    return res.status(500).json({ message: "Lỗi server khi gửi yêu cầu trả hàng" });
-  }
-}
-
-
-
-  /**
-   * @description Lấy chi tiết một yêu cầu trả hàng của người dùng.
-   * @route GET /api/client/return-refund/:id
-   * @access Private (Auth user)
-   */
+ 
 static async getReturnRequestDetail(req, res) {
   try {
     const { id } = req.params;
@@ -293,12 +317,7 @@ static async getReturnRequestDetail(req, res) {
 
 
 
-  /**
-   * @description Hủy yêu cầu trả hàng của người dùng.
-   * Chỉ cho phép hủy khi yêu cầu đang ở trạng thái 'pending' hoặc 'approved' (chưa bắt đầu quá trình hoàn tiền/vận chuyển).
-   * @route PUT /api/client/return-refund/:id/cancel
-   * @access Private (Auth user)
-   */
+
   static async cancelReturnRequest(req, res) {
   try {
     const { id } = req.params;
@@ -335,11 +354,7 @@ static async getReturnRequestDetail(req, res) {
 }
 
 
-  /**
-   * @description Người dùng xác nhận phương thức trả hàng (GHN lấy hàng hoặc tự gửi).
-   * @route POST /api/client/return-refund/:id/choose-method
-   * @access Private (Auth user)
-   */
+ 
 static async chooseReturnMethod(req, res) {
   try {
     const { id } = req.params;
@@ -410,11 +425,7 @@ static async chooseReturnMethod(req, res) {
 
 
 
-  /**
-   * @description Book GHN để lấy hàng trả về (chỉ khi phương thức trả hàng là 'ghn_pickup').
-   * @route POST /api/client/return-refund/:id/book-pickup
-   * @access Private (Auth user)
-   */
+  
 static async bookReturnPickup(req, res) {
   const t = await sequelize.transaction();
   try {
@@ -466,23 +477,21 @@ static async bookReturnPickup(req, res) {
 
     if (!returnReq) {
       console.warn("❌ Không tìm thấy ReturnRequest hoặc không thuộc user");
+      await t.rollback();
       return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
     }
 
     const order = returnReq.order;
     const addr = order.shippingAddress;
-    const providerCode = order.shippingProvider?.code;
+    let providerCode = order.shippingProvider?.code?.toLowerCase() || "ghn";
 
     console.log("✅ Tìm thấy ReturnRequest & Order:", order.id);
-    console.log("🚚 Đơn vị vận chuyển:", providerCode);
-    console.log("📍 Địa chỉ:", {
-      provinceId: addr.province?.id,
-      districtId: addr.district?.id,
-      wardId: addr.ward?.id,
-    });
+    console.log("🚚 Đơn vị vận chuyển (DB):", providerCode);
 
-    if (providerCode !== 'ghn') {
-      throw new Error("Hiện chỉ hỗ trợ GHN cho chức năng lấy hàng trả về.");
+    // Ép về GHN nếu khác
+    if (providerCode !== "ghn") {
+      console.warn(`[bookReturnPickup] providerCode trong DB = ${providerCode}, ép sang 'ghn' để xử lý`);
+      providerCode = "ghn";
     }
 
     // === 1. Mapping tỉnh/huyện/xã về mã GHN
@@ -495,12 +504,15 @@ static async bookReturnPickup(req, res) {
     console.log("📦 Mapping GHN codes:", {
       ghnProvId,
       ghnDistId,
-      ghnWardCode
+      ghnWardCode,
     });
 
-    // === 2. Lấy trọng số
+    // === 2. Lấy trọng số và kích thước
     const items = order.items;
-    if (!items?.length) throw new Error("Không có sản phẩm nào trong đơn hàng để trả");
+    if (!items?.length) {
+      await t.rollback();
+      throw new Error("Không có sản phẩm nào trong đơn hàng để trả");
+    }
 
     const totalWeight = items.reduce((sum, item) => sum + (item.sku?.weight || 100), 0);
     const totalLength = Math.max(10, items.reduce((sum, item) => sum + (item.sku?.length || 10), 0));
@@ -511,24 +523,24 @@ static async bookReturnPickup(req, res) {
       totalWeight,
       totalLength,
       totalWidth,
-      totalHeight
+      totalHeight,
     });
 
-    // === 3. Gọi GHN bookPickup
+    // === 3. Payload gửi GHN
     const ghnPayload = {
       from_name: addr?.name || "Khách hàng",
       from_phone: addr?.phone || "0123456789",
       from_address: addr?.address || "Địa chỉ không xác định",
- from_district_id: addr.district?.id,
-from_ward_id: addr.ward?.id,
-from_province_id: addr.province?.id,
+      from_district_id: addr.district?.id,
+      from_ward_id: addr.ward?.id,
+      from_province_id: addr.province?.id,
 
       to_name: process.env.SHOP_NAME || "Kho Shop",
       to_phone: process.env.SHOP_PHONE || "0987654321",
       to_address: process.env.SHOP_ADDRESS || "Kho mặc định",
       to_ward_code: process.env.SHOP_WARD_CODE,
       to_district_id: process.env.SHOP_DISTRICT_CODE,
-     
+
       weight: totalWeight,
       length: totalLength,
       width: totalWidth,
@@ -539,16 +551,17 @@ from_province_id: addr.province?.id,
 
     console.log("📤 Payload gửi GHN:", ghnPayload);
 
+    // === 4. Gọi GHN API bookPickup
     const { trackingCode, labelUrl } = await ghnService.bookPickup(ghnPayload);
 
     console.log("✅ GHN trả về trackingCode:", trackingCode);
 
+    // === 5. Cập nhật ReturnRequest
     returnReq.status = "awaiting_pickup";
     returnReq.trackingCode = trackingCode;
     await returnReq.save({ transaction: t });
 
     await t.commit();
-
     console.log("✅ Đã cập nhật trạng thái returnRequest & commit DB");
 
     return res.json({
@@ -562,6 +575,7 @@ from_province_id: addr.province?.id,
     return res.status(500).json({ message: err.message || "Server Error" });
   }
 }
+
 /**
  * @description Lấy yêu cầu trả hàng theo mã yêu cầu (returnCode)
  * @route GET /api/client/return-refund/by-code/:code

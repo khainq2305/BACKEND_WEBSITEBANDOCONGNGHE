@@ -40,7 +40,8 @@ router.post("/payment/zalopay-callback", paymentController.zaloCallback);
 router.get("/payment/zalopay-callback", paymentController.zaloCallback);
 router.post("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.get("/payment/vnpay-callback", paymentController.vnpayCallback);
-
+router.post("/payment/payos-callback", paymentController.payosCallback);
+router.get("/payment/payos-callback", paymentController.payosCallback);
 // Route use (KHÔNG ĐỔI PATH, CHỈ XOÁ TRÙNG)
 router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);

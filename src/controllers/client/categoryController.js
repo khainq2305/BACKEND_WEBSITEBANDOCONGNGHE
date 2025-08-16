@@ -62,76 +62,57 @@ class CategoryController {
     }
   }
   static async getCombinedMenu(req, res) {
-    try {
-      const [productCats, postCats] = await Promise.all([
-        Category.findAll({
-          attributes: [
-            "id",
-            "name",
-            "slug",
-            "parentId",
-            "thumbnail",
-            "isActive",
-            "sortOrder",
-          ],
-          where: { isActive: 1, deletedAt: null },
-          order: [["sortOrder", "ASC"]],
-        }),
-        categoryPostModel.findAll({
-          attributes: [
-            "id",
-            "name",
-            "slug",
-            "parentId",
-            "isActive",
-            "sortOrder",
-          ],
-          where: { isActive: 1, deletedAt: null },
-          order: [["sortOrder", "ASC"]],
-        }),
-      ]);
+  try {
+    
+    const productCats = await Category.findAll({
+      attributes: [
+        "id",
+        "name",
+        "slug",
+        "parentId",
+        "thumbnail",
+        "isActive",
+        "sortOrder",
+      ],
+      where: { isActive: 1, deletedAt: null },
+      order: [["sortOrder", "ASC"]],
+    });
 
-      const productParents = productCats.filter((cat) => !cat.parentId);
-      const productChildren = productCats.filter((cat) => cat.parentId);
 
-      const productTree = productParents.map((parent) => {
-        const sub = productChildren.filter(
-          (child) => child.parentId === parent.id
-        );
-        return {
-          id: `product-${parent.id}`,
-          name: parent.name,
-          slug: parent.slug,
-          thumbnail: parent.thumbnail,
+    const productParents = productCats.filter((cat) => !cat.parentId);
+    const productChildren = productCats.filter((cat) => cat.parentId);
+
+  
+    const productTree = productParents.map((parent) => {
+      const sub = productChildren.filter(
+        (child) => child.parentId === parent.id
+      );
+
+      return {
+        id: `product-${parent.id}`,
+        name: parent.name,
+        slug: parent.slug,
+        thumbnail: parent.thumbnail,
+        type: "product",
+        children: sub.map((child) => ({
+          id: `product-${child.id}`,
+          name: child.name,
+          slug: child.slug,
+          thumbnail: child.thumbnail,
           type: "product",
-          children: sub.map((child) => ({
-            id: `product-${child.id}`,
-            name: child.name,
-            slug: child.slug,
-            thumbnail: child.thumbnail,
-            type: "product",
-          })),
-        };
-      });
+        })),
+      };
+    });
 
-      const postTree = postCats.map((postCat) => ({
-        id: `post-${postCat.id}`,
-        name: postCat.name,
-        slug: postCat.slug,
-        type: "post",
-        children: [],
-      }));
-
-      const result = [...productTree, ...postTree];
-
-      return res.json(result);
-    } catch (error) {
-      console.error("Lỗi getCombinedMenu:", error);
-      return res
-        .status(500)
-        .json({ message: "Lỗi server khi lấy danh mục tổng hợp" });
-    }
+    return res.json(productTree);
+  } catch (error) {
+    console.error("Lỗi getCombinedMenu:", error);
+    return res
+      .status(500)
+      .json({ message: "Lỗi server khi lấy danh mục sản phẩm" });
   }
+}
+
 }
 
 module.exports = CategoryController;
