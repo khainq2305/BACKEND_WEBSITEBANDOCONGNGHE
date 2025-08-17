@@ -56,9 +56,11 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Routes chính
-app.use('/', clientRoutes);
-app.use('/admin', adminRoutes);
+console.log("👉 Mounting client routes");
 
+
+app.use('/admin', adminRoutes);
+app.use('/', clientRoutes);
 // Kết nối DB + khởi cron (nếu có)
 (async () => {
   try {

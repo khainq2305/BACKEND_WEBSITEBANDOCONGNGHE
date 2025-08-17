@@ -10,12 +10,12 @@ const ProductView = sequelize.define('ProductView', {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false, // UserID phải có để biết ai xem
+    allowNull: false,
     references: {
       model: 'users',
       key: 'id'
     },
-    onDelete: 'CASCADE' // Nếu user bị xóa, các lượt xem cũng xóa
+    onDelete: 'CASCADE'
   },
   productId: {
     type: DataTypes.INTEGER,
@@ -26,10 +26,15 @@ const ProductView = sequelize.define('ProductView', {
     },
     onDelete: 'CASCADE'
   },
-  // THÊM CÁC TRƯỜNG BỊ THIẾU Ở ĐÂY để khớp với code trong RecommendationController.js
+  // thêm cột ngày (để đảm bảo unique theo ngày)
+  viewDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+    defaultValue: DataTypes.NOW
+  },
   viewCount: {
     type: DataTypes.INTEGER,
-    defaultValue: 0, // Bắt đầu từ 0
+    defaultValue: 1,
     allowNull: false
   },
   firstViewedAt: {
@@ -42,7 +47,6 @@ const ProductView = sequelize.define('ProductView', {
     defaultValue: DataTypes.NOW,
     allowNull: false
   },
-  // KẾT THÚC THÊM CÁC TRƯỜNG
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -55,16 +59,18 @@ const ProductView = sequelize.define('ProductView', {
   },
   deletedAt: {
     type: DataTypes.DATE,
-    allowNull: true // Cho phép null
+    allowNull: true
   }
 }, {
   tableName: 'productviews',
   timestamps: true,
-  paranoid: false // <-- Đặt là TRUE nếu bạn muốn soft delete và có cột deletedAt trong DB
-                  //     Hoặc FALSE nếu bạn không muốn soft delete và sẽ không thêm cột deletedAt vào DB
+  paranoid: false,
+  indexes: [
+    {
+      unique: true,
+      fields: ['userId', 'productId', 'viewDate']
+    }
+  ]
 });
-
-// KHÔNG CÓ HÀM ProductView.associate = function(models) { ... } Ở ĐÂY
-// Để tuân thủ yêu cầu "đéo mượn ghi quan hệ mô đó" trong file model này.
 
 module.exports = ProductView;

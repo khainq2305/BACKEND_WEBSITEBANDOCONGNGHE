@@ -67,6 +67,14 @@ router.use("/", couponRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/product-questions", productQuestionRoutes);
 router.use("/spin", spinRoutes);
+console.log("👉 Mounting /productviews with middlewares:");
+console.log(productViewRoutes.stack.map(r => ({
+  path: r.route?.path,
+  methods: r.route?.methods,
+  middlewares: r.route?.stack.map(s => s.name)
+})));
+
+
 router.use("/productviews", productViewRoutes);
 router.use("/return-refund", returnRefundRoutes);
 router.use("/membership", membershipRoutes);

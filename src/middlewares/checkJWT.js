@@ -1,4 +1,3 @@
-// src/middlewares/authMiddleware.js
 const { verifyToken } = require('../utils/jwtUtils');
 
 const clearAndReply = (res, msg) => {
@@ -6,12 +5,15 @@ const clearAndReply = (res, msg) => {
 };
 
 const checkJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization || req.headers.Authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
-    : null;
 
-  if (!token) {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  let token = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token || token === 'null' || token === 'undefined') {
     return clearAndReply(res, 'Bạn chưa đăng nhập hoặc token không tồn tại!');
   }
 

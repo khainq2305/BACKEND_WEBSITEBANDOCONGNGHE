@@ -5,12 +5,8 @@ const processSkuPrices = (skuData, allActiveFlashSaleItemsMap, allActiveCategory
   const rawOriginalSkuPrice = parseFloat(skuData.originalPrice || skuData.price || 0);
   const rawDefaultSkuPrice = parseFloat(skuData.price || 0);
   const displayOriginalPrice = rawOriginalSkuPrice > 0 ? rawOriginalSkuPrice : rawDefaultSkuPrice;
-
-  // ✅ Bọc check phòng lỗi: cho phép map chứa 1 object hoặc array
   const fsItemsRaw = allActiveFlashSaleItemsMap.get(skuData.id);
   const fsItems = Array.isArray(fsItemsRaw) ? fsItemsRaw : (fsItemsRaw ? [fsItemsRaw] : []);
-
-  // ✅ Ưu tiên chọn FlashSaleItem còn hàng đầu tiên
   let validFsItem = null;
   for (const item of fsItems) {
     const soldOut = item.quantity != null && item.soldQuantity >= item.quantity;
@@ -34,7 +30,6 @@ const processSkuPrices = (skuData, allActiveFlashSaleItemsMap, allActiveCategory
     };
   }
 
-  // ✅ Nếu không có khối FlashSale nào còn hàng, kiểm tra Deal theo category
   if (!effectiveFlashSaleInfo) {
     const productCategoryId =
       skuData.Product?.category?.id ||
@@ -79,7 +74,7 @@ const processSkuPrices = (skuData, allActiveFlashSaleItemsMap, allActiveCategory
     }
   }
 
-  // ✅ Nếu tất cả FlashSale đều sold out, vẫn trả flashSaleInfo để show trạng thái "hết hàng"
+
   if (!effectiveFlashSaleInfo && fsItems.length > 0) {
     const soldOutItem = fsItems[0];
     effectiveFlashSaleInfo = {
@@ -98,7 +93,7 @@ if (typeof effectivePrice !== 'number' || isNaN(effectivePrice) || effectivePric
   } else if (rawOriginalSkuPrice > 0) {
     effectivePrice = rawOriginalSkuPrice;
   } else {
-    effectivePrice = 1000; // fallback cứng để khỏi lưu đơn giá = 0
+    effectivePrice = 1000; 
     console.warn(`⚠️ SKU ${skuData.id} không có giá, dùng fallback 1000đ`);
   }
 }
