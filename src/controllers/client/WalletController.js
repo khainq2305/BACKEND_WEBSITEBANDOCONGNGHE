@@ -1,11 +1,10 @@
 // src/controllers/WalletController.js
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
-const { Wallet, WalletTransaction, UserToken } = require("../../models");
+const { Wallet, Withdrawal, WalletTransaction, User } = require("../../models");
 const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../../utils/sendEmail");
-const { User } = require("../../models");
 
 const generateToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -263,7 +262,98 @@ static async verifyPayment(req, res) {
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }
+ static async requestWithdrawal(req, res) {
+    try {
+      const userId = req.user.id;
+      const { amount, method, accountName, accountNumber, bankCode, token } = req.body;
 
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Số tiền không hợp lệ" });
+      }
+
+      // tìm ví
+      const wallet = await Wallet.findOne({ where: { userId } });
+      if (!wallet) return res.status(404).json({ message: "Không tìm thấy ví" });
+
+      if (parseFloat(wallet.balance) < amount) {
+        return res.status(400).json({ message: "Số dư không đủ" });
+      }
+
+      // kiểm tra 2FA
+      const user = await User.findByPk(userId, {
+        attributes: ["wallet2FASecret", "wallet2FAStatus"],
+      });
+
+      if (user.wallet2FAStatus === "active") {
+        if (!token || !/^\d{6}$/.test(token)) {
+          return res.status(400).json({ message: "Mã OTP không hợp lệ" });
+        }
+
+        const ok = speakeasy.totp.verify({
+          secret: user.wallet2FASecret,
+          encoding: "base32",
+          token,
+          window: 1,
+        });
+        if (!ok) return res.status(400).json({ message: "OTP sai hoặc hết hạn" });
+      }
+
+      // phí rút (vd 1%)
+      const fee = Math.ceil(amount * 0.01);
+      const netAmount = amount - fee;
+
+      // trừ tiền khỏi ví ngay
+      wallet.balance = parseFloat(wallet.balance) - amount;
+      await wallet.save();
+
+      // tạo Withdrawal record
+      const withdrawal = await Withdrawal.create({
+        walletId: wallet.id,
+        amount,
+        fee,
+        netAmount,
+        method,
+        accountName,
+        accountNumber,
+        bankCode,
+        status: "pending", // chờ xử lý
+        requestedAt: new Date(),
+      });
+
+      // log transaction
+      await WalletTransaction.create({
+        walletId: wallet.id,
+        type: "withdraw",
+        amount: -amount,
+        description: `Rút tiền ${method}`,
+        relatedOrderId: null,
+      });
+
+      return res.json({ message: "Yêu cầu rút tiền thành công", data: withdrawal });
+    } catch (e) {
+      console.error("requestWithdrawal:", e);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
+  }
+
+  // Lịch sử rút tiền
+  static async getWithdrawals(req, res) {
+    try {
+      const userId = req.user.id;
+      const wallet = await Wallet.findOne({ where: { userId } });
+      if (!wallet) return res.status(404).json({ message: "Không tìm thấy ví" });
+
+      const list = await Withdrawal.findAll({
+        where: { walletId: wallet.id },
+        order: [["createdAt", "DESC"]],
+      });
+
+      return res.json({ data: list });
+    } catch (e) {
+      console.error("getWithdrawals:", e);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
+  }
 }
 
 module.exports = WalletController;

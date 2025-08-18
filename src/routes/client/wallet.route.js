@@ -12,5 +12,6 @@ router.post('/google-auth/enable', WalletController.enableGoogleAuth);
 router.post('/google-auth/verify', WalletController.verifyGoogleAuth);  
 router.post('/google-auth/disable', WalletController.disableGoogleAuth); 
 router.post('/auth/verify-payment', WalletController.verifyPayment);
-
+router.post("/withdrawals", WalletController.requestWithdrawal);
+router.get("/withdrawals", WalletController.getWithdrawals);
 module.exports = router;

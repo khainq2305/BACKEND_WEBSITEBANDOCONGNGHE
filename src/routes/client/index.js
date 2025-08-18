@@ -31,7 +31,6 @@ const paymentRoutes = require("./payment.routes");
 const notificationRoutes = require("./notificationClient.route");
 const walletRoutes = require("./wallet.route");
 
-// Payment callbacks
 const paymentController = require("../../controllers/client/paymentController");
 // router.post("/payment/momo-callback", paymentController.momoCallback);
 // router.get("/payment/momo-callback", paymentController.momoCallback);
@@ -42,7 +41,6 @@ router.post("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.get("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.post("/payment/payos-callback", paymentController.payosCallback);
 router.get("/payment/payos-callback", paymentController.payosCallback);
-// Route use (KHÔNG ĐỔI PATH, CHỈ XOÁ TRÙNG)
 router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);
 router.use("/", flashSaleRoutes);
@@ -67,14 +65,6 @@ router.use("/", couponRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/product-questions", productQuestionRoutes);
 router.use("/spin", spinRoutes);
-console.log("👉 Mounting /productviews with middlewares:");
-console.log(productViewRoutes.stack.map(r => ({
-  path: r.route?.path,
-  methods: r.route?.methods,
-  middlewares: r.route?.stack.map(s => s.name)
-})));
-
-
 router.use("/productviews", productViewRoutes);
 router.use("/return-refund", returnRefundRoutes);
 router.use("/membership", membershipRoutes);

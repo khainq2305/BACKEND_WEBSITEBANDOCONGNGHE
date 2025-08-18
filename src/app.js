@@ -43,25 +43,21 @@ app.use(
 
 // app.js
 app.use(
-  "/payment/payos-webhook", // hoặc "/orders/payos/webhook"
+  "/payment/payos-webhook", 
   express.json(),
   require("./webhook/payosWebhookRoute")
 );
 
-// Parsers cho API thường
+
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-// Static (lưu ý: Render không lưu bền uploads; nên dùng S3/Cloudinary cho file người dùng)
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// Routes chính
-console.log("👉 Mounting client routes");
 
 
 app.use('/admin', adminRoutes);
 app.use('/', clientRoutes);
-// Kết nối DB + khởi cron (nếu có)
 (async () => {
   try {
     await sequelize.authenticate();

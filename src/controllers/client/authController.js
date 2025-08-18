@@ -724,6 +724,8 @@ class AuthController {
       if (user.status === 0) {
         return res.status(403).json({ message: "Tài khoản bị khóa!" });
       }
+      console.log("typeof password:", typeof password, password);
+      console.log("typeof user.password:", typeof user.password, user.password);
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {

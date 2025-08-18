@@ -3,12 +3,11 @@ const { UserPoint, sequelize } = require('../../models');
 const { QueryTypes } = require('sequelize');
 
 class UserController {
-  // Lấy tổng điểm
+
  static async getUserPoints(req, res) {
   try {
     const userId = req.user.id;
 
-    // 1. Tổng điểm (đã loại trừ điểm hết hạn bằng expired record)
     const [result] = await sequelize.query(
       `SELECT
          SUM(
@@ -27,7 +26,7 @@ class UserController {
     );
     const totalPoints = result.totalPoints || 0;
 
-    // 2. Tổng điểm sẽ hết hạn trong 7 ngày tới
+    
     const [expiringRow] = await sequelize.query(
       `SELECT
          COALESCE(SUM(points), 0) AS expiringSoon,

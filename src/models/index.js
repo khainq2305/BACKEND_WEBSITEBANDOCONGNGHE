@@ -5,7 +5,7 @@ const Category = require("./categoryModel");
 const User = require("./userModel");
 const Role = require("./roleModel");
 const UserToken = require("./userTokenModel");
-
+const Withdrawal = require("./Withdrawal");
 const UserAddress = require("./userAddress");
 
 //
@@ -687,9 +687,15 @@ Wallet.belongsTo(User, { foreignKey: "userId", as: "user" });
 
 Wallet.hasMany(WalletTransaction, { foreignKey: "walletId", as: "transactions" });
 WalletTransaction.belongsTo(Wallet, { foreignKey: "walletId", as: "wallet" });
+// 1 Wallet có nhiều Withdrawal
+Wallet.hasMany(Withdrawal, { foreignKey: "walletId", as: "withdrawals" });
+
+// 1 Withdrawal thuộc về 1 Wallet
+Withdrawal.belongsTo(Wallet, { foreignKey: "walletId", as: "wallet" });
 
 module.exports = {
   Sequelize,
+  Withdrawal,
   connection,
   Category,
   User,

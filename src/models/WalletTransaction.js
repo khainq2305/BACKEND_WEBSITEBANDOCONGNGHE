@@ -4,8 +4,8 @@ const sequelize = require('../config/database');
 const WalletTransaction = sequelize.define('WalletTransaction', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   walletId: { type: DataTypes.INTEGER, allowNull: false },
-  type: {
-    type: DataTypes.ENUM('refund', 'purchase'),
+    type: {
+    type: DataTypes.ENUM('purchase', 'refund', 'withdraw'),
     allowNull: false,
   },
   amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },

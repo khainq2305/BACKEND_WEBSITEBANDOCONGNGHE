@@ -1,12 +1,8 @@
-// drivers/ghtkService.js (Phiên bản đã sửa)
-// ===============================================================
-// Driver: Giao Hàng Tiết Kiệm (GHTK)
-// ===============================================================
 
 const axios     = require('axios');
 const NodeCache = require('node-cache');
 const cache     = new NodeCache({ stdTTL: 86_400 });
-const mysql = require('mysql2/promise'); // Thêm thư viện mysql
+const mysql = require('mysql2/promise'); 
 
 const {
   GHTK_TOKEN,
