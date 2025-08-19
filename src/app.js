@@ -1,27 +1,20 @@
-// app.js
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const bodyParser = require('body-parser'); // chỉ để xử lý raw cho Stripe
-const stripeWebhookRoute = require('./webhook/stripeWebhookRoute'); // nếu bạn dùng Stripe
-const payosWebhookRoute = require('./webhook/payosWebhookRoute');
+const bodyParser = require('body-parser');
+const stripeWebhookRoute = require('./webhook/stripeWebhookRoute');
 const clientRoutes = require('./routes/client');
-const adminRoutes  = require('./routes/admin');
-const sequelize    = require('./config/database');
+const adminRoutes = require('./routes/admin');
+const sequelize = require('./config/database');
+const WalletController = require('./controllers/client/WalletController');
 
 const app = express();
 
-// Healthcheck cho Render
 app.get('/health', (_req, res) => res.send('ok'));
 
-// CORS qua ENV (prod không hard-code)
 const allowOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9999')
   .split(',')
   .map(s => s.trim());
-
-app.use((req, res, next) => {
-  next();
-});
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -34,35 +27,31 @@ app.use(cors({
   credentials: true
 }));
 
-// Stripe webhook (PHẢI trước express.json để giữ raw body)
-app.use(
+app.post(
   '/orders/stripe/webhook',
   bodyParser.raw({ type: 'application/json' }),
   stripeWebhookRoute
 );
 
-// app.js
-app.use(
-  "/payment/payos-webhook", 
-  express.json(),
-  require("./webhook/payosWebhookRoute")
+app.post(
+  '/webhooks/payos/payout',
+  express.json({ type: 'application/json' }),
+  WalletController.payoutWebhook
 );
-
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-
-
 app.use('/admin', adminRoutes);
 app.use('/', clientRoutes);
+
 (async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ MySQL connected');
-    require('./cron'); // chỉ chạy cron khi DB ok
+    require('./cron');
   } catch (err) {
     console.error('❌ Lỗi kết nối MySQL:', err);
   }

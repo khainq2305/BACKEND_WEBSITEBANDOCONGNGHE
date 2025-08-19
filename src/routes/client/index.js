@@ -5,6 +5,8 @@ const authRoutes = require("./auth.route");
 const shippingRoutes = require("./shipping.routes");
 const userAddressRoutes = require("./userAddress.route.js");
 const productRoutes = require("./product.route");
+const WalletController = require("../../controllers/client/WalletController");
+
 const cartRoutes = require("./cart.route");
 const highlightedCategoryRoutes = require("./highlightedCategory.route");
 const orderRoutes = require("./order.routes");
@@ -41,6 +43,8 @@ router.post("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.get("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.post("/payment/payos-callback", paymentController.payosCallback);
 router.get("/payment/payos-callback", paymentController.payosCallback);
+router.post("/webhooks/payos/payout", express.json(), WalletController.payoutWebhook);
+
 router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);
 router.use("/", flashSaleRoutes);

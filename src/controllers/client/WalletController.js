@@ -5,6 +5,7 @@ const { Wallet, Withdrawal, WalletTransaction, User } = require("../../models");
 const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../../utils/sendEmail");
+const PayosWithdrawalService = require("../../services/client/payosWithdrawalService");
 
 const generateToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -262,79 +263,152 @@ static async verifyPayment(req, res) {
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }
- static async requestWithdrawal(req, res) {
-    try {
-      const userId = req.user.id;
-      const { amount, method, accountName, accountNumber, bankCode, token } = req.body;
+static async requestWithdrawal(req, res) {
+  try {
+    const userId = req.user.id;
+    const { amount, method, accountName, accountNumber, bankCode, token } = req.body;
 
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ message: "Số tiền không hợp lệ" });
-      }
-
-      // tìm ví
-      const wallet = await Wallet.findOne({ where: { userId } });
-      if (!wallet) return res.status(404).json({ message: "Không tìm thấy ví" });
-
-      if (parseFloat(wallet.balance) < amount) {
-        return res.status(400).json({ message: "Số dư không đủ" });
-      }
-
-      // kiểm tra 2FA
-      const user = await User.findByPk(userId, {
-        attributes: ["wallet2FASecret", "wallet2FAStatus"],
-      });
-
-      if (user.wallet2FAStatus === "active") {
-        if (!token || !/^\d{6}$/.test(token)) {
-          return res.status(400).json({ message: "Mã OTP không hợp lệ" });
-        }
-
-        const ok = speakeasy.totp.verify({
-          secret: user.wallet2FASecret,
-          encoding: "base32",
-          token,
-          window: 1,
-        });
-        if (!ok) return res.status(400).json({ message: "OTP sai hoặc hết hạn" });
-      }
-
-      // phí rút (vd 1%)
-      const fee = Math.ceil(amount * 0.01);
-      const netAmount = amount - fee;
-
-      // trừ tiền khỏi ví ngay
-      wallet.balance = parseFloat(wallet.balance) - amount;
-      await wallet.save();
-
-      // tạo Withdrawal record
-      const withdrawal = await Withdrawal.create({
-        walletId: wallet.id,
-        amount,
-        fee,
-        netAmount,
-        method,
-        accountName,
-        accountNumber,
-        bankCode,
-        status: "pending", // chờ xử lý
-        requestedAt: new Date(),
-      });
-
-      // log transaction
-      await WalletTransaction.create({
-        walletId: wallet.id,
-        type: "withdraw",
-        amount: -amount,
-        description: `Rút tiền ${method}`,
-        relatedOrderId: null,
-      });
-
-      return res.json({ message: "Yêu cầu rút tiền thành công", data: withdrawal });
-    } catch (e) {
-      console.error("requestWithdrawal:", e);
-      return res.status(500).json({ message: "Lỗi server" });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Số tiền không hợp lệ" });
     }
+
+    // tìm ví
+    const wallet = await Wallet.findOne({ where: { userId } });
+    if (!wallet) return res.status(404).json({ message: "Không tìm thấy ví" });
+
+    if (parseFloat(wallet.balance) < amount) {
+      return res.status(400).json({ message: "Số dư không đủ" });
+    }
+
+    // kiểm tra 2FA
+    const user = await User.findByPk(userId, {
+      attributes: ["wallet2FASecret", "wallet2FAStatus"],
+    });
+
+    if (user.wallet2FAStatus === "active") {
+      if (!token || !/^\d{6}$/.test(token)) {
+        return res.status(400).json({ message: "Mã OTP không hợp lệ" });
+      }
+
+      const ok = speakeasy.totp.verify({
+        secret: user.wallet2FASecret,
+        encoding: "base32",
+        token,
+        window: 1,
+      });
+      if (!ok) return res.status(400).json({ message: "OTP sai hoặc hết hạn" });
+    }
+
+    // phí rút (vd 1%)
+    const fee = Math.ceil(amount * 0.01);
+    const netAmount = amount - fee;
+
+    // trừ tiền khỏi ví ngay
+    wallet.balance = parseFloat(wallet.balance) - amount;
+    await wallet.save();
+
+    // tạo Withdrawal record trước (pending)
+    const withdrawal = await Withdrawal.create({
+      walletId: wallet.id,
+      amount,
+      fee,
+      netAmount,
+      method,
+      accountName,
+      accountNumber,
+      bankCode,
+      status: "pending",
+      requestedAt: new Date(),
+    });
+
+    // log transaction
+    await WalletTransaction.create({
+      walletId: wallet.id,
+      type: "withdraw",
+      amount: -amount,
+      description: `Rút tiền ${method}`,
+      relatedOrderId: withdrawal.id,
+    });
+
+    // 🚀 Gọi PayOS API rút tiền
+const referenceId = "WD" + withdrawal.id; // mã tham chiếu rút
+try {
+  const payoutRes = await PayosWithdrawalService.createWithdrawal({
+    referenceId: referenceId,
+    amount: netAmount,
+    note: `Rút tiền về ${bankCode} - ${accountNumber}`,
+    bankCode,
+    accountNumber,
+    accountName,
+  });
+
+  // PayOS sẽ trả về ngay object, nhưng trạng thái chỉ xác nhận "nhận lệnh"
+  withdrawal.transactionId = payoutRes.data?.id || null;
+  withdrawal.status = "pending"; // ❌ không set approved ở đây, chờ webhook
+  await withdrawal.save();
+} catch (err) {
+  console.error("❌ Gửi payout lỗi:", err.response?.data || err.message);
+  withdrawal.status = "rejected";
+  await withdrawal.save();
+
+  // Hoàn tiền lại ví nếu fail ngay
+  wallet.balance = parseFloat(wallet.balance) + amount;
+  await wallet.save();
+}
+
+    return res.json({ message: "Yêu cầu rút tiền thành công", data: withdrawal });
+  } catch (e) {
+    console.error("requestWithdrawal:", e);
+    return res.status(500).json({ message: "Lỗi server" });
   }
+}
+
+static async payoutWebhook(req, res) {
+  try {
+    const payload = req.body;
+    console.log("📩 Webhook payout nhận:", JSON.stringify(payload));
+    console.log("🔥 Headers:", req.headers);
+
+    const referenceId = payload?.referenceId;
+    const state = payload?.transactions?.[0]?.state; // SUCCEEDED | FAILED | ...
+
+    if (!referenceId) {
+      return res.status(400).json({ message: "Thiếu referenceId" });
+    }
+    if (!referenceId.startsWith("WD")) {
+      return res.status(400).json({ message: "referenceId không hợp lệ" });
+    }
+
+    const withdrawalId = parseInt(referenceId.slice(2), 10);
+    const withdrawal = await Withdrawal.findByPk(withdrawalId);
+    if (!withdrawal) {
+      return res.status(404).json({ message: "Không tìm thấy withdrawal" });
+    }
+
+    // Map trạng thái
+    let nextStatus = "pending";
+    if (state === "SUCCEEDED") nextStatus = "approved";
+    else if (state === "FAILED") nextStatus = "rejected";
+
+    // Idempotent update
+    const terminal = new Set(["approved", "rejected", "canceled"]);
+    if (!terminal.has(withdrawal.status)) {
+      withdrawal.status = nextStatus;
+      if (["SUCCEEDED", "FAILED"].includes(state)) {
+        withdrawal.processedAt = new Date();
+      }
+      withdrawal.transactionId = payload?.id || withdrawal.transactionId || null;
+      await withdrawal.save();
+    }
+
+    console.log("✅ Withdrawal cập nhật:", withdrawal.id, withdrawal.status);
+    return res.status(200).json({ message: "OK" });
+  } catch (err) {
+    console.error("❌ Lỗi webhook payout:", err);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
 
   // Lịch sử rút tiền
   static async getWithdrawals(req, res) {
