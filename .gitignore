@@ -20,3 +20,4 @@ package-lock.json
 package.json
 # VSCode settings (nếu không muốn share workspace)
 .vscode/
+test_git
