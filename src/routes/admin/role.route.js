@@ -15,7 +15,7 @@ const { authorize } = require("../../middlewares/authorize");
  */
 
 
-
+console.log('đã gọi router role')
 router.use(checkJWT)
 router.use(attachUserDetail);
 router.use(authorize("Role"))

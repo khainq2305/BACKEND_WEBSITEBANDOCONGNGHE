@@ -2,31 +2,32 @@ const express = require('express');
 const router = express.Router();
 
 const UserController = require('../../controllers/admin/userController'); // 👈 Class with static methods
-const { checkJWT, isAdmin } = require('../../middlewares/checkJWT');
+const { checkJWT ,isAdmin } = require('../../middlewares/checkJWT');
 const { createUserValidator } = require('../../validations/userValidator');
 const { attachUserDetail } = require('../../middlewares/getUserDetail ');
 const { authorize } = require('../../middlewares/authorize');
+console.log('đã gọi router user')
 router.use(checkJWT);
 router.use(attachUserDetail)
 router.use(authorize("User"))
-router.get('/', checkJWT, UserController.getAllUsers);
+router.get('/', UserController.getAllUsers);
 
-router.post('/', checkJWT, createUserValidator, UserController.createUser);
+router.post('/', createUserValidator, UserController.createUser);
 
-router.get('/roles', checkJWT, UserController.getAllRoles);
+router.get('/roles', UserController.getAllRoles);
 
-router.put('/:id/status', checkJWT, UserController.updateUserStatus);
+router.put('/:id/status', UserController.updateUserStatus);
 
-router.post('/:id/reset-password', checkJWT, UserController.resetUserPassword);
+router.post('/:id/reset-password', UserController.resetUserPassword);
 
-router.delete('/inactive', checkJWT, UserController.deleteInactiveUsers);
+router.delete('/inactive', UserController.deleteInactiveUsers);
 
-router.get('/deleted', checkJWT, UserController.getDeletedUsers);
+router.get('/deleted', UserController.getDeletedUsers);
 
-router.get('/:id', checkJWT, UserController.getUserById);
+router.get('/:id', UserController.getUserById);
 
-router.post('/force-delete-many', checkJWT, UserController.forceDeleteManyUsers);
+router.post('/force-delete-many',UserController.forceDeleteManyUsers);
 
-router.put('/:userId/roles', checkJWT, UserController.updateUserRoles);
+router.put('/:userId/roles', UserController.updateUserRoles);
 
 module.exports = router;
