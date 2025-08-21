@@ -1,4 +1,4 @@
-console.log('🐛 membership.route.js LOADED');
+// console.log('🐛 membership.route.js LOADED');
 
 const router = require("express").Router();
 const MembershipController = require("../../controllers/client/membershipController");

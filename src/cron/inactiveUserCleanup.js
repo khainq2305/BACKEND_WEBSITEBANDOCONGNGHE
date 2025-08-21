@@ -4,9 +4,9 @@ const User = require("../models/userModel");
 
 
 cron.schedule("*/10 * * * * *", async () => {
-  console.log(
-    "[CRON TEST] Kiểm tra tài khoản ngưng hoạt động > 3 năm để xóa mềm..."
-  );
+  // console.log(
+  //   "[CRON TEST] Kiểm tra tài khoản ngưng hoạt động > 3 năm để xóa mềm..."
+  // );
 
   const threshold = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000);
 

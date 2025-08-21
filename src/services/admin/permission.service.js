@@ -13,36 +13,32 @@ class PermissionService {
     }
 
     async getActionsForSubject(subjectKey) {
-        let allowedActions;
+        let whereCondition;
+    
         switch (subjectKey) {
             case SUBJECT_COMMENT:
-                allowedActions = ['read', 'reply'];
+                whereCondition = { key: { [Op.in]: ['read', 'reply'] } };
                 break;
             case SUBJECT_DASHBOARD:
-                allowedActions = ['read', 'export'];
+                whereCondition = { key: { [Op.in]: ['read', 'export'] } };
                 break;
             case SUBJECT_USER:
-                allowedActions = ['read', 'resetPassword', 'lockAccount', 'unlockAccount'];
+                whereCondition = { key: { [Op.in]: ['read', 'resetPassword', 'lockAccount', 'unlockAccount'] } };
                 break;
             default:
-                return Action.findAll({
-                    where: {
-                        key: { [Op.notIn]: ['reply', 'export', 'resetPassword', 'lockAccount', 'unlockAccount'] }
-                    },
-                    attributes: ['id', ['key', 'action'], 'description']
-                });
+                whereCondition = { 
+                    key: { [Op.notIn]: ['reply', 'export', 'resetPassword', 'lockAccount', 'unlockAccount'] } 
+                };
         }
+    
         const actions = await Action.findAll({
-            where: {
-                key: {
-                    [Op.in]: allowedActions
-                }
-            },
-            attributes: ['id', ['key', 'action'], 'description']
+            where: whereCondition,
+            attributes: ['id', 'key', 'description', 'label']
         });
+    
         return actions.map(a => ({
             id: a.id,
-            action: a.action,
+            action: a.key,
             description: a.description,
             label: a.label
         }));

@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const User = require('../models/userModel');
-console.log('[CRON] Kiểm tra tài khoản cần khóa lúc', new Date().toLocaleTimeString());
+// console.log('[CRON] Kiểm tra tài khoản cần khóa lúc', new Date().toLocaleTimeString());
 
 const blockScheduledUsers = async () => {
   try {

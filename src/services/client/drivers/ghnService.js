@@ -22,7 +22,7 @@ let dbConnection;
       database: process.env.DB_NAME,
       charset: 'utf8mb4',
     });
-    console.log('[GHN Service] Đã kết nối DB thành công.');
+    // console.log('[GHN Service] Đã kết nối DB thành công.');
   } catch (error) {
     console.error('[GHN Service] Lỗi kết nối DB:', error.message);
   }

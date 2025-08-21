@@ -54,6 +54,10 @@ class PermissionController {
         }
         // Nếu là object đơn lẻ, xử lý như cũ
         const { roleId, subject, action, hasPermission } = updates;
+        console.log("🔑 roleId:", roleId);
+        console.log("📌 subject:", subject);
+        console.log("⚡ action:", action);
+        console.log("✅ hasPermission:", hasPermission);
         if (!roleId || !subject || !action || typeof hasPermission !== 'boolean') {
             return res.status(400).json({
                 success: false,

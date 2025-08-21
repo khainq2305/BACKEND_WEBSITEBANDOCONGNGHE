@@ -25,7 +25,7 @@ let dbConnection;
       database: process.env.DB_NAME,
       charset: 'utf8mb4',
     });
-    console.log('[GHTK Service] Đã kết nối DB thành công.');
+    // console.log('[GHTK Service] Đã kết nối DB thành công.');
   } catch (error) {
     console.error('[GHTK Service] Lỗi kết nối DB:', error.message);
   }
