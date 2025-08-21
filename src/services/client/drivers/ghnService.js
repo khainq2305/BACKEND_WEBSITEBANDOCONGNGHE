@@ -121,12 +121,13 @@ async function getFee({
   serviceCode,
   orderValue = 0,
 }) {
-  // 💥 Bước quan trọng: Lấy mã GHN từ ID nội bộ ngay tại đây
-  const { ghnProvId: pid, ghnDistId: did, ghnWardCode: wcd } = await getGhnCodesFromLocalDb({
-    province: toProvince,
-    district: toDistrict,
-    ward: toWard,
-  });
+  // 💥 Lấy mã GHN từ DB nội bộ
+  const { ghnProvId: pid, ghnDistId: did, ghnWardCode: wcd } =
+    await getGhnCodesFromLocalDb({
+      province: toProvince,
+      district: toDistrict,
+      ward: toWard,
+    });
 
   if (!did) {
     throw new Error('GHN: Không tìm thấy mã huyện GHN để tính phí.');
@@ -141,7 +142,12 @@ async function getFee({
       from_district: Number(SHOP_DISTRICT_CODE),
       to_district: Number(did),
     };
-    const { data: svcRes } = await axios.post('https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services', svcPayload, { headers, timeout: 5000 });
+    const { data: svcRes } = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services',
+      svcPayload,
+      { headers, timeout: 5000 }
+    );
+
     if (!svcRes?.data?.length) throw new Error('Không có dịch vụ khả dụng.');
     const matched = svcRes.data.find(s => s.service_id === Number(serviceCode));
     const svc = matched || svcRes.data[0];
@@ -165,7 +171,12 @@ async function getFee({
       insurance_value: Number(orderValue || 0),
       coupon: null,
     };
-    const response = await axios.post('https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee', feePayload, { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 });
+    const response = await axios.post(
+      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+      feePayload,
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
+
     feeData = response.data;
     if (feeData?.code !== 200) throw new Error(feeData?.message || 'Lỗi không rõ khi tính phí.');
     fee = feeData?.data?.total || 0;
@@ -179,20 +190,133 @@ async function getFee({
   let leadTime = null;
   if (feeData?.data?.expected_delivery_time) {
     try {
-      const diff = Number(feeData.data.expected_delivery_time) - Math.floor(Date.now() / 1000);
-      if (diff > 0) leadTime = Math.max(1, Math.ceil(diff / 86400));
+      const etd = new Date(feeData.data.expected_delivery_time).getTime(); // ms
+      const now = Date.now();
+      const diffSec = Math.floor((etd - now) / 1000); // giây
+      if (diffSec > 0) leadTime = Math.max(1, Math.ceil(diffSec / 86400));
     } catch (e) {
       console.warn('[GHN getFee] Lỗi xử lý expected_delivery_time:', e.message);
     }
   }
+
   if (!leadTime) {
     const fallback = 3;
     leadTime = fallback;
     console.warn(`[GHN getFee] Fallback leadTime: ${fallback} ngày`);
   }
 
-  return { fee, leadTime };
+  return { fee, leadTime, service_type_id: actualServiceId };
 }
+/**
+ * Lấy thời gian giao hàng dự kiến GHN (API /leadtime)
+ */
+async function getLeadTime({
+  toProvince,
+  toDistrict,
+  toWard,
+  serviceCode,
+}) {
+  console.log("===== [GHN getLeadTime] INPUT =====");
+  console.log("toProvince:", toProvince);
+  console.log("toDistrict:", toDistrict);
+  console.log("toWard:", toWard);
+  console.log("serviceCode:", serviceCode);
+
+  // 💥 Lấy mã GHN từ DB nội bộ
+  const { ghnProvId: pid, ghnDistId: did, ghnWardCode: wcd } =
+    await getGhnCodesFromLocalDb({
+      province: toProvince,
+      district: toDistrict,
+      ward: toWard,
+    });
+
+  console.log("[GHN getLeadTime] Mã mapping từ DB:", {
+    ghnProvId: pid,
+    ghnDistId: did,
+    ghnWardCode: wcd,
+  });
+
+  if (!did || !wcd) {
+    throw new Error("GHN: Không tìm thấy mã huyện/xã GHN để lấy leadTime.");
+  }
+
+  // B1: Lấy service_id
+  let actualServiceId = null;
+  try {
+    const svcPayload = {
+      shop_id: Number(GHN_SHOP_ID),
+      from_district: Number(SHOP_DISTRICT_CODE),
+      to_district: Number(did),
+    };
+    console.log("[GHN getLeadTime] Gọi API /available-services với payload:", svcPayload);
+
+    const { data: svcRes } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services",
+      svcPayload,
+      { headers, timeout: 5000 }
+    );
+
+    console.log("[GHN getLeadTime] Kết quả /available-services:", JSON.stringify(svcRes, null, 2));
+
+    if (!svcRes?.data?.length) throw new Error("Không có dịch vụ khả dụng.");
+    const matched = svcRes.data.find((s) => s.service_id === Number(serviceCode));
+    const svc = matched || svcRes.data[0];
+    actualServiceId = svc.service_id;
+
+    console.log("[GHN getLeadTime] actualServiceId chọn:", actualServiceId);
+  } catch (err) {
+    console.error("[GHN getLeadTime] LỖI khi lấy service_id:", err?.response?.data || err.message);
+    throw new Error(
+      `GHN: Lỗi khi lấy service_id: ${err?.response?.data?.message || err.message}`
+    );
+  }
+
+  // B2: Gọi API /leadtime
+  let leadTime = null;
+  try {
+    const payload = {
+      from_district_id: Number(SHOP_DISTRICT_CODE),
+      from_ward_code: SHOP_WARD_CODE, // 💡 phải có ward xuất phát
+      to_district_id: Number(did),
+      to_ward_code: wcd,
+      service_id: actualServiceId,
+    };
+
+    console.log("[GHN getLeadTime] Gọi API /leadtime với payload:", payload);
+
+    const { data: res } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/leadtime",
+      payload,
+      { headers, timeout: 5000 }
+    );
+
+    console.log("[GHN getLeadTime] Kết quả API /leadtime:", JSON.stringify(res, null, 2));
+
+    if (res?.code !== 200) throw new Error(res?.message || "Lỗi không rõ khi lấy leadtime.");
+
+    const unixTs = res.data?.leadtime; // unix timestamp (seconds)
+    if (unixTs) {
+      const etd = new Date(unixTs * 1000).getTime(); // ms
+      const now = Date.now();
+      const diffSec = Math.floor((etd - now) / 1000);
+      if (diffSec > 0) {
+        leadTime = Math.max(1, Math.ceil(diffSec / 86400));
+      }
+    }
+  } catch (err) {
+    console.error("[GHN getLeadTime] LỖI API /leadtime:", err?.response?.data || err.message);
+    leadTime = 3; // fallback
+    console.warn(`[GHN getLeadTime] Fallback leadTime: ${leadTime} ngày`);
+  }
+
+  console.log("===== [GHN getLeadTime] OUTPUT =====", {
+    leadTime,
+    service_id: actualServiceId,
+  });
+
+  return { leadTime, service_id: actualServiceId };
+}
+
 
 // --- Lấy service mặc định (dùng trong bookPickup) ---
 async function getDefaultService({ toProvince, toDistrict }) {
@@ -226,38 +350,64 @@ async function getDefaultService({ toProvince, toDistrict }) {
 }
 
 // --- Tạo vận đơn lấy hàng (Chiều ngược: Khách -> Shop) ---
+// drivers/ghnService.js
+
+// services/client/drivers/ghnService.js
+
 async function bookPickup(payload) {
-  // 💥 Lấy mã GHN của địa chỉ lấy hàng (của khách) từ ID nội bộ
-  const { ghnDistId: fromDistrictGhnCode, ghnWardCode: fromWardGhnCode } = await getGhnCodesFromLocalDb({
-    province: payload.from_province_id,
-    district: payload.from_district_id,
-    ward: payload.from_ward_id,
-  });
+  // 1. Mapping mã GHN từ DB
+  const { ghnDistId: fromDistrictGhnCode, ghnWardCode: fromWardGhnCode } =
+    await getGhnCodesFromLocalDb({
+      province: payload.from_province_id,
+      district: payload.from_district_id,
+      ward: payload.from_ward_id,
+    });
 
   if (!fromDistrictGhnCode || !fromWardGhnCode) {
-    throw new Error(`GHN: Không tìm thấy mã huyện hoặc phường/xã GHN hợp lệ cho địa chỉ lấy hàng.`);
+    throw new Error(
+      "GHN: Không tìm thấy mã huyện/phường GHN hợp lệ cho địa chỉ lấy hàng."
+    );
   }
 
-  // Lấy service_type_id cho tuyến lấy hàng
+  // ✅ Validate ward/district bằng GHN master-data
+  try {
+    const { data: wardRes } = await axios.get(
+      `https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id=${fromDistrictGhnCode}`,
+      { headers }
+    );
+    const foundWard = wardRes?.data?.find((w) => w.WardCode == fromWardGhnCode);
+    if (!foundWard) {
+      throw new Error(
+        `GHN: WardCode ${fromWardGhnCode} không tồn tại trong district ${fromDistrictGhnCode}`
+      );
+    }
+  } catch (err) {
+    console.error("[GHN bookPickup] Validate ward/district lỗi:", err.message);
+    throw err;
+  }
+
+  // 2. Lấy service_type_id
   let serviceTypeId;
   try {
     serviceTypeId = await getDefaultService({
       toProvince: payload.from_province_id,
       toDistrict: payload.from_district_id,
     });
-    if (!serviceTypeId) {
-      throw new Error("Không có dịch vụ GHN khả dụng cho tuyến lấy hàng này.");
-    }
+    if (!serviceTypeId) throw new Error("Không có dịch vụ GHN khả dụng.");
   } catch (err) {
     console.error("GHN bookPickup: Lỗi khi lấy serviceTypeId:", err.message);
     throw new Error(`GHN: Lỗi khi xác định dịch vụ lấy hàng: ${err.message}`);
   }
-  
-  // Tạo payload và gọi API tạo đơn
+
+  // 3. Ai trả phí (1 = shop, 2 = customer)
+  const paymentTypeId = payload.situation === "customer_pays" ? 2 : 1;
+  const paidBy = paymentTypeId === 2 ? "customer" : "shop";
+
+  // 4. Payload tạo đơn GHN
   const createOrderPayload = {
     service_type_id: serviceTypeId,
-    required_note: 'KHONGCHOXEMHANG',
-    payment_type_id: 1, // 1 = Shop trả phí
+    required_note: "KHONGCHOXEMHANG",
+    payment_type_id: paymentTypeId,
     from_name: payload.from_name,
     from_phone: payload.from_phone,
     from_address: payload.from_address,
@@ -268,7 +418,8 @@ async function bookPickup(payload) {
     to_address: payload.to_address,
     to_ward_code: payload.to_ward_code,
     to_district_id: Number(payload.to_district_id),
-    weight: payload.weight,
+    weight: payload.weight * 1000
+,
     length: Math.max(1, payload.length),
     width: Math.max(1, payload.width),
     height: Math.max(1, payload.height),
@@ -278,25 +429,262 @@ async function bookPickup(payload) {
   };
 
   try {
+    // 5. Tạo đơn
+    console.log("[GHN bookPickup] Payload gửi GHN:", createOrderPayload);
+
     const { data: responseData } = await axios.post(
-      'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create',
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create",
       createOrderPayload,
       { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 10000 }
     );
+
+    console.log("[GHN bookPickup] Response GHN:", responseData);
+
     if (responseData?.code !== 200 || !responseData.data?.order_code) {
-      throw new Error(`GHN: Lỗi từ API tạo vận đơn: ${responseData?.message || 'Không rõ'}`);
+      throw new Error(
+        `GHN: API tạo vận đơn lỗi: ${responseData?.message || "Không rõ"}`
+      );
     }
-    const { order_code, label } = responseData.data;
-    return { trackingCode: order_code, labelUrl: label };
+
+    const { order_code, expected_delivery_time, total_fee, service_fee } =
+      responseData.data;
+
+    // Log rõ ràng 2 loại phí để bạn dễ phân biệt
+    console.log("[GHN bookPickup] total_fee (đúng):", total_fee);
+    console.log("[GHN bookPickup] service_fee (tối thiểu):", service_fee);
+
+    // 6. Lấy token để in label PDF
+    const { data: tokenRes } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/a5/gen-token",
+      { order_codes: [order_code] },
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
+
+    if (tokenRes?.code !== 200 || !tokenRes.data?.token) {
+      throw new Error(
+        `GHN: Không tạo được token cho label - ${tokenRes?.message}`
+      );
+    }
+
+    const labelUrl = `https://online-gateway.ghn.vn/a5/public-api/printA5?token=${tokenRes.data.token}`;
+
+    // 7. Trả kết quả
+    return {
+      trackingCode: order_code,
+      labelUrl, // ✅ luôn là URL PDF in label
+      shippingFee: Number(total_fee) || 0, // 💥 luôn lấy total_fee
+      expectedDelivery: expected_delivery_time || null,
+      paidBy,
+    };
   } catch (error) {
-    console.error("GHN bookPickup] LỖI khi tạo đơn hàng:", error?.response?.data || error.message);
-    throw new Error("GHN: Lỗi khi tạo đơn lấy hàng. " + (error?.response?.data?.message || error.message));
+    console.error("[GHN bookPickup] Lỗi:", error?.response?.data || error.message);
+    throw new Error(
+      "GHN: Lỗi khi tạo đơn lấy hàng. " +
+        (error?.response?.data?.message || error.message)
+    );
   }
 }
+
+
+
+
+
+// --- LẤY DỊCH VỤ GỬI TẠI BƯU CỤC (DROP-OFF) ---
+// --- LẤY DỊCH VỤ GỬI TẠI BƯU CỤC (DROP-OFF) + GỢI Ý BƯU CỤC GẦN NHẤT ---
+async function getDropoffServices({
+  toProvince, toDistrict, toWard,
+  weight,
+  length = 10, width = 10, height = 10,
+  orderValue = 0,
+  userLat, userLng // 👈 truyền lat/lng địa chỉ KH nếu có
+}) {
+  // utils tính khoảng cách Haversine
+  function getDistanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  try {
+    // 1) Tính phí tham chiếu cho tuyến khách -> shop
+    const { fee, leadTime } = await getFee({
+      toProvince,
+      toDistrict,
+      toWard,
+      weight,
+      length,
+      width,
+      height,
+      serviceCode: null,
+      orderValue
+    });
+
+    // 2) Lấy danh sách bưu cục GHN
+    let dropoffPoints = [];
+    try {
+      const { ghnDistId } = await getGhnCodesFromLocalDb({
+        province: toProvince,
+        district: toDistrict,
+        ward: toWard
+      });
+
+      if (ghnDistId) {
+        const { data: stationRes } = await axios.post(
+          'https://online-gateway.ghn.vn/shiip/public-api/v2/station/get',
+          { district_id: Number(ghnDistId) },
+          { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+        );
+
+        const stations = stationRes?.data?.stations || [];
+        dropoffPoints = stations.map(st => {
+          let distanceKm = null;
+          if (userLat && userLng && st?.location?.lat && st?.location?.lng) {
+            distanceKm = getDistanceKm(userLat, userLng, st.location.lat, st.location.lng);
+          }
+          return {
+            stationId: st.station_id,
+            code: st.code,
+            name: st.name,
+            address: st.address,
+            contact: st.phone,
+            lat: st?.location?.lat ?? null,
+            lng: st?.location?.lng ?? null,
+            workTime: st?.work_time ?? null,
+            distanceKm
+          };
+        });
+
+        // Sắp xếp theo khoảng cách (nếu có lat/lng)
+        dropoffPoints.sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
+        // Chỉ lấy 5 bưu cục gần nhất
+        dropoffPoints = dropoffPoints.slice(0, 5);
+      }
+    } catch (e) {
+      console.warn('[GHN getDropoffServices] station/get warn:', e?.response?.data || e.message);
+    }
+
+    // 3) Trả về option drop-off chuẩn hóa
+    return [
+      {
+        code: 'GHN_DROPOFF',
+        name: 'GHN - Gửi tại bưu cục',
+        fee: Number(fee || 0),
+        leadTime: leadTime ?? null,
+        dropoffPoints
+      }
+    ];
+  } catch (e) {
+    console.error('[GHN getDropoffServices] error:', e?.response?.data || e.message);
+    return [];
+  }
+}
+
+async function createDropoffOrder(payload) {
+  // mapping địa chỉ khách sang GHN code
+  const { ghnDistId: fromDistrictGhnCode, ghnWardCode: fromWardGhnCode } =
+    await getGhnCodesFromLocalDb({
+      province: payload.from_province_id,
+      district: payload.from_district_id,
+      ward: payload.from_ward_id,
+    });
+
+  if (!fromDistrictGhnCode || !fromWardGhnCode) {
+    throw new Error("GHN: Không tìm thấy mã huyện hoặc xã hợp lệ cho địa chỉ KH.");
+  }
+
+  // payload gửi GHN khi KH tự mang ra bưu cục
+  const createOrderPayload = {
+    service_type_id: 2, // hoặc lấy từ getDefaultService()
+    payment_type_id: 1,
+    required_note: "KHONGCHOXEMHANG",
+    from_name: payload.from_name,
+    from_phone: payload.from_phone,
+    from_address: payload.from_address,
+    from_ward_code: fromWardGhnCode,
+    from_district_id: Number(fromDistrictGhnCode),
+
+    to_name: payload.to_name,
+    to_phone: payload.to_phone,
+    to_address: payload.to_address,
+    to_ward_code: payload.to_ward_code,
+    to_district_id: Number(payload.to_district_id),
+
+    weight: payload.weight * 1000
+,
+    length: Math.max(1, payload.length),
+    width: Math.max(1, payload.width),
+    height: Math.max(1, payload.height),
+
+    cod_amount: 0,
+    client_order_code: payload.client_order_code,
+    content: payload.content,
+
+    pick_option: "post_office", // 💥 quan trọng
+  };
+
+  const { data: responseData } = await axios.post(
+    "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create",
+    createOrderPayload,
+    { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 10000 }
+  );
+
+  // log full response để debug
+  console.log("[GHN createDropoffOrder] Response:", JSON.stringify(responseData, null, 2));
+
+  if (responseData?.code !== 200 || !responseData.data?.order_code) {
+    throw new Error(`GHN: Lỗi khi tạo đơn dropoff: ${responseData?.message}`);
+  }
+
+  // lấy thông tin cần thiết
+  return {
+    trackingCode: responseData.data.order_code,
+    labelUrl: responseData.data.label,
+    totalFee: responseData.data.total_fee || 0, // 💰 phí vận chuyển
+    expectedDelivery: responseData.data.expected_delivery_time || null, // dự kiến giao
+  };
+}
+
+// --- LẤY PDF LABEL CHO MÃ VẬN ĐƠN GHN ---
+async function getLabel(trackingCode) {
+  try {
+    // 1. Lấy token cho order_code
+    const { data: tokenRes } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/a5/gen-token",
+      { order_codes: [trackingCode] },
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
+
+    if (tokenRes?.code !== 200 || !tokenRes.data?.token) {
+      throw new Error(`GHN: Không tạo được token cho label - ${tokenRes?.message}`);
+    }
+
+    const token = tokenRes.data.token;
+
+    // 2. Tạo link in PDF (A5)
+    const pdfUrl = `https://online-gateway.ghn.vn/a5/public-api/printA5?token=${token}`;
+
+    return pdfUrl;
+  } catch (err) {
+    console.error("[GHN getLabel] Error:", err.response?.data || err.message);
+    throw err;
+  }
+}
+
+
 
 module.exports = {
   getDefaultService,
   getFee,
+  createDropoffOrder, // <-- thêm dòng này
   getGhnCodesFromLocalDb,
   bookPickup,
+  getLeadTime,   
+   getLabel,   // 👈 thêm dòng này
+   getDropoffServices,
 };

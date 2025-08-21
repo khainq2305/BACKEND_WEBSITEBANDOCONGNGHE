@@ -206,5 +206,92 @@ async function getFee({
   cache.set(key, result);
   return result;
 }
+// --- LẤY DỊCH VỤ GỬI TẠI BƯU CỤC (DROP-OFF) ---
+async function getDropoffServices({
+  toProvince, toDistrict, toWard,
+  weight,
+  length = 10, width = 10, height = 10,
+}) {
+  try {
+    // Tận dụng getFee sẵn có để ước phí/leadtime cho tuyến khách -> shop
+    const { fee, leadTime } = await getFee({
+      toProvince,
+      toDistrict,
+      toWard,
+      weight,
+      length,
+      width,
+      height,
+    });
 
-module.exports = { getDefaultService, getFee };
+    // Trả về 1 lựa chọn drop-off chuẩn hoá cho FE/controller
+    return [
+      {
+        code: 'GHTK_DROPOFF',
+        name: 'GHTK - Gửi tại bưu cục',
+        fee: Number(fee || 0),
+        leadTime: leadTime ?? null,
+        dropoffPoints: [] // (tuỳ bạn: có thể bổ sung danh sách bưu cục thật sau)
+      }
+    ];
+  } catch (e) {
+    console.error('[GHTK getDropoffServices] error:', e?.response?.data || e.message);
+    return [];
+  }
+}
+async function createDropoffOrder(payload) {
+  try {
+    const orderPayload = {
+      products: [
+        {
+          name: payload.content || "Hàng hóa",
+          weight: payload.weight,
+          quantity: 1,
+        },
+      ],
+      order: {
+        id: payload.client_order_code,
+        pick_name: payload.from_name,
+        pick_address: payload.from_address,
+        pick_province: payload.from_province_name,  // Lấy tên đúng
+        pick_district: payload.from_district_name,  // Lấy tên đúng
+        pick_tel: payload.from_phone,
+
+        name: payload.to_name,
+        address: payload.to_address,
+        province: payload.to_province_name,   // Lấy tên đúng
+        district: payload.to_district_name,   // Lấy tên đúng
+        ward: payload.to_ward_name,           // Không được để trống
+        tel: payload.to_phone,
+
+        is_freeship: 1,
+        value: 0,
+        weight: payload.weight,
+        length: payload.length,
+        width: payload.width,
+        height: payload.height,
+        content: payload.content,
+      },
+    };
+
+    const { data: res } = await axios.post(
+      "https://services.giaohangtietkiem.vn/services/shipment/order",
+      orderPayload,
+      { headers: { Token: GHTK_TOKEN }, timeout: 10000 }
+    );
+
+    if (res?.success && res?.order?.label) {
+      return {
+        trackingCode: res.order.label,
+        labelUrl: res.order?.url || null,
+      };
+    } else {
+      throw new Error(res?.message || "Không tạo được đơn GHTK");
+    }
+  } catch (err) {
+    console.error("[GHTK createDropoffOrder] error:", err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+module.exports = { getDefaultService, getFee, getDropoffServices, createDropoffOrder  };

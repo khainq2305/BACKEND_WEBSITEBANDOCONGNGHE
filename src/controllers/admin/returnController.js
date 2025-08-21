@@ -234,7 +234,7 @@ static async updateReturnStatus(req, res) {
         type: 'order',
         targetRole: 'client',
         targetId: request.order.userId,
-        link: `/user-profile/orders/${request.order.orderCode}/return`,
+        link: `/user-profile/return-order/${request.id}`,
         isGlobal: false,
       }, { transaction: t });
 

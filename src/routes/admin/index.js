@@ -15,14 +15,15 @@ const flashSaleRoutes = require('./flashSale.routes');
 const postRoutes = require('./post.routes');
 const postCategoryRoutes = require('./categoryPost.routes')
 const orderRoutes = require('./order.routes');
-const uploadRoutes = require("./upload.routes"); 
+const uploadRoutes = require('./upload.routes');  
 const bannerRoutes = require('./banner.routes'); 
 const tagsRoute = require('./tags.route')
 const permissionRoutes = require('./permission.route')
 const roleRoutes= require('./role.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
-const reviewRoutes = require('./Review.routes'); // 👈 mới thêm
+const reviewRoutes = require('./Review.routes'); 
+
 const productQuestionRoutes = require('./productQuestion.route');
 const dashboardRoutes = require('./dashboard.route')
 const spinRewardRoutes = require('./spinReward.routes');
@@ -36,7 +37,7 @@ const skuRoutes = require("./sku.route")
 const returnRoutes = require('./returnRoutes');
 
 router.use('/sku', skuRoutes); 
-router.use('/', returnRoutes); 
+router.use('/returnRequest', returnRoutes); 
 router.use('/system-settings', systemSettingRoutes);
 router.use('/order', orderRoutes);  
 router.use('/tags', tagsRoute)
@@ -46,6 +47,7 @@ router.use('/notification-users', notificationUserRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/roles', roleRoutes);
 router.use('/products', productRoutes); 
+router.use('/upload', uploadRoutes);  
 router.use('/users', userRoutes); 
 router.use('/post', postRoutes);
 router.use('/post-category', postCategoryRoutes);
@@ -56,7 +58,6 @@ router.use('/highlighted-category-item', highlightedCategoryItemRoutes);
 router.use('/sections', sectionRoutes); 
 router.use('/flash-sales', flashSaleRoutes); 
 router.use('/categories', categoryRoutes);
-router.use("/upload-image", uploadRoutes);
 router.use('/brands', brandRoutes);
 router.use('/payment-methods', paymentMethodRoutes);
 router.use('/shipping-providers', shippingProviderRoutes);

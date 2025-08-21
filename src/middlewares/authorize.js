@@ -1,35 +1,51 @@
-// Import cái "Khuôn Làm Bánh" gốc của bạn
-const { checkPermission } = require('./casl.middleware');
+// middlewares/authorize.js
+const { checkPermission } = require("./casl.middleware");
 
-// Bảng hướng dẫn cho máy: phương thức nào thì làm bánh gì
 const methodToAction = {
-  'GET': 'read',
-  'POST': 'create',
-  'PUT': 'update',
-  'PATCH': 'update',
-  'DELETE': 'delete'
+  GET: "read",
+  POST: "create",
+  PUT: "update",
+  PATCH: "update",
+  DELETE: "delete",
 };
 
-// Đây là định nghĩa CỖ MÁY TỰ ĐỘNG đã được sửa lỗi
-const authorize = (subject, actionOverride = null) => {
-  // Máy sẽ trả về một middleware để Express sử dụng
+// Map URL → custom action
+const urlToAction = {
+  "reset-password": "resetPassword",
+  "lock": "lockAccount",
+  "unlock": "unlockAccount",
+  "status": "lockAccount",   // 👈 thêm cái này
+  "soft-delete": "softDelete",
+  "restore": "restore",
+  "export": "export",
+  "reply": "reply",
+  "cancel": "cancel",
+};
+const authorize = (subject) => {
   return (req, res, next) => {
-    // Máy tự xem phương thức request (GET, POST,...) để quyết định loại bánh (action)
-    const action = actionOverride || methodToAction[req.method];
-    console.log('Authorize subject:', subject, 'action:', action);
-    // Máy kiểm tra nguyên liệu
-    if (!subject || !action) {
-      console.error('Authorization Error: Subject or Action could not be determined.');
-      return res.status(500).json({ message: 'Lỗi cấu hình phân quyền.' });
+    // lấy segment cuối trong path (vd: /users/:id/reset-password → reset-password)
+    const lastSegment = req.path.split("/").filter(Boolean).pop();
+    let finalAction = null;
+
+    if (urlToAction[lastSegment]) {
+      finalAction = urlToAction[lastSegment];
+    } else {
+      finalAction = methodToAction[req.method] || null;
     }
 
-    // Máy tạo ra middleware kiểm tra quyền cụ thể
-    const specificPermissionMiddleware = checkPermission(action, subject);
+    console.log("  authorize middleware:", {
+      method: req.method,
+      path: req.path,
+      finalAction,
+    });
 
-    // Máy dùng middleware vừa tạo để kiểm tra request.
-    // Middleware này sẽ TỰ GỌI next() nếu quyền hợp lệ, hoặc gửi lỗi nếu không hợp lệ.
-    // Chúng ta không cần gọi next() ở đây nữa.
-    specificPermissionMiddleware(req, res, next);
+    if (!finalAction) {
+      return res.status(405).json({
+        message: `Phương thức ${req.method} không được hỗ trợ.`,
+      });
+    }
+
+    return checkPermission(finalAction, subject)(req, res, next);
   };
 };
 

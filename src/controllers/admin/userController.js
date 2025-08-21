@@ -11,6 +11,7 @@ const {
 const { getUserDetail } = require("../../services/admin/user.service");
 
 const { User, UserRoles } = require("../../models");
+const roleService = require("../../services/admin/role.service");
 
 class UserController {
   static async getAllUsers(req, res) {
@@ -96,32 +97,18 @@ class UserController {
   }
 
   static async getAllRoles(req, res) {
-    try {
-      const { userId } = req.query; // Truyền userId qua query: /roles?userId=18
-
-      // Lấy tất cả role
-      const roles = await Role.findAll({
-        attributes: ["id", "name", "key", "canAccess"],
-      });
-
-      // Nếu có userId thì lấy các roleId đã gán cho user đó
-      let userRoleIds = [];
-      if (userId) {
-        const userRoles = await UserRole.findAll({
-          where: { userId },
-          attributes: ["roleId"],
+    
+      try {
+        const roles = await roleService.findAll();
+        res.status(200).json({
+          success: true,
+          message: "Lấy danh sách vai trò thành công.",
+          data: roles,
         });
-        userRoleIds = userRoles.map((r) => r.roleId);
+      } catch (error) {
+        console.error("[RoleController.findAll] Error: ", error);
+        next(error);
       }
-
-      res.json({
-        roles,
-        userRoleIds, // mảng roleId đã gán
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Không thể lấy vai trò", error });
-    }
   }
 
   static async updateUserStatus(req, res) {

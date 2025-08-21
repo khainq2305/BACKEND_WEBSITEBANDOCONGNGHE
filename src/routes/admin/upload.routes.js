@@ -1,23 +1,40 @@
-// src/routes/uploadRoutes.js
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { upload } = require("../../config/cloudinary");
-
-const {checkJWT} = require('../../middlewares/checkJWT')
-router.use(checkJWT);
-router.post(
-  "/",
-  upload.single("file"),
-  (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: "Không có file nào được upload." });
-    }
-    // Lấy URL ảnh trên Cloudinary từ req.file.path
-    // Thường multer-storage-cloudinary sẽ gán URL ở req.file.path
-    const imageUrl = req.file.path; 
-    // TinyMCE mong muốn trả về JSON có key 'location' chứa URL
-    return res.json({ location: imageUrl });
+const { upload } = require('../../config/cloudinary'); 
+const path = require('path');
+router.post('/image', upload.single('file'), async (req, res) => {
+  try {
+    const f = req.file;
+    if (!f) return res.status(400).json({ message: 'No file' });
+    const payload = {
+      url: f.path,
+      public_id: f.filename,
+      resource_type: f.resource_type,
+      location: f.path, 
+    };
+    return res.json(payload);
+  } catch (e) {
+    console.error('Upload error:', e);
+    return res.status(500).json({ message: 'Upload failed' });
   }
-);
+});
+
+router.post('/images', upload.array('files', 20), async (req, res) => {
+  try {
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ message: 'No files' });
+
+    const result = files.map(f => ({
+      url: f.path,
+      public_id: f.filename,
+      resource_type: f.resource_type,
+      location: f.path,
+    }));
+    return res.json(result);
+  } catch (e) {
+    console.error('Upload multiple error:', e);
+    return res.status(500).json({ message: 'Upload failed' });
+  }
+});
 
 module.exports = router;

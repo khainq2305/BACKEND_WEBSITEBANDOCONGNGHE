@@ -20,7 +20,7 @@ router.get('/detail/:slug', BannerController.getById);
 router.get('/list', BannerController.getAll);
 
 router.delete('/force-delete-many', BannerController.forceDeleteMany);
-router.delete('/delete/:id', authorize("Banner", "delete"), BannerController.delete);
+router.delete('/delete/:id',  BannerController.delete);
 router.put('/update-order/:id', BannerController.updateOrder);
 
 module.exports = router;

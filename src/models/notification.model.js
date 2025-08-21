@@ -24,10 +24,6 @@ const Notification = sequelize.define("Notification", {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  targetType: {
-    type: DataTypes.ENUM("order", "system","promotion"),
-    allowNull: true,
-  },
   targetId: {
     type: DataTypes.INTEGER,
     allowNull: true,

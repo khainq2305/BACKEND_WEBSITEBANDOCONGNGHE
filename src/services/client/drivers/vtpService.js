@@ -231,8 +231,48 @@ async function getFee({
 
   throw new Error('VTP: Không tìm thấy dịch vụ vận chuyển khả thi nào sau khi thử tất cả các tùy chọn có sẵn.');
 }
+// --- LẤY DỊCH VỤ GỬI TẠI BƯU CỤC (DROP-OFF) CHO VTP ---
+async function getDropoffServices({
+  toProvince, toDistrict, toWard,
+  weight,
+  length = 10, width = 10, height = 10,
+  orderValue = 0,
+}) {
+  try {
+    // Tận dụng getFee để ước phí + leadTime cho tuyến khách -> shop (drop-off)
+    const { fee, leadTime } = await getFee({
+      toProvince,
+      toDistrict,
+      toWard,
+      weight,
+      length,
+      width,
+      height,
+      serviceCode: null,
+      orderValue,
+    });
+
+    // TODO: Nếu muốn có danh sách bưu cục thật, gọi API VTP rồi map vào dropoffPoints ở đây.
+    // Hiện để rỗng để FE vẫn hiển thị được option chọn dịch vụ.
+    const dropoffPoints = [];
+
+    return [
+      {
+        code: 'VTP_DROPOFF',
+        name: 'Viettel Post - Gửi tại bưu cục',
+        fee: Number(fee || 0),
+        leadTime: leadTime ?? null,
+        dropoffPoints,
+      },
+    ];
+  } catch (e) {
+    console.error('[VTP getDropoffServices] error:', e?.response?.data || e.message);
+    return [];
+  }
+}
 
 module.exports = {
   getDefaultService,
+  getDropoffServices, 
   getFee,
 };

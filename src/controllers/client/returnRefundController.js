@@ -21,7 +21,7 @@ const {
   ProviderWard,
 } = require("../../models"); // Điều chỉnh đường dẫn models cho đúng với cấu trúc dự án của bạn
 const ghnService = require('../../services/client/drivers/ghnService');
-
+const ghtkService = require('../../services/client/drivers/ghtkService'); // 💥 thêm dòng này
 const sendEmail = require("../../utils/sendEmail"); // Điều chỉnh đường dẫn utils cho đúng
 const refundGateway = require("../../utils/refundGateway"); // Điều chỉnh đường dẫn utils cho đúng
 const ShippingService = require("../../services/client/shippingService"); // Điều chỉnh đường dẫn services cho đúng
@@ -33,8 +33,10 @@ class ReturnRefundController {
 static async requestReturn(req, res) {
     const t = await sequelize.transaction();
     try {
-        const { orderId, reason, itemsToReturn, detailedReason } = req.body;
+        const { orderId, reason, itemsToReturn, detailedReason, situation } = req.body;
         const userId = req.user.id;
+
+        console.log("📥 Body:", req.body);
 
         const parsedOrderId = Number(orderId);
         if (isNaN(parsedOrderId)) {
@@ -47,25 +49,30 @@ static async requestReturn(req, res) {
             return res.status(400).json({ message: "Vui lòng chọn lý do hoàn hàng" });
         }
 
+        if (!["seller_pays", "customer_pays"].includes(situation)) {
+            await t.rollback();
+            return res.status(400).json({ message: "Tình huống không hợp lệ" });
+        }
+
         let parsedItems;
         try {
             parsedItems = JSON.parse(itemsToReturn);
             if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
                 throw new Error();
             }
-        } catch {
+        } catch (err) {
+            console.error("❌ Parse items error:", err);
             await t.rollback();
             return res.status(400).json({ message: "Vui lòng chọn ít nhất một sản phẩm để trả" });
         }
 
         const skuIds = parsedItems.map((item) => item.skuId);
 
-        // ✅ Cập nhật: Thêm User vào include để tránh lỗi
         const order = await Order.findOne({
             where: { id: parsedOrderId, userId },
             include: [
+                { model: User, attributes: ["id", "email"] },
                 { model: OrderItem, as: "items", attributes: ["skuId", "quantity"] },
-              
             ],
             transaction: t,
             lock: t.LOCK.UPDATE
@@ -89,9 +96,7 @@ static async requestReturn(req, res) {
         }
 
         const existing = await ReturnRequest.findOne({
-            where: {
-                orderId: parsedOrderId
-            }
+            where: { orderId: parsedOrderId }
         });
 
         if (existing && !(existing.status === 'cancelled' && existing.cancelledBy === 'user')) {
@@ -118,6 +123,12 @@ static async requestReturn(req, res) {
         const imageUrls = imageFiles.map((f) => f.path).join(",") || null;
         const videoUrls = videoFiles.map((f) => f.path).join(",") || null;
 
+        // ✅ Tính phí returnFee dựa theo tình huống
+        let feeToSave = 0;
+        if (situation === "customer_pays") {
+            feeToSave = 30000; // ví dụ phí cố định 30k, bạn có thể thay logic tính theo GHN
+        }
+
         const returnReq = await ReturnRequest.create({
             orderId: parsedOrderId,
             reason,
@@ -126,7 +137,11 @@ static async requestReturn(req, res) {
             evidenceVideos: videoUrls,
             status: "pending",
             returnCode: "RR" + Date.now(),
+            situation,
+            returnFee: feeToSave,
         }, { transaction: t });
+
+        console.log("✅ ReturnRequest created:", returnReq.id);
 
         for (const item of parsedItems) {
             if (!item.quantity || item.quantity <= 0) {
@@ -141,26 +156,26 @@ static async requestReturn(req, res) {
             }, { transaction: t });
         }
 
+        console.log("✅ ReturnRequestItems created");
+
         const adminNotifTitle = 'Có yêu cầu trả hàng mới';
         const adminNotifMessage = `Đơn hàng ${order.orderCode} có yêu cầu trả hàng mới. Vui lòng xem xét và xử lý.`;
 
-        // ✅ Cập nhật: Đảm bảo order.user tồn tại trước khi tạo notification
-        if (order.user?.id) {
-            const adminNotification = await Notification.create({
-                title: adminNotifTitle,
-                message: adminNotifMessage,
-                slug: `admin-return-request-${returnReq.id}`,
-                type: 'order',
-                targetRole: 'admin',
-                targetId: returnReq.id,
-                link: `/admin/return-requests/${returnReq.id}`,
-                isGlobal: true,
-            }, { transaction: t });
-
-            req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotification);
-        }
+        const adminNotification = await Notification.create({
+            title: adminNotifTitle,
+            message: adminNotifMessage,
+            slug: `admin-return-request-${returnReq.id}`,
+            type: 'order',
+            targetRole: 'admin',
+            targetId: returnReq.id,
+            link: `/admin/return-requests/${returnReq.id}`,
+            isGlobal: true,
+        }, { transaction: t });
 
         await t.commit();
+
+        req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotification);
+
         return res.status(201).json({
             message: "Đã gửi yêu cầu trả hàng thành công",
             data: returnReq,
@@ -170,11 +185,12 @@ static async requestReturn(req, res) {
         if (!t.finished) {
             await t.rollback();
         }
-        // ✅ Cập nhật: Log lỗi chi tiết để dễ dàng gỡ lỗi
         console.error("🔥 Lỗi server khi gửi yêu cầu trả hàng:", err);
         return res.status(500).json({ message: "Lỗi server khi gửi yêu cầu trả hàng" });
     }
 }
+
+
 
 
 
@@ -184,135 +200,119 @@ static async getReturnRequestDetail(req, res) {
     const { id } = req.params;
     const userId = req.user.id;
 
-    console.log(`📥 [getReturnRequestDetail] ID: ${id} | UserID: ${userId}`);
-
     const returnRequest = await ReturnRequest.findOne({
       where: { id },
       include: [
-  {
-    model: Order,
-    as: "order",
-    include: [
-      {
-        model: OrderItem,
-        as: "items",
-        include: [
-          {
-            model: Sku,
-            include: [
-              {
-                model: Product,
-                as: "product",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        model: PaymentMethod,
-        as: "paymentMethod",
-        attributes: ['code', 'name']
-      }
-    ],
-  },
-  {
-    model: ReturnRequestItem,
-    as: "items",
-    include: [
-      {
-        model: Sku,
-        as: "sku",
-        include: [
-          {
-            model: Product,
-            as: "product",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    model: RefundRequest,
-    as: "refundRequest", 
-    attributes: ['id', 'amount', 'status', 'refundedAt', 'responseNote', 'createdAt'],
-    required: false
-  }
-]
-
+        {
+          model: Order,
+          as: "order",
+          include: [
+            {
+              model: OrderItem,
+              as: "items",
+              include: [
+                {
+                  model: Sku,
+                  include: [{ model: Product, as: "product" }],
+                },
+              ],
+            },
+            // Lấy code & name phương thức thanh toán
+            { model: PaymentMethod, as: "paymentMethod", attributes: ["code", "name"] },
+          ],
+        },
+        {
+          model: ReturnRequestItem,
+          as: "items",
+          include: [
+            {
+              model: Sku,
+              as: "sku",
+              include: [{ model: Product, as: "product" }],
+            },
+          ],
+        },
+        {
+          model: RefundRequest,
+          as: "refundRequest",
+          attributes: ["id", "amount", "status", "refundedAt", "responseNote", "createdAt"],
+          required: false,
+        },
+      ],
     });
 
     if (!returnRequest || !returnRequest.order || returnRequest.order.userId !== userId) {
       return res.status(404).json({ message: "Không tìm thấy đơn trả hàng" });
     }
 
-    const orderItems = returnRequest.order.items;
-    const returnItems = returnRequest.items;
-
-    console.log("🧾 Order Items:", orderItems.map(o => ({
-      id: o.id,
-      skuId: o.skuId,
-      price: o.price,
-      quantity: o.quantity
-    })));
-
-    console.log("🔄 Return Items:", returnItems.map(r => ({
-      id: r.id,
-      skuId: r.skuId,
-      quantity: r.quantity
-    })));
+    // Tính tiền hoàn
+    const orderItems = returnRequest.order.items || [];
+    const returnItems = returnRequest.items || [];
 
     let refundAmount = 0;
-
-    for (const returnItem of returnItems) {
-      const matchedOrderItem = orderItems.find(item => item.skuId === returnItem.skuId);
-      if (matchedOrderItem) {
-        const itemTotal = Number(matchedOrderItem.price) * returnItem.quantity;
-        console.log(`💰 SKU ${returnItem.skuId}: ${matchedOrderItem.price} * ${returnItem.quantity} = ${itemTotal}`);
-        refundAmount += itemTotal;
-      }
+    for (const rItem of returnItems) {
+      const oi = orderItems.find(i => i.skuId === rItem.skuId);
+      if (oi) refundAmount += Number(oi.price) * Number(rItem.quantity);
     }
 
-    const totalOrderQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0);
-    const totalReturnQuantity = returnItems.reduce((sum, item) => sum + item.quantity, 0);
+    const returnFee = Number(returnRequest.returnFee || 0);
+    if (returnFee > 0) refundAmount = Math.max(0, refundAmount - returnFee);
 
-    console.log(`📦 Tổng SL order: ${totalOrderQuantity} | SL trả: ${totalReturnQuantity}`);
-
-    if (totalOrderQuantity === totalReturnQuantity) {
-      const shippingFee = Number(returnRequest.order.shippingFee) || 0;
-      console.log(`🚚 Hoàn thêm phí ship: ${shippingFee}`);
-      refundAmount += shippingFee;
-    }
-
-    console.log(`✅ Tổng tiền hoàn lại: ${refundAmount}`);
-
-    // ✅ Xác định hoàn tiền vào đâu
+    // Xác định nơi hoàn tiền
     const order = returnRequest.order;
+    const pmCode = String(order?.paymentMethod?.code || "").toLowerCase();
+
     let refundDestination = "Không rõ";
 
-    if (order.paymentStatus === 'unpaid' || order.paymentMethodId === 1) {
+    if (order?.paymentStatus === "unpaid") {
+      // Thực sự chưa thanh toán -> không có gì để hoàn
       refundDestination = "Chưa thanh toán";
-    } else if (order.momoOrderId) {
+    } else if (pmCode === "momo") {
       refundDestination = "Ví MoMo";
-    } else if (order.vnpTransactionId) {
-      refundDestination = "VNPAY";
-    } else if (order.zaloTransId) {
+    } else if (pmCode === "vnpay") {
+      refundDestination = "Ví VNPay";
+    } else if (pmCode === "zalopay") {
       refundDestination = "ZaloPay";
-    } else if (order.stripePaymentIntentId) {
+    } else if (pmCode === "atm") {
+      refundDestination = "Chuyển khoản ngân hàng";
+    } else if (pmCode === "stripe") {
       refundDestination = "Thẻ quốc tế (Stripe)";
+    } else if (["internalwallet", "cod", "payos"].includes(pmCode)) {
+      // Rule của bạn: 3 case này hoàn về tài khoản nội bộ
+      refundDestination = "Tài khoản CYBERZONE";
+    } else if (!pmCode) {
+      // Fallback theo dấu vết giao dịch (phòng trường hợp không include được paymentMethod)
+      if (order?.momoOrderId)                refundDestination = "Ví MoMo";
+      else if (order?.vnpTransactionId)      refundDestination = "Ví VNPay";
+      else if (order?.zaloTransId)           refundDestination = "ZaloPay";
+      else if (order?.stripePaymentIntentId) refundDestination = "Thẻ quốc tế (Stripe)";
     }
+
+    // Thông tin vận chuyển/hoàn trả
+    const shipmentInfo = {
+      provider: returnRequest.returnProviderCode || null,
+      serviceName: returnRequest.returnServiceName || null,
+      trackingCode: returnRequest.trackingCode || null,
+      labelUrl: returnRequest.returnLabelUrl || null,
+      dropoffType: returnRequest.returnDropoffType || null,
+      expectedDeliveryAt: returnRequest.expectedDeliveryAt || null,
+      returnFee,
+    };
 
     const response = {
       ...returnRequest.toJSON(),
       refundAmount,
-      refundDestination
+      refundDestination,
+      shipmentInfo,
     };
 
     return res.json({ data: response });
   } catch (error) {
-    console.error("❌ Lỗi lấy chi tiết đơn trả hàng:", error);
+    console.error("getReturnRequestDetail error:", error);
     return res.status(500).json({ message: "Lỗi server" });
   }
 }
+
 
 
 
@@ -363,77 +363,47 @@ static async chooseReturnMethod(req, res) {
 
     const returnRequest = await ReturnRequest.findOne({
       where: { id },
-      include: [
-        {
-          model: Order,
-          as: "order",
-          where: { userId },
-          required: true,
-        },
-      ],
+      include: [{ model: Order, as: "order", where: { userId }, required: true }],
     });
 
     if (!returnRequest) {
       return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
     }
-
     if (returnRequest.returnMethod) {
-      return res.status(400).json({
-        message: "Bạn đã chọn phương thức trả hàng rồi. Không thể thay đổi nữa.",
-      });
+      return res.status(400).json({ message: "Bạn đã chọn phương thức trả hàng rồi. Không thể thay đổi nữa." });
     }
-
     if (returnRequest.status !== "approved") {
-      return res.status(400).json({
-        message: "Chỉ có thể chọn phương thức hoàn hàng khi yêu cầu ở trạng thái đã duyệt",
-      });
+      return res.status(400).json({ message: "Chỉ có thể chọn phương thức hoàn hàng khi yêu cầu ở trạng thái đã duyệt" });
     }
-
-    if (
-      returnRequest.deadlineChooseReturnMethod &&
-      new Date() > new Date(returnRequest.deadlineChooseReturnMethod)
-    ) {
-      return res.status(400).json({
-        message: "Đã quá hạn chọn phương thức hoàn hàng, yêu cầu đã hết hiệu lực",
-      });
+    if (returnRequest.deadlineChooseReturnMethod &&
+        new Date() > new Date(returnRequest.deadlineChooseReturnMethod)) {
+      return res.status(400).json({ message: "Đã quá hạn chọn phương thức hoàn hàng, yêu cầu đã hết hiệu lực" });
     }
-
     if (!["ghn_pickup", "self_send"].includes(returnMethod)) {
       return res.status(400).json({ message: "Phương thức hoàn hàng không hợp lệ" });
     }
 
+    // ✅ Chỉ lưu method + thời điểm. KHÔNG đổi status ở đây.
     returnRequest.returnMethod = returnMethod;
     returnRequest.dateChooseReturnMethod = new Date();
-
-    if (returnMethod === "self_send") {
-      returnRequest.status = "awaiting_pickup";
-    } else {
-      returnRequest.status = "approved";
-    }
-
     await returnRequest.save();
 
-    return res.json({
-      message: "Đã cập nhật phương thức hoàn hàng",
-      data: returnRequest,
-    });
+    return res.json({ message: "Đã cập nhật phương thức hoàn hàng", data: returnRequest });
   } catch (err) {
     console.error("[chooseReturnMethod]", err);
     return res.status(500).json({ message: "Lỗi server khi chọn phương thức hoàn hàng" });
   }
 }
 
-
-
-  
 static async bookReturnPickup(req, res) {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    console.log("🔄 [bookReturnPickup] Bắt đầu xử lý - ReturnRequest ID:", id, "UserID:", userId);
+    console.log("🔄 [bookReturnPickup] Start - ReturnRequest ID:", id, "UserID:", userId);
 
+    // 1. Tìm ReturnRequest + Order
     const returnReq = await ReturnRequest.findOne({
       where: { id },
       include: [
@@ -455,11 +425,7 @@ static async bookReturnPickup(req, res) {
               as: "shippingAddress",
               include: [
                 { model: Province, as: "province" },
-                {
-                  model: District,
-                  as: "district",
-                  include: [{ model: Province, as: "Province" }],
-                },
+                { model: District, as: "district" },
                 { model: Ward, as: "ward" },
               ],
             },
@@ -476,7 +442,6 @@ static async bookReturnPickup(req, res) {
     });
 
     if (!returnReq) {
-      console.warn("❌ Không tìm thấy ReturnRequest hoặc không thuộc user");
       await t.rollback();
       return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
     }
@@ -485,48 +450,53 @@ static async bookReturnPickup(req, res) {
     const addr = order.shippingAddress;
     let providerCode = order.shippingProvider?.code?.toLowerCase() || "ghn";
 
-    console.log("✅ Tìm thấy ReturnRequest & Order:", order.id);
-    console.log("🚚 Đơn vị vận chuyển (DB):", providerCode);
-
-    // Ép về GHN nếu khác
     if (providerCode !== "ghn") {
-      console.warn(`[bookReturnPickup] providerCode trong DB = ${providerCode}, ép sang 'ghn' để xử lý`);
+      console.warn(`[bookReturnPickup] providerCode DB=${providerCode}, ép sang 'ghn'`);
       providerCode = "ghn";
     }
 
-    // === 1. Mapping tỉnh/huyện/xã về mã GHN
-    const { ghnWardCode, ghnDistId, ghnProvId } = await ghnService.getGhnCodesFromLocalDb({
+    // 2. Mapping GHN
+    const { ghnWardCode, ghnDistId } = await ghnService.getGhnCodesFromLocalDb({
       province: addr.province?.id,
       district: addr.district?.id,
       ward: addr.ward?.id,
     });
 
-    console.log("📦 Mapping GHN codes:", {
-      ghnProvId,
-      ghnDistId,
-      ghnWardCode,
-    });
-
-    // === 2. Lấy trọng số và kích thước
-    const items = order.items;
-    if (!items?.length) {
-      await t.rollback();
-      throw new Error("Không có sản phẩm nào trong đơn hàng để trả");
+    if (!ghnWardCode || !ghnDistId) {
+      throw new Error("Không tìm thấy mã GHN cho địa chỉ trả hàng.");
     }
 
-    const totalWeight = items.reduce((sum, item) => sum + (item.sku?.weight || 100), 0);
-    const totalLength = Math.max(10, items.reduce((sum, item) => sum + (item.sku?.length || 10), 0));
-    const totalWidth = Math.max(10, items.reduce((sum, item) => sum + (item.sku?.width || 10), 0));
-    const totalHeight = Math.max(10, items.reduce((sum, item) => sum + (item.sku?.height || 10), 0));
+    // 3. Kích thước & trọng lượng (giống getPickupFee)
+    const MIN = 10;
+    const items = order.items;
+    if (!items?.length) throw new Error("Không có sản phẩm nào trong đơn hàng để trả.");
 
-    console.log("📐 Kích thước gói hàng:", {
-      totalWeight,
-      totalLength,
-      totalWidth,
-      totalHeight,
-    });
+    const totalWeight = items.reduce(
+      (s, it) => s + (Number(it?.sku?.weight) || 100) * (Number(it?.quantity) || 1),
+      0
+    ) || 100;
 
-    // === 3. Payload gửi GHN
+    const totalLength = Math.max(
+      MIN,
+      ...items.map(it => Number(it?.sku?.length) || MIN)
+    );
+
+    const totalWidth = Math.max(
+      MIN,
+      ...items.map(it => Number(it?.sku?.width) || MIN)
+    );
+
+    const totalHeight = Math.max(
+      MIN,
+      items.reduce(
+        (s, it) => s + (Number(it?.sku?.height) || MIN) * (Number(it?.quantity) || 1),
+        0
+      )
+    );
+
+    console.log("📦 [bookReturnPickup] Kiện hàng:", { totalWeight, totalLength, totalWidth, totalHeight });
+
+    // 4. Payload GHN
     const ghnPayload = {
       from_name: addr?.name || "Khách hàng",
       from_phone: addr?.phone || "0123456789",
@@ -547,40 +517,63 @@ static async bookReturnPickup(req, res) {
       height: totalHeight,
       client_order_code: `RTN-${id}-${Date.now()}`,
       content: "Trả hàng từ khách",
+
+      situation: returnReq.whoPays || "customer_pays",
     };
 
-    console.log("📤 Payload gửi GHN:", ghnPayload);
+    console.log("📦 [bookReturnPickup] GHN Payload gửi đi:", ghnPayload);
 
-    // === 4. Gọi GHN API bookPickup
-    const { trackingCode, labelUrl } = await ghnService.bookPickup(ghnPayload);
+    // 5. Gọi GHN service
+    const { trackingCode, labelUrl, expectedDelivery, shippingFee, paidBy } =
+      await ghnService.bookPickup(ghnPayload);
 
-    console.log("✅ GHN trả về trackingCode:", trackingCode);
+    if (!trackingCode) throw new Error("GHN không trả về mã vận đơn.");
 
-    // === 5. Cập nhật ReturnRequest
+    console.log("📦 [bookReturnPickup] shippingFee từ GHN:", shippingFee);
+
+    // 6. Update DB
     returnReq.status = "awaiting_pickup";
     returnReq.trackingCode = trackingCode;
+    returnReq.returnLabelUrl = labelUrl;   // 👈 dùng field returnLabelUrl
+    returnReq.returnFee = shippingFee;     // 👈 dùng field returnFee (total_fee GHN)
+    returnReq.returnFeePayer = paidBy;     // 👈 ai trả phí
+
+    console.log("💾 [bookReturnPickup] returnFee trước khi save:", returnReq.returnFee);
+
     await returnReq.save({ transaction: t });
 
+    console.log("✅ [bookReturnPickup] returnFee sau khi save:", returnReq.returnFee);
+
     await t.commit();
-    console.log("✅ Đã cập nhật trạng thái returnRequest & commit DB");
 
     return res.json({
       message: "Đã book GHN & cập nhật trạng thái trả hàng.",
       trackingCode,
       labelUrl,
+      expectedDelivery,
+      shippingFee,
+      paidBy,
     });
   } catch (err) {
     await t.rollback();
-    console.error("❌ [bookReturnPickup]", err);
+    console.error("❌ [bookReturnPickup]", err?.response?.data || err.message);
     return res.status(500).json({ message: err.message || "Server Error" });
   }
 }
 
-/**
- * @description Lấy yêu cầu trả hàng theo mã yêu cầu (returnCode)
- * @route GET /api/client/return-refund/by-code/:code
- * @access Private (Auth user)
- */
+
+
+
+
+  
+
+
+
+
+
+
+
+
 static async getReturnRequestByCode(req, res) {
   try {
     const { code } = req.params;
@@ -621,6 +614,402 @@ static async getReturnRequestByCode(req, res) {
   } catch (err) {
     console.error('[getReturnRequestByCode]', err);
     return res.status(500).json({ message: 'Lỗi server khi lấy yêu cầu trả hàng theo mã' });
+  }
+}
+
+// controllers/client/returnRefundController.js
+static async getPickupFee(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // 1) Lấy RR + địa chỉ + items
+    const rr = await ReturnRequest.findOne({
+      where: { id },
+      include: [
+        {
+          model: Order, as: "order", where: { userId },
+          include: [{
+            model: UserAddress, as: "shippingAddress",
+            include: [
+              { model: Province, as: "province" },
+              { model: District, as: "district" },
+              { model: Ward, as: "ward" }
+            ]
+          }]
+        },
+        {
+          model: ReturnRequestItem, as: "items",
+          include: [{ model: Sku, as: "sku", attributes: ["weight","length","width","height"] }]
+        }
+      ]
+    });
+    if (!rr) return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
+
+    const addr = rr.order?.shippingAddress;
+    if (!addr) return res.status(400).json({ message: "Thiếu địa chỉ lấy hàng" });
+
+    // 2) Tính kiện (W/L/W/H)
+    const MIN = 10;
+    const items = rr.items || [];
+    const weight = items.reduce((s, it) =>
+      s + (Number(it?.sku?.weight) || 100) * (Number(it?.quantity) || 1), 0
+    ) || 100;
+    const length = Math.max(MIN, ...items.map(it => Number(it?.sku?.length) || MIN));
+    const width  = Math.max(MIN, ...items.map(it => Number(it?.sku?.width)  || MIN));
+    const height = Math.max(MIN, items.reduce((s, it) =>
+      s + (Number(it?.sku?.height) || MIN) * (Number(it?.quantity) || 1), 0
+    ));
+
+    // 3) Lấy provider GHN
+    const ghnProvider = await ShippingProvider.findOne({ where: { code: 'ghn' }, attributes: ['id', 'code'] });
+    if (!ghnProvider) return res.status(400).json({ message: "Không tìm thấy nhà vận chuyển GHN" });
+
+    // 4) Resolve mã GHN thực từ DB nội bộ (nếu có)
+    //    => dùng làm override để tránh lỗi "không tìm thấy mã huyện"
+    const { ghnProvId, ghnDistId, ghnWardCode } = await ghnService.getGhnCodesFromLocalDb({
+      province: addr.province?.id,
+      district: addr.district?.id,
+      ward:     addr.ward?.id,
+    });
+
+    // 5) Gọi ShippingService (driver GHN) + bơm providerRawCodes để dùng mã GHN trực tiếp
+    const { fee } = await ShippingService.calcFee({
+      providerId: ghnProvider.id,
+
+      // KH -> SHOP (trả hàng): interface calcFee hiện tại dùng to* cho địa chỉ KH
+      toProvince: addr.province?.id,
+      toDistrict: addr.district?.id,
+      toWard:     addr.ward?.id,
+
+      weight, length, width, height,
+      serviceCode: rr.returnServiceId || null,
+      orderValue: 0,
+
+      // 👇 Override: truyền thẳng mã GHN nếu mapping nội bộ thiếu
+      providerRawCodes: {
+        toDistrictId: ghnDistId || undefined,          // số
+        toWardCode:   (ghnWardCode != null ? String(ghnWardCode) : undefined) // string
+      }
+    });
+
+    return res.json({ data: { provider: 'ghn', type: 'pickup', fee: Number(fee || 0) } });
+  } catch (e) {
+    console.error("[getPickupFee] error:", e?.response?.data || e.message);
+    return res.status(500).json({ message: "Lỗi server", error: e?.message });
+  }
+}
+
+
+
+// GET /api/client/return-refund/:id/dropoff-services
+static async getDropoffServices(req, res) {
+  const t0 = Date.now();
+
+  // helper gộp kiện ngay trong hàm
+  const computeParcel = (items = []) => {
+    // Tổng cân nặng (gram)
+    const totalWeight = items.reduce((sum, it) => {
+      const w = Number(it?.sku?.weight) || 100; // fallback 100g
+      const q = Number(it?.quantity) || 1;
+      return sum + w * q;
+    }, 0) || 100;
+
+    // Heuristic kích thước (cm):
+    //  - L = max(length các SKU)
+    //  - W = max(width  các SKU)
+    //  - H = tổng(height * quantity) (xếp chồng)
+    const MIN = 10;
+    const length = Math.max(
+      MIN,
+      ...items.map(it => Number(it?.sku?.length) || MIN)
+    );
+    const width  = Math.max(
+      MIN,
+      ...items.map(it => Number(it?.sku?.width) || MIN)
+    );
+    const height = Math.max(
+      MIN,
+      items.reduce((sum, it) => {
+        const h = Number(it?.sku?.height) || MIN;
+        const q = Number(it?.quantity) || 1;
+        return sum + h * q;
+      }, 0)
+    );
+
+    return { totalWeight, length, width, height };
+  };
+
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    console.log("[getDropoffServices] start", { id, userId });
+
+    const returnReq = await ReturnRequest.findOne({
+      where: { id },
+      include: [
+        {
+          model: Order,
+          as: "order",
+          where: { userId },
+          include: [
+            {
+              model: UserAddress,
+              as: "shippingAddress",
+              include: [
+                { model: Province, as: "province" },
+                { model: District, as: "district" },
+                { model: Ward, as: "ward" }
+              ]
+            }
+          ]
+        },
+        {
+          model: ReturnRequestItem,
+          as: "items",
+          include: [{ model: Sku, as: "sku", attributes: ["weight","length","width","height"] }]
+        }
+      ]
+    });
+
+    if (!returnReq) {
+      console.log("[getDropoffServices] returnReq not found");
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu" });
+    }
+
+    if (
+      !(
+        returnReq.status === "approved" ||
+        (returnReq.status === "awaiting_pickup" && returnReq.returnMethod === "self_send")
+      )
+    ) {
+      console.log("[getDropoffServices] invalid status:", returnReq.status, returnReq.returnMethod);
+      return res.status(400).json({ message: "Trạng thái yêu cầu không hợp lệ để lấy dịch vụ bưu cục" });
+    }
+
+    const addr = returnReq.order?.shippingAddress;
+    if (!addr) {
+      console.log("[getDropoffServices] no shippingAddress");
+      return res.status(400).json({ message: "Không có địa chỉ giao hàng" });
+    }
+
+    // 👉 Tính kiện từ danh sách SKU
+    const items = returnReq.items || [];
+    const { totalWeight, length, width, height } = computeParcel(items);
+    console.log("[getDropoffServices] parcel computed", {
+      itemCount: items.length, totalWeight, length, width, height
+    });
+
+    // ----- CHỈ GHN -----
+    const code = 'ghn';
+    const driver = ShippingService.drivers?.[code];
+
+    if (!driver || typeof driver.getDropoffServices !== 'function') {
+      console.log("[getDropoffServices] GHN driver missing or invalid");
+      // fallback mock khi chưa cấu hình driver
+      return res.json({
+        data: [{
+          provider: 'ghn',
+          providerName: 'GHN (mock)',
+          serviceCode: 'GHN_DROPOFF',
+          serviceName: 'GHN - Gửi tại bưu cục (mock)',
+          fee: 0,
+          leadTime: 2,
+          dropoffPoints: []
+        }],
+        tookMs: Date.now() - t0
+      });
+    }
+
+    let services = [];
+    try {
+      // 🚚 Truyền đủ W/L/H/Weight xuống GHN
+      services = await driver.getDropoffServices({
+        toProvince: addr.province?.id,
+        toDistrict: addr.district?.id,
+        toWard:     addr.ward?.id,
+        weight:     totalWeight,
+        length,
+        width,
+        height,
+        orderValue: 0, // nếu có bảo hiểm thì truyền giá trị cần bảo hiểm
+      });
+      console.log("[getDropoffServices] GHN return:", Array.isArray(services) ? services.length : 0);
+    } catch (e) {
+      console.error("[getDropoffServices] GHN error:", e?.response?.data || e.message || e);
+    }
+
+    const data = (services || []).map(svc => ({
+      provider: code,
+      providerName: 'GHN',
+      serviceCode: svc.code,
+      serviceName: svc.name,
+      fee:        svc.fee ?? null,
+      leadTime:   svc.leadTime ?? null,
+      dropoffPoints: Array.isArray(svc.dropoffPoints) ? svc.dropoffPoints : []
+    }));
+
+    if (data.length === 0) {
+      console.log("[getDropoffServices] no service from GHN, return mock");
+      return res.json({
+        data: [{
+          provider: 'ghn',
+          providerName: 'GHN (mock)',
+          serviceCode: 'GHN_DROPOFF',
+          serviceName: 'GHN - Gửi tại bưu cục (mock)',
+          fee: 0,
+          leadTime: 2,
+          dropoffPoints: []
+        }],
+        tookMs: Date.now() - t0
+      });
+    }
+
+    console.log("[getDropoffServices] done", { count: data.length, tookMs: Date.now() - t0 });
+    return res.json({ data, tookMs: Date.now() - t0 });
+  } catch (err) {
+    console.error("[getDropoffServices] server error", err);
+    return res.status(500).json({ message: "Lỗi server", error: err?.message });
+  }
+}
+
+
+
+// POST /api/client/return-refund/:id/create-dropoff
+// controllers/client/returnRefundController.js
+static async createDropoffReturnOrder(req, res) {
+  console.log("---");
+  console.log("[createDropoffReturnOrder] Start processing request...");
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { serviceCode, serviceName } = req.body;
+    const userId = req.user.id;
+
+    console.log(`[createDropoffReturnOrder] Request for ReturnRequest #${id} by user #${userId}`);
+    console.log(`[createDropoffReturnOrder] Data from FE: serviceCode=${serviceCode}, serviceName=${serviceName}`);
+
+    const rr = await ReturnRequest.findOne({
+      where: { id },
+      include: [
+        {
+          model: Order,
+          as: "order",
+          where: { userId },
+          include: [
+            {
+              model: UserAddress,
+              as: "shippingAddress",
+              include: [
+                { model: Province, as: "province" },
+                { model: District, as: "district" },
+                { model: Ward, as: "ward" }
+              ]
+            }
+          ]
+        },
+        {
+          model: ReturnRequestItem,
+          as: "items",
+          include: [{ model: Sku, as: "sku", attributes: ["weight", "length", "width", "height"] }]
+        }
+      ],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!rr) {
+      console.log("[createDropoffReturnOrder] Return request not found.");
+      await t.rollback();
+      return res.status(404).json({ message: "Không tìm thấy yêu cầu trả hàng" });
+    }
+    if (rr.status !== "approved") {
+      console.log(`[createDropoffReturnOrder] Return request #${rr.id} status is not 'approved' but '${rr.status}'.`);
+      await t.rollback();
+      return res.status(400).json({ message: "Yêu cầu chưa được duyệt" });
+    }
+
+    console.log(`[createDropoffReturnOrder] Found ReturnRequest #${rr.id}. Status: ${rr.status}`);
+
+    const MIN = 10;
+    const items = rr.items || [];
+    const weight =
+      items.reduce(
+        (s, it) => s + (Number(it?.sku?.weight) || 100) * (Number(it?.quantity) || 1),
+        0
+      ) || 100;
+    const length = Math.max(MIN, ...items.map(it => Number(it?.sku?.length) || MIN));
+    const width = Math.max(MIN, ...items.map(it => Number(it?.sku?.width) || MIN));
+    const height = Math.max(
+      MIN,
+      items.reduce(
+        (s, it) => s + (Number(it?.sku?.height) || MIN) * (Number(it?.quantity) || 1),
+        0
+      )
+    );
+    console.log(`[createDropoffReturnOrder] Calculated package dimensions: Weight=${weight}g, L=${length}cm, W=${width}cm, H=${height}cm`);
+
+    const addr = rr.order.shippingAddress;
+    const basePayload = {
+      from_name: addr?.fullName || addr?.name,
+      from_phone: addr?.phone,
+      from_address: addr?.streetAddress || addr?.address,
+      from_province_id: addr?.province?.id,
+      from_district_id: addr?.district?.id,
+      from_ward_id: addr?.ward?.id,
+      to_name: process.env.SHOP_NAME,
+      to_phone: process.env.SHOP_PHONE,
+      to_address: process.env.SHOP_ADDRESS,
+      to_ward_code: process.env.SHOP_WARD_CODE,
+      to_district_id: Number(process.env.SHOP_DISTRICT_CODE),
+      weight,
+      length,
+      width,
+      height,
+      client_order_code: `RET-${rr.returnCode}`,
+      content: `Trả hàng ${rr.returnCode} - ${serviceName || "GHN"}`,
+    };
+    console.log("[createDropoffReturnOrder] API payload base created:", basePayload);
+
+    const { trackingCode, totalFee, expectedDelivery } =
+      await ghnService.createDropoffOrder(basePayload);
+
+    const labelUrl = await ghnService.getLabel(trackingCode);
+
+    let finalReturnFee = 0;
+    if (rr.situation === "customer_pays") {
+      finalReturnFee = totalFee;
+    }
+
+    await rr.update(
+      {
+        returnProviderCode: "ghn",
+        returnServiceId: serviceCode || null,
+        returnServiceName: serviceName || null,
+        trackingCode,
+        returnLabelUrl: labelUrl,
+        returnDropoffType: "post_office",
+        returnFee: finalReturnFee,
+        expectedDeliveryAt: expectedDelivery,
+        status: "awaiting_dropoff",
+      },
+      { transaction: t }
+    );
+
+    console.log(`[createDropoffReturnOrder] ReturnRequest #${rr.id} updated successfully.`);
+
+    await t.commit();
+    console.log("[createDropoffReturnOrder] Transaction committed.");
+    return res.json({
+      message: `Đã tạo vận đơn GHN cho trả tại bưu cục`,
+      data: { trackingCode, labelUrl, provider: "ghn", serviceName, fee: finalReturnFee },
+    });
+  } catch (err) {
+    await t.rollback();
+    console.error("[createDropoffReturnOrder] An error occurred:", err);
+    return res.status(500).json({ message: "Lỗi server khi tạo đơn bưu cục", error: err?.message });
+  } finally {
+    console.log("---");
   }
 }
 

@@ -46,9 +46,9 @@ const spinHistoryController = {
 
     // Lọc Đã Trúng và Không Trúng dựa trên rewardName, vì rewardId không đáng tin cậy
     if (rewardId === 'won') {
-      whereClause.rewardName = { [Op.not]: 'Chúc bạn may mắn lần sau' };
+      whereClause.rewardName = { [Op.not]: 'CHÚC MAY MẮN' };
     } else if (rewardId === 'none_won') {
-      whereClause.rewardName = 'Chúc bạn may mắn lần sau';
+      whereClause.rewardName = 'CHÚC MAY MẮN';
     }
     
     const { rows, count } = await SpinHistory.findAndCountAll({
@@ -61,8 +61,8 @@ const spinHistoryController = {
 
     const [totalAll, totalWon, totalNoneWon] = await Promise.all([
       SpinHistory.count(),
-      SpinHistory.count({ where: { rewardName: { [Op.not]: 'Chúc bạn may mắn lần sau' } } }),
-      SpinHistory.count({ where: { rewardName: 'Chúc bạn may mắn lần sau' } }),
+      SpinHistory.count({ where: { rewardName: { [Op.not]: 'CHÚC MAY MẮN' } } }),
+      SpinHistory.count({ where: { rewardName: 'CHÚC MAY MẮN' } }),
     ]);
 
     return res.status(200).json({

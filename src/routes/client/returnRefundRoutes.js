@@ -33,5 +33,11 @@ router.put('/:id/cancel', checkJWT, ReturnRefundController.cancelReturnRequest);
 router.put('/:id/choose-method', checkJWT, ReturnRefundController.chooseReturnMethod);
 router.post('/:id/book-pickup', checkJWT, ReturnRefundController.bookReturnPickup);
 router.get('/by-code/:code', checkJWT, ReturnRefundController.getReturnRequestByCode);
+// ✅ Lấy danh sách dịch vụ vận chuyển (drop-off services)
+router.get('/:id/dropoff-services', checkJWT, ReturnRefundController.getDropoffServices);
+
+// ✅ Tạo đơn trả hàng khi user chọn dịch vụ drop-off
+router.post('/:id/create-dropoff', checkJWT, ReturnRefundController.createDropoffReturnOrder);
+router.get('/:id/pickup-fee', checkJWT, ReturnRefundController.getPickupFee);
 
 module.exports = router;

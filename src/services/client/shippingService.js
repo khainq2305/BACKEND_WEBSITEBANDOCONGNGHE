@@ -46,7 +46,6 @@ class ShippingService {
       throw new Error(`Chưa hỗ trợ driver “${provider.code}”`);
     }
 
-    // Các driver sẽ tự xử lý việc mapping ID nội bộ thành mã API
     return driver.getFee({
       toProvince,
       toDistrict,
@@ -57,6 +56,41 @@ class ShippingService {
       height,
       serviceCode,
       orderValue,
+    });
+  }
+
+  /**
+   * Lấy thời gian giao hàng dự kiến (leadTime).
+   *
+   * @param {object} payload
+   * @returns {Promise<number|null>}
+   */
+  static async getLeadTime({
+    providerId, toProvince, toDistrict, toWard,
+    weight, length, width, height,
+    serviceCode = null,
+  }) {
+    const provider = await ShippingProvider.findByPk(providerId);
+    if (!provider || !provider.isActive) {
+      console.warn(`[getLeadTime] Hãng vận chuyển ID ${providerId} không hoạt động hoặc không tồn tại.`);
+      throw new Error('Hãng vận chuyển không hoạt động');
+    }
+
+    const driver = drivers[provider.code];
+    if (!driver || !driver.getLeadTime) {
+      console.error(`[getLeadTime] Driver cho hãng "${provider.code}" không hỗ trợ getLeadTime.`);
+      throw new Error(`Chưa hỗ trợ getLeadTime cho “${provider.code}”`);
+    }
+
+    return driver.getLeadTime({
+      toProvince,
+      toDistrict,
+      toWard,
+      weight,
+      length,
+      width,
+      height,
+      serviceCode,
     });
   }
 }

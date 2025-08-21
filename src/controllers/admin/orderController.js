@@ -148,18 +148,7 @@ class OrderController {
         }
       ];
 
-      const orderClause =
-        status === ''
-          ? [
-            [
-              Sequelize.literal(
-                `CASE WHEN \`Order\`.\`status\` = 'processing' THEN 0 ELSE 1 END`
-              ),
-              'ASC'
-            ],
-            ['createdAt', 'DESC']
-          ]
-          : [['createdAt', 'DESC']];
+     const orderClause = [['createdAt', 'DESC']];
 
       const { count, rows } = await Order.findAndCountAll({
         subQuery: false,
