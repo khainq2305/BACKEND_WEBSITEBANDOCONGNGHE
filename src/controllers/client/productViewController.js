@@ -18,50 +18,49 @@ const { literal } = Sequelize;
 const { processSkuPrices } = require("../../helpers/priceHelper");
 
 class ProductViewController {
-static async addView(req, res) {
-  try {
-    const { productId } = req.body;
+  static async addView(req, res) {
+    try {
+      const { productId } = req.body;
 
-    if (!productId) {
-      return res.status(400).json({ message: "Thiếu productId" });
-    }
-
-    if (!req.user || !req.user.id) {
-      return res.status(200).json({ message: "Bỏ qua, user chưa đăng nhập" });
-    }
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const existingView = await ProductView.findOne({
-      where: {
-        userId: req.user.id,
-        productId,
-        viewDate: today
+      if (!productId) {
+        return res.status(400).json({ message: "Thiếu productId" });
       }
-    });
 
-    if (existingView) {
-      await existingView.update({
-        viewCount: existingView.viewCount + 1,
-        lastViewedAt: new Date()
+      if (!req.user || !req.user.id) {
+        return res.status(200).json({ message: "Bỏ qua, user chưa đăng nhập" });
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+
+      const existingView = await ProductView.findOne({
+        where: {
+          userId: req.user.id,
+          productId,
+          viewDate: today,
+        },
       });
-    } else {
-      await ProductView.create({
-        userId: req.user.id,
-        productId,
-        viewDate: today,
-        viewCount: 1,
-        firstViewedAt: new Date(),
-        lastViewedAt: new Date()
-      });
+
+      if (existingView) {
+        await existingView.update({
+          viewCount: existingView.viewCount + 1,
+          lastViewedAt: new Date(),
+        });
+      } else {
+        await ProductView.create({
+          userId: req.user.id,
+          productId,
+          viewDate: today,
+          viewCount: 1,
+          firstViewedAt: new Date(),
+          lastViewedAt: new Date(),
+        });
+      }
+
+      return res.status(201).json({ message: "Đã ghi nhận lượt xem" });
+    } catch (err) {
+      return res.status(500).json({ message: "Lỗi server" });
     }
-
-    return res.status(201).json({ message: "Đã ghi nhận lượt xem" });
-  } catch (err) {
-    return res.status(500).json({ message: "Lỗi server" });
   }
-}
-
 
   static async getByIds(req, res) {
     try {
@@ -373,12 +372,10 @@ static async addView(req, res) {
         if (parentCategory && parentCategory.parentId === null) {
           rootCategoryId = parentCategory.id;
         } else {
-          return res
-            .status(400)
-            .json({
-              message:
-                "categoryId không phải là danh mục cấp 1 hoặc không tìm thấy danh mục cấp 1 tương ứng.",
-            });
+          return res.status(400).json({
+            message:
+              "categoryId không phải là danh mục cấp 1 hoặc không tìm thấy danh mục cấp 1 tương ứng.",
+          });
         }
       }
 
@@ -469,12 +466,9 @@ static async addView(req, res) {
       });
 
       if (!latestView || !latestView.product) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Không tìm thấy sản phẩm đã xem gần đây trong danh mục này.",
-          });
+        return res.status(404).json({
+          message: "Không tìm thấy sản phẩm đã xem gần đây trong danh mục này.",
+        });
       }
 
       const product = latestView.product.toJSON();
@@ -671,8 +665,6 @@ static async addView(req, res) {
     }
   }
 
-
-
   static async searchForCompare(req, res) {
     try {
       const { keyword = "", limit = 20, page = 1 } = req.query;
@@ -805,7 +797,6 @@ static async addView(req, res) {
           const flashLimit = fsi.quantity;
           const isSoldOut = flashLimit != null && soldQty >= flashLimit;
 
-         
           if (!isSoldOut && flashItemSalePrice > 0) {
             if (
               !allActiveFlashSaleItemsMap.has(sku.id) ||

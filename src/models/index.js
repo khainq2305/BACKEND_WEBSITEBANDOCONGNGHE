@@ -57,6 +57,9 @@ const ProviderWard = require("./providerWard");
 
 //
 const SystemSetting = require("./systemsetting");
+//combo
+const Combo = require("./combo.model");
+const ComboSku = require("./combosku.model");
 
 const Review = require("./reviewModel");
 const ReviewMedia = require("./reviewmediamodel");
@@ -692,6 +695,11 @@ Wallet.hasMany(Withdrawal, { foreignKey: "walletId", as: "withdrawals" });
 
 // 1 Withdrawal thuộc về 1 Wallet
 Withdrawal.belongsTo(Wallet, { foreignKey: "walletId", as: "wallet" });
+// Combo có nhiều sku qua ComboSku
+Combo.hasMany(ComboSku, { foreignKey: "comboId", as: "comboSkus" });
+ComboSku.belongsTo(Combo, { foreignKey: "comboId" });
+// Có thể thêm nếu cần:
+ComboSku.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
 
 module.exports = {
   Sequelize,
@@ -708,7 +716,8 @@ module.exports = {
   MembershipLog,
   Wallet,
   WalletTransaction,
-
+ Combo,
+  ComboSku,
   ProductQuestion,
   ProductAnswer,
   Banner,

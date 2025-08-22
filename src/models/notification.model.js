@@ -39,7 +39,7 @@ const Notification = sequelize.define("Notification", {
     defaultValue: true,
   },
   type: {
-    type: DataTypes.ENUM("order", "system","promotion"),
+    type: DataTypes.ENUM("order", "system","promotion", "comment"),
     allowNull: false,
   },
    targetRole: { type: DataTypes.ENUM("admin", "client"), allowNull: true },

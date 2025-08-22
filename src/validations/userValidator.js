@@ -1,32 +1,24 @@
+// validations/userValidator.js
 const validator = require("validator");
 
 const createUserValidator = (req, res, next) => {
-  const { fullName, email, password, roleIds, status, phone } = req.body;
+  const { email, password } = req.body;
 
-  if (!fullName || fullName.trim() === "") {
-    return res
-      .status(400)
-      .json({
-        errors: [{ field: "fullName", message: "Họ tên không được để trống!" }],
-      });
-  }
-
+  // Email bắt buộc & hợp lệ
   if (!email || !validator.isEmail(email)) {
-    return res
-      .status(400)
-      .json({ errors: [{ field: "email", message: "Email không hợp lệ!" }] });
+    return res.status(400).json({
+      errors: [{ field: "email", message: "Email bắt buộc và phải hợp lệ!" }],
+    });
   }
 
+  // Password bắt buộc
   if (!password) {
-    return res
-      .status(400)
-      .json({
-        errors: [
-          { field: "password", message: "Mật khẩu không được để trống!" },
-        ],
-      });
+    return res.status(400).json({
+      errors: [{ field: "password", message: "Mật khẩu không được để trống!" }],
+    });
   }
 
+  // Password phải đủ mạnh
   const strongPasswordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^+=])[A-Za-z\d@$!%*?&#^+=]{8,}$/;
 
@@ -42,33 +34,6 @@ const createUserValidator = (req, res, next) => {
     });
   }
 
-  if (
-    !Array.isArray(roleIds) ||
-    roleIds.length === 0 ||
-    roleIds.some((id) => isNaN(parseInt(id)))
-  ) {
-    return res
-      .status(400)
-      .json({
-        errors: [{ field: "roleIds", message: "Vai trò không hợp lệ!" }],
-      });
-  }
-
-  if (status !== undefined && ![0, 1].includes(parseInt(status))) {
-    return res
-      .status(400)
-      .json({
-        errors: [{ field: "status", message: "Trạng thái phải là 0 hoặc 1!" }],
-      });
-  }
-
-  if (phone && !validator.isMobilePhone(phone, "vi-VN")) {
-    return res
-      .status(400)
-      .json({
-        errors: [{ field: "phone", message: "Số điện thoại không hợp lệ!" }],
-      });
-  }
 
   next();
 };

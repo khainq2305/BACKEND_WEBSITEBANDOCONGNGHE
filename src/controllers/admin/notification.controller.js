@@ -414,93 +414,109 @@ const NotificationController = {
   },
 
   async markAsRead(req, res) {
-    try {
-      const { id } = req.params; // notificationId
-      const userId = req.user?.id;
+  try {
+    const { id } = req.params; // notificationId
+    const userId = req.user?.id;
 
-      if (!id || !userId) {
-        return res.status(400).json({ message: 'Thiếu thông tin' });
-      }
-
-      // Tìm hoặc tạo bản ghi notificationUser
-      const [record, created] = await NotificationUser.findOrCreate({
-        where: { notificationId: id, userId },
-        defaults: { isRead: true, readAt: new Date() },
-      });
-
-      // Nếu bản ghi đã tồn tại nhưng chưa đọc thì update
-      if (!created && !record.isRead) {
-        record.isRead = true;
-        record.readAt = new Date();
-        await record.save();
-      }
-
-      return res.json({ message: 'Đã đánh dấu là đã đọc' });
-    } catch (error) {
-      console.error('Lỗi markAsRead:', error);
-      return res.status(500).json({ message: 'Lỗi máy chủ' });
+    if (!id || !userId) {
+      return res.status(400).json({ message: "Thiếu thông tin" });
     }
-  },
-  async markAllAsRead(req, res) {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Thiếu thông tin người dùng" });
-      }
 
-      // Lấy tất cả thông báo global, active cùng trạng thái đã đọc của user
-      const globalNotifications = await Notification.findAll({
-        where: {
-          isGlobal: true,
-          isActive: true,
-        },
-        include: [
-          {
-            model: NotificationUser,
-            as: "notificationUsers",  // PHẢI CÓ alias đúng
-            required: false,
-            where: { userId },
-            attributes: ["id", "isRead", "readAt"],
-          },
-        ],
-      });
+    // 👉 Chỉ tìm notification thuộc role admin
+    const notification = await Notification.findOne({
+      where: {
+        id,
+        targetRole: "admin",   // ✅ chỉ lọc admin
+        isActive: true,
+      },
+    });
 
-      const toUpdateIds = [];
-      const toInsertData = [];
-
-      globalNotifications.forEach((notification) => {
-        const record = notification.notificationUsers?.[0];
-        if (record) {
-          if (!record.isRead) {
-            toUpdateIds.push(record.id);
-          }
-        } else {
-          toInsertData.push({
-            notificationId: notification.id,
-            userId,
-            isRead: true,
-            readAt: new Date(),
-          });
-        }
-      });
-
-      if (toInsertData.length > 0) {
-        await NotificationUser.bulkCreate(toInsertData);
-      }
-
-      if (toUpdateIds.length > 0) {
-        await NotificationUser.update(
-          { isRead: true, readAt: new Date() },
-          { where: { id: toUpdateIds } }
-        );
-      }
-
-      return res.status(200).json({ message: "Đã đánh dấu tất cả là đã đọc" });
-    } catch (err) {
-      console.error("❌ markAllAsRead error:", err);
-      return res.status(500).json({ message: "Lỗi máy chủ khi đánh dấu đã đọc" });
+    if (!notification) {
+      return res.status(404).json({ message: "Không tìm thấy thông báo admin" });
     }
+
+    // Tìm hoặc tạo bản ghi notificationUser
+    const [record, created] = await NotificationUser.findOrCreate({
+      where: { notificationId: id, userId },
+      defaults: { isRead: true, readAt: new Date() },
+    });
+
+    // Nếu bản ghi đã tồn tại nhưng chưa đọc thì update
+    if (!created && !record.isRead) {
+      record.isRead = true;
+      record.readAt = new Date();
+      await record.save();
+    }
+
+    return res.json({ message: "Đã đánh dấu thông báo admin là đã đọc" });
+  } catch (error) {
+    console.error("Lỗi markAsRead:", error);
+    return res.status(500).json({ message: "Lỗi máy chủ" });
   }
+},
+
+  async markAllAsRead(req, res) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: "Thiếu thông tin người dùng" });
+    }
+
+    // 👉 Chỉ lấy thông báo global, active và dành cho admin
+    const globalNotifications = await Notification.findAll({
+      where: {
+        isGlobal: true,
+        isActive: true,
+        targetRole: "admin",   // ✅ chỉ admin
+      },
+      include: [
+        {
+          model: NotificationUser,
+          as: "notificationUsers",
+          required: false,
+          where: { userId },
+          attributes: ["id", "isRead", "readAt"],
+        },
+      ],
+    });
+
+    const toUpdateIds = [];
+    const toInsertData = [];
+
+    globalNotifications.forEach((notification) => {
+      const record = notification.notificationUsers?.[0];
+      if (record) {
+        if (!record.isRead) {
+          toUpdateIds.push(record.id);
+        }
+      } else {
+        toInsertData.push({
+          notificationId: notification.id,
+          userId,
+          isRead: true,
+          readAt: new Date(),
+        });
+      }
+    });
+
+    if (toInsertData.length > 0) {
+      await NotificationUser.bulkCreate(toInsertData);
+    }
+
+    if (toUpdateIds.length > 0) {
+      await NotificationUser.update(
+        { isRead: true, readAt: new Date() },
+        { where: { id: toUpdateIds } }
+      );
+    }
+
+    return res.status(200).json({ message: "Đã đánh dấu tất cả thông báo admin là đã đọc" });
+  } catch (err) {
+    console.error("❌ markAllAsRead error:", err);
+    return res.status(500).json({ message: "Lỗi máy chủ khi đánh dấu đã đọc" });
+  }
+}
+
 
 
 

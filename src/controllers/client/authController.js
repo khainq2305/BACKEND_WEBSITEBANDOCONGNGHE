@@ -772,7 +772,14 @@ class AuthController {
         return res.status(400).json({ message: "Thiếu email." });
       }
 
-      const user = await User.findOne({ where: { email } });
+      const user = await User.findOne({
+        where: {
+          email,
+          status: 1,
+          deletedAt: null,
+        },
+      });
+
       if (!user) {
         return res
           .status(404)
@@ -1154,12 +1161,12 @@ class AuthController {
   static async resetPassword(req, res) {
     try {
       const { token, newPassword } = req.body;
-
       if (!token || !newPassword) {
         return res
           .status(400)
           .json({ message: "Thiếu token hoặc mật khẩu mới!" });
       }
+
       const userToken = await UserToken.findOne({
         where: { token: token.trim(), type: "passwordReset", usedAt: null },
       });
@@ -1176,6 +1183,7 @@ class AuthController {
         await userToken.destroy();
         return res.status(400).json({ message: "Token đã hết hạn." });
       }
+
       let decoded;
       try {
         decoded = jwt.verify(token.trim(), JWT_SECRET);
@@ -1185,22 +1193,20 @@ class AuthController {
           .status(400)
           .json({ message: "Token không hợp lệ hoặc đã hết hạn!" });
       }
+
       const user = await User.findByPk(decoded.id);
       if (!user) {
         return res.status(404).json({ message: "Người dùng không tồn tại!" });
       }
-      user.password = newPassword;
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
       await user.save();
-      await userToken.update({
-        usedAt: now,
-      });
+
+      await userToken.update({ usedAt: now });
 
       await UserToken.destroy({
-        where: {
-          userId: user.id,
-          type: "passwordReset",
-          usedAt: null,
-        },
+        where: { userId: user.id, type: "passwordReset", usedAt: null },
       });
 
       res
@@ -1211,6 +1217,7 @@ class AuthController {
       res.status(500).json({ message: "Lỗi server!" });
     }
   }
+
   static async getUserInfo(req, res) {
     try {
       const token = req.headers.authorization?.split(" ")[1];
