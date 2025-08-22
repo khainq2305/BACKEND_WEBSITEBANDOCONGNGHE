@@ -1,4 +1,4 @@
-const { Post, categoryPostModel, User } = require("../../models/index");
+const { Post, categoryPostModel, User, PostSEO } = require("../../models/index");
 const { Op } = require("sequelize");
 
 class PostController {
@@ -83,6 +83,11 @@ class PostController {
             as: "author",
             attributes: ["id", "fullName", "avatarUrl"],
           },
+    {
+      model: PostSEO,
+      as: 'seoData',
+      required: false // LEFT JOIN để không bắt buộc phải có SEO data
+    },
         ],
       });
 

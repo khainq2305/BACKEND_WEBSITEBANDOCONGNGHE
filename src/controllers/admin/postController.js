@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const slugify = require("slugify");
-const { Post, Category, User, Tags, PostTag, categoryPostModel } = require('../../models/index');
+const { Post, Category, User, Tags, PostTag, categoryPostModel, PostSEO } = require('../../models/index');
+const postSEOController = require('./postseoController'); // Import SEO controller
 
 class PostController {
   // [CREATE] Thêm bài viết
@@ -16,6 +17,8 @@ class PostController {
         publishAt,
         slug,
         isFeature,
+        focusKeyword,
+        schema,
       } = req.body;
       const file = req.file;
       const tags = JSON.parse(req.body.tags || "[]");
@@ -56,6 +59,59 @@ class PostController {
       }
 
       await newPost.addTags(tagInstances);
+
+      // Tạo hoặc cập nhật PostSEO với focus keyword và schema
+      if ((focusKeyword && focusKeyword.trim()) || (schema && typeof schema === 'object')) {
+        const postSEOData = {
+          postId: newPost.id,
+          title: title, // SEO title mặc định là title của post
+          updatedAt: new Date()
+        };
+
+        // Thêm focus keyword nếu có
+        if (focusKeyword && focusKeyword.trim()) {
+          postSEOData.focusKeyword = focusKeyword.trim();
+        }
+
+        // Thêm schema nếu có
+        if (schema && typeof schema === 'object') {
+          postSEOData.schema = schema;
+        }
+
+        await PostSEO.upsert(postSEOData);
+
+        // Tự động phân tích SEO cho bài viết mới (chỉ khi có focus keyword)
+        if (focusKeyword && focusKeyword.trim()) {
+          try {
+            console.log('🔍 Auto-analyzing SEO for new post...');
+            
+            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim());
+            
+            // Cập nhật kết quả phân tích (giữ nguyên schema nếu có)
+            const updateData = {
+              postId: newPost.id,
+              title: title,
+              focusKeyword: focusKeyword.trim(),
+              analysis: analysis.details,
+              seoScore: analysis.seoScore,
+              readabilityScore: analysis.readabilityScore,
+              lastAnalyzed: new Date()
+            };
+
+            // Giữ nguyên schema nếu có
+            if (schema && typeof schema === 'object') {
+              updateData.schema = schema;
+            }
+
+            await PostSEO.upsert(updateData);
+            
+            console.log(`✅ Auto SEO analysis completed for new post ${newPost.id} (Score: ${analysis.seoScore})`);
+          } catch (seoError) {
+            console.error('⚠️ Auto SEO analysis failed:', seoError);
+            // Không làm gián đoạn quá trình tạo bài viết
+          }
+        }
+      }
 
       console.log("bai viet", newPost);
       return res
@@ -114,6 +170,12 @@ class PostController {
             attributes: ["id", "name", "slug"],
             through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
           },
+          {
+            model: PostSEO,
+            as: "seoData",
+            attributes: ["focusKeyword", "title", "metaDescription", "seoScore"],
+            required: false
+          }
         ],
         paranoid: false,
         order: [["createdAt", "DESC"]],
@@ -168,6 +230,12 @@ class PostController {
             attributes: ["id", "name", "slug"],
             through: { attributes: [] }, // ẩn dữ liệu bảng trung gian posttag
           },
+          {
+            model: PostSEO,
+            as: "seoData",
+            attributes: ["focusKeyword", "title", "metaDescription", "seoScore"],
+            required: false
+          }
         ],
       });
 
@@ -203,6 +271,8 @@ class PostController {
         publishAt,
         isFeature,
         thumbnail,
+        focusKeyword,
+        schema,
       } = req.body;
 
       await post.update({
@@ -241,6 +311,81 @@ class PostController {
       }
 
       await post.setTags(tagInstances);
+
+      // Cập nhật hoặc tạo PostSEO với focus keyword và schema
+      let shouldAutoAnalyze = false;
+      let updatedFocusKeyword = null;
+      
+      if (focusKeyword !== undefined || schema !== undefined) {
+        const postSEOData = {
+          postId: post.id,
+          title: title, // SEO title mặc định là title của post
+          updatedAt: new Date()
+        };
+
+        // Xử lý focus keyword
+        if (focusKeyword !== undefined) {
+          if (focusKeyword && focusKeyword.trim()) {
+            postSEOData.focusKeyword = focusKeyword.trim();
+            updatedFocusKeyword = focusKeyword.trim();
+            shouldAutoAnalyze = true;
+          } else {
+            postSEOData.focusKeyword = null;
+          }
+        }
+
+        // Xử lý schema
+        if (schema !== undefined) {
+          if (schema && typeof schema === 'object') {
+            postSEOData.schema = schema;
+          } else if (schema === null || schema === '') {
+            postSEOData.schema = null;
+          }
+        }
+
+        await PostSEO.upsert(postSEOData);
+      }
+
+      // Tự động phân tích SEO sau khi cập nhật nếu có thay đổi nội dung quan trọng
+      const contentChanged = post.title !== title || post.content !== content;
+      if (shouldAutoAnalyze || contentChanged) {
+        try {
+          console.log('🔍 Auto-analyzing SEO after post update...');
+          
+          // Lấy PostSEO hiện tại để lấy focus keyword
+          const currentSEO = await PostSEO.findOne({ where: { postId: post.id } });
+          const focusKeywordForAnalysis = updatedFocusKeyword || currentSEO?.focusKeyword || '';
+          
+          // Thực hiện phân tích SEO
+          const analysis = await postSEOController.performSEOAnalysis(post, focusKeywordForAnalysis);
+          
+          // Cập nhật kết quả phân tích (giữ nguyên schema nếu có)
+          const updateData = {
+            postId: post.id,
+            title: title,
+            focusKeyword: focusKeywordForAnalysis,
+            analysis: analysis.details,
+            seoScore: analysis.seoScore,
+            readabilityScore: analysis.readabilityScore,
+            lastAnalyzed: new Date()
+          };
+
+          // Giữ nguyên schema hiện tại nếu không có schema mới
+          if (schema === undefined && currentSEO?.schema) {
+            updateData.schema = currentSEO.schema;
+          } else if (schema !== undefined) {
+            updateData.schema = schema;
+          }
+
+          await PostSEO.upsert(updateData);
+          
+          console.log(`✅ Auto SEO analysis completed for post ${post.id} (Score: ${analysis.seoScore})`);
+        } catch (seoError) {
+          console.error('⚠️ Auto SEO analysis failed:', seoError);
+          // Không làm gián đoạn quá trình cập nhật bài viết
+        }
+      }
+
       return res.json({ message: "Cập nhật thành công", data: post });
     } catch (error) {
       console.error("UPDATE POST ERROR:", error);
@@ -350,7 +495,246 @@ class PostController {
       return res.status(500).json({ message: "Lỗi server khi xóa vĩnh viễn" });
     }
   }
-  
+
+  // [UPDATE] Cập nhật slug của bài viết
+  static async updateSlug(req, res) {
+    try {
+      const { id } = req.params;
+      const { slug } = req.body;
+
+      if (!slug || !slug.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug không được để trống"
+        });
+      }
+
+      // Validate slug format
+      const slugRegex = /^[a-z0-9-]+$/;
+      if (!slugRegex.test(slug)) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug chỉ được chứa chữ thường, số và dấu gạch ngang"
+        });
+      }
+
+      // Kiểm tra bài viết có tồn tại không
+      const post = await Post.findByPk(id);
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy bài viết"
+        });
+      }
+
+      // Kiểm tra slug có bị trùng không
+      const existingPost = await Post.findOne({
+        where: {
+          slug,
+          id: { [Op.ne]: id } // Loại trừ bài viết hiện tại
+        }
+      });
+
+      if (existingPost) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug này đã được sử dụng bởi bài viết khác"
+        });
+      }
+
+      // Cập nhật slug
+      await post.update({ slug });
+
+      return res.json({
+        success: true,
+        message: "Cập nhật slug thành công",
+        data: {
+          id: post.id,
+          slug: post.slug,
+          title: post.title
+        }
+      });
+
+    } catch (error) {
+      console.error("UPDATE SLUG ERROR:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi server khi cập nhật slug"
+      });
+    }
+  }
+
+  // [UTILITY] Tự động phân tích SEO cho bài viết
+  static async autoAnalyzeSEO(postId, focusKeyword = null) {
+    try {
+      console.log(`🔍 Starting auto SEO analysis for post ${postId}...`);
+      
+      // Lấy thông tin bài viết
+      const post = await Post.findByPk(postId);
+      if (!post) {
+        throw new Error(`Post ${postId} not found`);
+      }
+
+      // Lấy PostSEO hiện tại hoặc focus keyword từ parameter
+      const currentSEO = await PostSEO.findOne({ where: { postId } });
+      const analysisKeyword = focusKeyword || currentSEO?.focusKeyword || '';
+
+      // Thực hiện phân tích SEO
+      const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
+
+      // Chuẩn bị dữ liệu để upsert
+      const dataToSave = {
+        postId,
+        title: post.title,
+        focusKeyword: analysisKeyword,
+        analysis: analysis.details,
+        seoScore: analysis.seoScore,
+        readabilityScore: analysis.readabilityScore,
+        lastAnalyzed: new Date()
+      };
+
+      // Nếu có focus keyword mới, cập nhật
+      if (focusKeyword) {
+        dataToSave.focusKeyword = focusKeyword;
+      }
+
+      // Upsert PostSEO
+      const [postSEO, created] = await PostSEO.upsert(dataToSave, {
+        returning: true
+      });
+
+      console.log(`✅ Auto SEO analysis ${created ? 'created' : 'updated'} for post ${postId} (Score: ${analysis.seoScore})`);
+
+      return {
+        success: true,
+        analysis,
+        postSEO,
+        created
+      };
+    } catch (error) {
+      console.error(`❌ Auto SEO analysis failed for post ${postId}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // [UTILITY] Tự động phân tích SEO cho nhiều bài viết
+  static async batchAutoAnalyzeSEO(postIds, focusKeyword = null) {
+    const results = [];
+    let successCount = 0;
+    let errorCount = 0;
+
+    console.log(`🔍 Starting batch auto SEO analysis for ${postIds.length} posts...`);
+
+    for (const postId of postIds) {
+      try {
+        const result = await PostController.autoAnalyzeSEO(postId, focusKeyword);
+        results.push({
+          postId,
+          ...result
+        });
+        
+        if (result.success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+
+        // Thêm delay nhỏ để tránh quá tải
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        errorCount++;
+        results.push({
+          postId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`✅ Batch auto SEO analysis completed: ${successCount} success, ${errorCount} errors`);
+
+    return {
+      total: postIds.length,
+      successCount,
+      errorCount,
+      results
+    };
+  }
+
+  // [API] Tự động phân tích SEO cho bài viết
+  static async autoAnalyzeSEOEndpoint(req, res) {
+    try {
+      const { postId } = req.params;
+      const { focusKeyword } = req.body;
+
+      console.log('=== AUTO ANALYZE SEO ENDPOINT ===');
+      console.log('postId:', postId);
+      console.log('focusKeyword:', focusKeyword);
+
+      const result = await PostController.autoAnalyzeSEO(postId, focusKeyword);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Tự động phân tích SEO thành công',
+          data: {
+            analysis: result.analysis,
+            postSEO: result.postSEO,
+            created: result.created
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Lỗi khi tự động phân tích SEO',
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Auto analyze SEO endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server',
+        error: error.message
+      });
+    }
+  }
+
+  // [API] Tự động phân tích SEO cho nhiều bài viết
+  static async batchAutoAnalyzeSEOEndpoint(req, res) {
+    try {
+      const { postIds, focusKeyword } = req.body;
+
+      if (!postIds || !Array.isArray(postIds) || postIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Danh sách ID bài viết không hợp lệ'
+        });
+      }
+
+      console.log('=== BATCH AUTO ANALYZE SEO ENDPOINT ===');
+      console.log('postIds:', postIds);
+      console.log('focusKeyword:', focusKeyword);
+
+      const result = await PostController.batchAutoAnalyzeSEO(postIds, focusKeyword);
+
+      res.json({
+        success: true,
+        message: `Tự động phân tích SEO hoàn thành: ${result.successCount} thành công, ${result.errorCount} lỗi`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Batch auto analyze SEO endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = PostController;

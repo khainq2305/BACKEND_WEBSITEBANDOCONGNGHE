@@ -22,6 +22,8 @@ const permissionRoutes = require('./permission.route')
 const roleRoutes= require('./role.route')
 const notificationRoutes = require('./notification.route');
 const notificationUserRoutes = require('./notificationUser.route');
+const seoRoutes = require('./seo.routes');
+const postSEORoutes = require('./postseo.routes');
 const reviewRoutes = require('./Review.routes'); 
 
 const productQuestionRoutes = require('./productQuestion.route');
@@ -66,5 +68,7 @@ router.use('/product-questions', productQuestionRoutes);
 router.use('/dashboard', dashboardRoutes); 
 router.use('/spin-rewards', spinRewardRoutes); 
 router.use('/spin-history', spinHistoryRoutes); 
+router.use('/seo', seoRoutes);
+router.use('/post-seo', postSEORoutes);
 
 module.exports = router;

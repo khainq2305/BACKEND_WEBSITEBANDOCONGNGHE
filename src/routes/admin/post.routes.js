@@ -44,6 +44,12 @@ router.put(
   autoSlug(Post),
   PostController.update
 );
+router.put('/update-slug/:id', PostController.updateSlug);
+
+// Auto-analyze SEO routes
+router.post('/auto-analyze-seo/:postId', PostController.autoAnalyzeSEOEndpoint);    // Tự động phân tích SEO cho 1 bài viết
+router.post('/batch-auto-analyze-seo', PostController.batchAutoAnalyzeSEOEndpoint); // Tự động phân tích SEO cho nhiều bài viết
+
 
 // [POST] /chuyen-vao-thung-rac -> Ghi đè action thành 'delete'
 router.post(
