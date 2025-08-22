@@ -9,12 +9,18 @@ class HighlightedCategoryController {
           isActive: true,
         },
         include: [
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "slug"],
-          },
-        ],
+  {
+    model: Category,
+    as: "category",
+    attributes: ["id", "name", "slug"],
+    where: {
+      isActive: true,
+      deletedAt: null,
+    },
+    required: false, // nếu muốn vẫn lấy HighlightedCategoryItem ngay cả khi category bị xóa
+  },
+],
+
         order: [["sortOrder", "ASC"]],
       });
 

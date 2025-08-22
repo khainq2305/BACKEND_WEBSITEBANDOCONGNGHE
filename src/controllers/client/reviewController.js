@@ -5,96 +5,120 @@ const {
   Sku,
   OrderItem,
   Order,
+  Product,
   VariantValue,
   Variant,
+  Notification,
   SkuVariantValue,
 } = require("../../models");
 const { Op } = require("sequelize");
 
 class ReviewController {
-  static async create(req, res) {
-    try {
-      const { rating, content, skuId } = req.body;
-      const userId = req.user.id;
+static async create(req, res) {
+  try {
+    const { rating, content, skuId } = req.body;
+    const userId = req.user.id;
 
-      const sku = await Sku.findByPk(skuId);
-      if (!sku) {
-        return res.status(404).json({ message: "Không tìm thấy SKU" });
-      }
-
-      const orderItems = await OrderItem.findAll({
-        where: { skuId },
-        include: [
-          {
-            model: Order,
-            as: "order",
-            where: {
-              userId,
-              status: { [Op.in]: ["completed", "delivered"] },
-            },
-          },
-        ],
-      });
-
-      if (!orderItems.length) {
-        return res.status(403).json({
-          message:
-            "Bạn chỉ được đánh giá sản phẩm sau khi đơn đã giao thành công!",
-        });
-      }
-
-      const reviewed = await Review.findAll({
-        where: { userId, skuId },
-        attributes: ["orderItemId"],
-      });
-      const reviewedIds = reviewed.map((r) => r.orderItemId);
-
-      // Tìm orderItem chưa đánh giá
-      const orderItemToReview = orderItems.find(
-        (oi) => !reviewedIds.includes(oi.id)
-      );
-      if (!orderItemToReview) {
-        return res.status(400).json({
-          message: "Bạn đã đánh giá hết các đơn hàng có sản phẩm này!",
-        });
-      }
-
-      // Tạo slug duy nhất
-      const rawSlug = content?.substring(0, 60) || "review";
-      const slugBase = rawSlug
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-      let slug = slugBase;
-      let count = 1;
-      while (await Review.findOne({ where: { slug } })) {
-        slug = `${slugBase}-${count++}`;
-      }
-
-      const review = await Review.create({
-        userId,
-        skuId,
-        orderItemId: orderItemToReview.id,
-        content,
-        rating,
-        slug,
-      });
-
-      const allFiles = req.files || [];
-      for (const file of allFiles) {
-        await ReviewMedia.create({
-          reviewId: review.id,
-          url: file.path,
-          type: "image",
-        });
-      }
-
-      return res.status(201).json({ message: "Đánh giá thành công!", review });
-    } catch (err) {
-      console.error("Review create error:", err);
-      return res.status(500).json({ message: "Lỗi server khi gửi đánh giá" });
+    // Lấy SKU kèm Product
+    const sku = await Sku.findByPk(skuId, {
+      include: [
+        { model: Product, as: "product", attributes: ["id", "name", "slug"] },
+      ],
+    });
+    if (!sku) {
+      return res.status(404).json({ message: "Không tìm thấy SKU" });
     }
+
+    // Lấy user để hiện tên trong thông báo
+    const user = await User.findByPk(userId, {
+      attributes: ["id", "fullName"], // ✅ dùng fullName thay vì name
+    });
+
+    // Chỉ user đã nhận hàng thành công mới được review
+    const orderItems = await OrderItem.findAll({
+      where: { skuId },
+      include: [
+        {
+          model: Order,
+          as: "order",
+          where: { userId, status: { [Op.in]: ["completed", "delivered"] } },
+        },
+      ],
+    });
+    if (!orderItems.length) {
+      return res.status(403).json({
+        message:
+          "Bạn chỉ được đánh giá sản phẩm sau khi đơn đã giao thành công!",
+      });
+    }
+
+    // Mỗi orderItem chỉ được review 1 lần
+    const reviewed = await Review.findAll({
+      where: { userId, skuId },
+      attributes: ["orderItemId"],
+    });
+    const reviewedIds = reviewed.map((r) => r.orderItemId);
+    const orderItemToReview = orderItems.find(
+      (oi) => !reviewedIds.includes(oi.id)
+    );
+    if (!orderItemToReview) {
+      return res
+        .status(400)
+        .json({ message: "Bạn đã đánh giá hết các đơn hàng có sản phẩm này!" });
+    }
+
+    // Tạo slug duy nhất cho review
+    const rawSlug = content?.substring(0, 60) || "review";
+    const slugBase = rawSlug
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    let slug = slugBase,
+      i = 1;
+    while (await Review.findOne({ where: { slug } }))
+      slug = `${slugBase}-${i++}`;
+
+    // Tạo review
+    const review = await Review.create({
+      userId,
+      skuId,
+      orderItemId: orderItemToReview.id,
+      content,
+      rating,
+      slug,
+    });
+
+    // Lưu media (nếu có)
+    const files = req.files || [];
+    for (const file of files) {
+      await ReviewMedia.create({
+        reviewId: review.id,
+        url: file.path,
+        type: "image",
+      });
+    }
+
+    // 👉 Tạo thông báo cho admin
+    await Notification.create({
+      title: "Đánh giá sản phẩm mới",
+      message: `${user?.fullName || `Người dùng #${userId}`} vừa đánh giá: "${
+        sku.product?.name || `SKU #${skuId}`
+      }"`,
+      type: "comment",
+      targetRole: "admin",
+      isGlobal: true,
+      targetId: review.id,
+      slug: `comment-${review.id}`,
+      link: `/admin/comments/all`,
+    });
+
+    return res.status(201).json({ message: "Đánh giá thành công!", review });
+  } catch (err) {
+    console.error("Review create error:", err);
+    return res.status(500).json({ message: "Lỗi server khi gửi đánh giá" });
   }
+}
+
 
   static async getBySkuId(req, res) {
     try {

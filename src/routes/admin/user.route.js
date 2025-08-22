@@ -6,12 +6,18 @@ const { checkJWT, isAdmin } = require('../../middlewares/checkJWT');
 const { createUserValidator } = require('../../validations/userValidator');
 const { attachUserDetail } = require('../../middlewares/getUserDetail ');
 const { authorize } = require('../../middlewares/authorize');
+const { upload } = require('../../config/cloudinary'); // <-- multer cloudinary
 router.use(checkJWT);
 router.use(attachUserDetail)
 router.use(authorize("User"))
 router.get('/', checkJWT, UserController.getAllUsers);
 
-router.post('/', checkJWT, createUserValidator, UserController.createUser);
+router.post(
+    '/',
+    upload.single('avatar'),       // <--- nhận file từ field 'avatar'
+    createUserValidator,           // <--- validate cơ bản
+    UserController.createUser
+);
 
 router.get('/roles', checkJWT, UserController.getAllRoles);
 

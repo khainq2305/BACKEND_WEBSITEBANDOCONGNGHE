@@ -10,8 +10,15 @@ const {
 } = require("../../services/common/emailService");
 const { getUserDetail } = require("../../services/admin/user.service");
 
-const { User, UserRoles } = require("../../models");
-const roleService = require("../../services/admin/role.service");
+const { User, UserRoles, Sequelize  } = require("../../models");
+
+const STATUS_MAP = { active: 1, inactive: 0, pending: 2 };
+const coerceStatus = (raw) => {
+  if (raw === undefined || raw === null || raw === "") return STATUS_MAP.active;
+  const n = Number(raw);
+  if (!Number.isNaN(n)) return n;
+  return STATUS_MAP[String(raw).toLowerCase()] ?? STATUS_MAP.active;
+};
 
 class UserController {
   static async getAllUsers(req, res) {
@@ -55,60 +62,99 @@ class UserController {
     }
   }
 
-  static async createUser(req, res) {
+ static async createUser(req, res) {
     try {
-      const {
-        fullName,
-        email,
-        password,
-        phone,
-        roleIds = [],
-        status,
-      } = req.body;
+      const { fullName, email, password, phone, dateOfBirth, status } = req.body;
 
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) {
+      // Email đã tồn tại?
+      const existedEmail = await User.findOne({ where: { email } });
+      if (existedEmail) {
         return res.status(400).json({
           errors: [{ field: "email", message: "Email đã được sử dụng!" }],
         });
       }
 
-      // 1) Tạo user
-      const newUser = await User.create({
-        fullName,
-        email,
-        password,
-        status,
-        ...(phone ? { phone } : {}),
-      });
-
-      // 2) Gán roles thông qua bảng trung gian
-      if (Array.isArray(roleIds) && roleIds.length > 0) {
-        await newUser.setRoles(roleIds); // Sequelize magic method
+      // Phone đã tồn tại? (nếu có gửi lên)
+      if (phone) {
+        const existedPhone = await User.findOne({ where: { phone } });
+        if (existedPhone) {
+          return res.status(400).json({
+            errors: [{ field: "phone", message: "Số điện thoại đã được sử dụng!" }],
+          });
+        }
       }
 
-      res
-        .status(201)
-        .json({ message: "Tạo tài khoản thành công", user: newUser });
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      // Chuẩn hoá status
+      const statusValue = coerceStatus(status);
+
+      // Avatar (nếu có middleware upload.single('avatar'))
+      const avatarUrl = req.file?.path || null;
+
+      // NOTE: chỉ set roleId=2 nếu bảng users có cột roleId
+      const payload = {
+        fullName: fullName || null,
+        email: String(email).trim().toLowerCase(),
+        password: hashedPassword,
+        phone: phone || null,
+        dateOfBirth: dateOfBirth || null,
+        status: statusValue,
+        provider: "local",
+        avatarUrl,
+      };
+
+      // Nếu DB có cột roleId thì gán mặc định 2
+      if (User.rawAttributes.roleId) payload.roleId = 2;
+
+      const newUser = await User.create(payload);
+      const json = newUser.toJSON();
+      delete json.password;
+
+      return res.status(201).json({ message: "Tạo tài khoản thành công", user: json });
     } catch (error) {
-      console.error("❌ Lỗi tạo tài khoản:", error);
-      res.status(500).json({ message: "Không thể tạo tài khoản", error });
+      // Bắt lỗi unique (email/phone)
+      if (error instanceof Sequelize.UniqueConstraintError) {
+        const field = error?.errors?.[0]?.path || "email";
+        const label = field === "email" ? "Email" : field === "phone" ? "Số điện thoại" : field;
+        return res.status(400).json({
+          errors: [{ field, message: `${label} đã được sử dụng!` }],
+        });
+      }
+      console.error("❌ Lỗi createUser:", error);
+      return res.status(500).json({ message: "Không thể tạo tài khoản" });
     }
   }
 
   static async getAllRoles(req, res) {
-    
-      try {
-        const roles = await roleService.findAll();
-        res.status(200).json({
-          success: true,
-          message: "Lấy danh sách vai trò thành công.",
-          data: roles,
+    try {
+      const { userId } = req.query; // Truyền userId qua query: /roles?userId=18
+
+      // Lấy tất cả role
+      const roles = await Role.findAll({
+        attributes: ["id", "name", "key", "canAccess"],
+      });
+
+      // Nếu có userId thì lấy các roleId đã gán cho user đó
+      let userRoleIds = [];
+      if (userId) {
+        const userRoles = await UserRole.findAll({
+          where: { userId },
+          attributes: ["roleId"],
         });
-      } catch (error) {
-        console.error("[RoleController.findAll] Error: ", error);
-        next(error);
+        userRoleIds = userRoles.map((r) => r.roleId);
       }
+
+      res.json({
+        roles,
+        userRoleIds, // mảng roleId đã gán
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Không thể lấy vai trò", error });
+    }
   }
 
   static async updateUserStatus(req, res) {

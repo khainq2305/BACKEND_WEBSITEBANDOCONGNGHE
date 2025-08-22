@@ -36,8 +36,6 @@ static async requestReturn(req, res) {
         const { orderId, reason, itemsToReturn, detailedReason, situation } = req.body;
         const userId = req.user.id;
 
-        console.log("📥 Body:", req.body);
-
         const parsedOrderId = Number(orderId);
         if (isNaN(parsedOrderId)) {
             await t.rollback();
@@ -60,8 +58,7 @@ static async requestReturn(req, res) {
             if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
                 throw new Error();
             }
-        } catch (err) {
-            console.error("❌ Parse items error:", err);
+        } catch {
             await t.rollback();
             return res.status(400).json({ message: "Vui lòng chọn ít nhất một sản phẩm để trả" });
         }
@@ -72,7 +69,7 @@ static async requestReturn(req, res) {
             where: { id: parsedOrderId, userId },
             include: [
                 { model: User, attributes: ["id", "email"] },
-                { model: OrderItem, as: "items", attributes: ["skuId", "quantity"] },
+                { model: OrderItem, as: "items", attributes: ["skuId", "quantity", "price"] },
             ],
             transaction: t,
             lock: t.LOCK.UPDATE
@@ -95,10 +92,7 @@ static async requestReturn(req, res) {
             return res.status(400).json({ message: `Sản phẩm trả hàng không nằm trong đơn: ${invalidSkuIds.join(", ")}` });
         }
 
-        const existing = await ReturnRequest.findOne({
-            where: { orderId: parsedOrderId }
-        });
-
+        const existing = await ReturnRequest.findOne({ where: { orderId: parsedOrderId } });
         if (existing && !(existing.status === 'cancelled' && existing.cancelledBy === 'user')) {
             await t.rollback();
             return res.status(400).json({ message: "Đơn hàng đã có yêu cầu trả hàng trước đó" });
@@ -123,10 +117,28 @@ static async requestReturn(req, res) {
         const imageUrls = imageFiles.map((f) => f.path).join(",") || null;
         const videoUrls = videoFiles.map((f) => f.path).join(",") || null;
 
-        // ✅ Tính phí returnFee dựa theo tình huống
         let feeToSave = 0;
         if (situation === "customer_pays") {
-            feeToSave = 30000; // ví dụ phí cố định 30k, bạn có thể thay logic tính theo GHN
+            feeToSave = 30000;
+        }
+
+        let refundAmount = 0;
+        for (const item of parsedItems) {
+            const orderItem = order.items.find((oi) => oi.skuId === item.skuId);
+            if (orderItem) {
+                refundAmount += Number(orderItem.price) * Number(item.quantity);
+            }
+        }
+
+        const isReturningAll = order.items.every(oi => {
+            const selected = parsedItems.find(pi => pi.skuId === oi.skuId);
+            return selected && Number(selected.quantity) === Number(oi.quantity);
+        });
+
+        if (!isReturningAll) {
+            refundAmount = Math.max(0, refundAmount - feeToSave);
+        } else {
+            refundAmount += Number(order.shippingFee || 0);
         }
 
         const returnReq = await ReturnRequest.create({
@@ -139,24 +151,20 @@ static async requestReturn(req, res) {
             returnCode: "RR" + Date.now(),
             situation,
             returnFee: feeToSave,
+            refundAmount
         }, { transaction: t });
-
-        console.log("✅ ReturnRequest created:", returnReq.id);
 
         for (const item of parsedItems) {
             if (!item.quantity || item.quantity <= 0) {
                 await t.rollback();
                 return res.status(400).json({ message: `Số lượng không hợp lệ cho SKU ${item.skuId}` });
             }
-
             await ReturnRequestItem.create({
                 returnRequestId: returnReq.id,
                 skuId: item.skuId,
                 quantity: item.quantity,
             }, { transaction: t });
         }
-
-        console.log("✅ ReturnRequestItems created");
 
         const adminNotifTitle = 'Có yêu cầu trả hàng mới';
         const adminNotifMessage = `Đơn hàng ${order.orderCode} có yêu cầu trả hàng mới. Vui lòng xem xét và xử lý.`;
@@ -217,7 +225,6 @@ static async getReturnRequestDetail(req, res) {
                 },
               ],
             },
-            // Lấy code & name phương thức thanh toán
             { model: PaymentMethod, as: "paymentMethod", attributes: ["code", "name"] },
           ],
         },
@@ -245,18 +252,9 @@ static async getReturnRequestDetail(req, res) {
       return res.status(404).json({ message: "Không tìm thấy đơn trả hàng" });
     }
 
-    // Tính tiền hoàn
-    const orderItems = returnRequest.order.items || [];
-    const returnItems = returnRequest.items || [];
-
-    let refundAmount = 0;
-    for (const rItem of returnItems) {
-      const oi = orderItems.find(i => i.skuId === rItem.skuId);
-      if (oi) refundAmount += Number(oi.price) * Number(rItem.quantity);
-    }
-
+    // Lấy số tiền hoàn từ DB
+    const refundAmount = Number(returnRequest.refundAmount || 0);
     const returnFee = Number(returnRequest.returnFee || 0);
-    if (returnFee > 0) refundAmount = Math.max(0, refundAmount - returnFee);
 
     // Xác định nơi hoàn tiền
     const order = returnRequest.order;
@@ -265,7 +263,6 @@ static async getReturnRequestDetail(req, res) {
     let refundDestination = "Không rõ";
 
     if (order?.paymentStatus === "unpaid") {
-      // Thực sự chưa thanh toán -> không có gì để hoàn
       refundDestination = "Chưa thanh toán";
     } else if (pmCode === "momo") {
       refundDestination = "Ví MoMo";
@@ -278,10 +275,8 @@ static async getReturnRequestDetail(req, res) {
     } else if (pmCode === "stripe") {
       refundDestination = "Thẻ quốc tế (Stripe)";
     } else if (["internalwallet", "cod", "payos"].includes(pmCode)) {
-      // Rule của bạn: 3 case này hoàn về tài khoản nội bộ
       refundDestination = "Tài khoản CYBERZONE";
     } else if (!pmCode) {
-      // Fallback theo dấu vết giao dịch (phòng trường hợp không include được paymentMethod)
       if (order?.momoOrderId)                refundDestination = "Ví MoMo";
       else if (order?.vnpTransactionId)      refundDestination = "Ví VNPay";
       else if (order?.zaloTransId)           refundDestination = "ZaloPay";
@@ -291,6 +286,7 @@ static async getReturnRequestDetail(req, res) {
     // Thông tin vận chuyển/hoàn trả
     const shipmentInfo = {
       provider: returnRequest.returnProviderCode || null,
+        returnMethod: returnRequest.returnMethod || null, // 👈 thêm dòng này
       serviceName: returnRequest.returnServiceName || null,
       trackingCode: returnRequest.trackingCode || null,
       labelUrl: returnRequest.returnLabelUrl || null,
@@ -301,7 +297,7 @@ static async getReturnRequestDetail(req, res) {
 
     const response = {
       ...returnRequest.toJSON(),
-      refundAmount,
+      refundAmount,       // lấy trực tiếp từ DB
       refundDestination,
       shipmentInfo,
     };

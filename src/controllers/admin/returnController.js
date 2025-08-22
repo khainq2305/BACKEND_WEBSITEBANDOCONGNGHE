@@ -167,6 +167,7 @@ static async updateReturnStatus(req, res) {
       approved: ['awaiting_pickup', 'pickup_booked', 'cancelled'],
       awaiting_pickup: ['received'],
       pickup_booked: ['received'],
+        awaiting_dropoff: ['received'],  
       received: ['refunded'],
     };
 
@@ -411,77 +412,85 @@ static async updateRefundStatus(req, res) {
 
     if (status === 'refunded') {
       const payCode = refund.order.paymentMethod?.code?.toLowerCase();
-      const payload = {
-        orderCode: refund.order.orderCode,
-        amount: refund.amount,
-      };
+      const payload = { orderCode: refund.order.orderCode, amount: refund.amount };
 
-      if (payCode === 'momo') {
-        if (!refund.order.momoTransId) {
+      if (['cod', 'atm', 'zalopay', 'payos', 'internalwallet'].includes(payCode)) {
+        const wallet = await Wallet.findOne({
+          where: { userId: refund.order.userId },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (!wallet) {
           await t.rollback();
-          return res.status(400).json({ message: 'Thiếu momoTransId' });
+          return res.status(400).json({ message: 'Không tìm thấy ví nội bộ của người dùng' });
         }
-        payload.momoTransId = refund.order.momoTransId;
-      }
-
-      if (payCode === 'vnpay') {
-        if (!refund.order.vnpTransactionId || !refund.order.paymentTime) {
+        wallet.balance = Number(wallet.balance) + Number(refund.amount);
+        await wallet.save({ transaction: t });
+        await WalletTransaction.create({
+          walletId: wallet.id,
+          type: 'refund',
+          amount: refund.amount,
+          description: `Hoàn tiền đơn hàng #${refund.order.orderCode}`,
+          relatedOrderId: refund.order.id,
+        }, { transaction: t });
+        refund.gatewayTransId = null;
+        refund.refundedAt = new Date();
+        refund.order.paymentStatus = 'refunded';
+        await refund.order.save({ transaction: t });
+        if (refund.order.returnRequest) {
+          refund.order.returnRequest.status = 'refunded';
+          await refund.order.returnRequest.save({ transaction: t });
+        }
+      } else {
+        if (payCode === 'momo') {
+          if (!refund.order.momoTransId) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu momoTransId' });
+          }
+          payload.momoTransId = refund.order.momoTransId;
+        }
+        if (payCode === 'vnpay') {
+          if (!refund.order.vnpTransactionId || !refund.order.paymentTime) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu thông tin VNPay' });
+          }
+          const formatDateToVnp = (date) => {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const yyyy = date.getFullYear();
+            const MM = pad(date.getMonth() + 1);
+            const dd = pad(date.getDate());
+            const HH = pad(date.getHours());
+            const mm = pad(date.getMinutes());
+            const ss = pad(date.getSeconds());
+            return `${yyyy}${MM}${dd}${HH}${mm}${ss}`;
+          };
+          payload.vnpTransactionId = refund.order.vnpTransactionId;
+          payload.transDate = formatDateToVnp(new Date(refund.order.paymentTime));
+        }
+        if (payCode === 'stripe') {
+          if (!refund.order.stripePaymentIntentId) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu stripePaymentIntentId' });
+          }
+          payload.stripePaymentIntentId = refund.order.stripePaymentIntentId;
+        }
+        const { ok, transId, rawResp } = await refundGateway(payCode, payload);
+        if (!ok) {
           await t.rollback();
-          return res.status(400).json({ message: 'Thiếu thông tin VNPay' });
+          return res.status(400).json({ message: 'Hoàn tiền thất bại', error: rawResp });
         }
-        const formatDateToVnp = (date) => {
-          const pad = (n) => n.toString().padStart(2, '0');
-          const yyyy = date.getFullYear();
-          const MM = pad(date.getMonth() + 1);
-          const dd = pad(date.getDate());
-          const HH = pad(date.getHours());
-          const mm = pad(date.getMinutes());
-          const ss = pad(date.getSeconds());
-          return `${yyyy}${MM}${dd}${HH}${mm}${ss}`;
-        };
-        payload.vnpTransactionId = refund.order.vnpTransactionId;
-        payload.transDate = formatDateToVnp(new Date(refund.order.paymentTime));
-      }
-
-      if (payCode === 'zalopay') {
-        if (!refund.order.zp_trans_id || !refund.order.app_trans_id) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Thiếu thông tin ZaloPay' });
+        refund.gatewayTransId = transId || null;
+        refund.refundedAt = new Date();
+        refund.order.paymentStatus = 'refunded';
+        await refund.order.save({ transaction: t });
+        if (refund.order.returnRequest) {
+          refund.order.returnRequest.status = 'refunded';
+          await refund.order.returnRequest.save({ transaction: t });
         }
-        payload.zp_trans_id = refund.order.zp_trans_id;
-        payload.app_trans_id = refund.order.app_trans_id;
       }
 
-      if (payCode === 'stripe') {
-        if (!refund.order.stripePaymentIntentId) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Thiếu stripePaymentIntentId' });
-        }
-        payload.stripePaymentIntentId = refund.order.stripePaymentIntentId;
-      }
-
-      const { ok, transId, rawResp } = await refundGateway(payCode, payload);
-      if (!ok) {
-        await t.rollback();
-      
-        return res.status(400).json({ message: 'Hoàn tiền thất bại', error: rawResp });
-      }
-
-      
-      refund.gatewayTransId = transId || null;
-      refund.refundedAt = new Date();
-      refund.order.paymentStatus = 'refunded';
-      await refund.order.save({ transaction: t });
-
-      if (refund.order.returnRequest) {
-        refund.order.returnRequest.status = 'refunded';
-        await refund.order.returnRequest.save({ transaction: t });
-      }
-
-      
       const clientNotifTitle = 'Yêu cầu hoàn tiền thành công';
-      const clientNotifMessage = `Yêu cầu hoàn tiền #${refund.id} đã được xử lý thành công. Số tiền ${refund.amount} VNĐ đã được hoàn trả.`;
-
+      const clientNotifMessage = `Yêu cầu hoàn tiền #${refund.id} đã được xử lý thành công. Số tiền ${refund.amount} VNĐ đã được hoàn trả${['cod','atm','zalopay','payos','internalwallet'].includes(payCode) ? ' vào ví nội bộ' : ''}.`;
       const clientNotification = await Notification.create({
         title: clientNotifTitle,
         message: clientNotifMessage,
@@ -492,13 +501,11 @@ static async updateRefundStatus(req, res) {
         link: `/user-profile/orders/${refund.order.orderCode}`,
         isGlobal: false,
       }, { transaction: t });
-
       await NotificationUser.create({
         notificationId: clientNotification.id,
         userId: refund.order.userId,
         isRead: false,
       }, { transaction: t });
-
       req.app.locals.io.to(`user-${refund.order.userId}`).emit('new-client-notification', clientNotification);
     }
 
@@ -507,11 +514,7 @@ static async updateRefundStatus(req, res) {
     await refund.save({ transaction: t });
 
     await t.commit();
-    return res.json({
-      message: 'Cập nhật trạng thái hoàn tiền thành công',
-      data: refund
-    });
-
+    return res.json({ message: 'Cập nhật trạng thái hoàn tiền thành công', data: refund });
   } catch (err) {
     await t.rollback();
     console.error('[updateRefundStatus]', err);

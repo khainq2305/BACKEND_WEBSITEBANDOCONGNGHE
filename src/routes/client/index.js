@@ -32,7 +32,7 @@ const chatboxRoutes = require("./chatbox.routes");
 const paymentRoutes = require("./payment.routes");
 const notificationRoutes = require("./notificationClient.route");
 const walletRoutes = require("./wallet.route");
-
+const comboRoutes = require("./combo.routes");
 const paymentController = require("../../controllers/client/paymentController");
 // router.post("/payment/momo-callback", paymentController.momoCallback);
 // router.get("/payment/momo-callback", paymentController.momoCallback);
@@ -44,7 +44,7 @@ router.get("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.post("/payment/payos-callback", paymentController.payosCallback);
 router.get("/payment/payos-callback", paymentController.payosCallback);
 router.post("/webhooks/payos/payout", express.json(), WalletController.payoutWebhook);
-
+router.use("/combo", comboRoutes);
 router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);
 router.use("/", flashSaleRoutes);

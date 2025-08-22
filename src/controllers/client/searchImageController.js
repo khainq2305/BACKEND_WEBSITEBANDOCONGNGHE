@@ -5,17 +5,18 @@ const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 const { Op, fn, col, literal, Sequelize } = require("sequelize");
-const { processSkuPrices } = require('../../helpers/priceHelper');
+const { processSkuPrices } = require("../../helpers/priceHelper");
 const {
-    Product,
-    Sku,
-    Category,
-    Brand,
-    ProductMedia,
-    FlashSale,
-    FlashSaleItem,
-    FlashSaleCategory,
-    SearchHistory,
+  Product,
+  Sku,
+  Category,
+  Brand,
+  ProductMedia,
+  FlashSale,
+  FlashSaleItem,
+  FlashSaleCategory,
+  SearchHistory,
+  Review,
 } = db;
 
 exports.searchByImage = async (req, res) => {
@@ -24,73 +25,75 @@ exports.searchByImage = async (req, res) => {
 
   try {
     const filePath = req.file?.path;
-    if (!filePath) return res.status(400).json({ message: "Thiếu ảnh để tìm kiếm!" });
+    if (!filePath)
+      return res.status(400).json({ message: "Thiếu ảnh để tìm kiếm!" });
 
     // ----- build form-data
     const formData = new FormData();
     if (!/^https?:\/\//i.test(filePath)) {
       const abs = path.resolve(filePath);
       if (!fs.existsSync(abs)) {
-        log("Không thấy file local:", abs);
-        return res.status(400).json({ message: "Không tìm thấy file ảnh upload." });
+        return res
+          .status(400)
+          .json({ message: "Không tìm thấy file ảnh upload." });
       }
-      const st = fs.statSync(abs);
-      log("Ảnh local:", abs, "bytes:", st.size);
       formData.append("image", fs.createReadStream(abs));
     } else {
-      const img = await axios.get(filePath, { responseType: "arraybuffer", timeout: 30000 });
+      const img = await axios.get(filePath, {
+        responseType: "arraybuffer",
+        timeout: 30000,
+      });
       const ct = img.headers["content-type"] || "image/jpeg";
-      log("Ảnh remote:", filePath, "ct:", ct, "bytes:", img.data?.length);
-      formData.append("image", Buffer.from(img.data), { filename: "image", contentType: ct });
+      formData.append("image", Buffer.from(img.data), {
+        filename: "image",
+        contentType: ct,
+      });
     }
 
-    // ----- call Flask (đừng dùng custom Agent/lookup)
-    const baseUrl = (process.env.FLASK_BASE_URL || "http://127.0.0.1:8000").trim().replace(/\/$/, "");
-    log("FLASK_BASE_URL =", baseUrl);
+    // ----- call Flask
+    const baseUrl = (process.env.FLASK_BASE_URL || "http://127.0.0.1:8000")
+      .trim()
+      .replace(/\/$/, "");
 
     const resp = await axios.post(`${baseUrl}/embed`, formData, {
-      headers: { ...formData.getHeaders(), "User-Agent": "image-search/1.0", Accept: "application/json" },
+      headers: {
+        ...formData.getHeaders(),
+        "User-Agent": "image-search/1.0",
+        Accept: "application/json",
+      },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
       timeout: 90000,
-      // Quan trọng: đừng throw để mình tự xử lý và log
       validateStatus: () => true,
     });
-
-    const ct = resp.headers?.["content-type"];
-    const bodyPreview =
-      typeof resp.data === "string"
-        ? resp.data.slice(0, 200)
-        : JSON.stringify(resp.data)?.slice(0, 200);
-
-    log(`/embed status: ${resp.status} ct: ${ct} body[0..200]: ${bodyPreview}`);
 
     if (resp.status !== 200) {
       return res.status(resp.status).json({
         message: `Flask trả về status ${resp.status}`,
-        meta: {
-          contentType: ct,
-          preview: bodyPreview,
-        },
+        preview: JSON.stringify(resp.data)?.slice(0, 200),
       });
     }
 
     const queryEmbedding = resp.data?.vector;
     if (!Array.isArray(queryEmbedding) || queryEmbedding.length < 100) {
-      log("Vector không hợp lệ:", typeof queryEmbedding, "len:", queryEmbedding?.length);
-      return res
-        .status(500)
-        .json({ message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn." });
+      return res.status(500).json({
+        message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn.",
+      });
     }
-    log("Vector OK len:", queryEmbedding.length);
 
-    // ====== business như cũ ======
-    const ensureDiscount = (price, originalPrice, discountAmount, discountPercent) => {
+    // ====== business ======
+    const ensureDiscount = (
+      price,
+      originalPrice,
+      discountAmount,
+      discountPercent
+    ) => {
       const p = Number(price) || 0;
       const op = Number(originalPrice) || 0;
       let amt = Number(discountAmount) || 0;
       let pct = Number(discountPercent) || 0;
-      if ((!pct || pct <= 0) && op > 0 && p > 0 && p < op) pct = Math.round(((op - p) / op) * 100);
+      if ((!pct || pct <= 0) && op > 0 && p > 0 && p < op)
+        pct = Math.round(((op - p) / op) * 100);
       if ((!amt || amt <= 0) && op > 0 && p > 0 && p < op) amt = op - p;
       if (pct < 0) pct = 0;
       if (pct > 100) pct = 100;
@@ -100,37 +103,45 @@ exports.searchByImage = async (req, res) => {
 
     const now = new Date();
     const allActiveFlashSales = await FlashSale.findAll({
-      where: { isActive: true, deletedAt: null, startTime: { [Op.lte]: now }, endTime: { [Op.gte]: now } },
+      where: {
+        isActive: true,
+        deletedAt: null,
+        startTime: { [Op.lte]: now },
+        endTime: { [Op.gte]: now },
+      },
       include: [
         {
           model: FlashSaleItem,
           as: "flashSaleItems",
           required: false,
-          attributes: [
-            "id",
-            "flashSaleId",
-            "skuId",
-            "salePrice",
-            "quantity",
-            "maxPerUser",
-            [
-              Sequelize.literal(`(
-                SELECT COALESCE(SUM(oi.quantity), 0)
-                FROM orderitems oi
-                INNER JOIN orders o ON oi.orderId = o.id
-                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
-                  AND oi.skuId = flashSaleItems.skuId
-                  AND o.status IN ('completed', 'delivered')
-              )`),
-              "soldQuantityForFlashSaleItem",
-            ],
-          ],
+          attributes: ["id", "skuId", "salePrice", "quantity", "maxPerUser"],
           include: [
             {
               model: Sku,
               as: "sku",
-              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
-              include: [{ model: Product, as: "product", attributes: ["categoryId"] }],
+              attributes: [
+                "id",
+                "skuCode",
+                "price",
+                "originalPrice",
+                "stock",
+                "productId",
+              ],
+              include: [
+                {
+                  model: Product,
+                  as: "product",
+                  attributes: [
+                    "id",
+                    "name",
+                    "slug",
+                    "thumbnail",
+                    "badge",
+                    "badgeImage",
+                    "categoryId",
+                  ],
+                },
+              ],
             },
           ],
         },
@@ -138,7 +149,13 @@ exports.searchByImage = async (req, res) => {
           model: FlashSaleCategory,
           as: "categories",
           required: false,
-          include: [{ model: FlashSale, as: "flashSale", attributes: ["endTime"], required: false }],
+          include: [
+            {
+              model: FlashSale,
+              as: "flashSale",
+              attributes: ["endTime"],
+            },
+          ],
         },
       ],
     });
@@ -153,12 +170,13 @@ exports.searchByImage = async (req, res) => {
         if (!sku) return;
         const skuId = sku.id;
         const salePrice = parseFloat(fsi.salePrice);
-        const sold = parseInt(fsi.dataValues.soldQuantityForFlashSaleItem || 0);
+        const sold = 0;
         const limit = fsi.quantity;
         const soldOut = limit != null && sold >= limit;
         if (
           !allActiveFlashSaleItemsMap.has(skuId) ||
-          (!soldOut && salePrice < allActiveFlashSaleItemsMap.get(skuId).salePrice)
+          (!soldOut &&
+            salePrice < allActiveFlashSaleItemsMap.get(skuId).salePrice)
         ) {
           allActiveFlashSaleItemsMap.set(skuId, {
             salePrice,
@@ -187,17 +205,58 @@ exports.searchByImage = async (req, res) => {
 
     const productsWithEmbeddings = await Product.findAll({
       where: { imageVector: { [Op.ne]: null } },
-      attributes: ["id", "name", "slug", "thumbnail", "imageVector", "badge", "categoryId", "badgeImage"],
+      attributes: [
+        "id",
+        "name",
+        "slug",
+        "thumbnail",
+        "imageVector",
+        "badge",
+        "categoryId",
+        "badgeImage",
+        [
+          Sequelize.fn("AVG", Sequelize.col("skus->reviews.rating")),
+          "averageRating",
+        ],
+        [
+          Sequelize.fn("COUNT", Sequelize.col("skus->reviews.id")),
+          "reviewCount",
+        ],
+        [
+          Sequelize.literal(`(
+        SELECT COALESCE(SUM(oi.quantity), 0)
+        FROM orderitems oi
+        INNER JOIN orders o ON oi.orderId = o.id
+        INNER JOIN skus s ON oi.skuId = s.id
+        WHERE s.productId = Product.id
+          AND o.status IN ('completed','delivered')
+      )`),
+          "deliveredOrderCount",
+        ],
+      ],
       include: [
         {
           model: Sku,
           as: "skus",
           attributes: ["id", "price", "originalPrice", "stock", "skuCode"],
           include: [
-            { model: ProductMedia, as: "ProductMedia", attributes: ["mediaUrl"], separate: true, limit: 1 },
+            {
+              model: ProductMedia,
+              as: "ProductMedia",
+              attributes: ["mediaUrl"],
+              separate: true,
+              limit: 1,
+            },
+            {
+              model: Review,
+              as: "reviews", // <--- chỗ này gắn qua SKU
+              attributes: [],
+              required: false,
+            },
           ],
         },
       ],
+      group: ["Product.id", "skus.id"],
     });
 
     const scored = productsWithEmbeddings.map((p) => {
@@ -209,16 +268,32 @@ exports.searchByImage = async (req, res) => {
     const SIMILARITY_THRESHOLD = 0.8;
     const MAX_RESULTS = 10;
 
-    const top = scored.filter((x) => x.score >= SIMILARITY_THRESHOLD).sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
+    const top = scored
+      .filter((x) => x.score >= SIMILARITY_THRESHOLD)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MAX_RESULTS);
 
     const results = top.map(({ product, score }) => {
       const skus = (product.skus || [])
         .map((sku) => {
-          const helperInput = { ...sku.toJSON(), Product: { category: { id: product.categoryId } } };
-          const price = processSkuPrices(helperInput, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+          const helperInput = {
+            ...sku.toJSON(),
+            Product: { category: { id: product.categoryId } },
+          };
+          const price = processSkuPrices(
+            helperInput,
+            allActiveFlashSaleItemsMap,
+            allActiveCategoryDealsMap
+          );
           const finalPrice = Number(price.price) || Number(sku.price) || 0;
-          const finalOriginal = Number(price.originalPrice) || Number(sku.originalPrice) || 0;
-          const ensured = ensureDiscount(finalPrice, finalOriginal, price.discountAmount, price.discountPercent);
+          const finalOriginal =
+            Number(price.originalPrice) || Number(sku.originalPrice) || 0;
+          const ensured = ensureDiscount(
+            finalPrice,
+            finalOriginal,
+            price.discountAmount,
+            price.discountPercent
+          );
           return {
             ...sku.toJSON(),
             price: finalPrice,
@@ -238,7 +313,10 @@ exports.searchByImage = async (req, res) => {
         });
 
       const primary = skus[0] || {};
-      const totalStock = (product.skus || []).reduce((s, x) => s + (parseInt(x.stock, 10) || 0), 0);
+      const totalStock = (product.skus || []).reduce(
+        (s, x) => s + (parseInt(x.stock, 10) || 0),
+        0
+      );
       const ensuredTop = ensureDiscount(
         primary.price,
         primary.originalPrice,
@@ -262,28 +340,35 @@ exports.searchByImage = async (req, res) => {
         skus,
         inStock: totalStock > 0,
         similarity: score.toFixed(4),
+        rating: product.dataValues.averageRating || 0,
+        reviewCount: product.dataValues.reviewCount || 0,
+        deliveredOrderCount: product.dataValues.deliveredOrderCount || 0,
       };
     });
 
-    log("OK ->", results.length, "results; ms:", Date.now() - t0);
     return res.status(200).json({ similarProducts: results });
   } catch (err) {
     console.error("❌ Lỗi searchByImage:", err.code || err.message);
     if (axios.isAxiosError(err)) {
       if (err.response) {
-        return res
-          .status(500)
-          .json({ message: `Lỗi từ Flask API (${err.response.status}): ${err.response.data?.error || JSON.stringify(err.response.data)}` });
+        return res.status(500).json({
+          message: `Lỗi từ Flask API (${err.response.status}): ${
+            err.response.data?.error || JSON.stringify(err.response.data)
+          }`,
+        });
       }
       if (err.request) {
-        return res.status(500).json({ message: `Không kết nối được đến Flask API. (${err.code})` });
+        return res
+          .status(500)
+          .json({ message: `Không kết nối được đến Flask API. (${err.code})` });
       }
-      return res.status(500).json({ message: `Lỗi cấu hình request: ${err.message}` });
+      return res
+        .status(500)
+        .json({ message: `Lỗi cấu hình request: ${err.message}` });
     }
     return res.status(500).json({ message: "Lỗi server khi tìm kiếm ảnh." });
   }
 };
-
 
 exports.searchByName = async (req, res) => {
   try {
@@ -294,7 +379,7 @@ exports.searchByName = async (req, res) => {
 
     const now = new Date(); // Lấy thời gian hiện tại một lần
 
-
+    // ===== Lấy toàn bộ FlashSale đang active =====
     const allActiveFlashSales = await FlashSale.findAll({
       where: {
         isActive: true,
@@ -316,13 +401,13 @@ exports.searchByName = async (req, res) => {
             "maxPerUser",
             [
               Sequelize.literal(`(
-                            SELECT COALESCE(SUM(oi.quantity), 0)
-                            FROM orderitems oi
-                            INNER JOIN orders o ON oi.orderId = o.id
-                            WHERE oi.flashSaleId = flashSaleItems.flashSaleId
-                            AND oi.skuId = flashSaleItems.skuId
-                            AND o.status IN ('completed', 'delivered')
-                        )`),
+                SELECT COALESCE(SUM(oi.quantity), 0)
+                FROM orderitems oi
+                INNER JOIN orders o ON oi.orderId = o.id
+                WHERE oi.flashSaleId = flashSaleItems.flashSaleId
+                  AND oi.skuId = flashSaleItems.skuId
+                  AND o.status IN ('completed', 'delivered')
+              )`),
               "soldQuantityForFlashSaleItem",
             ],
           ],
@@ -360,6 +445,7 @@ exports.searchByName = async (req, res) => {
       ],
     });
 
+    // ===== Map FlashSale Items & Category Deals =====
     const allActiveFlashSaleItemsMap = new Map();
     const allActiveCategoryDealsMap = new Map();
 
@@ -380,7 +466,6 @@ exports.searchByName = async (req, res) => {
         const isSoldOutForThisItem =
           flashLimit != null && soldForThisItem >= flashLimit;
 
-        // Chỉ thêm vào map nếu giá sale thấp hơn giá đã có, hoặc là mục đầu tiên
         if (
           !allActiveFlashSaleItemsMap.has(skuId) ||
           (!isSoldOutForThisItem &&
@@ -413,11 +498,153 @@ exports.searchByName = async (req, res) => {
           flashSaleCategoryId: fsc.id,
         });
       });
-    }); // Tìm sản phẩm theo tên gần đúng và bao gồm các thông tin chi tiết cần thiết
+    });
 
+    // ===== Tìm sản phẩm theo tên gần đúng =====
     const matchedProducts = await Product.findAll({
       where: {
         name: { [Op.like]: `%${keyword}%` },
+        isActive: true,
+      },
+      attributes: [
+        "id",
+        "name",
+        "slug",
+        "thumbnail",
+        "badge",
+        "categoryId",
+        "badgeImage",
+        [
+          Sequelize.fn("AVG", Sequelize.col("skus.reviews.rating")),
+          "averageRating",
+        ],
+        [
+          Sequelize.fn("COUNT", Sequelize.col("skus.reviews.id")),
+          "reviewCount",
+        ],
+        [
+          Sequelize.literal(`(
+        SELECT COALESCE(SUM(oi.quantity), 0)
+        FROM orderitems oi
+        INNER JOIN orders o ON oi.orderId = o.id
+        INNER JOIN skus s ON oi.skuId = s.id
+        WHERE s.productId = Product.id
+          AND o.status IN ('completed','delivered')
+      )`),
+          "deliveredOrderCount",
+        ],
+      ],
+      include: [
+        {
+          model: Sku,
+          as: "skus",
+          attributes: ["id", "price", "originalPrice", "stock", "skuCode"],
+          include: [
+            {
+              model: ProductMedia,
+              as: "ProductMedia",
+              attributes: ["mediaUrl"],
+              separate: true,
+              limit: 1,
+            },
+            {
+              model: Review,
+              as: "reviews", // alias phải trùng với define association
+              attributes: [],
+              required: false,
+            },
+          ],
+        },
+      ],
+      group: ["Product.id", "skus.id"],
+      subQuery: false, // ⭐ tránh Sequelize wrap subquery gây lỗi alias
+      limit: 20,
+    });
+
+    // ===== Format kết quả =====
+    const formattedResults = matchedProducts.map((product) => {
+      const skus = (product.skus || [])
+        .map((sku) => {
+          const skuDataForHelper = {
+            ...sku.toJSON(),
+            Product: { category: { id: product.categoryId } },
+          };
+          const priceResults = processSkuPrices(
+            skuDataForHelper,
+            allActiveFlashSaleItemsMap,
+            allActiveCategoryDealsMap
+          );
+
+          return {
+            ...sku.toJSON(),
+            price: priceResults.price,
+            originalPrice: priceResults.originalPrice,
+            flashSaleInfo: priceResults.flashSaleInfo,
+            hasDeal: priceResults.hasDeal,
+            discountAmount: priceResults.discountAmount,
+            discountPercent: priceResults.discountPercent,
+          };
+        })
+        .sort((a, b) => {
+          const aHasActiveFS = a.flashSaleInfo?.dealApplied;
+          const bHasActiveFS = b.flashSaleInfo?.dealApplied;
+          if (aHasActiveFS && !bHasActiveFS) return -1;
+          if (!aHasActiveFS && bHasActiveFS) return 1;
+          return (+a.price || 0) - (+b.price || 0);
+        });
+
+      const primarySku = skus[0] || {};
+      const totalStock = (product.skus || []).reduce(
+        (s, x) => s + (parseInt(x.stock, 10) || 0),
+        0
+      );
+
+      return {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        thumbnail: product.thumbnail,
+        badge: product.badge,
+        image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
+        badgeImage: product.badgeImage,
+        price: primarySku.price,
+        oldPrice: primarySku.originalPrice,
+        originalPrice: primarySku.originalPrice,
+        discount: primarySku.discountPercent,
+        discountAmount: primarySku.discountAmount,
+        skus,
+        inStock: totalStock > 0,
+        similarity: null,
+        // ⭐ Thêm các field này
+        rating: product.dataValues.averageRating || 0,
+        reviewCount: product.dataValues.reviewCount || 0,
+        deliveredOrderCount: product.dataValues.deliveredOrderCount || 0,
+      };
+    });
+
+    return res.status(200).json({ similarProducts: formattedResults });
+  } catch (err) {
+    console.error("❌ Lỗi searchByName:", err);
+    return res
+      .status(500)
+      .json({ message: "Lỗi server khi tìm kiếm sản phẩm." });
+  }
+};
+
+exports.getSuggestions = async (req, res) => {
+  const query = req.query.q;
+
+  if (!query || typeof query !== "string" || query.length < 2) {
+    return res.status(200).json({ suggestions: [] });
+  }
+
+  const lowerCaseQuery = query.toLowerCase();
+  const uniqueSuggestionsMap = new Map();
+
+  try {
+    const products = await Product.findAll({
+      where: {
+        name: { [Op.like]: `%${lowerCaseQuery}%` },
         isActive: true,
       },
       attributes: [
@@ -441,121 +668,6 @@ exports.searchByName = async (req, res) => {
               attributes: ["mediaUrl"],
               separate: true,
               limit: 1,
-            }, // Không cần include FlashSaleItem ở đây nữa vì đã lấy ở trên qua allActiveFlashSales
-          ],
-        },
-      ],
-      limit: 20,
-    });
-
-    const formattedResults = matchedProducts.map((product) => {
-      const skus = (product.skus || [])
-        .map((sku) => {
-          const skuDataForHelper = {
-            ...sku.toJSON(),
-            Product: { category: { id: product.categoryId } }, // Đảm bảo có categoryId
-          };
-          // GỌI processSkuPrices ĐỂ XỬ LÝ GIÁ
-          const priceResults = processSkuPrices(
-            skuDataForHelper,
-            allActiveFlashSaleItemsMap,
-            allActiveCategoryDealsMap
-          );
-
-          return {
-            ...sku.toJSON(), // Giữ lại tất cả thuộc tính gốc của sku
-            price: priceResults.price, // Giá đã xử lý (current price)
-            originalPrice: priceResults.originalPrice, // Là giá để gạch ngang (có thể là null)
-            flashSaleInfo: priceResults.flashSaleInfo,
-            hasDeal: priceResults.hasDeal,
-            discountAmount: priceResults.discountAmount, // SỐ TIỀN giảm
-            discountPercent: priceResults.discountPercent, // PHẦN TRĂM giảm
-          };
-        })
-        .sort((a, b) => {
-          // Sắp xếp SKU: ưu tiên flash sale được áp dụng, sau đó đến giá tăng dần
-          const aHasActiveFS = a.flashSaleInfo?.dealApplied;
-          const bHasActiveFS = b.flashSaleInfo?.dealApplied;
-
-          if (aHasActiveFS && !bHasActiveFS) return -1; // a có flash sale active, b không -> a lên trước
-          if (!aHasActiveFS && bHasActiveFS) return 1; // b có flash sale active, a không -> b lên trước // Nếu cùng trạng thái flash sale, sắp xếp theo giá tăng dần
-
-          return (+a.price || 0) - (+b.price || 0);
-        });
-
-      const primarySku = skus[0] || {}; // Lấy SKU đầu tiên (tốt nhất) sau khi sắp xếp
-
-      const totalStock = (product.skus || []).reduce(
-        (s, x) => s + (parseInt(x.stock, 10) || 0),
-        0
-      );
-
-      return {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        thumbnail: product.thumbnail,
-        badge: product.badge,
-        image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail, // Sử dụng media của primarySku
-        badgeImage: product.badgeImage,
-        price: primarySku.price, // Giá đã xử lý từ primarySku (đây là giá hiển thị chính)
-        oldPrice: primarySku.originalPrice, // oldPrice là giá gạch ngang (originalPrice đã xử lý)
-        originalPrice: primarySku.originalPrice, // Giữ lại originalPrice đã xử lý cho SearchResult (nếu cần so sánh)
-        discount: primarySku.discountPercent, // Gửi PHẦN TRĂM giảm giá cho frontend
-        discountAmount: primarySku.discountAmount, // Gửi SỐ TIỀN giảm giá cho frontend
-        skus: skus, // Gửi tất cả SKUs đã xử lý về (nếu frontend cần)
-        inStock: totalStock > 0,
-        similarity: null, // Không có `similarity` ở đây vì đây là tìm kiếm văn bản.
-      };
-    });
-
-    return res.status(200).json({ similarProducts: formattedResults });
-  } catch (err) {
-    console.error("❌ Lỗi searchByName:", err);
-    return res
-      .status(500)
-      .json({ message: "Lỗi server khi tìm kiếm sản phẩm." });
-  }
-};
-
-exports.getSuggestions = async (req, res) => {
-  const query = req.query.q; // Lấy từ khóa tìm kiếm từ query parameter 'q'
-
-  if (!query || typeof query !== "string" || query.length < 2) {
-    return res.status(200).json({ suggestions: [] });
-  }
-
-  const lowerCaseQuery = query.toLowerCase();
-  const uniqueSuggestionsMap = new Map(); // Dùng Map để lưu trữ đối tượng gợi ý duy nhất (key là name.toLowerCase())
-
-  try {
-    // 1. Gợi ý từ tên sản phẩm (LẤY CHI TIẾT SẢN PHẨM)
-    const products = await Product.findAll({
-      where: {
-        name: { [Op.like]: `%${lowerCaseQuery}%` },
-        isActive: true, // Chỉ lấy sản phẩm đang hoạt động
-      },
-      attributes: [
-        "id",
-        "name",
-        "slug",
-        "thumbnail", // Lấy thumbnail
-        "badge",
-        "categoryId",
-        "badgeImage",
-      ],
-      include: [
-        {
-          model: Sku,
-          as: "skus",
-          attributes: ["id", "price", "originalPrice", "stock"],
-          include: [
-            {
-              model: ProductMedia,
-              as: "ProductMedia",
-              attributes: ["mediaUrl"],
-              separate: true,
-              limit: 1, // Chỉ lấy 1 ảnh
             },
             {
               model: FlashSaleItem,
@@ -565,7 +677,7 @@ exports.getSuggestions = async (req, res) => {
                 {
                   model: FlashSale,
                   as: "flashSale",
-                  attributes: ["endTime"], // Chỉ lấy endTime để tính toán
+                  attributes: ["endTime", "id"],
                   required: false,
                   where: {
                     isActive: true,
@@ -578,27 +690,25 @@ exports.getSuggestions = async (req, res) => {
           ],
         },
       ],
-      limit: 10, // Giới hạn số lượng gợi ý sản phẩm
+      limit: 10,
       order: [
-        // Sắp xếp để gợi ý tốt hơn
         [
           Sequelize.literal(
             `CASE WHEN name LIKE '${lowerCaseQuery}%' THEN 0 ELSE 1 END`
           ),
           "ASC",
-        ], // Ưu tiên tên bắt đầu bằng query
-        ["name", "ASC"], // Sau đó sắp xếp theo tên
+        ],
+        ["name", "ASC"],
       ],
     });
 
-    // Lấy thông tin các chương trình khuyến mãi theo danh mục (FlashSaleCategory)
     const now = new Date();
     const activeCatDeals = await FlashSaleCategory.findAll({
       include: [
         {
           model: FlashSale,
           as: "flashSale",
-          attributes: ["endTime"],
+          attributes: ["endTime", "id"],
           where: {
             isActive: true,
             startTime: { [Op.lte]: now },
@@ -608,105 +718,72 @@ exports.getSuggestions = async (req, res) => {
       ],
     });
 
-    const catDealMap = new Map();
-    activeCatDeals.forEach((d) => {
-      const stored = catDealMap.get(d.categoryId);
-      if (!stored || d.priority > stored.priority) {
-        // Chọn deal có ưu tiên cao hơn
-        catDealMap.set(d.categoryId, {
-          discountType: d.discountType,
-          discountValue: d.discountValue,
-          priority: d.priority,
-          endTime: d.flashSale.endTime,
-        });
-      }
+    const allActiveFlashSaleItemsMap = new Map();
+    const allActiveCategoryDealsMap = new Map();
+
+    // Chuẩn bị dữ liệu cho hàm processSkuPrices
+    products.forEach(product => {
+      product.skus.forEach(sku => {
+        if (sku.flashSaleSkus && sku.flashSaleSkus.length > 0) {
+          allActiveFlashSaleItemsMap.set(sku.id, sku.flashSaleSkus.map(item => ({
+            ...item.get(),
+            flashSaleEndTime: item.flashSale.endTime,
+            flashSaleId: item.flashSale.id
+          })));
+        }
+      });
     });
 
-    // Format dữ liệu sản phẩm tương tự như searchByName/searchByImage
+    activeCatDeals.forEach(deal => {
+      if (!allActiveCategoryDealsMap.has(deal.categoryId)) {
+        allActiveCategoryDealsMap.set(deal.categoryId, []);
+      }
+      allActiveCategoryDealsMap.get(deal.categoryId).push({
+        ...deal.get(),
+        endTime: deal.flashSale.endTime,
+        flashSaleId: deal.flashSale.id
+      });
+    });
+
+    // Format dữ liệu sản phẩm bằng cách gọi hàm processSkuPrices
     products.forEach((product) => {
-      const formattedProduct = (p) => {
-        const skus = (p.skus || [])
-          .map((sku) => ({
-            ...sku.get(),
-            price: +sku.price || 0,
-            originalPrice: +sku.originalPrice || 0,
-          }))
-          .sort((a, b) => {
-            const aFS = a.flashSaleSkus?.length > 0;
-            const bFS = b.flashSaleSkus?.length > 0;
-            if (aFS && !bFS) return -1;
-            if (!aFS && bFS) return 1;
-            return (+a.price || 0) - (+b.price || 0);
-          });
+      const primarySku = (product.skus || []).sort((a, b) => {
+        const aFS = a.flashSaleSkus?.length > 0;
+        const bFS = b.flashSaleSkus?.length > 0;
+        if (aFS && !bFS) return -1;
+        if (!aFS && bFS) return 1;
+        return (+a.price || 0) - (+b.price || 0);
+      })[0];
 
-        const primary = skus[0] || {};
-        const catDeal = catDealMap.get(p.categoryId);
+      if (!primarySku) return;
 
-        let finalPrice = primary.price;
-        let finalOldPrice = null;
+      const processedPrice = processSkuPrices(
+        {
+          ...primarySku.get(),
+          Product: { category: { id: product.categoryId } }
+        },
+        allActiveFlashSaleItemsMap,
+        allActiveCategoryDealsMap
+      );
 
-        const fsItem = primary.flashSaleSkus?.[0];
-        if (
-          fsItem?.flashSale &&
-          fsItem.salePrice > 0 &&
-          fsItem.salePrice < primary.price
-        ) {
-          finalOldPrice = primary.price;
-          finalPrice = +fsItem.salePrice; // Đảm bảo là number
-          primary.salePrice = +fsItem.salePrice;
-        }
-
-        if (finalPrice === primary.price && catDeal) {
-          let tempPrice = primary.price;
-          if (catDeal.discountType === "percent") {
-            tempPrice = (primary.price * (100 - catDeal.discountValue)) / 100;
-          } else {
-            tempPrice = primary.price - catDeal.discountValue;
-          }
-          tempPrice = Math.max(0, Math.round(tempPrice / 1000) * 1000);
-          if (tempPrice < finalPrice) {
-            finalOldPrice = primary.price;
-            finalPrice = tempPrice;
-            primary.salePrice = tempPrice;
-          }
-        }
-
-        if (!finalOldPrice && primary.originalPrice > finalPrice) {
-          finalOldPrice = primary.originalPrice;
-        }
-
-        let calculatedDiscount = 0;
-        const comparePrice = finalOldPrice || primary.originalPrice || 0;
-        if (comparePrice > finalPrice && finalPrice > 0) {
-          calculatedDiscount = Math.round(
-            ((comparePrice - finalPrice) / comparePrice) * 100
-          );
-          calculatedDiscount = Math.min(99, Math.max(1, calculatedDiscount));
-        }
-
-        const totalStock = (p.skus || []).reduce(
+      const formattedResult = {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        thumbnail: product.thumbnail,
+        badge: product.badge,
+        image: primarySku.ProductMedia?.[0]?.mediaUrl || product.thumbnail,
+        badgeImage: product.badgeImage,
+        price: processedPrice.price,
+        oldPrice: processedPrice.originalPrice > processedPrice.price ? processedPrice.originalPrice : null,
+        originalPrice: processedPrice.originalPrice,
+        discount: processedPrice.discount,
+        inStock: (product.skus || []).reduce(
           (s, x) => s + (parseInt(x.stock, 10) || 0),
           0
-        );
-
-        return {
-          id: p.id,
-          name: p.name,
-          slug: p.slug,
-          thumbnail: p.thumbnail,
-          badge: p.badge,
-          image: primary.ProductMedia?.[0]?.mediaUrl || p.thumbnail, // Lấy ảnh từ SKU nếu có, không thì dùng thumbnail
-          badgeImage: p.badgeImage,
-          price: finalPrice,
-          oldPrice: finalOldPrice,
-          originalPrice: primary.originalPrice,
-          discount: calculatedDiscount,
-          inStock: totalStock > 0,
-          // Không cần skus, similarity cho gợi ý
-        };
+        ) > 0,
       };
 
-      const formattedResult = formattedProduct(product);
       if (!uniqueSuggestionsMap.has(formattedResult.name.toLowerCase())) {
         uniqueSuggestionsMap.set(
           formattedResult.name.toLowerCase(),
@@ -718,25 +795,23 @@ exports.getSuggestions = async (req, res) => {
     console.error("Lỗi khi lấy gợi ý từ Product:", error);
   }
 
-  // 2. Gợi ý từ tên danh mục (nếu vẫn muốn hiển thị text-only suggestions cho category/brand)
-  // Bạn có thể bỏ qua phần này nếu chỉ muốn gợi ý sản phẩm chi tiết
+  // Giữ lại phần xử lý gợi ý từ danh mục và thương hiệu
   try {
     const categories = await Category.findAll({
       where: {
         name: { [Op.like]: `%${lowerCaseQuery}%` },
         isActive: true,
       },
-      attributes: ["name"],
+      attributes: ["name", "slug"],
       limit: 5,
     });
     categories.forEach((c) => {
       if (!uniqueSuggestionsMap.has(c.name.toLowerCase())) {
         uniqueSuggestionsMap.set(c.name.toLowerCase(), {
-          id: `cat-${c.id}`, // Tạo ID giả để tránh trùng với product ID
+          // id: `cat-${c.id}`, // Không có id trong thuộc tính
           name: c.name,
-          type: "category", // Để frontend biết đây là category
-          slug: c.slug, // Nếu bạn có slug cho category
-          // Thêm các thuộc tính khác như icon hoặc hình ảnh mặc định nếu muốn
+          type: "category",
+          slug: c.slug,
         });
       }
     });
@@ -756,10 +831,9 @@ exports.getSuggestions = async (req, res) => {
     brands.forEach((b) => {
       if (!uniqueSuggestionsMap.has(b.name.toLowerCase())) {
         uniqueSuggestionsMap.set(b.name.toLowerCase(), {
-          id: `brand-${b.id}`, // Tạo ID giả
+          // id: `brand-${b.id}`, // Không có id trong thuộc tính
           name: b.name,
-          type: "brand", // Để frontend biết đây là brand
-          // Thêm các thuộc tính khác
+          type: "brand",
         });
       }
     });
@@ -767,10 +841,7 @@ exports.getSuggestions = async (req, res) => {
     console.error("Lỗi khi lấy gợi ý từ Brand:", error);
   }
 
-  // Chuyển Map thành mảng các đối tượng gợi ý
   const finalSuggestions = Array.from(uniqueSuggestionsMap.values());
-
-  // Sắp xếp lại nếu cần (ví dụ: ưu tiên sản phẩm, sau đó đến category/brand, hoặc theo thứ tự bảng chữ cái)
   finalSuggestions.sort((a, b) => {
     const aStartsWith = a.name.toLowerCase().startsWith(lowerCaseQuery);
     const bStartsWith = b.name.toLowerCase().startsWith(lowerCaseQuery);
@@ -778,14 +849,13 @@ exports.getSuggestions = async (req, res) => {
     if (aStartsWith && !bStartsWith) return -1;
     if (!aStartsWith && bStartsWith) return 1;
 
-    // Ưu tiên sản phẩm hơn category/brand trong danh sách gợi ý
-    if (a.type === "product" && b.type !== "product") return -1;
-    if (a.type !== "product" && b.type === "product") return 1;
+    // Giả định `type` của sản phẩm là `undefined` hoặc khác với `category` và `brand`
+    if (!a.type && b.type) return -1;
+    if (a.type && !b.type) return 1;
 
     return a.name.localeCompare(b.name);
   });
 
-  // Giới hạn tổng số gợi ý trả về (ví dụ: tối đa 15)
   return res.status(200).json({ suggestions: finalSuggestions.slice(0, 5) });
 };
 

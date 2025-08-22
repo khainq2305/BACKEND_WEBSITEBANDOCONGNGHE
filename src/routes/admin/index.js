@@ -37,7 +37,7 @@ const paymentMethodRoutes          = require('./paymentMethodRoutes');
 const shippingProviderRoutes       = require('./shippingProviderRoutes');
 const skuRoutes = require("./sku.route")
 const returnRoutes = require('./returnRoutes');
-
+const comboRoutes = require("./combo.routes");
 router.use('/sku', skuRoutes); 
 router.use('/returnRequest', returnRoutes); 
 router.use('/system-settings', systemSettingRoutes);
@@ -70,5 +70,5 @@ router.use('/spin-rewards', spinRewardRoutes);
 router.use('/spin-history', spinHistoryRoutes); 
 router.use('/seo', seoRoutes);
 router.use('/post-seo', postSEORoutes);
-
+router.use("/combos", comboRoutes);
 module.exports = router;

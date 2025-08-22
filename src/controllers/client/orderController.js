@@ -1210,8 +1210,8 @@ class OrderController {
             imageUrl: productInfo?.thumbnail || "/images/default.jpg",
             quantity: item.quantity,
             price: pricePaid,
-            originalPrice:
-              originalPriceFromSku > pricePaid ? originalPriceFromSku : null,
+            originalPrice: originalPriceFromSku || priceToShow,
+
             variation: skuInfo?.skuCode || "",
             isOutOfStock,
           };

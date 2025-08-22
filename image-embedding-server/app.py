@@ -81,3 +81,6 @@ def embed_image():
     except Exception as e:
         app.logger.error(f"Error processing image: {e}")
         return jsonify({"error": "Error processing image"}), 500
+        
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

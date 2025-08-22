@@ -164,7 +164,8 @@ class OrderController {
         id: o.id,
         code: o.orderCode,
         customer: o.User?.fullName || '—',
-        total: o.totalPrice || 0,
+       total: o.finalPrice || 0,
+
         phone: o.User?.phone || o.shippingAddress?.phone || '—',
 
         status: o.status,

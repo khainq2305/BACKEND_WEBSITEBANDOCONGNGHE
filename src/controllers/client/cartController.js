@@ -283,7 +283,7 @@ class CartController {
     }
   }
 
-  static async getCart(req, res) {
+static async getCart(req, res) {
   try {
     const { Op, fn, col } = require("sequelize");
 
@@ -308,7 +308,6 @@ class CartController {
     const userId = req.user.id;
     const now = new Date();
 
-    // --- Lấy tất cả FlashSale đang active ---
     const allActiveFlashSales = await FlashSale.findAll({
       where: {
         isActive: true,
@@ -351,7 +350,6 @@ class CartController {
       ],
     });
 
-    // Gom skuIds để query sold quantity 1 lần
     const skuIds = allActiveFlashSales.flatMap(fs =>
       (fs.flashSaleItems || []).map(fsi => fsi.skuId)
     );
@@ -376,7 +374,6 @@ class CartController {
       );
     }
 
-    // --- Map FlashSale items ---
     const allActiveFlashSaleItemsMap = new Map();
     for (const saleEvent of allActiveFlashSales) {
       const saleEndTime = saleEvent.endTime;
@@ -410,7 +407,6 @@ class CartController {
       }
     }
 
-    // --- Lấy giỏ hàng ---
     const cart = await Cart.findOne({
       where: { userId },
       include: [
@@ -483,12 +479,11 @@ class CartController {
       });
     }
 
-    // --- Format lại cart items ---
     const formattedItems = cart.CartItems.map((ci) => {
       const sku = ci.Sku;
       const product = sku?.product;
-      const basePrice = sku?.originalPrice || sku?.price || 0;
-
+      const basePrice = sku?.price || 0;
+      const originalPrice = sku?.originalPrice || 0;
       const flashSale = allActiveFlashSaleItemsMap.get(sku.id);
       const finalPrice = flashSale ? flashSale.salePrice : basePrice;
       const lineTotal = ci.quantity * finalPrice;
@@ -506,8 +501,8 @@ class CartController {
           variant: v.variantValue?.variant?.name,
           value: v.variantValue?.value,
         })),
-        originalPrice: basePrice,
-        price: finalPrice,
+        originalPrice,
+        price: basePrice,
         finalPrice,
         lineTotal,
       };
@@ -538,6 +533,7 @@ class CartController {
     return res.status(500).json({ message: "Lỗi server" });
   }
 }
+
 
 
   static async updateQuantity(req, res) {

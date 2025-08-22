@@ -7,8 +7,12 @@ const {
   SkuVariantValue,
   VariantValue,
   Variant,
+  Notification,
+  NotificationUser,
 } = require("../../models");
 const { Op } = require("sequelize");
+const { getIO } = require('../../socket');
+const { uniqueSlug } = require('../../helpers/utils');
 
 class ReviewController {
   static async list(req, res) {
@@ -179,34 +183,75 @@ class ReviewController {
       const { id } = req.params;
       const { reply, repliedBy } = req.body;
 
-      if (!reply || !reply.trim()) {
-        return res.status(400).json({ message: "Nội dung phản hồi không được để trống" });
+      if (!reply?.trim()) {
+        return res.status(400).json({ errors: [{ field: 'reply', message: 'Nội dung phản hồi không được để trống' }] });
       }
-
       if (!repliedBy) {
-        return res.status(400).json({ message: "Thiếu thông tin người phản hồi" });
+        return res.status(400).json({ errors: [{ field: 'repliedBy', message: 'Thiếu thông tin người phản hồi' }] });
       }
 
       const review = await Review.findByPk(id);
-      if (!review) {
-        return res.status(404).json({ message: "Không tìm thấy bình luận" });
-      }
-
+      if (!review) return res.status(404).json({ message: 'Không tìm thấy bình luận' });
       if (review.isReplied && review.replyContent) {
-        return res.status(400).json({ message: "Bình luận đã được phản hồi" });
+        return res.status(400).json({ message: 'Bình luận đã được phản hồi' });
       }
 
-      review.replyContent = reply;
+      const sku = await Sku.findByPk(review.skuId, {
+        include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'slug'] }],
+      });
+
+      // cập nhật review
+      review.replyContent = reply.trim();
       review.repliedBy = repliedBy;
       review.replyDate = new Date();
       review.isReplied = true;
-
       await review.save();
 
-      return res.json({ message: "Phản hồi thành công!", review });
+      // ⚠️ tạo slug duy nhất
+      const base = `reply-${review.id}`;
+      const slug = uniqueSlug(base);
+
+      // tạo notification chỉ cho client (người đã review)
+      const notif = await Notification.create({
+        title: 'Phản hồi bình luận',
+        message: `Shop đã phản hồi bình luận của bạn về sản phẩm "${sku?.product?.name ?? 'sản phẩm'}".`,
+        type: 'comment',            // giữ enum hiện tại
+        targetRole: 'client',
+        isGlobal: false,
+        isActive: true,
+        targetId: review.id,
+        slug,
+        link: `/product/${sku?.product?.slug}`,
+      });
+
+      await NotificationUser.create({
+        notificationId: notif.id,
+        userId: review.userId,
+        isRead: false,
+      });
+
+      // realtime
+      try {
+        const io = getIO();
+        io.to(`user:${review.userId}`).emit('notification:new', {
+          id: notif.id,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type,
+          targetRole: notif.targetRole,
+          link: notif.link,
+          createdAt: notif.createdAt,
+        });
+      } catch { }
+
+      return res.json({ message: 'Phản hồi thành công!', review });
     } catch (error) {
-      console.error("❌ Lỗi phản hồi bình luận:", error);
-      return res.status(500).json({ message: "Đã xảy ra lỗi trong quá trình phản hồi bình luận." });
+      // Nếu vẫn dính unique (rất hiếm), trả 409 cho rõ
+      if (error?.name === 'SequelizeUniqueConstraintError' && error?.fields?.slug) {
+        return res.status(409).json({ message: 'Trùng slug thông báo, vui lòng thử lại.' });
+      }
+      console.error('❌ Lỗi phản hồi bình luận:', error);
+      return res.status(500).json({ message: 'Đã xảy ra lỗi trong quá trình phản hồi bình luận.' });
     }
   }
 

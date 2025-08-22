@@ -168,9 +168,7 @@ class DashboardController {
                         model: Order,
                         as: 'order',
                         attributes: [],
-                        where: {
-                            status: 'completed',
-                        },
+                        where: { status: 'completed' },
                     },
                     {
                         model: Sku,
@@ -180,6 +178,12 @@ class DashboardController {
                                 model: Product,
                                 as: 'product',
                                 attributes: [],
+                                // CHỈ lấy Product chưa xoá mềm và đang active
+                                where: {
+                                    deletedAt: null,
+                                    isActive: 1,
+                                },
+                                paranoid: false,
                             }
                         ]
                     },
@@ -232,6 +236,12 @@ class DashboardController {
                         model: Product,
                         as: 'product',
                         attributes: [],
+                        // CHỈ lấy Product chưa xoá mềm và đang active
+                        where: {
+                            deletedAt: null,
+                            isActive: 1,
+                        },
+                        paranoid: false,
                     },
                 ],
                 raw: true,
@@ -269,9 +279,7 @@ class DashboardController {
                         model: Order,
                         as: 'order',
                         attributes: [],
-                        where: {
-                            status: 'completed',
-                        },
+                        where: { status: 'completed' },
                     },
                     {
                         model: Sku,
@@ -281,6 +289,12 @@ class DashboardController {
                                 model: Product,
                                 as: 'product',
                                 attributes: [],
+                                // CHỈ lấy Product chưa xoá mềm và đang active
+                                where: {
+                                    deletedAt: null,
+                                    isActive: 1,
+                                },
+                                paranoid: false,
                             }
                         ]
                     },
@@ -332,6 +346,12 @@ class DashboardController {
                         model: Product,
                         as: 'product',
                         attributes: [],
+                        // CHỈ lấy Product chưa xoá mềm và đang active
+                        where: {
+                            deletedAt: null,
+                            isActive: 1,
+                        },
+                        paranoid: false,
                     },
                 ],
                 raw: true,
