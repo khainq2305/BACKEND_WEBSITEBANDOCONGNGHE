@@ -263,12 +263,17 @@ static async getTopSellingProducts(req, res) {
         }
     }
 
- static async getAllTopSellingProducts(req, res) {
+static async getAllTopSellingProducts(req, res) {
   try {
     const topProducts = await OrderItem.findAll({
       attributes: [
         [fn("SUM", col("OrderItem.quantity")), "sold"],
         [fn("SUM", literal("OrderItem.quantity * OrderItem.price")), "revenue"],
+        [col("Sku.product.id"), "id"],
+        [col("Sku.product.name"), "name"],
+        [col("Sku.product.thumbnail"), "image"],
+        [col("Sku.product.categoryId"), "categoryId"],
+        [col("Sku.product.hasVariants"), "hasVariants"],
       ],
       include: [
         {
@@ -283,10 +288,11 @@ static async getTopSellingProducts(req, res) {
           include: [
             {
               model: Product,
-              as: "product", // 👈 BẮT BUỘC, vì trong model đã đặt alias là 'product'
-              attributes: ["id", "name", "thumbnail", "categoryId", "hasVariants"],
+              as: "product", // alias bắt buộc (trong model đã có alias 'product')
+              attributes: [],
               where: { deletedAt: null, isActive: 1 },
               required: true,
+              paranoid: false,
             },
           ],
         },
@@ -299,20 +305,18 @@ static async getTopSellingProducts(req, res) {
         "Sku.product.hasVariants",
       ],
       order: [[literal("sold"), "DESC"]],
+      raw: true, // ⚡ Trả về dữ liệu phẳng
     });
 
-    const formattedProducts = topProducts.map((item) => {
-      const product = item.Sku?.product; // alias 'product' đã khớp
-      return {
-        id: product?.id,
-        name: product?.name,
-        image: product?.thumbnail || "/placeholder.svg?height=50&width=50",
-        sold: parseInt(item.get("sold") || 0, 10),
-        revenue: parseFloat(item.get("revenue") || 0),
-        variant: product?.hasVariants ? "Nhiều biến thể" : "1 biến thể",
-        category: product?.categoryId,
-      };
-    });
+    const formattedProducts = topProducts.map(item => ({
+      id: item.id,
+      name: item.name,
+      image: item.image || "/placeholder.svg?height=50&width=50",
+      sold: parseInt(item.sold, 10) || 0,
+      revenue: parseFloat(item.revenue) || 0,
+      variant: item.hasVariants ? "Nhiều biến thể" : "1 biến thể",
+      category: item.categoryId,
+    }));
 
     res.json({ data: formattedProducts });
   } catch (error) {
