@@ -154,66 +154,72 @@ static async getTopSellingProducts(req, res) {
   try {
     const topProducts = await OrderItem.findAll({
       attributes: [
-        [fn('SUM', col('OrderItem.quantity')), 'sold'],
-        [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
+        [fn("SUM", col("OrderItem.quantity")), "sold"],
+        [fn("SUM", literal("OrderItem.quantity * OrderItem.price")), "revenue"],
+        [col("Sku.product.id"), "id"],
+        [col("Sku.product.name"), "name"],
+        [col("Sku.product.thumbnail"), "image"],
+        [col("Sku.product.categoryId"), "categoryId"],
+        [col("Sku.product.hasVariants"), "hasVariants"],
       ],
       include: [
         {
           model: Order,
-          as: 'order',
+          as: "order",
           attributes: [],
-          where: { status: 'completed' },
+          where: { status: "completed" },
         },
         {
           model: Sku,
-          attributes: [], // ❌ bỏ productId ra để tránh lỗi
+          attributes: [],
+          required: true,
+          where: { deletedAt: null }, // 👈 bỏ SKU đã xoá mềm
+          paranoid: false,
           include: [
             {
               model: Product,
-              as: 'product',
-              attributes: ['id', 'name', 'thumbnail', 'categoryId', 'hasVariants'],
-              where: {
-                deletedAt: null,
-                isActive: 1,
-              },
+              as: "product",
+              attributes: [],
+              where: { deletedAt: null, isActive: 1 }, // 👈 chỉ lấy product active + chưa xoá
               required: true,
-            }
+              paranoid: false,
+            },
           ],
         },
       ],
       group: [
-        'Sku->product.id',
-        'Sku->product.name',
-        'Sku->product.thumbnail',
-        'Sku->product.categoryId',
-        'Sku->product.hasVariants'
+        "Sku.product.id",
+        "Sku.product.name",
+        "Sku.product.thumbnail",
+        "Sku.product.categoryId",
+        "Sku.product.hasVariants",
       ],
-      order: [[literal('sold'), 'DESC']],
+      order: [[literal("sold"), "DESC"]],
       limit: 5,
+      raw: true, // ⚡ bắt buộc để Sequelize merge col() vào kết quả
     });
 
-    const formattedProducts = topProducts.map(item => {
-      const product = item.Sku?.product;
-      return {
-        id: product?.id,
-        name: product?.name,
-        image: product?.thumbnail || '/placeholder.svg?height=50&width=50',
-        sold: parseInt(item.get('sold') || 0, 10),
-        revenue: parseFloat(item.get('revenue') || 0),
-        variant: product?.hasVariants ? 'Nhiều biến thể' : '1 biến thể',
-        category: product?.categoryId,
-      };
-    });
+    // Map kết quả ra format frontend cần
+    const formattedProducts = topProducts.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image || "/placeholder.svg?height=50&width=50",
+      sold: parseInt(item.sold, 10) || 0,
+      revenue: parseFloat(item.revenue) || 0,
+      variant: item.hasVariants ? "Nhiều biến thể" : "1 biến thể",
+      category: item.categoryId,
+    }));
 
-    res.json(formattedProducts);
+    res.json({ data: formattedProducts });
   } catch (error) {
     console.error("GET TOP SELLING PRODUCTS ERROR:", error);
-    res.status(500).json({ 
-      message: "Lỗi server khi lấy dữ liệu sản phẩm bán chạy", 
-      error: error.message 
+    res.status(500).json({
+      message: "Lỗi server khi lấy dữ liệu sản phẩm bán chạy",
+      error: error.message,
     });
   }
 }
+
 
 
 
