@@ -7,6 +7,8 @@ const {
   Notification,
   User,
   NotificationUser,
+    Wallet,
+  WalletTransaction,
   FlashSaleItem,
   Product,
   ReturnRequestItem ,
@@ -18,6 +20,11 @@ const {
 const refundGateway = require('../../utils/refundGateway');
 const calculateRefundAmount = require('../../utils/calculateRefundAmount');
 const { Op } = require('sequelize');
+const formatCurrencyVND = (amount) => {
+  const num = Number(amount);
+  if (isNaN(num)) return "0 ₫";
+  return num.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+};
 
 const returnStock = async (orderItems, t) => {
   for (const it of orderItems) {
@@ -124,31 +131,25 @@ static async getReturnByOrder(req, res) {
 
 static async updateReturnStatus(req, res) {
   const t = await sequelize.transaction();
-  console.log('--- Bắt đầu transaction ---');
-
   try {
     const { id } = req.params;
     const { status, responseNote } = req.body;
-    console.log(`Nhận request cập nhật yêu cầu trả hàng #${id} với trạng thái: "${status}"`);
 
     const request = await ReturnRequest.findByPk(id, {
       include: {
         model: Order,
         as: 'order',
         include: [
-            {
-              model: OrderItem,
-              as: 'items',
-              include: {
-                model: Sku,
-                include: {
-                  model: FlashSaleItem,
-                  as: 'flashSaleSkus',
-                  required: false,
-                },
-              },
-            },
-  
+          {
+            model: OrderItem,
+            as: 'items',
+            include: [
+              { model: Sku, as: 'Sku' },
+              { model: FlashSaleItem, as: 'flashSaleItem', required: false }
+            ]
+          },
+          { model: PaymentMethod, as: 'paymentMethod', attributes: ['code'] },
+          { model: User, attributes: ['id', 'email', 'fullName'] }
         ],
       },
       transaction: t,
@@ -156,78 +157,145 @@ static async updateReturnStatus(req, res) {
     });
 
     if (!request) {
-      console.log(`Lỗi: Không tìm thấy yêu cầu trả hàng #${id}`);
       await t.rollback();
       return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
     }
-    console.log(`Tìm thấy yêu cầu:`, request.toJSON());
 
     const flow = {
       pending: ['approved', 'rejected', 'cancelled'],
       approved: ['awaiting_pickup', 'pickup_booked', 'cancelled'],
       awaiting_pickup: ['received'],
       pickup_booked: ['received'],
-        awaiting_dropoff: ['received'],  
+      awaiting_dropoff: ['received'],
       received: ['refunded'],
     };
 
     const next = flow[request.status] || [];
-    console.log(`Trạng thái hiện tại: "${request.status}". Các trạng thái tiếp theo hợp lệ:`, next);
-
     if (!next.includes(status)) {
-      console.log(`Lỗi: Chuyển trạng thái không hợp lệ từ "${request.status}" sang "${status}"`);
       await t.rollback();
       return res.status(400).json({ message: `Không thể chuyển trạng thái từ "${request.status}" → "${status}"` });
     }
-    console.log(`Chuyển trạng thái hợp lệ. Tiến hành cập nhật...`);
 
     if (request.status === 'pending' && status === 'approved') {
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 1);
       request.deadlineChooseReturnMethod = deadline;
-      console.log(`Trạng thái được duyệt, đặt hạn chót chọn phương thức trả hàng đến:`, deadline);
     }
 
+    // === Khi đơn hàng trả được nhận ===
     if (status === 'received') {
-      console.log('Trạng thái "received", tiến hành hoàn kho và tạo yêu cầu hoàn tiền.');
-      // Giả sử hàm returnStock và RefundRequest đã được định nghĩa
-      await returnStock(request.order.items, t);
-      await RefundRequest.create({
-        orderId: request.orderId,
-        userId: request.order.userId,
-        amount: request.order.finalPrice,
-        reason: 'Hoàn tiền thủ công',
-        status: 'pending',
-      }, { transaction: t });
+      // 1. Trả lại kho
+      for (const item of request.order.items) {
+        const sku = await Sku.findByPk(item.skuId, { transaction: t, lock: t.LOCK.UPDATE });
+        if (sku) {
+          await sku.increment('stock', { by: item.quantity, transaction: t });
+        }
+
+        if (item.flashSaleItem) {
+          const fsItemLocked = await FlashSaleItem.findByPk(item.flashSaleItem.id, { transaction: t, lock: t.LOCK.UPDATE });
+          if (fsItemLocked) {
+            const newQuantity = (fsItemLocked.quantity || 0) + item.quantity;
+            const newSoldCount = Math.max(0, (fsItemLocked.soldCount || 0) - item.quantity);
+            await fsItemLocked.update(
+              { quantity: newQuantity, soldCount: newSoldCount },
+              { transaction: t }
+            );
+          }
+        }
+      }
+
+      // 2. Hoàn tiền ngay
+      const payCode = request.order.paymentMethod?.code?.toLowerCase();
+      const amount = request.order.finalPrice;
+      const payload = { orderCode: request.order.orderCode, amount };
+
+      if (['cod', 'atm', 'payos', 'internalwallet', 'zalopay'].includes(payCode)) {
+        const wallet = await Wallet.findOne({
+          where: { userId: request.order.userId },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (!wallet) {
+          await t.rollback();
+          return res.status(400).json({ message: 'Không tìm thấy ví nội bộ của người dùng' });
+        }
+        wallet.balance = Number(wallet.balance) + Number(amount);
+        await wallet.save({ transaction: t });
+        await WalletTransaction.create({
+          walletId: wallet.id,
+          userId: request.order.userId,
+          type: 'refund',
+          amount,
+          description: `Hoàn tiền trả hàng đơn #${request.order.orderCode}`,
+          orderId: request.order.id,
+        }, { transaction: t });
+        request.order.paymentStatus = 'refunded';
+      } else {
+        if (payCode === 'momo') {
+          if (!request.order.momoTransId) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu momoTransId' });
+          }
+          payload.momoTransId = request.order.momoTransId;
+        }
+        if (payCode === 'vnpay') {
+          if (!request.order.vnpTransactionId || !request.order.paymentTime) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu thông tin VNPay' });
+          }
+          payload.vnpTransactionId = request.order.vnpTransactionId;
+          payload.originalAmount = amount;
+          payload.transDate = request.order.paymentTime;
+        }
+        if (payCode === 'stripe') {
+          if (!request.order.stripePaymentIntentId) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Thiếu stripePaymentIntentId' });
+          }
+          payload.stripePaymentIntentId = request.order.stripePaymentIntentId;
+        }
+
+        const { ok, transId } = await refundGateway(payCode, payload);
+        if (!ok) {
+          await t.rollback();
+          return res.status(400).json({ message: 'Hoàn tiền thất bại' });
+        }
+        request.order.paymentStatus = 'refunded';
+        request.order.gatewayTransId = transId || null;
+      }
+
+      // 3. Cập nhật trạng thái
+      request.status = 'refunded';
+      await request.order.save({ transaction: t });
     }
 
     request.status = status;
     request.responseNote = responseNote;
-    console.log(`Cập nhật request object:`, request.toJSON());
-
     await request.save({ transaction: t });
-    console.log('Lưu thay đổi vào database thành công.');
 
+    // === Notification cho khách hàng ===
     let clientNotifTitle = '';
     let clientNotifMessage = '';
     let sendNotif = true;
 
-    if (status === 'approved') {
-      clientNotifTitle = 'Yêu cầu trả hàng đã được duyệt';
-      clientNotifMessage = `Yêu cầu trả hàng #${request.id} của bạn đã được duyệt. Vui lòng chọn phương thức trả hàng trong vòng 24h để hoàn tất.`;
-    } else if (status === 'rejected') {
-      clientNotifTitle = 'Yêu cầu trả hàng không được duyệt';
-      clientNotifMessage = `Yêu cầu trả hàng #${request.id} của bạn đã bị từ chối. Lý do: ${responseNote || 'Không có lý do cụ thể.'}`;
-    } else if (status === 'cancelled') {
-      clientNotifTitle = 'Yêu cầu trả hàng đã bị hủy';
-      clientNotifMessage = `Yêu cầu trả hàng #${request.id} của bạn đã bị hủy.`;
-    } else {
-      sendNotif = false;
-      console.log('Trạng thái không yêu cầu gửi thông báo cho khách hàng.');
-    }
+   if (status === 'approved') {
+  clientNotifTitle = 'Yêu cầu trả hàng đã được duyệt';
+  clientNotifMessage = `Yêu cầu trả hàng #${request.returnCode} của bạn đã được duyệt. Vui lòng chọn phương thức trả hàng trong vòng 24h để hoàn tất.`;
+} else if (status === 'rejected') {
+  clientNotifTitle = 'Yêu cầu trả hàng không được duyệt';
+  clientNotifMessage = `Yêu cầu trả hàng #${request.returnCode} của bạn đã bị từ chối. Lý do: ${responseNote || 'Không có lý do cụ thể.'}`;
+} else if (status === 'cancelled') {
+  clientNotifTitle = 'Yêu cầu trả hàng đã bị hủy';
+  clientNotifMessage = `Yêu cầu trả hàng #${request.returnCode} của bạn đã bị hủy.`;
+} else if (status === 'refunded') {
+  clientNotifTitle = 'Hoàn tiền thành công';
+  clientNotifMessage = `Yêu cầu trả hàng #${request.returnCode} đã được xử lý. Số tiền ${formatCurrencyVND(request.order.finalPrice)} đã được hoàn trả.`;
+} else {
+  sendNotif = false;
+}
+
 
     if (sendNotif) {
-      console.log(`Gửi thông báo cho khách hàng #${request.order.userId}...`);
       const clientNotification = await Notification.create({
         title: clientNotifTitle,
         message: clientNotifMessage,
@@ -244,24 +312,19 @@ static async updateReturnStatus(req, res) {
         userId: request.order.userId,
         isRead: false,
       }, { transaction: t });
-      
-      console.log('Tạo bản ghi thông báo và NotificationUser thành công.');
+
       req.app.locals.io.to(`user-${request.order.userId}`).emit('new-client-notification', clientNotification);
-      console.log('Gửi sự kiện Socket.IO đến client.');
     }
 
     await t.commit();
-    console.log('--- Commit transaction thành công ---');
     return res.json({ message: 'Cập nhật trạng thái trả hàng thành công', data: request });
   } catch (err) {
-    console.error('Lỗi khi cập nhật trạng thái trả hàng:', err);
     await t.rollback();
-    console.log('--- Rollback transaction do lỗi ---');
-    return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
-  } finally {
-    console.log('--- Kết thúc hàm updateReturnStatus ---');
+    console.error('[updateReturnStatus][ERROR]', err);
+    return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái trả hàng' });
   }
 }
+
 static async getReturnDetail(req, res) {
   try {
     const { id } = req.params;

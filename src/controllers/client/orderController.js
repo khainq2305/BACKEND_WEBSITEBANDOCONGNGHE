@@ -51,6 +51,7 @@ const {
 const mjml2html = require("mjml");
 const refundGateway = require("../../utils/refundGateway");
 const { processSkuPrices } = require("../../helpers/priceHelper");
+const ghnService = require("../../services/client/drivers/ghnService");
 
 const moment = require("moment");
 const ShippingService = require("../../services/client/shippingService");
@@ -258,7 +259,6 @@ class OrderController {
         existingDeals.push(deal);
         allActiveCategoryDealsMap.set(deal.categoryId, existingDeals);
       });
-
       let totalPrice = 0;
       const orderItemsToCreate = [];
       const orderItemsForEmail = [];
@@ -274,9 +274,16 @@ class OrderController {
             message: `Sản phẩm "${sku.skuCode}" chỉ còn ${sku.stock} trong kho.`,
           });
         }
-
+        const fsItemsForSku = allActiveFlashSaleItemsMap.get(sku.id) || [];
+        const skuData = {
+          id: sku.id,
+          originalPrice: sku.originalPrice,
+          price: sku.price,
+          Product: { category: { id: sku.product.categoryId } },
+          flashSaleSkus: fsItemsForSku,
+        };
         const priceResult = processSkuPrices(
-          sku,
+          skuData,
           allActiveFlashSaleItemsMap,
           allActiveCategoryDealsMap
         );
@@ -284,25 +291,24 @@ class OrderController {
         totalPrice += priceResult.price * it.quantity;
 
         let flashSaleItemId = null;
-        // Chỉ gán flashSaleId nếu là flash sale item và flash sale đó chưa hết hàng
+        let flashSaleIdForOrderItem = null;
+
         if (
           priceResult.flashSaleInfo?.type === "item" &&
-          priceResult.flashSaleInfo.isSoldOut === false
+          !priceResult.flashSaleInfo.isSoldOut
         ) {
-          flashSaleItemId =
-            allActiveFlashSaleItems.find(
-              (fsItem) =>
-                fsItem.flashSaleId === priceResult.flashSaleInfo.flashSaleId &&
-                fsItem.skuId === it.skuId &&
-                parseFloat(fsItem.salePrice) === priceResult.price
-            )?.id || null;
+          flashSaleIdForOrderItem = priceResult.flashSaleInfo.flashSaleId;
+          const bestFsItem = fsItemsForSku.find(
+            (fsItem) => fsItem.flashSaleId === flashSaleIdForOrderItem
+          );
+          flashSaleItemId = bestFsItem?.id || null;
         }
 
         orderItemsToCreate.push({
           skuId: it.skuId,
           quantity: it.quantity,
           price: priceResult.price,
-          flashSaleId: flashSaleItemId, // Gán ID FlashSaleItem hợp lệ hoặc null
+          flashSaleId: flashSaleItemId,
         });
         orderItemsForEmail.push({
           productName: sku.product.name,
@@ -512,6 +518,56 @@ class OrderController {
         .slice(0, 10)
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
+      // 
+      try {
+  // tính khối lượng + kích thước đơn hàng
+  let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+  for (const item of orderItemsToCreate) {
+    const sku = skuMap.get(item.skuId);
+    weight += (sku.weight || 500) * item.quantity;
+    maxL = Math.max(maxL, sku.length || 10);
+    maxW = Math.max(maxW, sku.width || 10);
+    maxH = Math.max(maxH, sku.height || 10);
+  }
+console.log("[createOrder] GHN INPUT", {
+  prov: selectedAddress.province.id,
+  dist: selectedAddress.district.id,
+  ward: selectedAddress.ward.id,
+});
+
+  const deliveryRes = await ghnService.createDeliveryOrder({
+    from_name: "Cyberzone Shop",
+    from_phone: "0878999894",
+    from_address: "Địa chỉ shop",
+    to_name: selectedAddress.fullName,
+    to_phone: selectedAddress.phone,
+    to_address: selectedAddress.streetAddress,
+    to_province_id: selectedAddress.province.id,
+    to_district_id: selectedAddress.district.id,
+   to_ward_id: Number(selectedAddress.ward.id),
+
+
+    weight,
+    length: maxL,
+    width: maxW,
+    height: maxH,
+    cod_amount: validPayment.code.toLowerCase() === "cod" ? finalPrice : 0,
+    client_order_code: newOrder.orderCode,
+    content: "Đơn hàng từ Cyberzone",
+    situation: "shop_pays",
+  });
+
+  await newOrder.update({
+    trackingCode: deliveryRes.trackingCode,
+    labelUrl: deliveryRes.labelUrl,
+    shippingFee: deliveryRes.shippingFee,
+    shippingLeadTime: deliveryRes.expectedDelivery,
+  }, { transaction: t });
+} catch (err) {
+  console.error("GHN: lỗi tạo vận đơn", err.message);
+  // tuỳ bạn: rollback luôn hoặc vẫn commit order không có mã vận đơn
+}
+// 
       if (validPayment.code.toLowerCase() === "internalwallet") {
         const wallet = await Wallet.findOne({
           where: { userId: user.id },
@@ -738,6 +794,8 @@ class OrderController {
         shippingDiscount,
         pointDiscountAmount,
         rewardPoints,
+        trackingCode: newOrder.trackingCode,
+  labelUrl: newOrder.labelUrl,
         finalPrice: newOrder.finalPrice,
         shippingFee,
         shippingProviderId: finalProviderId,
@@ -1149,6 +1207,10 @@ class OrderController {
         finalPrice: order.finalPrice,
         orderCode: order.orderCode,
         createdAt: order.createdAt,
+        trackingCode: order.trackingCode || null,
+  expectedDelivery: order.shippingLeadTime
+    ? new Date(order.shippingLeadTime).toISOString()
+    : null,
         rewardPoints:
           order.pointLogs && order.pointLogs.length > 0
             ? order.pointLogs.reduce((sum, p) => sum + p.points, 0)
@@ -1501,115 +1563,121 @@ class OrderController {
   }
 
   static async lookupOrder(req, res) {
-    try {
-      const { code, phone } = req.query;
+  try {
+    const { code, phone } = req.query;
 
-      if (!code || !phone) {
-        return res
-          .status(400)
-          .json({ message: "Thiếu mã đơn hoặc số điện thoại" });
-      }
-
-      const order = await Order.findOne({
-        where: { orderCode: code },
-        include: [
-          {
-            model: UserAddress,
-            as: "shippingAddress",
-            where: { phone },
-            required: true,
-          },
-          {
-            model: OrderItem,
-            as: "items",
-            include: [
-              {
-                model: Sku,
-                include: [
-                  {
-                    model: Product,
-                    as: "product",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            model: PaymentMethod,
-            as: "paymentMethod",
-            attributes: ["id", "name"],
-          },
-        ],
-        attributes: [
-          "id",
-          "orderCode",
-          "status",
-          "totalPrice",
-          "shippingProviderId",
-          "shippingServiceId",
-          "shippingFee",
-          "paymentMethodId",
-        ],
-      });
-
-      if (!order)
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-
-      const plain = order.get({ plain: true });
-
-      // ✅ Tính lại totalPrice nếu không có
-      if (!plain.totalPrice || plain.totalPrice === 0) {
-        plain.totalPrice = plain.items.reduce(
-          (acc, item) => acc + item.price * item.quantity,
-          0
-        );
-      }
-
-      // ✅ Tìm tên địa chỉ từ ID (nếu đã có các bảng mapping)
-      const ward = plain.shippingAddress?.wardId
-        ? await Ward.findByPk(plain.shippingAddress.wardId)
-        : null;
-      const district = plain.shippingAddress?.districtId
-        ? await District.findByPk(plain.shippingAddress.districtId)
-        : null;
-      const province = plain.shippingAddress?.provinceId
-        ? await Province.findByPk(plain.shippingAddress.provinceId)
-        : null;
-
-      const fullAddress = [
-        plain.shippingAddress?.streetAddress,
-        ward?.name,
-        district?.name,
-        province?.name,
-      ]
-        .filter(Boolean)
-        .join(", ");
-
-      const responseData = {
-        id: plain.id,
-        code: plain.orderCode,
-        status: plain.status,
-        shippingProviderId: plain.shippingProviderId,
-        shippingServiceId: plain.shippingServiceId,
-        shippingFee: plain.shippingFee,
-        totalPrice: plain.totalPrice,
-        paymentMethod: plain.paymentMethod?.name || "Không rõ",
-        customer: plain.shippingAddress?.fullName || "N/A",
-        phone: plain.shippingAddress?.phone || "N/A",
-        address: fullAddress || "Không xác định",
-        products: plain.items.map((item) => ({
-          name: item.Sku?.product?.name || "Sản phẩm",
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      };
-
-      return res.status(200).json(responseData);
-    } catch (err) {
-      console.error("[lookupOrder]", err);
-      res.status(500).json({ message: "Lỗi server", error: err.message });
+    if (!code || !phone) {
+      return res
+        .status(400)
+        .json({ message: "Thiếu mã đơn hoặc số điện thoại" });
     }
+
+    const order = await Order.findOne({
+      where: { orderCode: code },
+      include: [
+        {
+          model: UserAddress,
+          as: "shippingAddress",
+          where: { phone },
+          required: true,
+        },
+        {
+          model: OrderItem,
+          as: "items",
+          include: [
+            {
+              model: Sku,
+              include: [{ model: Product, as: "product" }],
+            },
+          ],
+        },
+        {
+          model: PaymentMethod,
+          as: "paymentMethod",
+          attributes: ["id", "name", "code"],
+        },
+      ],
+      attributes: [
+        "id",
+        "orderCode",
+        "status",
+        "totalPrice",
+        "finalPrice",          // ✅ thêm
+        "paymentStatus",       // ✅ thêm
+        "shippingProviderId",
+        "shippingServiceId",
+        "shippingFee",
+   
+       
+        "createdAt",
+        "updatedAt",
+      ],
+    });
+
+    if (!order)
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+    const plain = order.get({ plain: true });
+
+    // fallback nếu finalPrice null → lấy totalPrice
+    if (!plain.finalPrice || plain.finalPrice === 0) {
+      plain.finalPrice = plain.totalPrice || plain.items.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      );
+    }
+
+    // build địa chỉ
+    const ward = plain.shippingAddress?.wardId
+      ? await Ward.findByPk(plain.shippingAddress.wardId)
+      : null;
+    const district = plain.shippingAddress?.districtId
+      ? await District.findByPk(plain.shippingAddress.districtId)
+      : null;
+    const province = plain.shippingAddress?.provinceId
+      ? await Province.findByPk(plain.shippingAddress.provinceId)
+      : null;
+
+    const fullAddress = [
+      plain.shippingAddress?.streetAddress,
+      ward?.name,
+      district?.name,
+      province?.name,
+    ].filter(Boolean).join(", ");
+
+    const responseData = {
+      id: plain.id,
+      code: plain.orderCode,
+      status: plain.status,
+      paymentStatus: plain.paymentStatus,
+      createdAt: plain.createdAt,
+      updatedAt: plain.updatedAt,
+      shippingProviderId: plain.shippingProviderId,
+      shippingServiceId: plain.shippingServiceId,
+      shippingFee: plain.shippingFee,
+      totalPrice: plain.totalPrice,
+      finalPrice: plain.finalPrice, // ✅ frontend hiển thị luôn có
+      paymentMethod: plain.paymentMethod?.name || "Không rõ",
+      paymentMethodCode: plain.paymentMethod?.code || null,
+      customer: plain.shippingAddress?.fullName || "N/A",
+      phone: plain.shippingAddress?.phone || "N/A",
+      address: fullAddress || "Không xác định",
+   
+   
+      products: plain.items.map((item) => ({
+        name: item.Sku?.product?.name || "Sản phẩm",
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    };
+
+    return res.status(200).json(responseData);
+  } catch (err) {
+    console.error("[lookupOrder]", err);
+    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+}
+
 
   static async reorder(req, res) {
     try {

@@ -102,28 +102,37 @@ const validateFlashSale = async (req, res, next) => {
     const skuIds = parsedItems.map((i) => i.skuId);
    const skusInDB = await Sku.findAll({
   where: { id: { [Op.in]: skuIds } },
-  attributes: ["id", "originalPrice", "stock"],
+  attributes: ["id", "originalPrice", "price", "stock"], 
 });
 
-const priceMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.originalPrice)]));
+const oriPriceMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.originalPrice)]));
+const priceMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.price)]));
 const stockMap = Object.fromEntries(skusInDB.map(s => [s.id, Number(s.stock)]));
-
 
    
 
     parsedItems.forEach((item, index) => {
-      const ori = priceMap[item.skuId];
+    const ori = oriPriceMap[item.skuId];
+const selling = priceMap[item.skuId];
 
-      if (item.salePrice == null || item.salePrice === "") {
-        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale là bắt buộc" });
-      } else if (Number(item.salePrice) < 0) {
-        errors.push({ field: `items[${index}].salePrice`, message: "Giá sale không được âm" });
-      } else if (ori !== undefined && Number(item.salePrice) >= ori) {
-        errors.push({
-          field: `items[${index}].salePrice`,
-          message: "Giá sale phải nhỏ hơn giá gốc",
-        });
-      }
+if (item.salePrice == null || item.salePrice === "") {
+  errors.push({ field: `items[${index}].salePrice`, message: "Giá sale là bắt buộc" });
+} else if (Number(item.salePrice) < 0) {
+  errors.push({ field: `items[${index}].salePrice`, message: "Giá sale không được âm" });
+} else {
+  if (ori !== undefined && Number(item.salePrice) >= ori) {
+    errors.push({
+      field: `items[${index}].salePrice`,
+      message: "Giá sale phải nhỏ hơn giá gốc",
+    });
+  }
+  if (selling !== undefined && Number(item.salePrice) >= selling) {
+    errors.push({
+      field: `items[${index}].salePrice`,
+      message: "Giá sale phải nhỏ hơn giá bán hiện tại",
+    });
+  }
+}
 
       const qty = item.quantity === "" || item.quantity == null ? 0 : Number(item.quantity);
       if (!Number.isInteger(qty) || qty < 0) {

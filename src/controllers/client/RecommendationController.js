@@ -339,7 +339,7 @@ class RecommendationController {
     static async _buildGeminiRecommendationPrompt(userId, currentProductId = null) {
         let prompt = "Bạn là một chuyên gia gợi ý sản phẩm cho một trang thương mại điện tử. " +
             "Dựa trên lịch sử hành vi của người dùng và thông tin cá nhân, " +
-            "hãy gợi ý 3 sản phẩm khác nhau mà người dùng có thể quan tâm.";
+            "hãy gợi ý 10 sản phẩm khác nhau mà người dùng có thể quan tâm.";
 
         const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
         const purchasedProducts = await RecommendationController._getUserPurchasedProducts(userId, 5);
@@ -386,7 +386,8 @@ class RecommendationController {
             });
         }
 
-        prompt += "\n\nHãy gợi ý 3 ID sản phẩm khác nhau. Chỉ trả về ID, mỗi ID trên một dòng.";
+        prompt += "\n\nHãy gợi ý 10 ID sản phẩm khác nhau. Chỉ trả về ID, mỗi ID trên một dòng.";
+
         
         console.log("DEBUG: [buildGeminiRecommendationPrompt] Final Gemini Prompt length (chars):", prompt.length);
         return prompt;

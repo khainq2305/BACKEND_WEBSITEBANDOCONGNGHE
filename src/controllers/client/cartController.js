@@ -285,8 +285,6 @@ class CartController {
 
 static async getCart(req, res) {
   try {
-    const { Op, fn, col } = require("sequelize");
-
     if (!req.user || !req.user.id) {
       return res.status(200).json({
         cartItems: [],
@@ -320,14 +318,7 @@ static async getCart(req, res) {
           model: FlashSaleItem,
           as: "flashSaleItems",
           required: false,
-          attributes: [
-            "id",
-            "flashSaleId",
-            "skuId",
-            "salePrice",
-            "quantity",
-            "maxPerUser",
-          ],
+          attributes: ["id", "flashSaleId", "skuId", "salePrice", "quantity", "maxPerUser"],
           include: [
             {
               model: Sku,
@@ -347,34 +338,20 @@ static async getCart(req, res) {
             },
           ],
         },
+        {
+          model: FlashSaleCategory,
+          as: 'categories',
+          required: false,
+          attributes: ['id', 'discountType', 'discountValue', 'priority', 'categoryId'],
+          include: [{ model: FlashSale, as: 'flashSale', attributes: ['endTime'], required: false }]
+        }
       ],
     });
 
-    const skuIds = allActiveFlashSales.flatMap(fs =>
-      (fs.flashSaleItems || []).map(fsi => fsi.skuId)
-    );
-
-    let soldForSku = {};
-    if (skuIds.length > 0) {
-      const soldRows = await OrderItem.findAll({
-        attributes: ["skuId", [fn("SUM", col("quantity")), "sold"]],
-        where: { skuId: skuIds },
-        include: [
-          {
-            model: Order,
-            as: "order",
-            attributes: [],
-            where: { status: { [Op.in]: ["completed", "delivered"] } },
-          },
-        ],
-        group: ["skuId"],
-      });
-      soldForSku = Object.fromEntries(
-        soldRows.map(r => [r.skuId, parseInt(r.get("sold") || 0)])
-      );
-    }
-
     const allActiveFlashSaleItemsMap = new Map();
+    const allActiveCategoryDealsMap = new Map();
+    const skuIds = [];
+
     for (const saleEvent of allActiveFlashSales) {
       const saleEndTime = saleEvent.endTime;
       const saleId = saleEvent.id;
@@ -382,14 +359,12 @@ static async getCart(req, res) {
       for (const fsi of saleEvent.flashSaleItems || []) {
         const skuInFsi = fsi.sku;
         if (!skuInFsi) continue;
-
         const skuIdInFsi = skuInFsi.id;
+        skuIds.push(skuIdInFsi);
         const flashItemSalePrice = parseFloat(fsi.salePrice);
         const flashLimit = fsi.quantity;
-
-        const soldForThisItem = soldForSku[skuIdInFsi] || 0;
-        const isSoldOutForThisItem =
-          flashLimit != null && soldForThisItem >= flashLimit;
+        const soldForThisItem = 0;
+        const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
 
         if (!isSoldOutForThisItem) {
           const existing = allActiveFlashSaleItemsMap.get(skuIdInFsi);
@@ -404,6 +379,21 @@ static async getCart(req, res) {
             });
           }
         }
+      }
+
+      for (const fsc of saleEvent.categories || []) {
+        const categoryId = fsc.categoryId;
+        if (!allActiveCategoryDealsMap.has(categoryId)) {
+          allActiveCategoryDealsMap.set(categoryId, []);
+        }
+        allActiveCategoryDealsMap.get(categoryId).push({
+          discountType: fsc.discountType,
+          discountValue: fsc.discountValue,
+          priority: fsc.priority,
+          endTime: saleEndTime,
+          flashSaleId: saleId,
+          flashSaleCategoryId: fsc.id,
+        });
       }
     }
 
@@ -482,18 +472,30 @@ static async getCart(req, res) {
     const formattedItems = cart.CartItems.map((ci) => {
       const sku = ci.Sku;
       const product = sku?.product;
-      const basePrice = sku?.price || 0;
-      const originalPrice = sku?.originalPrice || 0;
-      const flashSale = allActiveFlashSaleItemsMap.get(sku.id);
-      const finalPrice = flashSale ? flashSale.salePrice : basePrice;
+
+      if (!sku || !product) {
+        return null;
+      }
+      
+      const skuData = {
+        ...sku.toJSON(),
+        product: {
+          category: {
+            id: product.categoryId
+          }
+        }
+      };
+      
+      const processedSku = processSkuPrices(skuData, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
+      const finalPrice = processedSku.price;
       const lineTotal = ci.quantity * finalPrice;
 
       return {
         id: ci.id,
         skuId: sku.id,
-        productName: product?.name || "",
-        productSlug: product?.slug || "",
-        image: sku.ProductMedia?.[0]?.mediaUrl || product?.thumbnail || null,
+        productName: product.name,
+        productSlug: product.slug,
+        image: sku.ProductMedia?.[0]?.mediaUrl || product.thumbnail || null,
         quantity: ci.quantity,
         isSelected: ci.isSelected,
         stock: sku.stock || 0,
@@ -501,12 +503,14 @@ static async getCart(req, res) {
           variant: v.variantValue?.variant?.name,
           value: v.variantValue?.value,
         })),
-        originalPrice,
-        price: basePrice,
+        originalPrice: processedSku.originalPrice,
+        price: processedSku.price,
         finalPrice,
         lineTotal,
+        flashSaleInfo: processedSku.flashSaleInfo,
+        hasDeal: processedSku.hasDeal
       };
-    });
+    }).filter(item => item !== null);
 
     const totalAmount = formattedItems.reduce(
       (sum, item) => sum + (item.isSelected ? item.lineTotal : 0),
@@ -533,7 +537,6 @@ static async getCart(req, res) {
     return res.status(500).json({ message: "Lỗi server" });
   }
 }
-
 
 
   static async updateQuantity(req, res) {

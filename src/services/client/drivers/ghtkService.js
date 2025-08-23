@@ -253,15 +253,15 @@ async function createDropoffOrder(payload) {
         id: payload.client_order_code,
         pick_name: payload.from_name,
         pick_address: payload.from_address,
-        pick_province: payload.from_province_name,  // Lấy tên đúng
-        pick_district: payload.from_district_name,  // Lấy tên đúng
+        pick_province: payload.from_province_name,
+        pick_district: payload.from_district_name,
         pick_tel: payload.from_phone,
 
         name: payload.to_name,
         address: payload.to_address,
-        province: payload.to_province_name,   // Lấy tên đúng
-        district: payload.to_district_name,   // Lấy tên đúng
-        ward: payload.to_ward_name,           // Không được để trống
+        province: payload.to_province_name,
+        district: payload.to_district_name,
+        ward: payload.to_ward_name,
         tel: payload.to_phone,
 
         is_freeship: 1,
@@ -281,10 +281,18 @@ async function createDropoffOrder(payload) {
     );
 
     if (res?.success && res?.order?.label) {
-      return {
-        trackingCode: res.order.label,
-        labelUrl: res.order?.url || null,
-      };
+      const trackingCode = res.order.label;
+      const labelUrl = res.order?.url || null;
+
+      // 🔥 Lưu vào DB (bảng orders) với cột labelUrl
+      if (dbConnection) {
+        await dbConnection.execute(
+          `UPDATE orders SET trackingCode = ?, labelUrl = ? WHERE orderCode = ?`,
+          [trackingCode, labelUrl, payload.client_order_code]
+        );
+      }
+
+      return { trackingCode, labelUrl };
     } else {
       throw new Error(res?.message || "Không tạo được đơn GHTK");
     }
@@ -293,5 +301,6 @@ async function createDropoffOrder(payload) {
     throw err;
   }
 }
+
 
 module.exports = { getDefaultService, getFee, getDropoffServices, createDropoffOrder  };
