@@ -278,11 +278,12 @@ static async getTopSellingProducts(req, res) {
           where: { status: "completed" },
         },
         {
-          model: Sku, // không alias
+          model: Sku,
           attributes: [],
           include: [
             {
-              model: Product, // không alias
+              model: Product,
+              as: "product", // 👈 BẮT BUỘC, vì trong model đã đặt alias là 'product'
               attributes: ["id", "name", "thumbnail", "categoryId", "hasVariants"],
               where: { deletedAt: null, isActive: 1 },
               required: true,
@@ -291,19 +292,17 @@ static async getTopSellingProducts(req, res) {
         },
       ],
       group: [
-        "Sku.id",
-        "Sku.Product.id",
-        "Sku.Product.name",
-        "Sku.Product.thumbnail",
-        "Sku.Product.categoryId",
-        "Sku.Product.hasVariants",
+        "Sku.product.id",
+        "Sku.product.name",
+        "Sku.product.thumbnail",
+        "Sku.product.categoryId",
+        "Sku.product.hasVariants",
       ],
       order: [[literal("sold"), "DESC"]],
     });
 
-    // ⚡ Lấy dữ liệu theo key mặc định Sequelize tạo ra
     const formattedProducts = topProducts.map((item) => {
-      const product = item.Sku?.Product; // 👈 KHÔNG phải item.Sku.product
+      const product = item.Sku?.product; // alias 'product' đã khớp
       return {
         id: product?.id,
         name: product?.name,
