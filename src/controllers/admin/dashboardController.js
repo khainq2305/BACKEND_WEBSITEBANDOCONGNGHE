@@ -285,10 +285,13 @@ static async getAllTopSellingProducts(req, res) {
         {
           model: Sku,
           attributes: [],
+          required: true, // ép phải có Sku
+          where: { deletedAt: null }, // 👈 lọc luôn SKU đã xóa mềm
+          paranoid: false,
           include: [
             {
               model: Product,
-              as: "product", // alias bắt buộc (trong model đã có alias 'product')
+              as: "product", // alias bắt buộc
               attributes: [],
               where: { deletedAt: null, isActive: 1 },
               required: true,
@@ -305,10 +308,10 @@ static async getAllTopSellingProducts(req, res) {
         "Sku.product.hasVariants",
       ],
       order: [[literal("sold"), "DESC"]],
-      raw: true, // ⚡ Trả về dữ liệu phẳng
+      raw: true,
     });
 
-    const formattedProducts = topProducts.map(item => ({
+    const formattedProducts = topProducts.map((item) => ({
       id: item.id,
       name: item.name,
       image: item.image || "/placeholder.svg?height=50&width=50",
@@ -327,6 +330,7 @@ static async getAllTopSellingProducts(req, res) {
     });
   }
 }
+
 
 
 
