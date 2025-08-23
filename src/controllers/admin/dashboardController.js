@@ -261,72 +261,72 @@ static async getTopSellingProducts(req, res) {
         }
     }
 
-    static async getAllTopSellingProducts(req, res) {
-        try {
-            // Đã loại bỏ dateFilter để lấy toàn bộ dữ liệu
-            const topProducts = await OrderItem.findAll({
-                attributes: [
-                    [fn('SUM', col('OrderItem.quantity')), 'sold'],
-                    [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
-                    [col('sku->product.id'), 'id'],
-                    [col('sku->product.name'), 'name'],
-                    [col('sku->product.thumbnail'), 'image'],
-                    [col('sku->product.categoryId'), 'categoryId'],
-                ],
-                include: [
-                    {
-                        model: Order,
-                        as: 'order',
-                        attributes: [],
-                        where: { status: 'completed' },
-                    },
-                    {
-                        model: Sku,
-                        attributes: ['productId'],
-                        include: [
-                            {
-                                model: Product,
-                                as: 'product',
-                                attributes: [],
-                                // CHỈ lấy Product chưa xoá mềm và đang active
-                                where: {
-                                    deletedAt: null,
-                                    isActive: 1,
-                                },
-                                paranoid: false,
-                            }
-                        ]
-                    },
-                ],
-                group: [
-                    'sku.productId',
-                    'sku->product.id',
-                    'sku->product.name',
-                    'sku->product.thumbnail',
-                    'sku->product.categoryId'
-                ],
-                order: [[literal('sold'), 'DESC']],
-                raw: true,
-            });
+   static async getAllTopSellingProducts(req, res) {
+  try {
+    const topProducts = await OrderItem.findAll({
+      attributes: [
+        [fn('SUM', col('OrderItem.quantity')), 'sold'],
+        [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
+      ],
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          attributes: [],
+          where: { status: 'completed' },
+        },
+        {
+          model: Sku,
+          attributes: [], // bỏ select Sku.id để tránh lỗi group by
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'thumbnail', 'categoryId', 'hasVariants'],
+              where: {
+                deletedAt: null,
+                isActive: 1,
+              },
+              required: true, // bắt buộc có product hợp lệ
+            },
+          ],
+        },
+      ],
+      group: [
+        'Sku->product.id',
+        'Sku->product.name',
+        'Sku->product.thumbnail',
+        'Sku->product.categoryId',
+        'Sku->product.hasVariants',
+      ],
+      order: [[literal('sold'), 'DESC']],
+    });
 
-            const formattedProducts = topProducts.map(item => ({
-                id: item.id,
-                name: item.name,
-                image: item.image || '/placeholder.svg?height=50&width=50',
-                sold: parseInt(item.sold),
-                revenue: parseFloat(item.revenue),
-                variant: 'Nhiều biến thể',
-                category: item.categoryId
-            }));
+    const formattedProducts = topProducts.map(item => {
+      const product = item.Sku?.product;
+      return {
+        id: product?.id,
+        name: product?.name,
+        image: product?.thumbnail || '/placeholder.svg?height=50&width=50',
+        sold: parseInt(item.get('sold') || 0, 10),
+        revenue: parseFloat(item.get('revenue') || 0),
+        variant: product?.hasVariants ? 'Nhiều biến thể' : '1 biến thể',
+        category: product?.categoryId,
+      };
+    });
 
-            res.json({
-                data: formattedProducts,
-            });
-        } catch (error) {
-            console.error("GET ALL TOP SELLING PRODUCTS ERROR:", error);
-            res.status(500).json({ message: "Lỗi server khi lấy dữ liệu toàn bộ sản phẩm bán chạy", error: error.message });
-        }
-    }
+    res.json({
+      data: formattedProducts,
+    });
+  } catch (error) {
+    console.error("GET ALL TOP SELLING PRODUCTS ERROR:", error);
+    res.status(500).json({ 
+      message: "Lỗi server khi lấy dữ liệu toàn bộ sản phẩm bán chạy", 
+      error: error.message 
+    });
+  }
+}
+
 
     static async getAllFavoriteProducts(req, res) {
         try {
