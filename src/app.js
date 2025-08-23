@@ -56,5 +56,7 @@ app.use('/', clientRoutes);
     console.error('❌ Lỗi kết nối MySQL:', err);
   }
 })();
-
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 module.exports = app;
