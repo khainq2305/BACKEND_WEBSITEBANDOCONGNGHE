@@ -150,72 +150,71 @@ class DashboardController {
         }
     }
 
-    // 4. Lấy dữ liệu Top 5 sản phẩm bán chạy (TopProductsChart & TopProductsTable)
-    static async getTopSellingProducts(req, res) {
-        try {
-            // Đã loại bỏ dateFilter
-            const topProducts = await OrderItem.findAll({
-                attributes: [
-                    [fn('SUM', col('OrderItem.quantity')), 'sold'],
-                    [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
-                    [col('sku->product.id'), 'id'],
-                    [col('sku->product.name'), 'name'],
-                    [col('sku->product.thumbnail'), 'image'],
-                    [col('sku->product.categoryId'), 'categoryId'],
-                ],
-                include: [
-                    {
-                        model: Order,
-                        as: 'order',
-                        attributes: [],
-                        where: { status: 'completed' },
-                    },
-                    {
-                        model: Sku,
-                        attributes: ['productId'],
-                        include: [
-                            {
-                                model: Product,
-                                as: 'product',
-                                attributes: [],
-                                // CHỈ lấy Product chưa xoá mềm và đang active
-                                where: {
-                                    deletedAt: null,
-                                    isActive: 1,
-                                },
-                                paranoid: false,
-                            }
-                        ]
-                    },
-                ],
-                group: [
-                    'sku.productId',
-                    'sku->product.id',
-                    'sku->product.name',
-                    'sku->product.thumbnail',
-                    'sku->product.categoryId'
-                ],
-                order: [[literal('sold'), 'DESC']],
-                limit: 5,
-                raw: true,
-            });
+static async getTopSellingProducts(req, res) {
+  try {
+    const topProducts = await OrderItem.findAll({
+      attributes: [
+        [fn('SUM', col('OrderItem.quantity')), 'sold'],
+        [fn('SUM', literal('OrderItem.quantity * OrderItem.price')), 'revenue'],
+      ],
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          attributes: [],
+          where: { status: 'completed' },
+        },
+        {
+          model: Sku,
+          attributes: ['productId'],
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'thumbnail', 'categoryId', 'hasVariants'],
+              where: {
+                deletedAt: null,
+                isActive: 1
+              },
+              required: true // ép phải có product hợp lệ
+            }
+          ],
+        },
+      ],
+      group: [
+        'Sku.productId',
+        'Sku->product.id',
+        'Sku->product.name',
+        'Sku->product.thumbnail',
+        'Sku->product.categoryId'
+      ],
+      order: [[literal('sold'), 'DESC']],
+      limit: 5,
+      // không dùng raw: true để Sequelize trả object có cấu trúc nested
+    });
 
-            const formattedProducts = topProducts.map(item => ({
-                id: item.id,
-                name: item.name,
-                image: item.image || '/placeholder.svg?height=50&width=50',
-                sold: parseInt(item.sold),
-                revenue: parseFloat(item.revenue),
-                variant: 'Nhiều biến thể',
-                category: item.categoryId
-            }));
+    const formattedProducts = topProducts.map(item => {
+      // item.Sku?.product có thể tồn tại (vì required: true), dùng get() để lấy alias aggregate
+      const product = item.Sku && item.Sku.product ? item.Sku.product : null;
+      return {
+        id: product ? product.id : null,
+        name: product ? product.name : null,
+        image: product && product.thumbnail ? product.thumbnail : '/placeholder.svg?height=50&width=50',
+        sold: parseInt(item.get('sold') || 0, 10),
+        revenue: parseFloat(item.get('revenue') || 0),
+        variant: product && product.hasVariants ? 'Nhiều biến thể' : '1 biến thể',
+        category: product ? product.categoryId : null,
+      };
+    });
 
-            res.json(formattedProducts);
-        } catch (error) {
-            console.error("GET TOP SELLING PRODUCTS ERROR:", error);
-            res.status(500).json({ message: "Lỗi server khi lấy dữ liệu sản phẩm bán chạy", error: error.message });
-        }
-    }
+    res.json(formattedProducts);
+  } catch (error) {
+    console.error("GET TOP SELLING PRODUCTS ERROR:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy dữ liệu sản phẩm bán chạy", error: error.message });
+  }
+}
+
+
 
     // 5. Lấy dữ liệu Top 5 sản phẩm được yêu thích (FavoriteProductsChart & FavoriteProductsTable)
     static async getFavoriteProducts(req, res) {
