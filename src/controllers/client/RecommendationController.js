@@ -99,64 +99,65 @@ class RecommendationController {
         }
     }
 
-    static async _getUserPurchasedProducts(userId, limit = 5) {
-        if (!User || !Order || !OrderItem || !Sku || !Product || !Category || !Brand || !sequelize) {
-            console.warn("WARN: [_getUserPurchasedProducts] Required models or sequelize instance missing.");
-            return [];
-        }
-        try {
-            const [queryResults] = await sequelize.query(`
-                SELECT
-                    P.id,
-                    P.name,
-                    P.description,
-                    P.categoryId,
-                    P.brandId,
-                    Cat.name AS category_name,
-                    B.name AS brand_name,
-                    MAX(O.createdAt) AS last_purchased_at
-                FROM
-                    Orders O
-                JOIN
-                    OrderItems OI ON O.id = OI.orderId
-                JOIN
-                    Skus S ON OI.skuId = S.id
-                JOIN
-                    Products P ON S.productId = P.id
-                LEFT JOIN
-                    Categories Cat ON P.categoryId = Cat.id
-                LEFT JOIN
-                    Brands B ON P.brandId = B.id
-                WHERE
-                    O.userId = :userId AND O.status IN ('completed', 'delivered') AND P.deletedAt IS NULL AND P.isActive = TRUE
-                GROUP BY P.id, P.name, P.description, P.categoryId, P.brandId, category_name, brand_name
-                ORDER BY
-                    last_purchased_at DESC
-                LIMIT :limit;
-            `, {
-                replacements: { userId: userId, limit: limit },
-                type: sequelize.QueryTypes.SELECT
-            });
-
-            const products = Array.isArray(queryResults) ? queryResults : (queryResults ? [queryResults] : []);
-
-            console.log(`DEBUG: [_getUserPurchasedProducts] User ${userId} purchased: ${products.length} unique products (RAW SQL). Names: ${products.map(p => p.name).join(', ')}`);
-            return products.map(row => ({
-                id: row.id,
-                name: row.name,
-                description: row.description,
-                categoryId: row.categoryId,
-                brandId: row.brandId,
-                category: { name: row.category_name },
-                brand: { name: row.brand_name }
-            }));
-        } catch (error) {
-            console.error(`ERROR: [_getUserPurchasedProducts] Lỗi khi lấy sản phẩm đã mua cho userId ${userId} (SQL thuần):`, error.message);
-            console.error("SQL Error Name:", error.name);
-            console.error("SQL Error Stack:", error.stack);
-            return [];
-        }
+  static async _getUserPurchasedProducts(userId, limit = 5) {
+    if (!User || !Order || !OrderItem || !Sku || !Product || !Category || !Brand || !sequelize) {
+        console.warn("WARN: [_getUserPurchasedProducts] Required models or sequelize instance missing.");
+        return [];
     }
+    try {
+        const queryResults = await sequelize.query(`
+            SELECT
+                P.id,
+                P.name,
+                P.description,
+                P.categoryId,
+                P.brandId,
+                Cat.name AS category_name,
+                B.name AS brand_name,
+                MAX(O.createdAt) AS last_purchased_at
+            FROM
+                orders O
+            JOIN
+                orderitems OI ON O.id = OI.orderId
+            JOIN
+                skus S ON OI.skuId = S.id
+            JOIN
+                products P ON S.productId = P.id
+            LEFT JOIN
+                categories Cat ON P.categoryId = Cat.id
+            LEFT JOIN
+                brands B ON P.brandId = B.id
+            WHERE
+                O.userId = :userId AND O.status IN ('completed', 'delivered') AND P.deletedAt IS NULL AND P.isActive = TRUE
+            GROUP BY P.id, P.name, P.description, P.categoryId, P.brandId, category_name, brand_name
+            ORDER BY
+                last_purchased_at DESC
+            LIMIT :limit;
+        `, {
+            replacements: { userId: userId, limit: limit },
+            type: sequelize.QueryTypes.SELECT
+        });
+
+        const products = Array.isArray(queryResults) ? queryResults : (queryResults ? [queryResults] : []);
+
+        console.log(`DEBUG: [_getUserPurchasedProducts] User ${userId} purchased: ${products.length} unique products (RAW SQL). Names: ${products.map(p => p.name).join(', ')}`);
+        return products.map(row => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            categoryId: row.categoryId,
+            brandId: row.brandId,
+            category: { name: row.category_name },
+            brand: { name: row.brand_name }
+        }));
+    } catch (error) {
+        console.error(`ERROR: [_getUserPurchasedProducts] Lỗi khi lấy sản phẩm đã mua cho userId ${userId} (SQL thuần):`, error.message);
+        console.error("SQL Error Name:", error.name);
+        console.error("SQL Error Stack:", error.stack);
+        return [];
+    }
+}
+
 
     static async _getProductDetailsForGemini(productId) {
         if (!Product || !Category || !Brand) {
@@ -252,89 +253,90 @@ class RecommendationController {
         }
     }
 
-    static async _getRelatedProductsForPrompt(userId, currentProductId) {
-        if (!Product || !Category || !Brand || !ProductView || !Order) {
-            console.warn("WARN: [_getRelatedProductsForPrompt] Required models missing. Skipping related products retrieval.");
-            return [];
-        }
-
-        const relatedIds = new Set();
-        const relatedCategoryIds = new Set();
-        const relatedBrandIds = new Set();
-
-        const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
-        recentlyViewed.forEach(p => {
-            if (p.categoryId) relatedCategoryIds.add(p.categoryId);
-            if (p.brandId) relatedBrandIds.add(p.brandId);
-        });
-
-        const purchasedProducts = await RecommendationController._getUserPurchasedProducts(userId, 5);
-        purchasedProducts.forEach(p => {
-            if (p.categoryId) relatedCategoryIds.add(p.categoryId);
-            if (p.brandId) relatedBrandIds.add(p.brandId);
-        });
-
-        if (currentProductId) {
-            const currentProduct = await Product.findByPk(currentProductId, { attributes: ['categoryId', 'brandId', 'isActive'], where: { isActive: true } });
-            if (currentProduct) {
-                if (currentProduct.categoryId) relatedCategoryIds.add(currentProduct.categoryId);
-                if (currentProduct.brandId) relatedBrandIds.add(currentProduct.brandId);
-            }
-        }
-
-        const excludedIds = new Set([
-            ...recentlyViewed.map(p => p.id),
-            ...purchasedProducts.map(p => p.id),
-        ]);
-        if (currentProductId) excludedIds.add(currentProductId);
-
-        console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Category IDs: ${Array.from(relatedCategoryIds).join(', ')}`);
-        console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Brand IDs: ${Array.from(relatedBrandIds).join(', ')}`);
-        console.log(`DEBUG: [_getRelatedProductsForPrompt] Excluded Product IDs: ${Array.from(excludedIds).join(', ')}`);
-
-        let relatedProducts = [];
-        const limit = 50;
-
-        const whereClause = {
-            id: { [Op.notIn]: Array.from(excludedIds) },
-            isActive: true, 
-            [Op.or]: []
-        };
-        
-        if (relatedCategoryIds.size > 0) {
-            whereClause[Op.or].push({ categoryId: { [Op.in]: Array.from(relatedCategoryIds) } });
-        }
-        if (relatedBrandIds.size > 0) {
-            whereClause[Op.or].push({ brandId: { [Op.in]: Array.from(relatedBrandIds) } });
-        }
-
-        if (relatedCategoryIds.size > 0 || relatedBrandIds.size > 0) {
-            relatedProducts = await Product.findAll({
-                where: whereClause,
-                attributes: ['id', 'name', 'description'],
-                order: [['createdAt', 'DESC']],
-                limit: limit,
-                paranoid: false
-            });
-        }
-
-        if (relatedProducts.length === 0) {
-            console.log("WARN: [_getRelatedProductsForPrompt] No related products found. Falling back to popular products.");
-            relatedProducts = await Product.findAll({
-                attributes: ['id', 'name', 'description'],
-                where: { 
-                    id: { [Op.notIn]: Array.from(excludedIds) },
-                    isActive: true, 
-                },
-                order: [[sequelize.literal('(SELECT COUNT(*) FROM `OrderItems` as `oi` WHERE oi.skuId IN (SELECT id FROM `Skus` WHERE productId = `Product`.id))'), 'DESC']],
-                limit: limit,
-                paranoid: false
-            });
-        }
-        
-        console.log(`DEBUG: [_getRelatedProductsForPrompt] Found ${relatedProducts.length} related products for prompt.`);
-        return relatedProducts;
+   static async _getRelatedProductsForPrompt(userId, currentProductId) {
+    if (!Product || !Category || !Brand || !ProductView || !Order) {
+        console.warn("WARN: [_getRelatedProductsForPrompt] Required models missing. Skipping related products retrieval.");
+        return [];
     }
+
+    const relatedIds = new Set();
+    const relatedCategoryIds = new Set();
+    const relatedBrandIds = new Set();
+
+    const recentlyViewed = await RecommendationController._getUserRecentlyViewedProducts(userId, 5);
+    recentlyViewed.forEach(p => {
+        if (p.categoryId) relatedCategoryIds.add(p.categoryId);
+        if (p.brandId) relatedBrandIds.add(p.brandId);
+    });
+
+    const purchasedProducts = await RecommendationController._getUserPurchasedProducts(userId, 5);
+    purchasedProducts.forEach(p => {
+        if (p.categoryId) relatedCategoryIds.add(p.categoryId);
+        if (p.brandId) relatedBrandIds.add(p.brandId);
+    });
+
+    if (currentProductId) {
+        const currentProduct = await Product.findByPk(currentProductId, { attributes: ['categoryId', 'brandId', 'isActive'], where: { isActive: true } });
+        if (currentProduct) {
+            if (currentProduct.categoryId) relatedCategoryIds.add(currentProduct.categoryId);
+            if (currentProduct.brandId) relatedBrandIds.add(currentProduct.brandId);
+        }
+    }
+
+    const excludedIds = new Set([
+        ...recentlyViewed.map(p => p.id),
+        ...purchasedProducts.map(p => p.id),
+    ]);
+    if (currentProductId) excludedIds.add(currentProductId);
+
+    console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Category IDs: ${Array.from(relatedCategoryIds).join(', ')}`);
+    console.log(`DEBUG: [_getRelatedProductsForPrompt] Related Brand IDs: ${Array.from(relatedBrandIds).join(', ')}`);
+    console.log(`DEBUG: [_getRelatedProductsForPrompt] Excluded Product IDs: ${Array.from(excludedIds).join(', ')}`);
+
+    let relatedProducts = [];
+    const limit = 50;
+
+    const whereClause = {
+        id: { [Op.notIn]: Array.from(excludedIds) },
+        isActive: true, 
+        [Op.or]: []
+    };
+    
+    if (relatedCategoryIds.size > 0) {
+        whereClause[Op.or].push({ categoryId: { [Op.in]: Array.from(relatedCategoryIds) } });
+    }
+    if (relatedBrandIds.size > 0) {
+        whereClause[Op.or].push({ brandId: { [Op.in]: Array.from(relatedBrandIds) } });
+    }
+
+    if (relatedCategoryIds.size > 0 || relatedBrandIds.size > 0) {
+        relatedProducts = await Product.findAll({
+            where: whereClause,
+            attributes: ['id', 'name', 'description'],
+            order: [['createdAt', 'DESC']],
+            limit: limit,
+            paranoid: false
+        });
+    }
+
+    if (relatedProducts.length === 0) {
+        console.log("WARN: [_getRelatedProductsForPrompt] No related products found. Falling back to popular products.");
+        relatedProducts = await Product.findAll({
+            attributes: ['id', 'name', 'description'],
+            where: { 
+                id: { [Op.notIn]: Array.from(excludedIds) },
+                isActive: true, 
+            },
+            order: [[sequelize.literal("(SELECT COUNT(*) FROM `orderitems` AS `oi` WHERE `oi`.`skuId` IN (SELECT `id` FROM `skus` WHERE `productId` = `product`.`id`))"), 'DESC']],
+            limit: limit,
+            paranoid: false
+        });
+    }
+    
+    console.log(`DEBUG: [_getRelatedProductsForPrompt] Found ${relatedProducts.length} related products for prompt.`);
+    return relatedProducts;
+}
+
 
     static async _buildGeminiRecommendationPrompt(userId, currentProductId = null) {
         let prompt = "Bạn là một chuyên gia gợi ý sản phẩm cho một trang thương mại điện tử. " +
@@ -393,97 +395,100 @@ class RecommendationController {
         return prompt;
     }
 
-    static async _getPopularProducts(limit = 10) {
-        try {
-            const popularProducts = await Product.findAll({
-                attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'],
-                where: { isActive: true },
-                order: [
-                    [sequelize.literal('(SELECT COUNT(*) FROM `OrderItems` as `oi` INNER JOIN `Skus` as `s` ON `oi`.`skuId` = `s`.`id` WHERE `s`.`productId` = `Product`.`id`)'), 'DESC']
-                ],
-                limit: limit,
-                include: [
-                    {
-                        model: Sku,
-                        as: 'skus',
-                        attributes: ['id', 'price', 'originalPrice', 'stock'],
-                        required: false,
-                        include: [
-                            { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl', 'type'], separate: true, limit: 1 },
-                            { model: OrderItem, as: 'OrderItems', attributes: ['quantity'], required: false,
-                                include: [{ model: Order, as: 'order', attributes: [], where: { status: { [Op.in]: ['delivered', 'completed'] } }, required: true }]
-                            },
-                            { model: Review, as: 'reviews', attributes: ['rating'], required: false },
-                        ]
-                    }
-                ],
-                paranoid: false
-            });
-            console.log(`DEBUG: [_getPopularProducts] Found ${popularProducts.length} popular products.`);
-            return popularProducts;
-        } catch (error) {
-            console.error('ERROR: [_getPopularProducts] Lỗi khi lấy sản phẩm phổ biến:', error.message);
-            console.error("ERROR Name:", error.name);
-            console.error("ERROR Stack:", error.stack);
-            return [];
-        }
+   static async _getPopularProducts(limit = 10) {
+    try {
+        const popularProducts = await Product.findAll({
+            attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'],
+            where: { isActive: true },
+            order: [
+                [sequelize.literal("(SELECT COUNT(*) FROM `orderitems` as `oi` INNER JOIN `skus` as `s` ON `oi`.`skuId` = `s`.`id` WHERE `s`.`productId` = `product`.`id`)"), 'DESC']
+            ],
+            limit: limit,
+            include: [
+                {
+                    model: Sku,
+                    as: 'skus',
+                    attributes: ['id', 'price', 'originalPrice', 'stock'],
+                    required: false,
+                    include: [
+                        { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl', 'type'], separate: true, limit: 1 },
+                        { model: OrderItem, as: 'OrderItems', attributes: ['quantity'], required: false,
+                            include: [{ model: Order, as: 'order', attributes: [], where: { status: { [Op.in]: ['delivered', 'completed'] } }, required: true }]
+                        },
+                        { model: Review, as: 'reviews', attributes: ['rating'], required: false },
+                    ]
+                }
+            ],
+            paranoid: false
+        });
+        console.log(`DEBUG: [_getPopularProducts] Found ${popularProducts.length} popular products.`);
+        return popularProducts;
+    } catch (error) {
+        console.error('ERROR: [_getPopularProducts] Lỗi khi lấy sản phẩm phổ biến:', error.message);
+        console.error("ERROR Name:", error.name);
+        console.error("ERROR Stack:", error.stack);
+        return [];
     }
+}
+
 
     static async _getGeminiRecommendations(userId, currentProductId = null) {
-        if (!genAI) {
-            console.error('ERROR: [getGeminiRecommendations] GEMINI_API_KEY không được cấu hình. Không thể tạo gợi ý AI. Trả về sản phẩm phổ biến.');
-            const fallbackProducts = await this._getPopularProducts(3);
-            if (fallbackProducts.length > 0) {
-                const finalRecommendations = await this._mapProductsToFrontendFormat(fallbackProducts);
-                return finalRecommendations;
-            }
-            return [];
+    if (!genAI) {
+        const fallbackProducts = await this._getPopularProducts(3);
+        if (fallbackProducts.length > 0) {
+            return await this._mapProductsToFrontendFormat(fallbackProducts);
         }
+        return [];
+    }
 
-        const cacheKey = `gemini_recs_${userId}_${currentProductId || 'null'}`;
-        const cachedRecommendations = recommendationCache.get(cacheKey);
+    const cacheKey = `gemini_recs_${userId}_${currentProductId || 'null'}`;
+    const cachedRecommendations = recommendationCache.get(cacheKey);
+    if (cachedRecommendations) {
+        console.log(`DEBUG: [getGeminiRecommendations] Returning recommendations from cache for userId: ${userId}`);
+        return cachedRecommendations;
+    }
 
-        if (cachedRecommendations) {
-            console.log(`DEBUG: [getGeminiRecommendations] Returning recommendations from cache for userId: ${userId}`);
-            return cachedRecommendations;
+    let recommendedProductIds = [];
+    try {
+        const promptText = await RecommendationController._buildGeminiRecommendationPrompt(userId, currentProductId);
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        const result = await model.generateContent(promptText);
+        const response = await result.response;
+        const text = (typeof response.text === 'function') ? response.text() : String(response);
+        console.log("DEBUG: [getGeminiRecommendations] Raw Gemini Response Text:\n", text);
+
+        // Robust parsing: extract first positive integer per non-empty line
+        recommendedProductIds = text
+            .split(/\r?\n/)
+            .map(line => {
+                const m = line.match(/\d+/);
+                return m ? parseInt(m[0], 10) : NaN;
+            })
+            .filter(id => !Number.isNaN(id) && id > 0);
+
+        // remove duplicates while preserving order
+        recommendedProductIds = Array.from(new Set(recommendedProductIds));
+        console.log("DEBUG: [getGeminiRecommendations] Recommended IDs from Gemini:", recommendedProductIds);
+    } catch (error) {
+        console.error("ERROR: [getGeminiRecommendations] Lỗi khi gọi Gemini API để tạo gợi ý:", error.response?.data || error.message);
+        console.error("ERROR Name:", error.name);
+        console.error("ERROR Stack:", error.stack);
+        const fallbackProducts = await this._getPopularProducts(3);
+        if (fallbackProducts.length > 0) {
+            return await this._mapProductsToFrontendFormat(fallbackProducts);
         }
+        return [];
+    }
 
-        let recommendedProductIds = [];
+    let finalRecommendations = [];
+    if (recommendedProductIds.length > 0) {
         try {
-            const promptText = await RecommendationController._buildGeminiRecommendationPrompt(userId, currentProductId);
-            const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-            const result = await model.generateContent(promptText);
-            const response = await result.response;
-            const text = response.text();
-            console.log("DEBUG: [getGeminiRecommendations] Raw Gemini Response Text:\n", text);
-
-            recommendedProductIds = text.split('\n')
-                                        .map(line => parseInt(line.trim()))
-                                        .filter(id => !isNaN(id) && id > 0);
-            console.log("DEBUG: [getGeminiRecommendations] Recommended IDs from Gemini:", recommendedProductIds);
-        } catch (error) {
-            console.error("ERROR: [getGeminiRecommendations] Lỗi khi gọi Gemini API để tạo gợi ý:", error.response?.data || error.message);
-            console.error("ERROR Name:", error.name);
-            console.error("ERROR Stack:", error.stack);
-            const fallbackProducts = await this._getPopularProducts(3);
-            if (fallbackProducts.length > 0) {
-                return await this._mapProductsToFrontendFormat(fallbackProducts);
-            }
-            return [];
-        }
-
-        let finalRecommendations = [];
-        if (recommendedProductIds.length > 0) {
             const recommendedProductsFromDb = await Product.findAll({
                 where: {
-                    id: {
-                        [Op.in]: recommendedProductIds
-                    },
+                    id: { [Op.in]: recommendedProductIds },
                     isActive: true
                 },
-                attributes: [
-                    'id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'
-                ],
+                attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'],
                 include: [
                     {
                         model: Sku,
@@ -492,58 +497,77 @@ class RecommendationController {
                         required: false,
                         include: [
                             { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl', 'type'], separate: true, limit: 1 },
-                            { model: OrderItem, as: 'OrderItems', attributes: ['quantity'], required: false,
+                            {
+                                model: OrderItem,
+                                as: 'OrderItems',
+                                attributes: ['quantity'],
+                                required: false,
                                 include: [{ model: Order, as: 'order', attributes: [], where: { status: { [Op.in]: ['delivered', 'completed'] } }, required: true }]
                             },
-                            { model: Review, as: 'reviews', attributes: ['rating'], required: false },
+                            { model: Review, as: 'reviews', attributes: ['rating'], required: false }
                         ],
                         paranoid: false
-                    },
+                    }
                 ],
                 paranoid: false
             });
 
             const mappedProducts = new Map(recommendedProductsFromDb.map(p => [p.id, p]));
-
             for (const id of recommendedProductIds) {
                 const product = mappedProducts.get(id);
                 if (product) {
                     finalRecommendations.push(product.toJSON());
-                    console.log(`DEBUG: [getGeminiRecommendations] Successfully mapped Gemini suggestion ID ${id} to product "${product.name}".`);
+                    console.log(`DEBUG: [getGeminiRecommendations] Mapped Gemini ID ${id} -> "${product.name}"`);
                 } else {
-                    console.warn(`WARN: [getGeminiRecommendations] Gemini gợi ý sản phẩm ID ${id} nhưng không tìm thấy trong DB.`);
+                    console.warn(`WARN: [getGeminiRecommendations] Gemini suggested ID ${id} but not found in DB.`);
                 }
             }
-        } else {
-            console.warn("WARN: [getGeminiRecommendations] Gemini không gợi ý được ID sản phẩm hợp lệ.");
+        } catch (dbErr) {
+            console.error("ERROR: [getGeminiRecommendations] Lỗi khi truy vấn DB cho product IDs:", dbErr.message);
+            console.error("ERROR Stack:", dbErr.stack);
+            finalRecommendations = await this._getPopularProducts(3);
         }
+    }
 
-        if (finalRecommendations.length === 0) {
-            console.log("WARN: [getGeminiRecommendations] Gemini response did not yield any valid products. Falling back to popular products.");
-            const fallbackProducts = await this._getPopularProducts(3);
-            if (fallbackProducts.length > 0) {
-                finalRecommendations = fallbackProducts;
-            }
-        }
+    if (finalRecommendations.length === 0) {
+        const fallbackProducts = await this._getPopularProducts(3);
+        if (fallbackProducts.length > 0) finalRecommendations = fallbackProducts;
+    }
 
-        const formattedRecommendations = await this._mapProductsToFrontendFormat(finalRecommendations);
+    let formattedRecommendations = [];
+    try {
+        formattedRecommendations = await this._mapProductsToFrontendFormat(finalRecommendations);
+    } catch (fmtErr) {
+        console.error("ERROR: [getGeminiRecommendations] Lỗi khi format sản phẩm:", fmtErr.message);
+        formattedRecommendations = finalRecommendations.map(p => (typeof p.toJSON === 'function' ? p.toJSON() : p));
+    }
 
-        const excludeProductIds = new Set();
-        if (currentProductId) excludeProductIds.add(currentProductId);
+    const excludeProductIds = new Set();
+    if (currentProductId) excludeProductIds.add(currentProductId);
+    try {
         const recentlyViewedForExclusion = await RecommendationController._getUserRecentlyViewedProducts(userId, 10);
         recentlyViewedForExclusion.forEach(p => excludeProductIds.add(p.id));
+    } catch (e) {
+        console.warn("WARN: [getGeminiRecommendations] Could not fetch recently viewed for exclusion:", e.message);
+    }
+    try {
         const purchasedProductsForExclusion = await RecommendationController._getUserPurchasedProducts(userId, 10);
         purchasedProductsForExclusion.forEach(p => excludeProductIds.add(p.id));
-        console.log("DEBUG: [getGeminiRecommendations] Products to exclude (IDs):", Array.from(excludeProductIds).join(', '));
-        
-        const filteredRecommendations = formattedRecommendations.filter(p => !excludeProductIds.has(p.id));
-        console.log("DEBUG: [getGeminiRecommendations] Final recommendations AFTER filtering:", filteredRecommendations.map(p => p.name));
-
-        recommendationCache.set(cacheKey, filteredRecommendations);
-        console.log(`DEBUG: [getGeminiRecommendations] Stored recommendations in cache for userId: ${userId}`);
-
-        return filteredRecommendations;
+    } catch (e) {
+        console.warn("WARN: [getGeminiRecommendations] Could not fetch purchased products for exclusion:", e.message);
     }
+
+    console.log("DEBUG: [getGeminiRecommendations] Products to exclude (IDs):", Array.from(excludeProductIds).join(', '));
+
+    const filteredRecommendations = formattedRecommendations.filter(p => !excludeProductIds.has(p.id));
+    console.log("DEBUG: [getGeminiRecommendations] Final recommendations AFTER filtering:", filteredRecommendations.map(p => p.name));
+
+    recommendationCache.set(cacheKey, filteredRecommendations);
+    console.log(`DEBUG: [getGeminiRecommendations] Stored recommendations in cache for userId: ${userId}`);
+
+    return filteredRecommendations;
+}
+
     
     static async _mapProductsToFrontendFormat(products) {
         const now = new Date();
