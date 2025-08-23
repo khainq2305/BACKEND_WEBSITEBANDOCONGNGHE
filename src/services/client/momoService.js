@@ -169,5 +169,54 @@ async function refund({ orderCode, amount, momoTransId, description = "" }) {
     throw error;
   }
 }
+async function queryTransaction({ orderId, requestId }) {
+  logEnvOnce();
 
-module.exports = { createPaymentLink, refund };
+  if (!partnerCode || !accessKey || !secretKey) {
+    throw new Error("Thiếu biến môi trường MoMo");
+  }
+
+  // MoMo yêu cầu sign theo format này
+  const rawSignature = [
+    `accessKey=${accessKey}`,
+    `orderId=${orderId}`,
+    `partnerCode=${partnerCode}`,
+    `requestId=${requestId}`,
+  ].join("&");
+
+  const signature = crypto
+    .createHmac("sha256", secretKey)
+    .update(rawSignature)
+    .digest("hex");
+
+  const payload = {
+    partnerCode,
+    accessKey,
+    requestId,
+    orderId,
+    signature,
+    lang: "vi",
+  };
+
+  console.log("[MoMo QUERY] Payload:", {
+    ...payload,
+    accessKey: mask(accessKey),
+    signature: mask(signature, 8),
+  });
+  console.log("[MoMo QUERY] rawSignature:", rawSignature);
+
+  try {
+    const { data } = await axios.post(
+      "https://test-payment.momo.vn/v2/gateway/api/query",
+      payload,
+      { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+    );
+    console.log("[MoMo QUERY] Response:", data);
+    return data;
+  } catch (err) {
+    console.error("[MoMo QUERY] Error:", err.response?.data || err.message);
+    throw err;
+  }
+}
+
+module.exports = { createPaymentLink, refund, queryTransaction };
