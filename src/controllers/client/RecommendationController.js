@@ -395,41 +395,103 @@ class RecommendationController {
         return prompt;
     }
 
-   static async _getPopularProducts(limit = 10) {
-    try {
-        const popularProducts = await Product.findAll({
-            attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'],
-            where: { isActive: true },
-            order: [
-                [sequelize.literal("(SELECT COUNT(*) FROM `orderitems` as `oi` INNER JOIN `skus` as `s` ON `oi`.`skuId` = `s`.`id` WHERE `s`.`productId` = `product`.`id`)"), 'DESC']
-            ],
-            limit: limit,
-            include: [
+  static async _getPopularProducts(limit = 10) {
+  try {
+    // 1) Lấy product ids kèm soldCount (theo đơn đã delivered/completed)
+    const topRows = await Product.findAll({
+      attributes: [
+        'id',
+        // tính tổng quantity của OrderItems qua relation skus -> OrderItems
+        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('skus.OrderItems.quantity')), 0), 'soldCount']
+      ],
+      where: { isActive: true },
+      include: [
+        {
+          model: Sku,
+          as: 'skus',
+          attributes: [], // chỉ dùng để join cho SUM
+          required: false,
+          include: [
+            {
+              model: OrderItem,
+              as: 'OrderItems',
+              attributes: [],
+              required: false,
+              include: [
                 {
-                    model: Sku,
-                    as: 'skus',
-                    attributes: ['id', 'price', 'originalPrice', 'stock'],
-                    required: false,
-                    include: [
-                        { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl', 'type'], separate: true, limit: 1 },
-                        { model: OrderItem, as: 'OrderItems', attributes: ['quantity'], required: false,
-                            include: [{ model: Order, as: 'order', attributes: [], where: { status: { [Op.in]: ['delivered', 'completed'] } }, required: true }]
-                        },
-                        { model: Review, as: 'reviews', attributes: ['rating'], required: false },
-                    ]
+                  model: Order,
+                  as: 'order',
+                  attributes: [],
+                  where: { status: { [Op.in]: ['delivered', 'completed'] } },
+                  required: true
                 }
-            ],
-            paranoid: false
-        });
-        console.log(`DEBUG: [_getPopularProducts] Found ${popularProducts.length} popular products.`);
-        return popularProducts;
-    } catch (error) {
-        console.error('ERROR: [_getPopularProducts] Lỗi khi lấy sản phẩm phổ biến:', error.message);
-        console.error("ERROR Name:", error.name);
-        console.error("ERROR Stack:", error.stack);
-        return [];
+              ]
+            }
+          ]
+        }
+      ],
+      group: ['Product.id'],
+      order: [[sequelize.literal('soldCount'), 'DESC']],
+      limit,
+      subQuery: false,
+      raw: true
+    });
+
+    const ids = (topRows || []).map(r => Number(r.id)).filter(Boolean);
+    if (!ids || ids.length === 0) {
+      console.log('DEBUG: [_getPopularProducts] Không tìm thấy product nào phổ biến.');
+      return [];
     }
+
+    // 2) Lấy full product details theo danh sách ids (giữ include giống cấu trúc ban đầu)
+    const products = await Product.findAll({
+      where: { id: ids },
+      attributes: ['id', 'name', 'slug', 'thumbnail', 'badge', 'badgeImage', 'categoryId'],
+      include: [
+        {
+          model: Sku,
+          as: 'skus',
+          attributes: ['id', 'price', 'originalPrice', 'stock'],
+          required: false,
+          include: [
+            { model: ProductMedia, as: 'ProductMedia', attributes: ['mediaUrl', 'type'], separate: true, limit: 1 },
+            {
+              model: OrderItem,
+              as: 'OrderItems',
+              attributes: ['quantity'],
+              required: false,
+              include: [
+                {
+                  model: Order,
+                  as: 'order',
+                  attributes: [],
+                  where: { status: { [Op.in]: ['delivered', 'completed'] } },
+                  required: true
+                }
+              ]
+            },
+            { model: Review, as: 'reviews', attributes: ['rating'], required: false }
+          ]
+        },
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: Brand, as: 'brand', attributes: ['name'] }
+      ],
+      // giữ thứ tự theo ids (FIELD), asc vì ids đã theo thứ tự soldCount desc
+      order: [[sequelize.literal(`FIELD(\`Product\`.\`id\`, ${ids.join(',')})`), 'ASC']],
+      limit: ids.length,
+      paranoid: false
+    });
+
+    console.log(`DEBUG: [_getPopularProducts] Found ${products.length} popular products (ids: ${ids.join(',')}).`);
+    return products;
+  } catch (error) {
+    console.error('ERROR: [_getPopularProducts] Lỗi khi lấy sản phẩm phổ biến:', error.message);
+    console.error('ERROR Name:', error.name);
+    console.error('ERROR Stack:', error.stack);
+    return [];
+  }
 }
+
 
 
     static async _getGeminiRecommendations(userId, currentProductId = null) {
