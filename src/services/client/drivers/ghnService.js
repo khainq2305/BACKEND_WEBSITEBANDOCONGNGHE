@@ -349,6 +349,19 @@ async function getDefaultService({ toProvince, toDistrict }) {
 // drivers/ghnService.js
 
 // services/client/drivers/ghnService.js
+function buildContentFromItems(items, fallback = "Đơn hàng từ Cyberzone") {
+  if (!Array.isArray(items) || !items.length) return fallback;
+
+  return items.map(it => {
+    const name = it.sku?.product?.name   // đi qua sku → product
+              || it.sku?.name            // nếu sku có name
+              || it.productName          // fallback nếu đã copy tên vào OrderItem
+              || "Sản phẩm";
+    const qty = it.quantity || 1;
+    return `${name} x${qty}`;
+  }).join(", ");
+}
+
 
 async function bookPickup(payload) {
   // 1. Mapping mã GHN từ DB
@@ -428,9 +441,7 @@ height: Math.max(1, payload.height),        // cm
 
     cod_amount: 0,
     client_order_code: payload.client_order_code,
-    content: payload.items
-  ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
-  : (payload.content || "Đơn hàng từ Cyberzone"),
+  content: buildContentFromItems(payload.items, payload.content),
 
   };
 
@@ -930,10 +941,12 @@ module.exports = {
   getGhnCodesFromLocalDb,
   bookPickup,
   createDeliveryOrder,
+  buildFullAddress,
   getLeadTime,   
   getStations,
    getLabel,   // 👈 thêm dòng này
    getTrackingByClientCode,  // 👈 thêm
   getTrackingByOrderCode,    // 👈 thêm
    getDropoffServices,
+    buildContentFromItems, // 👈 thêm export ở đây
 };

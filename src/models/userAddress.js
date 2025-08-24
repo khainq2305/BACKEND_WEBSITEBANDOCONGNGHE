@@ -13,6 +13,15 @@ const UserAddress = sequelize.define(
       allowNull: false,
       field: "streetAddress",
     },
+    latitude: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+    },
+    longitude: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+    },
+
     wardId: {
       type: DataTypes.INTEGER,
       allowNull: false,

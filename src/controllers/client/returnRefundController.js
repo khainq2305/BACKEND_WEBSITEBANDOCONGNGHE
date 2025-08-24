@@ -25,8 +25,9 @@ const ghtkService = require('../../services/client/drivers/ghtkService'); // �
 const sendEmail = require("../../utils/sendEmail"); // Điều chỉnh đường dẫn utils cho đúng
 const refundGateway = require("../../utils/refundGateway"); // Điều chỉnh đường dẫn utils cho đúng
 const ShippingService = require("../../services/client/shippingService"); // Điều chỉnh đường dẫn services cho đúng
-
+const {buildFullAddress} =  require ("../../services/client/drivers/ghnService")
 const { Op } = require("sequelize");
+const { buildContentFromItems } = require("../../services/client/drivers/ghnService");
 
 class ReturnRefundController {
  
@@ -285,7 +286,7 @@ static async getReturnRequestDetail(req, res) {
 
     // Thông tin vận chuyển/hoàn trả
     const shipmentInfo = {
-      provider: returnRequest.returnProviderCode || null,
+       provider: returnRequest.returnProviderCode || "ghn", // 👈 fallback luôn "ghn"
         returnMethod: returnRequest.returnMethod || null, // 👈 thêm dòng này
       serviceName: returnRequest.returnServiceName || null,
       trackingCode: returnRequest.trackingCode || null,
@@ -294,11 +295,21 @@ static async getReturnRequestDetail(req, res) {
       expectedDeliveryAt: returnRequest.expectedDeliveryAt || null,
       returnFee,
     };
+let trackingInfo = null;
+try {
+  if (shipmentInfo.provider?.toLowerCase() === "ghn" && shipmentInfo.trackingCode) {
+    trackingInfo = await ghnService.getTrackingByOrderCode(shipmentInfo.trackingCode);
+  }
+} catch (trackingErr) {
+  console.warn("Không lấy được tracking GHN:", trackingErr.message);
+}
+
 
     const response = {
       ...returnRequest.toJSON(),
       refundAmount,       // lấy trực tiếp từ DB
       refundDestination,
+       tracking: trackingInfo,   // 👈 thay vì chỉ logs
       shipmentInfo,
     };
 
@@ -408,14 +419,19 @@ static async bookReturnPickup(req, res) {
           as: "order",
           where: { userId },
           include: [
-            {
-              model: OrderItem,
-              as: "items",
-              include: {
-                model: Sku,
-                attributes: ["weight", "length", "width", "height"],
-              },
-            },
+           {
+  model: OrderItem,
+  as: "items",
+  include: [
+    {
+      model: Sku,
+      attributes: ["weight", "length", "width", "height"],
+      include: [{ model: Product, as: "product", attributes: ["name"] }]
+    }
+  ]
+}
+,
+            
             {
               model: UserAddress,
               as: "shippingAddress",
@@ -524,10 +540,7 @@ static async bookReturnPickup(req, res) {
       width: totalWidth,
       height: totalHeight,
       client_order_code: `RTN-${id}-${Date.now()}`,
- content: order.items && order.items.length
-  ? order.items.map(it => `${it.sku?.name || "SP"} x${it.quantity}`).join(", ")
-  : "Trả hàng từ khách",
-
+content: buildContentFromItems(order.items, "Trả hàng từ khách"),
       situation: returnReq.whoPays || "customer_pays",
     };
 

@@ -13,6 +13,8 @@ class UserAddressController {
       wardId,
       isDefault,
       label,
+        latitude,    // thêm
+  longitude,   // thêm
     } = req.body;
     const userId = req.user.id;
 
@@ -35,6 +37,8 @@ class UserAddressController {
       streetAddress,
       provinceId,
       districtId,
+      latitude,   // thêm
+  longitude,  // thêm
       wardId,
       isDefault: isDefault || autoSetDefault, 
       label,
