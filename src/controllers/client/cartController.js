@@ -542,9 +542,8 @@ const result = await UserPoint.findOne({
 
 const userPoints = result?.totalPoints || 0;
 
-
-const exchangeRate = 10;       
-const minPointRequired = 20;   
+const exchangeRate = 4000;       
+const minPointRequired = 1;      
 const maxUsablePoints = Math.min(userPoints, Math.floor(totalAmount / exchangeRate));
 const pointDiscountAmount = maxUsablePoints * exchangeRate;
 
