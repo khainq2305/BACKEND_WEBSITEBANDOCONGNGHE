@@ -270,29 +270,27 @@ class OrderController {
   }
 
 
-  static async updateStatus(req, res) {
-    // Lặp lại tối đa 3 lần nếu gặp lỗi lock
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const t = await sequelize.transaction();
-      try {
-        const { id } = req.params;
-        const { status, cancelReason } = req.body;
-        console.log(`[updateStatus] Attempt ${attempt}: BODY LÀ:`, req.body);
-        console.log(`[updateStatus] Attempt ${attempt}: Đơn hàng ID:`, id);
+static async updateStatus(req, res) {
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const t = await sequelize.transaction();
+    try {
+      const { id } = req.params;
+      const { status, cancelReason } = req.body;
 
-        if (!status) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Thiếu trạng thái cần cập nhật' });
-        }
+      if (!status) {
+        await t.rollback();
+        return res.status(400).json({ message: 'Thiếu trạng thái cần cập nhật' });
+      }
 
-        const order = await Order.findOne({
-          where: { id },
-          include: [
-            {
-              model: OrderItem,
-              as: 'items',
-              include: [{
+      const order = await Order.findOne({
+        where: { id },
+        include: [
+          {
+            model: OrderItem,
+            as: 'items',
+            include: [
+              {
                 model: Sku,
                 required: true,
                 include: {
@@ -300,155 +298,145 @@ class OrderController {
                   as: 'flashSaleSkus',
                   required: false
                 }
-              }]
-            },
-            {
-              model: PaymentMethod,
-              as: 'paymentMethod',
-              attributes: ['code']
-            },
-            {
-              model: User,
-              attributes: ['id']
+              }
+            ]
+          },
+          { model: PaymentMethod, as: 'paymentMethod', attributes: ['code'] },
+          { model: User, attributes: ['id', 'email', 'fullName'] }
+        ],
+        transaction: t,
+        lock: t.LOCK.UPDATE
+      });
+
+      if (!order) {
+        await t.rollback();
+        return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+      }
+
+      if (order.status === status) {
+        await t.rollback();
+        return res.status(400).json({ message: 'Đơn hàng đã ở trạng thái này' });
+      }
+
+      if (['completed', 'cancelled'].includes(order.status)) {
+        await t.rollback();
+        return res.status(400).json({ message: 'Đơn hàng đã kết thúc, không thể cập nhật' });
+      }
+
+      if (status === 'cancelled') {
+        if (!cancelReason?.trim()) {
+          await t.rollback();
+          return res.status(400).json({ message: 'Lý do huỷ đơn không được bỏ trống' });
+        }
+        if (order.status === 'shipping') {
+          await t.rollback();
+          return res.status(400).json({ message: 'Không thể huỷ đơn khi đã vận chuyển' });
+        }
+
+        const paid = order.paymentStatus === 'paid';
+        const payCode = order.paymentMethod?.code?.toLowerCase();
+
+        if (paid && ['momo', 'vnpay', 'zalopay', 'stripe'].includes(payCode)) {
+          const payload = { orderCode: order.orderCode, amount: order.finalPrice };
+          if (payCode === 'momo') {
+            if (!order.momoTransId) {
+              await t.rollback();
+              return res.status(400).json({ message: 'Thiếu thông tin giao dịch MoMo' });
             }
-          ],
+            payload.momoTransId = order.momoTransId;
+          } else if (payCode === 'vnpay') {
+            if (!order.vnpTransactionId || !order.paymentTime) {
+              await t.rollback();
+              return res.status(400).json({ message: 'Thiếu thông tin giao dịch VNPay' });
+            }
+            payload.vnpTransactionId = order.vnpTransactionId;
+            payload.originalAmount = order.finalPrice;
+            payload.transDate = order.paymentTime;
+          } else if (payCode === 'stripe') {
+            if (!order.stripePaymentIntentId) {
+              await t.rollback();
+              return res.status(400).json({ message: 'Thiếu stripePaymentIntentId' });
+            }
+            payload.stripePaymentIntentId = order.stripePaymentIntentId;
+          } else if (payCode === 'zalopay') {
+            if (!order.zaloTransId || !order.zaloAppTransId) {
+              await t.rollback();
+              return res.status(400).json({ message: 'Thiếu thông tin giao dịch ZaloPay' });
+            }
+            payload.zp_trans_id = order.zaloTransId;
+            payload.app_trans_id = order.zaloAppTransId;
+            payload.amount = Math.round(Number(order.finalPrice));
+          }
+          const { ok, transId } = await refundGateway(payCode, payload);
+          if (!ok) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Hoàn tiền thất bại' });
+          }
+          order.paymentStatus = 'refunded';
+          order.gatewayTransId = transId || null;
+        } else if (
+          (payCode === 'payos' && paid) ||
+          payCode === 'cod' ||
+          (payCode === 'internalwallet' && paid) ||
+          (payCode === 'atm' && paid)
+        ) {
+          const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
+          if (!wallet) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Không tìm thấy ví người dùng' });
+          }
+          wallet.balance = (Number(wallet.balance || 0) + Number(order.finalPrice || 0)).toFixed(2);
+          await wallet.save({ transaction: t });
+          await WalletTransaction.create(
+            {
+              userId: order.userId,
+              walletId: wallet.id,
+              orderId: order.id,
+              type: 'refund',
+              amount: order.finalPrice,
+              description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode} (${payCode.toUpperCase()})`,
+            },
+            { transaction: t }
+          );
+          order.paymentStatus = 'refunded';
+          order.gatewayTransId = null;
+        } else {
+          order.paymentStatus = 'unpaid';
+        }
+
+        for (const it of order.items) {
+          await Sku.increment('stock', { by: it.quantity, where: { id: it.skuId }, transaction: t });
+          const fsItem = it.Sku.flashSaleSkus?.[0];
+          if (fsItem) {
+            await FlashSaleItem.increment('quantity', { by: it.quantity, where: { id: fsItem.id }, transaction: t });
+            await FlashSaleItem.decrement('soldCount', { by: it.quantity, where: { id: fsItem.id }, transaction: t });
+          }
+        }
+
+        await UserPoint.destroy({
+          where: { orderId: order.id, userId: order.userId, type: 'earn' },
           transaction: t,
-          lock: t.LOCK.UPDATE
         });
 
-
-        if (!order) {
-          await t.rollback();
-          return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-        }
-
-        if (order.status === status) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Đơn hàng đã ở trạng thái này' });
-        }
-
-        if (['completed', 'cancelled'].includes(order.status)) {
-          await t.rollback();
-          return res.status(400).json({ message: 'Đơn hàng đã kết thúc, không thể cập nhật' });
-        }
-
-        // === ✅ TRƯỜNG HỢP HỦY ĐƠN ===
-        if (status === 'cancelled') {
-          if (!cancelReason?.trim()) {
-            await t.rollback();
-            return res.status(400).json({ message: 'Lý do huỷ đơn không được bỏ trống' });
-          }
-          if (order.status === 'shipping') {
-            await t.rollback();
-            return res.status(400).json({ message: 'Không thể huỷ đơn khi đã vận chuyển' });
-          }
-          const paid = order.paymentStatus === 'paid';
-          const payCode = order.paymentMethod?.code?.toLowerCase();
-
-          // Hoàn tiền nếu cần
-          if (paid && ['momo', 'vnpay', 'zalopay', 'stripe', 'payos'].includes(payCode)) {
-
-            const payload = {
-              orderCode: order.orderCode,
-              amount: Math.round(Number(order.finalPrice))
-            };
-
-            if (payCode === 'momo') {
-              if (!order.momoTransId) {
-                await t.rollback();
-                return res.status(400).json({ message: 'Thiếu thông tin giao dịch MoMo' });
-              }
-              payload.momoTransId = order.momoTransId;
-            }
-
-            if (payCode === 'vnpay') {
-              if (!order.vnpTransactionId || !order.paymentTime) {
-                await t.rollback();
-                return res.status(400).json({ message: 'Thiếu thông tin giao dịch VNPay' });
-              }
-              payload.vnpTransactionId = order.vnpTransactionId;
-              payload.transDate = order.paymentTime;
-            }
-
-            if (payCode === 'zalopay') {
-              if (!order.zaloTransId || !order.zaloAppTransId) {
-                await t.rollback();
-                return res.status(400).json({ message: 'Thiếu thông tin giao dịch ZaloPay' });
-              }
-              payload.zp_trans_id = order.zaloTransId;
-              payload.app_trans_id = order.zaloAppTransId;
-            }
-
-            if (payCode === 'stripe') {
-              if (!order.stripePaymentIntentId) {
-                await t.rollback();
-                return res.status(400).json({ message: 'Thiếu thông tin giao dịch Stripe' });
-              }
-              payload.stripePaymentIntentId = order.stripePaymentIntentId;
-            }
-
-            const { ok, transId } = await refundGateway(payCode, payload);
-            if (!ok) {
-              await t.rollback();
-              return res.status(400).json({ message: 'Hoàn tiền qua cổng thanh toán thất bại' });
-            }
-
-            order.paymentStatus = 'refunded';
-            order.gatewayTransId = transId || null;
-          } else {
-            order.paymentStatus = 'unpaid';
-          }
-
-          // Trả tồn kho / flash sale
-          for (const it of order.items) {
-            await Sku.increment('stock', {
-              by: it.quantity,
-              where: { id: it.skuId },
-              transaction: t
-            });
-
-            const fsItem = it.Sku.flashSaleSkus?.[0];
-            if (fsItem) {
-              await FlashSaleItem.increment('quantity', {
-                by: it.quantity,
-                where: { id: fsItem.id },
-                transaction: t
-              });
-            }
-          }
-
-          // Trả lại coupon
-          if (order.couponId) {
-            await Coupon.increment('totalQuantity', {
-              by: 1,
-              where: { id: order.couponId },
-              transaction: t
-            });
-          }
-
-          // Cập nhật đơn
-          order.status = 'cancelled';
-          order.cancelReason = cancelReason.trim();
-          await order.save({ transaction: t });
-          await UserPoint.destroy({
-            where: { orderId: order.id, userId: order.userId, type: 'earn' },
-            transaction: t,
-          });
+        if (order.couponId != null) {
           await CouponUser.decrement('used', {
             by: 1,
             where: { userId: order.userId, couponId: order.couponId },
             transaction: t,
           });
-
           await Coupon.decrement('usedCount', {
             by: 1,
             where: { id: order.couponId },
             transaction: t,
           });
-          
-          const slug = `admin-cancel-order-${order.orderCode}`;
-          // Gửi thông báo đến người dùng (Client)
-          const clientNotif = await Notification.create({
+        }
+
+        order.status = 'cancelled';
+        order.cancelReason = cancelReason.trim();
+        await order.save({ transaction: t });
+
+        const clientNotif = await Notification.create(
+          {
             title: 'Đơn hàng của bạn đã bị hủy',
             message: `Đơn hàng ${order.orderCode} đã bị hủy bởi quản trị viên.`,
             slug: `client-cancelled-${order.orderCode}`,
@@ -457,21 +445,19 @@ class OrderController {
             targetId: order.id,
             link: `/user-profile/orders/${order.orderCode}`,
             isGlobal: false,
-          }, { transaction: t });
+          },
+          { transaction: t }
+        );
 
-          // Gán thông báo cho người dùng cụ thể
-          await NotificationUser.create({
-            notificationId: clientNotif.id,
-            userId: order.userId,
-            isRead: false,
-          }, { transaction: t });
+        await NotificationUser.create(
+          { notificationId: clientNotif.id, userId: order.userId, isRead: false },
+          { transaction: t }
+        );
 
-          req.app.locals.io
-            .to(`user-${order.userId}`)
-            .emit('new-client-notification', clientNotif);
+        req.app.locals.io.to(`user-${order.userId}`).emit('new-client-notification', clientNotif);
 
-
-          const adminNotif = await Notification.create({
+        const adminNotif = await Notification.create(
+          {
             title: 'Có đơn hàng bị huỷ bởi quản trị viên',
             message: `Đơn ${order.orderCode} đã bị huỷ bởi một quản trị viên.`,
             slug: `admin-cancelled-${order.orderCode}`,
@@ -480,183 +466,197 @@ class OrderController {
             targetId: order.id,
             link: `/admin/orders/${order.id}`,
             isGlobal: true,
-          }, { transaction: t });
+          },
+          { transaction: t }
+        );
 
-          req.app.locals.io
-            .to('admin-room')
-            .emit('new-admin-notification', adminNotif);
-          if (order.user?.email) {
-            const emailMjmlContent = generateOrderCancellationHtml({
-              orderCode: order.orderCode,
-              cancelReason: order.cancelReason,
-              userName: order.user.fullName || order.user.email || "Khách hàng",
-              orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
-              companyName: "Cyberzone",
-              companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
-              companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
-              companyPhone: "0878999894",
-              companySupportEmail: "contact@cyberzone.com",
-            });
+        req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotif);
 
-            const { html: emailHtml } = mjml2html(emailMjmlContent);
-
-            try {
-              await sendEmail(order.user.email, `Đơn hàng ${order.orderCode} đã bị huỷ`, emailHtml);
-            } catch (emailErr) {
-              console.error(`[updateStatus] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
-            }
-          }
-
-          await t.commit();
-          console.log(`[updateStatus] Huỷ đơn hàng ${order.id} thành công.`);
-          return res.json({ message: 'Huỷ đơn & hoàn tiền thành công', orderId: order.id });
-        }
-
-       
-        const statusOrder = ['processing', 'shipping', 'delivered', 'completed'];
-        const currentIndex = statusOrder.indexOf(order.status);
-        const newIndex = statusOrder.indexOf(status);
-
-        if (newIndex !== -1 && currentIndex !== -1 && newIndex < currentIndex) {
-          await t.rollback();
-          return res.status(400).json({
-            message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"`
+        if (order.user?.email) {
+          const emailMjmlContent = generateOrderCancellationHtml({
+            orderCode: order.orderCode,
+            cancelReason: order.cancelReason,
+            userName: order.user.fullName || order.user.email || "Khách hàng",
+            orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
+            companyName: "Cyberzone",
+            companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+            companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+            companyPhone: "0878999894",
+            companySupportEmail: "contact@cyberzone.com",
           });
+          const { html: emailHtml } = mjml2html(emailMjmlContent);
+          try {
+            await sendEmail(order.user.email, `Đơn hàng ${order.orderCode} đã bị huỷ`, emailHtml);
+          } catch (emailErr) {
+            console.error(`[updateStatus] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
+          }
         }
-
-        order.status = status;
-        await order.save({ transaction: t });
-        let clientNotifTitle = '';
-let clientNotifMessage = '';
-let sendNotification = false;
-
-switch (status) {
-    case 'shipping':
-        clientNotifTitle = 'Đơn hàng đang trên đường đến bạn';
-        clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
-        sendNotification = true;
-        break;
-    case 'delivered':
-        clientNotifTitle = 'Đơn hàng đã được giao thành công';
-        clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
-        sendNotification = true;
-        break;
-}
-
-if (sendNotification && order.userId) {
-    const clientNotification = await Notification.create({
-        title: clientNotifTitle,
-        message: clientNotifMessage,
-        slug: `client-status-update-${order.orderCode}-${status}`,
-        type: 'order',
-        targetRole: 'client',
-        targetId: order.id,
-        link: `/user-profile/orders/${order.orderCode}`,
-        isGlobal: false,
-    }, { transaction: t });
-
-    await NotificationUser.create({
-        notificationId: clientNotification.id,
-        userId: order.userId,
-        isRead: false,
-    }, { transaction: t });
-
-    req.app.locals.io.to(`user-${order.userId}`).emit('new-client-notification', clientNotification);
-}
-
-// KẾT THÚC ĐOẠN CODE THÔNG BÁO MỚI CỦA BẠN
 
         await t.commit();
-
-        req.app.locals.io.to(`order-${order.id}`).emit('order-status-updated', {
-          orderId: order.id,
-          newStatus: order.status
-        });
-
-        if (order.user?.id) {
-          req.app.locals.io.to(`user-${order.user.id}`).emit('order-updated', {
-            orderId: order.id,
-            newStatus: order.status
-          });
-        }
-
-
-        return res.json({ message: 'Cập nhật trạng thái thành công', status: order.status });
-
-      } catch (err) {
-        if (!t.finished) {
-          await t.rollback();
-        }
-
-
-        // Kiểm tra xem lỗi có phải là do lock timeout không
-        if (err.parent?.code === 'ER_LOCK_WAIT_TIMEOUT' && attempt < maxRetries) {
-          console.warn(`[updateStatus] Lock wait timeout exceeded for order ${req.params.id}. Retrying... Attempt ${attempt + 1}/${maxRetries}`);
-          // Chờ một khoảng thời gian ngắn trước khi thử lại
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-          continue; // Bắt đầu vòng lặp mới
-        }
-
-        console.error('[updateStatus] Lỗi server khi cập nhật trạng thái:', err);
-        return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
+        return res.json({ message: 'Huỷ đơn & hoàn tiền thành công', orderId: order.id });
       }
-    }
 
-    // Nếu đã thử lại hết số lần mà vẫn lỗi
-    return res.status(500).json({ message: 'Cập nhật trạng thái thất bại do quá tải hệ thống.' });
+      const statusOrder = ['processing', 'shipping', 'delivered', 'completed'];
+      const currentIndex = statusOrder.indexOf(order.status);
+      const newIndex = statusOrder.indexOf(status);
+
+      if (newIndex !== -1 && currentIndex !== -1 && newIndex < currentIndex) {
+        await t.rollback();
+        return res.status(400).json({ message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"` });
+      }
+
+      order.status = status;
+      await order.save({ transaction: t });
+
+      let clientNotifTitle = '';
+      let clientNotifMessage = '';
+      let sendNotification = false;
+
+      switch (status) {
+        case 'shipping':
+          clientNotifTitle = 'Đơn hàng đang trên đường đến bạn';
+          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
+          sendNotification = true;
+          break;
+        case 'delivered':
+          clientNotifTitle = 'Đơn hàng đã được giao thành công';
+          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
+          sendNotification = true;
+          if (order.paymentMethod?.code?.toLowerCase() === 'cod') {
+            order.paymentStatus = 'paid';
+            await order.save({ transaction: t });
+          }
+          break;
+        case 'completed':
+          clientNotifTitle = 'Đơn hàng đã hoàn tất';
+          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
+          sendNotification = true;
+          if (order.paymentMethod?.code?.toLowerCase() === 'cod') {
+            order.paymentStatus = 'paid';
+            await order.save({ transaction: t });
+          }
+          break;
+      }
+
+      if (sendNotification && order.userId) {
+        const clientNotification = await Notification.create(
+          {
+            title: clientNotifTitle,
+            message: clientNotifMessage,
+            slug: `client-status-update-${order.orderCode}-${status}`,
+            type: 'order',
+            targetRole: 'client',
+            targetId: order.id,
+            link: `/user-profile/orders/${order.orderCode}`,
+            isGlobal: false,
+          },
+          { transaction: t }
+        );
+
+        await NotificationUser.create(
+          { notificationId: clientNotification.id, userId: order.userId, isRead: false },
+          { transaction: t }
+        );
+
+        req.app.locals.io.to(`user-${order.userId}`).emit('new-client-notification', clientNotification);
+      }
+
+      await t.commit();
+
+      req.app.locals.io.to(`order-${order.id}`).emit('order-status-updated', {
+        orderId: order.id,
+        newStatus: order.status,
+      });
+
+      if (order.user?.id) {
+        req.app.locals.io.to(`user-${order.user.id}`).emit('order-updated', {
+          orderId: order.id,
+          newStatus: order.status,
+        });
+      }
+
+      return res.json({ message: 'Cập nhật trạng thái thành công', status: order.status });
+    } catch (err) {
+      if (!t.finished) {
+        await t.rollback();
+      }
+      if (err.parent?.code === 'ER_LOCK_WAIT_TIMEOUT' && attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        continue;
+      }
+      console.error('[updateStatus] Lỗi server khi cập nhật trạng thái:', err);
+      return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
+    }
   }
+  return res.status(500).json({ message: 'Cập nhật trạng thái thất bại do quá tải hệ thống.' });
+}
+
+
 
   static async getDetail(req, res) {
     try {
       const { id } = req.params;
 
-      const order = await Order.findOne({
-        where: { id },
-        include: [
-          {
-            model: User,
-            attributes: ['id', 'fullName', 'email', 'phone']
-          },
-          {
-            model: UserAddress,
-            as: 'shippingAddress',
-            attributes: ['streetAddress', 'fullName', 'phone'],
-            include: [
-              { model: Province, as: 'province', attributes: ['name'] },
-              { model: District, as: 'district', attributes: ['name'] },
-              { model: Ward, as: 'ward', attributes: ['name'] }
-            ]
-          },
-          {
-            model: PaymentMethod,
-            as: 'paymentMethod',
-            attributes: ['id', 'name', 'code']
-          },
-          {
-            model: ShippingProvider,
-            as: 'shippingProvider',
-            attributes: ['id', 'name', 'code']
-          },
+const order = await Order.findOne({
+  where: { id },
+  attributes: [
+    'id',
+    'status',
+    'totalPrice',
+    'shippingLeadTime',   // thời gian dự kiến giao
+    'trackingCode',       // mã vận đơn GHN
+    'labelUrl'  ,
+  'shippingFee',
+  'finalPrice',
+  'paymentStatus',
+  'createdAt'
+  ],
+  include: [
+    {
+      model: User,
+      attributes: ['id', 'fullName', 'email', 'phone']
+    },
+    {
+      model: UserAddress,
+      as: 'shippingAddress',
+      attributes: ['streetAddress', 'fullName', 'phone'],
+      include: [
+        { model: Province, as: 'province', attributes: ['name'] },
+        { model: District, as: 'district', attributes: ['name'] },
+        { model: Ward, as: 'ward', attributes: ['name'] }
+      ]
+    },
+    {
+      model: PaymentMethod,
+      as: 'paymentMethod',
+      attributes: ['id', 'name', 'code']
+    },
+    {
+      model: ShippingProvider,
+      as: 'shippingProvider',
+      attributes: ['id', 'name', 'code']
+    },
+    {
+      model: OrderItem,
+      as: 'items',
+      include: [
+        {
+          model: Sku,
+          attributes: ['id', 'price', 'originalPrice'],
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'thumbnail']
+            }
+          ]
+        }
+      ]
+    }
+  ]
+});
 
-          {
-            model: OrderItem,
-            as: 'items',
-            include: [
-              {
-                model: Sku,
-                attributes: ['id', 'price', 'originalPrice'],
-                include: [
-                  {
-                    model: Product,
-                    as: 'product',
-                    attributes: ['id', 'name', 'thumbnail']
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      });
+
 
       if (!order) {
         return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });

@@ -135,7 +135,7 @@ class PostController {
   static async getAllTitle(req, res) {
     try {
       const posts = await Post.findAll({
-        attributes: ["id", "title", "createdAt"],
+        attributes: ["id", "title", "slug", "createdAt"],
         where: { deletedAt: null },
       });
       return res.json({ data: posts });

@@ -7,6 +7,8 @@ const clientRoutes = require('./routes/client');
 const adminRoutes = require('./routes/admin');
 const sequelize = require('./config/database');
 const WalletController = require('./controllers/client/WalletController');
+const OrderController = require('./controllers/client/paymentController');
+
 
 const app = express();
 
@@ -24,15 +26,16 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  optionsSuccessStatus: 200
 }));
 
 app.post(
   '/orders/stripe/webhook',
   bodyParser.raw({ type: 'application/json' }),
-  stripeWebhookRoute
+  OrderController.handleStripeWebhook
 );
-
 app.post(
   '/webhooks/payos/payout',
   express.json({ type: 'application/json' }),
@@ -107,5 +110,7 @@ app.use('/', clientRoutes);
     console.error('❌ Lỗi kết nối MySQL:', err);
   }
 })();
-
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 module.exports = app;

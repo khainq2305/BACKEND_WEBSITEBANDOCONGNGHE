@@ -32,6 +32,16 @@ const Order = sequelize.define('Order', {
     allowNull: true,
     comment: 'ID dịch vụ vận chuyển (liên kết với bảng service nếu có)'
   },
+trackingCode: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  comment: 'Mã vận đơn GHN (order_code)',
+},
+labelUrl: {
+  type: DataTypes.TEXT,
+  allowNull: true,
+  comment: 'Link in nhãn A5 PDF GHN',
+},
 
   shippingLeadTime: {
     type: DataTypes.DATE,
