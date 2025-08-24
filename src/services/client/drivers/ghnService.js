@@ -662,11 +662,15 @@ async function createDropoffOrder(payload) {
     throw new Error("GHN: Không tìm thấy dịch vụ khả dụng cho drop-off.");
   }
 
+  // 🚚 Dùng station_id cứng (tạm fix, sau này lấy từ GHN Portal hoặc DB)
+  const fallbackStationId = 1001; // 👈 thay bằng bưu cục GHN gần shop bạn
+
   const createOrderPayload = {
     service_type_id: service.service_type_id,
     payment_type_id: payload.situation === "customer_pays" ? 2 : 1,
     required_note: "KHONGCHOXEMHANG",
-    pick_option: "post_office", // 💥 bắt buộc cho drop-off
+    pick_option: "post_office",
+    pick_station_id: fallbackStationId,   // 👈 GHN hiểu đây là drop-off
 
     from_name: payload.from_name,
     from_phone: payload.from_phone,
@@ -676,13 +680,7 @@ async function createDropoffOrder(payload) {
 
     to_name: payload.to_name,
     to_phone: payload.to_phone,
-   to_address: buildFullAddress(
-  payload.to_address,
-  payload.wardName,
-  payload.districtName,
-  payload.provinceName
-),
-
+    to_address: payload.to_address,
     to_ward_code: payload.to_ward_code,
     to_district_id: Number(payload.to_district_id),
 
@@ -693,10 +691,9 @@ async function createDropoffOrder(payload) {
 
     cod_amount: 0,
     client_order_code: payload.client_order_code,
-content: payload.items
-  ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
-  : (payload.content || "Đơn hàng từ Cyberzone"),
-
+    content: payload.items
+      ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
+      : (payload.content || "Đơn hàng từ Cyberzone"),
   };
 
   const { data: responseData } = await axios.post(
@@ -704,8 +701,6 @@ content: payload.items
     createOrderPayload,
     { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 10000 }
   );
-
-  console.log("[GHN createDropoffOrder] Response:", JSON.stringify(responseData, null, 2));
 
   if (responseData?.code !== 200 || !responseData.data?.order_code) {
     throw new Error(`GHN: Lỗi khi tạo đơn dropoff: ${responseData?.message}`);
@@ -718,6 +713,7 @@ content: payload.items
     expectedDelivery: responseData.data.expected_delivery_time || null,
   };
 }
+
 async function getServiceForOrder({ fromDistrict, toDistrict, headers, shopId }) {
   try {
     const { data: res } = await axios.post(

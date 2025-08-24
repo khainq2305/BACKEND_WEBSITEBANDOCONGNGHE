@@ -318,6 +318,7 @@ class ChatboxController {
     }
 
     async chat(req, res) {
+          console.log(">>> Chatbox body:", req.body);
         const { message, context = {} } = req.body || {};
         if (!message || typeof message !== "string" || !message.trim()) {
             return res.status(400).json({ message: "Câu hỏi không hợp lệ hoặc trống." });
