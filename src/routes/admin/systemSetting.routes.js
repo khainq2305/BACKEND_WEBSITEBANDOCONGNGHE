@@ -9,7 +9,7 @@ router.use(checkJWT);
 router.use(attachUserDetail)
 router.use(authorize("SystemSettings"))
 const upload = multer({ dest: 'uploads/' });
-
+const { validateSystemSetting } = require('../../validations/validateSystemSetting');
 
 
 router.get(
@@ -23,7 +23,7 @@ router.put(
   upload.fields([
     { name: 'siteLogo', maxCount: 1 },
     { name: 'favicon', maxCount: 1 }
-  ]),
+  ]), validateSystemSetting,
   SystemSettingController.update
 );
 

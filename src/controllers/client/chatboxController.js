@@ -350,9 +350,9 @@ class ChatboxController {
 
         /* 0) Early filters */
         const OFFTOPIC_MSG =
-            "🙏 Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!";
+            "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!";
         if (isOffTopicHard(message)) return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
-        if (isCodeQuestion(message)) return { type: "text", data: "💻 Xin lỗi, em không hỗ trợ giải code hay lập trình. Em chỉ hỗ trợ sản phẩm & dịch vụ ZYBERZONE.", isProductDetail: false };
+        if (isCodeQuestion(message)) return { type: "text", data: "Xin lỗi, em không hỗ trợ giải code hay lập trình. Em chỉ hỗ trợ sản phẩm & dịch vụ ZYBERZONE.", isProductDetail: false };
 
         /* 1) 'sản phẩm này' theo context */
         if (RE_THIS_NOACCENT.test(msgNorm)) {
@@ -423,10 +423,10 @@ class ChatboxController {
                     title: intentTitle,
                     products: top,
                     descriptionTop: `Dưới đây là các sản phẩm thuộc nhóm “${intentTitle}”:`,
-                    noteAfterGrid: "💡 Giá và tồn kho có thể thay đổi theo biến thể/SKU."
+                    noteAfterGrid: "Giá và tồn kho có thể thay đổi theo biến thể/SKU."
                 });
             }
-            return { type: "text", data: "😔 Hiện chưa có sản phẩm đúng với tìm kiếm này còn hàng. Anh/chị thử từ khoá gần nghĩa hoặc quay lại sau giúp em nhé!", isProductDetail: false };
+            return { type: "text", data: "Hiện chưa có sản phẩm đúng với tìm kiếm này còn hàng. Anh/chị thử từ khoá gần nghĩa hoặc quay lại sau giúp em nhé!", isProductDetail: false };
         }
 
         /* 4) Love/Baking mapping */
@@ -435,7 +435,7 @@ class ChatboxController {
             return buildGridResponse({
                 title: "Quà tặng & Lãng mạn",
                 products: picks,
-                descriptionTop: "✨ Quà tặng lãng mạn cho crush nè:"
+                descriptionTop: "Quà tặng lãng mạn cho crush nè:"
             });
         }
         if (isBakingQuestion(message)) {
@@ -443,7 +443,7 @@ class ChatboxController {
             return buildGridResponse({
                 title: "Dụng cụ & Thiết bị làm bánh",
                 products: picks,
-                descriptionTop: "🍪 Thiết bị & dụng cụ làm bánh anh/chị có thể cần:"
+                descriptionTop: "Thiết bị & dụng cụ làm bánh anh/chị có thể cần:"
             });
         }
 
@@ -531,47 +531,47 @@ class ChatboxController {
                 type: "product_grid",
                 data: {
                     title: "Sản phẩm đang giảm giá",
-                    descriptionTop: "🔥 Dưới đây là các sản phẩm đang khuyến mãi nổi bật:",
+                    descriptionTop: "Dưới đây là các sản phẩm đang khuyến mãi nổi bật:",
                     table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: tableRows },
                     products: saleItems,
-                    noteAfterGrid: "💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!",
+                    noteAfterGrid: "Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!",
                 },
                 isProductDetail: false,
             };
         }
-        if (RE.shipping.test(lower)) return { type: "text", data: "🚚 Bên em giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị đặt trực tiếp trên website hoặc nhắn với em nhé!", isProductDetail: false };
-        if (RE.payment.test(lower)) return { type: "text", data: "💳 Hỗ trợ COD, chuyển khoản ngân hàng, và quẹt thẻ tại cửa hàng. Anh/chị chọn phương thức tiện nhất nhé!", isProductDetail: false };
-        if (RE.warranty.test(lower)) return { type: "text", data: `🛠️ Tất cả sản phẩm bảo hành chính hãng 6–24 tháng (tuỳ loại). Anh/chị yên tâm mua sắm tại <b>${STORE_NAME}</b> ạ!`, isProductDetail: false };
-        if (RE.returnRefund.test(lower)) return { type: "text", data: "🔄 Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!", isProductDetail: false };
-        if (RE.contact.test(lower)) return { type: "text", data: "🏬 Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!", isProductDetail: false };
-        if (RE.worktime.test(lower)) return { type: "text", data: "⏰ Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.", isProductDetail: false };
+        if (RE.shipping.test(lower)) return { type: "text", data: "Bên em giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị đặt trực tiếp trên website hoặc nhắn với em nhé!", isProductDetail: false };
+        if (RE.payment.test(lower)) return { type: "text", data: "Hỗ trợ COD, chuyển khoản ngân hàng, và quẹt thẻ tại cửa hàng. Anh/chị chọn phương thức tiện nhất nhé!", isProductDetail: false };
+        if (RE.warranty.test(lower)) return { type: "text", data: `Tất cả sản phẩm bảo hành chính hãng 6–24 tháng (tuỳ loại). Anh/chị yên tâm mua sắm tại <b>${STORE_NAME}</b> ạ!`, isProductDetail: false };
+        if (RE.returnRefund.test(lower)) return { type: "text", data: "Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!", isProductDetail: false };
+        if (RE.contact.test(lower)) return { type: "text", data: "Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!", isProductDetail: false };
+        if (RE.worktime.test(lower)) return { type: "text", data: "Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.", isProductDetail: false };
         if (RE.trust.test(lower) && !RE.discount.test(lower)) return { type: "text", data: `🔒 <b>${STORE_NAME}</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!`, isProductDetail: false };
-        if (RE.compare.test(lower)) return { type: "text", data: "🤔 Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!", isProductDetail: false };
-        if (RE.stock.test(lower)) return { type: "text", data: "📦 Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!", isProductDetail: false };
-        if (RE.install.test(lower)) return { type: "text", data: "🔧 Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!", isProductDetail: false };
-        if (RE.family.test(lower)) return { type: "text", data: "👨‍👩‍👧 Nếu anh/chị mô tả cụ thể người dùng/mục đích, em sẽ gợi ý đúng nhu cầu hơn ạ!", isProductDetail: false };
-        if (RE.orderHistory.test(lower)) return { type: "text", data: "📄 Anh/chị để lại số điện thoại đặt hàng, em kiểm tra lịch sử đơn ngay nhé!", isProductDetail: false };
-        if (RE.angry.test(lower)) return { type: "text", data: "😥 Em xin lỗi nếu trải nghiệm chưa tốt. Anh/chị để lại số ĐT hoặc chi tiết, bên em sẽ gọi hỗ trợ ngay ạ!", isProductDetail: false };
-        if (RE.energy.test(lower)) return { type: "text", data: "⚡ Nhiều sản phẩm có Inverter/ECO tiết kiệm điện. Anh/chị cần dòng nào em kiểm tra cụ thể nhé!", isProductDetail: false };
-        if (RE.invoice.test(lower)) return { type: "text", data: "📑 Bên em xuất hoá đơn VAT đầy đủ khi anh/chị yêu cầu. Cho em xin thông tin DN nếu cần nhé!", isProductDetail: false };
-        if (RE.app.test(lower)) return { type: "text", data: "📲 Theo dõi đơn bằng cách đăng nhập website, hoặc kiểm tra email/SMS. Cần mã đơn? Em tra ngay!", isProductDetail: false };
-        if (RE.social.test(lower)) return { type: "text", data: `🛒 Hiện <b>${STORE_NAME}</b> chỉ bán chính thức trên website để đảm bảo dịch vụ & bảo hành tốt nhất ạ!`, isProductDetail: false };
-        if (RE.smallRoom.test(lower)) return { type: "text", data: "🏠 Không gian nhỏ nên chọn sản phẩm gọn, tiết kiệm diện tích. Anh/chị mô tả diện tích/phòng để em tư vấn ạ!", isProductDetail: false };
-        if (RE.cancelOrChange.test(lower)) return { type: "text", data: "⚠️ Anh/chị gửi mã đơn hoặc số ĐT đặt hàng, em hỗ trợ hủy/chỉnh sửa ngay nhé!", isProductDetail: false };
+        if (RE.compare.test(lower)) return { type: "text", data: "Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!", isProductDetail: false };
+        if (RE.stock.test(lower)) return { type: "text", data: "Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!", isProductDetail: false };
+        if (RE.install.test(lower)) return { type: "text", data: "Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!", isProductDetail: false };
+        if (RE.family.test(lower)) return { type: "text", data: "Nếu anh/chị mô tả cụ thể người dùng/mục đích, em sẽ gợi ý đúng nhu cầu hơn ạ!", isProductDetail: false };
+        if (RE.orderHistory.test(lower)) return { type: "text", data: "Anh/chị để lại số điện thoại đặt hàng, em kiểm tra lịch sử đơn ngay nhé!", isProductDetail: false };
+        if (RE.angry.test(lower)) return { type: "text", data: "Em xin lỗi nếu trải nghiệm chưa tốt. Anh/chị để lại số ĐT hoặc chi tiết, bên em sẽ gọi hỗ trợ ngay ạ!", isProductDetail: false };
+        if (RE.energy.test(lower)) return { type: "text", data: "Nhiều sản phẩm có Inverter/ECO tiết kiệm điện. Anh/chị cần dòng nào em kiểm tra cụ thể nhé!", isProductDetail: false };
+        if (RE.invoice.test(lower)) return { type: "text", data: "Bên em xuất hoá đơn VAT đầy đủ khi anh/chị yêu cầu. Cho em xin thông tin DN nếu cần nhé!", isProductDetail: false };
+        if (RE.app.test(lower)) return { type: "text", data: "Theo dõi đơn bằng cách đăng nhập website, hoặc kiểm tra email/SMS. Cần mã đơn? Em tra ngay!", isProductDetail: false };
+        if (RE.social.test(lower)) return { type: "text", data: `Hiện <b>${STORE_NAME}</b> chỉ bán chính thức trên website để đảm bảo dịch vụ & bảo hành tốt nhất ạ!`, isProductDetail: false };
+        if (RE.smallRoom.test(lower)) return { type: "text", data: "Không gian nhỏ nên chọn sản phẩm gọn, tiết kiệm diện tích. Anh/chị mô tả diện tích/phòng để em tư vấn ạ!", isProductDetail: false };
+        if (RE.cancelOrChange.test(lower)) return { type: "text", data: "Anh/chị gửi mã đơn hoặc số ĐT đặt hàng, em hỗ trợ hủy/chỉnh sửa ngay nhé!", isProductDetail: false };
         if (RE.allProducts.test(lower)) return buildGridResponse({ title: "Tất cả sản phẩm hiện có", products, descriptionTop: "Danh sách tổng hợp:" });
         if (RE.newArrivals.test(lower)) {
             const newest = products.slice(0, 4);
-            return buildGridResponse({ title: "🔔 Sản phẩm mới về", products: newest, descriptionTop: "Các sản phẩm vừa cập nhật:" });
+            return buildGridResponse({ title: "Sản phẩm mới về", products: newest, descriptionTop: "Các sản phẩm vừa cập nhật:" });
         }
-        if (RE.loyal.test(lower)) return { type: "text", data: "🎁 Đăng ký tài khoản để tích điểm, nhận ưu đãi sinh nhật và khuyến mãi riêng cho thành viên nhé!", isProductDetail: false };
-        if (RE.deliveryTime.test(lower)) return { type: "text", data: "🕒 Giao hàng trung bình 1–3 ngày (tuỳ khu vực). Sau khi đặt, bên em sẽ gọi xác nhận & báo thời gian cụ thể.", isProductDetail: false };
+        if (RE.loyal.test(lower)) return { type: "text", data: "Đăng ký tài khoản để tích điểm, nhận ưu đãi sinh nhật và khuyến mãi riêng cho thành viên nhé!", isProductDetail: false };
+        if (RE.deliveryTime.test(lower)) return { type: "text", data: "Giao hàng trung bình 1–3 ngày (tuỳ khu vực). Sau khi đặt, bên em sẽ gọi xác nhận & báo thời gian cụ thể.", isProductDetail: false };
 
         /* Danh mục: trả dạng grid + bảng */
         if (RE.categoriesAsk.test(lower) || RE_CATEGORIES_UD.test(msgNorm)) {
             return {
                 type: "category_list",
                 data: {
-                    title: "📂 Danh mục sản phẩm hiện có:",
+                    title: "Danh mục sản phẩm hiện có:",
                     items: categories.map((c) => ({ id: c.id, name: c.name, triggerMessage: c.name })),
                 },
                 isProductDetail: false,
@@ -607,7 +607,7 @@ class ChatboxController {
                         descriptionTop: `Gợi ý cho nhu cầu “${m[2]}”:`
                     });
                 }
-                return { type: "text", data: `😔 Chưa tìm thấy sản phẩm dành cho “${m[2]}”.`, isProductDetail: false };
+                return { type: "text", data: `Chưa tìm thấy sản phẩm dành cho “${m[2]}”.`, isProductDetail: false };
             }
         }
 
@@ -648,7 +648,7 @@ class ChatboxController {
                         descriptionTop: `Các sản phẩm nổi bật của thương hiệu “${kw}”:`
                     });
                 }
-                return { type: "text", data: `😔 Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${kw}".`, isProductDetail: false };
+                return { type: "text", data: `Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${kw}".`, isProductDetail: false };
             } else {
                 return { type: "text", data: "Anh/chị cho em tên thương hiệu cụ thể để lọc giúp ạ.", isProductDetail: false };
             }
@@ -679,10 +679,10 @@ class ChatboxController {
                 const available = allInTree.filter(p => p.inStock);
 
                 if (allInTree.length === 0) {
-                    return { type: "text", data: `😔 Danh mục "${cat.name}" hiện chưa có sản phẩm. Bên em đang chờ sản phẩm mới về ạ!`, isProductDetail: false };
+                    return { type: "text", data: `Danh mục "${cat.name}" hiện chưa có sản phẩm. Bên em đang chờ sản phẩm mới về ạ!`, isProductDetail: false };
                 }
                 if (available.length === 0) {
-                    return { type: "text", data: `⏳ Danh mục "${cat.name}" hiện tạm hết hàng. Anh/chị quay lại sau giúp em — sản phẩm mới sẽ sớm cập nhật!`, isProductDetail: false };
+                    return { type: "text", data: `Danh mục "${cat.name}" hiện tạm hết hàng. Anh/chị quay lại sau giúp em — sản phẩm mới sẽ sớm cập nhật!`, isProductDetail: false };
                 }
 
                 const result = [...available, ...allInTree.filter(p => !p.inStock)].slice(0, 50);
@@ -690,7 +690,7 @@ class ChatboxController {
                     title: `Sản phẩm thuộc "${cat.name}"`,
                     products: result,
                     descriptionTop: `Danh sách sản phẩm trong danh mục “${cat.name}”:`,
-                    noteAfterGrid: "ℹ️ Một số sản phẩm có nhiều biến thể giá."
+                    noteAfterGrid: "Một số sản phẩm có nhiều biến thể giá."
                 });
             }
         }
@@ -758,7 +758,7 @@ class ChatboxController {
         }
 
         /* 12) Fallback cuối cùng */
-        return { type: "text", data: "😔 Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.", isProductDetail: false };
+        return { type: "text", data: "Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.", isProductDetail: false };
     }
 
     /* ========== Data fetchers ========== */
