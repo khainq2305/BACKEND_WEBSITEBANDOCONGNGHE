@@ -17,6 +17,7 @@ const {
 } = require("../../models");
 const { Sequelize, Op } = require("sequelize");
 const { processSkuPrices } = require("../../helpers/priceHelper");
+const { sequelize } = require("../../models"); 
 
 class CartController {
   static async addToCart(req, res) {
@@ -516,22 +517,53 @@ static async getCart(req, res) {
       (sum, item) => sum + (item.isSelected ? item.lineTotal : 0),
       0
     );
+// ----------------------------
+// 3. Lấy tổng điểm hiện tại của user
+// ----------------------------
+const result = await UserPoint.findOne({
+  attributes: [
+    [
+      sequelize.fn(
+        "SUM",
+        sequelize.literal(`
+          CASE
+            WHEN type = 'earn' THEN points
+            WHEN type IN ('spend','expired') THEN -points
+            ELSE 0
+          END
+        `)
+      ),
+      "totalPoints",
+    ],
+  ],
+  where: { userId },
+  raw: true,
+});
+
+const userPoints = result?.totalPoints || 0;
+
+
+const exchangeRate = 10;       
+const minPointRequired = 20;   
+const maxUsablePoints = Math.min(userPoints, Math.floor(totalAmount / exchangeRate));
+const pointDiscountAmount = maxUsablePoints * exchangeRate;
 
     return res.status(200).json({
-      cartItems: formattedItems,
-      totalAmount,
-      rewardPoints: 0,
-      payablePrice: totalAmount,
-      couponDiscount: 0,
-      pointInfo: {
-        userPointBalance: 0,
-        exchangeRate: 10,
-        minPointRequired: 20,
-        canUsePoints: false,
-        maxUsablePoints: 0,
-        pointDiscountAmount: 0,
-      },
-    });
+  cartItems: formattedItems,
+  totalAmount,
+  rewardPoints: 0,
+  payablePrice: totalAmount,
+  couponDiscount: 0,
+  pointInfo: {
+    userPointBalance: userPoints,
+    exchangeRate,
+    minPointRequired,
+    canUsePoints: userPoints >= minPointRequired,
+    maxUsablePoints,
+    pointDiscountAmount,
+  },
+});
+
   } catch (err) {
     console.error("Lỗi lấy giỏ hàng:", err);
     return res.status(500).json({ message: "Lỗi server" });
