@@ -224,7 +224,7 @@ class PostSEOController {
       };
 
       // Sử dụng helper function để update/create an toàn
-      const { postSEO: updatedPostSEO, created } = await this.safeUpsertPostSEO(postId, dataToSave, transaction);
+      const { postSEO: updatedPostSEO, created } = await postSEOController.safeUpsertPostSEO(postId, dataToSave, transaction);
 
       await transaction.commit();
 
@@ -1014,7 +1014,7 @@ processVietnameseKeyword(keyword) {
           };
 
           // Sử dụng helper function để update/create an toàn
-          const { postSEO: updatedPostSEO, created } = await this.safeUpsertPostSEO(postId, dataToSave);
+          const { postSEO: updatedPostSEO, created } = await postSEOController.safeUpsertPostSEO(postId, dataToSave);
 
           console.log(`✅ SEO ${created ? 'created' : 'updated'} for post ${postId}`);
 
