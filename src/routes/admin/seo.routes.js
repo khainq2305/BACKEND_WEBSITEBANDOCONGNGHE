@@ -29,5 +29,6 @@ router.get('/stats', (req, res) => seoController.getSEOStats(req, res));
 
 // Sitemap Generation
 router.get('/sitemap.xml', (req, res) => seoController.generateSitemap(req, res));
+router.get('/sitemap/status', (req, res) => seoController.getSitemapStatus(req, res));
 
 module.exports = router;
