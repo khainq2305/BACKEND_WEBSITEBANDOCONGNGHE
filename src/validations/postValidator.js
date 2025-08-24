@@ -4,7 +4,7 @@ const validatePost = (req, res, next) => {
   const formData = {
     title: req.body.title,
     content: req.body.content,
-    category: req.body.category,
+    categoryId: req.body.categoryId, // 🔄 Đổi từ category thành categoryId
     thumbnail: req.file,
     isScheduled: req.body.isScheduled === "true",
     publishAt: req.body.publishAt,
@@ -20,8 +20,8 @@ const validatePost = (req, res, next) => {
     errors.content = "Nội dung phải có ít nhất 20 ký tự";
   }
 
-  if (!formData.category || isNaN(Number(formData.category))) {
-    errors.category = "Danh mục không hợp lệ";
+  if (!formData.categoryId || isNaN(Number(formData.categoryId))) {
+    errors.categoryId = "Danh mục không hợp lệ";
   }
 
   if (!formData.thumbnail) {

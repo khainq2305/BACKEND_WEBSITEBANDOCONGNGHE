@@ -10,7 +10,7 @@ class PostController {
       const {
         title,
         content,
-        category,
+        categoryId, // 🔄 Đổi từ category thành categoryId
         authorId,
         status = 0,
         orderIndex = 0,
@@ -48,7 +48,7 @@ class PostController {
       const newPost = await Post.create({
         title,
         content,
-        categoryId: category,
+        categoryId: categoryId, // 🔄 Sử dụng categoryId thay vì category
         authorId,
         orderIndex,
         slug,
