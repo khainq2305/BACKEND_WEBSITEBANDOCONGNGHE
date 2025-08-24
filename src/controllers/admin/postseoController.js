@@ -4,6 +4,43 @@ const { Op, fn, col } = require('sequelize');
 const { sequelize } = require('../../models');
 
 class PostSEOController {
+  // Helper function để đảm bảo update/create PostSEO an toàn
+  async safeUpsertPostSEO(postId, dataToSave, transaction = null) {
+    try {
+      // Tìm PostSEO hiện tại
+      let postSEO = await PostSEO.findOne({ 
+        where: { postId },
+        ...(transaction && { transaction, lock: true })
+      });
+
+      if (postSEO) {
+        // Nếu đã có record, cập nhật
+        await postSEO.update(dataToSave, { transaction });
+        console.log(`✅ SEO updated for existing record ID: ${postSEO.id}, Post ID: ${postId}`);
+        return { postSEO, created: false };
+      } else {
+        // Nếu chưa có record, tạo mới
+        dataToSave.postId = postId;
+        postSEO = await PostSEO.create(dataToSave, { transaction });
+        console.log(`✅ SEO created new record ID: ${postSEO.id}, Post ID: ${postId}`);
+        return { postSEO, created: true };
+      }
+    } catch (error) {
+      // Nếu có lỗi duplicate key, thử lại bằng cách update
+      if (error.name === 'SequelizeUniqueConstraintError' || error.code === 'ER_DUP_ENTRY') {
+        console.log(`⚠️ Duplicate key detected for postId ${postId}, attempting update...`);
+        const existingPostSEO = await PostSEO.findOne({ 
+          where: { postId },
+          ...(transaction && { transaction })
+        });
+        if (existingPostSEO) {
+          await existingPostSEO.update(dataToSave, { transaction });
+          return { postSEO: existingPostSEO, created: false };
+        }
+      }
+      throw error;
+    }
+  }
   // Lấy danh sách posts với thông tin SEO
   async getPosts(req, res) {
     try {
@@ -177,9 +214,8 @@ class PostSEOController {
 
       // Chuẩn bị dữ liệu cập nhật/tạo mới
       const dataToSave = {
-        postId,
         title: post.title,
-        metaDescription: '',
+        metaDescription: postSEO?.metaDescription || '',
         focusKeyword: (focusKeyword && focusKeyword.trim() !== '') ? focusKeyword.trim() : (postSEO?.focusKeyword || ''),
         analysis: analysis.details,
         seoScore: analysis.seoScore,
@@ -187,17 +223,8 @@ class PostSEOController {
         lastAnalyzed: new Date()
       };
 
-      // Sử dụng upsert để tránh duplicate
-      const [upsertedPostSEO, created] = await PostSEO.upsert(dataToSave, {
-        transaction,
-        returning: true
-      });
-
-      // Lấy record đã được upsert
-      postSEO = upsertedPostSEO || await PostSEO.findOne({ 
-        where: { postId }, 
-        transaction 
-      });
+      // Sử dụng helper function để update/create an toàn
+      const { postSEO: updatedPostSEO, created } = await this.safeUpsertPostSEO(postId, dataToSave, transaction);
 
       await transaction.commit();
 
@@ -208,7 +235,7 @@ class PostSEOController {
         message: 'Phân tích SEO hoàn thành',
         data: {
           analysis,
-          postSEO
+          postSEO: updatedPostSEO
         }
       });
     } catch (error) {
@@ -975,11 +1002,10 @@ processVietnameseKeyword(keyword) {
           // Thực hiện phân tích SEO với từ khóa phù hợp
           const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
 
-          // Chuẩn bị dữ liệu upsert
+          // Chuẩn bị dữ liệu cập nhật/tạo mới
           const dataToSave = {
-            postId,
             title: post.title,
-            metaDescription: '',
+            metaDescription: postSEO?.metaDescription || '',
             focusKeyword: (focusKeyword && focusKeyword.trim() !== '') ? focusKeyword.trim() : (postSEO?.focusKeyword || ''),
             analysis: analysis.details,
             seoScore: analysis.seoScore,
@@ -987,15 +1013,8 @@ processVietnameseKeyword(keyword) {
             lastAnalyzed: new Date()
           };
 
-          // Sử dụng upsert để tránh duplicate
-          const [upsertedPostSEO, created] = await PostSEO.upsert(dataToSave, {
-            returning: true
-          });
-
-          // Lấy record đã được upsert
-          postSEO = upsertedPostSEO || await PostSEO.findOne({ 
-            where: { postId }
-          });
+          // Sử dụng helper function để update/create an toàn
+          const { postSEO: updatedPostSEO, created } = await this.safeUpsertPostSEO(postId, dataToSave);
 
           console.log(`✅ SEO ${created ? 'created' : 'updated'} for post ${postId}`);
 
@@ -1004,7 +1023,7 @@ processVietnameseKeyword(keyword) {
             success: true,
             data: {
               analysis,
-              postSEO
+              postSEO: updatedPostSEO
             }
           });
           successCount++;

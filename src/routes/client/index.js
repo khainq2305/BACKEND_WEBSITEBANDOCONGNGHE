@@ -47,6 +47,7 @@ router.post("/webhooks/payos/payout", express.json(), WalletController.payoutWeb
 router.use("/combo", comboRoutes);
 router.use("/", sliderRoutes);
 router.use("/tin-noi-bat", postRoutes);
+router.use("/tin-tuc", postRoutes);
 router.use("/", flashSaleRoutes);
 router.use("/points", userPointRoutes);
 router.use("/payment", paymentRoutes);
