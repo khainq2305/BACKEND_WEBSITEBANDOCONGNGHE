@@ -5,48 +5,63 @@ const { Op } = require('sequelize');
 class CategoryController {
   // [CREATE] Thêm bài viết
   static async create(req, res) {
-    console.log('đã gọi tạo cateory',req.body)
     try {
       const {
         name,
         description = '',
         slug,
-        parentId = null,
+        parentId,
         isActive,
         orderIndex = 0,
         isDefault = false,
       } = req.body;
-
-      // ❌ KHÔNG cần check trùng tên ở đây nữa, middleware xử lý rồi
+  
+      // Validate bắt buộc có name
       if (!name) {
         return res.status(400).json({ message: 'Tên danh mục là bắt buộc' });
       }
-
+  
+      let validParentId = null;
+      if (parentId) {
+        // Kiểm tra parentId có tồn tại trong DB không
+        const parentCategory = await categoryPostModel.findByPk(parentId);
+        if (!parentCategory) {
+          return res.status(400).json({ message: 'Danh mục cha không tồn tại' });
+        }
+        validParentId = parentId;
+      }
+  
       const newCategory = await categoryPostModel.create({
         name,
         slug,
         description,
-        parentId,
+        parentId: validParentId,
         isActive,
         orderIndex,
         isDefault,
       });
+  
       console.log('📦 Dữ liệu tạo category:', {
         name,
         slug,
         description,
-        parentId,
+        parentId: validParentId,
         isActive,
         orderIndex,
-        isDefault
+        isDefault,
       });
-
-      return res.status(201).json({ message: 'Tạo danh mục thành công', data: newCategory });
+  
+      return res.status(201).json({
+        message: 'Tạo danh mục thành công',
+        data: newCategory,
+      });
     } catch (error) {
       console.error('CREATE CATEGORY ERROR:', error);
       return res.status(500).json({ message: 'Lỗi server khi tạo danh mục' });
     }
   }
+  
+  
 
   static async getBySlug(req, res) {
     try {
@@ -159,42 +174,76 @@ class CategoryController {
 
   static async update(req, res) {
     try {
-      const { slug } = req.params; // 👈 lấy slug từ URL
+      const { slug } = req.params;
       const {
         name,
         description = '',
-        parentId = null,
-        isActive = true,
+        parentId,
+        isActive,
         orderIndex = 0,
         isDefault = false
       } = req.body;
-
+  
       if (!slug) {
         return res.status(400).json({ message: 'Slug là bắt buộc để cập nhật' });
       }
-
+  
+      // Tìm category cần update
       const category = await categoryPostModel.findOne({ where: { slug } });
-
       if (!category) {
         return res.status(404).json({ message: 'Không tìm thấy danh mục với slug này' });
       }
-
-      // Cập nhật
-      await categoryPostModel.update({
-        name,
-        description,
-        parentId,
-        isActive,
-        orderIndex,
-        isDefault
-      });
-
-      return res.json({ message: 'Cập nhật danh mục thành công', data: category });
+  
+      // Xử lý parentId
+      let validParentId = null;
+      if (parentId && parentId !== "") {
+        const parsedParentId = Number(parentId);
+        if (isNaN(parsedParentId)) {
+          return res.status(400).json({ message: 'parentId không hợp lệ' });
+        }
+  
+        // Không cho phép gán chính nó làm cha
+        if (parsedParentId === category.id) {
+          return res.status(400).json({ message: 'Danh mục không thể là cha của chính nó' });
+        }
+  
+        // Kiểm tra parentId có tồn tại không
+        const parentCategory = await categoryPostModel.findByPk(parsedParentId);
+        if (!parentCategory) {
+          return res.status(400).json({ message: 'Danh mục cha không tồn tại' });
+        }
+  
+        validParentId = parsedParentId;
+      }
+  
+      // Ép boolean & số
+      const parsedIsActive = (isActive === true || isActive === "true");
+      const parsedOrderIndex = Number(orderIndex) || 0;
+  
+      // Update
+      await categoryPostModel.update(
+        {
+          name,
+          description,
+          parentId: validParentId,
+          isActive: parsedIsActive,
+          orderIndex: parsedOrderIndex,
+          isDefault
+        },
+        { where: { slug } }
+      );
+  
+      // Lấy lại dữ liệu mới nhất
+      const updatedCategory = await categoryPostModel.findOne({ where: { slug } });
+  
+      return res.json({ message: 'Cập nhật danh mục thành công', data: updatedCategory });
     } catch (error) {
       console.error('UPDATE CATEGORY ERROR:', error);
       return res.status(500).json({ message: 'Lỗi server khi cập nhật danh mục' });
     }
   }
+  
+  
   static async trashBySlug(req, res) {
     try {
       const { slugs } = req.body;
