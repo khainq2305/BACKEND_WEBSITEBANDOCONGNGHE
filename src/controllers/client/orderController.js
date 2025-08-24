@@ -41,6 +41,7 @@ const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
 const { Sequelize, Op } = require("sequelize");
 const speakeasy = require("speakeasy");
+ const { getTrackingByClientCode, getTrackingByOrderCode } = require("../../services/client/drivers/ghnService");
 
 const {
   generateOrderConfirmationHtml,
@@ -52,6 +53,7 @@ const mjml2html = require("mjml");
 const refundGateway = require("../../utils/refundGateway");
 const { processSkuPrices } = require("../../helpers/priceHelper");
 const ghnService = require("../../services/client/drivers/ghnService");
+const ghtkService = require('../../services/client/drivers/ghtkService');
 
 const moment = require("moment");
 const ShippingService = require("../../services/client/shippingService");
@@ -518,55 +520,89 @@ class OrderController {
         .slice(0, 10)
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
+      
       // 
+      // ---------------- TẠO VẬN ĐƠN ----------------
       try {
-  // tính khối lượng + kích thước đơn hàng
-  let weight = 0, maxL = 0, maxW = 0, maxH = 0;
-  for (const item of orderItemsToCreate) {
-    const sku = skuMap.get(item.skuId);
-    weight += (sku.weight || 500) * item.quantity;
-    maxL = Math.max(maxL, sku.length || 10);
-    maxW = Math.max(maxW, sku.width || 10);
-    maxH = Math.max(maxH, sku.height || 10);
-  }
-console.log("[createOrder] GHN INPUT", {
-  prov: selectedAddress.province.id,
-  dist: selectedAddress.district.id,
-  ward: selectedAddress.ward.id,
-});
+        // tính khối lượng + kích thước đơn hàng
+        let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+        for (const item of orderItemsToCreate) {
+          const sku = skuMap.get(item.skuId);
+          weight += (sku.weight || 500) * item.quantity;
+          maxL = Math.max(maxL, sku.length || 10);
+          maxW = Math.max(maxW, sku.width || 10);
+          maxH = Math.max(maxH, sku.height || 10);
+        }
+        weight = Math.max(1, weight);
 
-  const deliveryRes = await ghnService.createDeliveryOrder({
-    from_name: "Cyberzone Shop",
-    from_phone: "0878999894",
-    from_address: "Địa chỉ shop",
-    to_name: selectedAddress.fullName,
-    to_phone: selectedAddress.phone,
-    to_address: selectedAddress.streetAddress,
-    to_province_id: selectedAddress.province.id,
-    to_district_id: selectedAddress.district.id,
-   to_ward_id: Number(selectedAddress.ward.id),
+        const fullUserAddress = [
+          selectedAddress.streetAddress,
+          selectedAddress.ward?.name,
+          selectedAddress.district?.name,
+          selectedAddress.province?.name,
+        ].filter(Boolean).join(", ");
 
+        let deliveryRes = null;
 
-    weight,
-    length: maxL,
-    width: maxW,
-    height: maxH,
-    cod_amount: validPayment.code.toLowerCase() === "cod" ? finalPrice : 0,
-    client_order_code: newOrder.orderCode,
-    content: "Đơn hàng từ Cyberzone",
-    situation: "shop_pays",
-  });
+        if (provider.code === "ghn") {
+          // GHN
+          deliveryRes = await ghnService.createDeliveryOrder({
+            from_name: "Cyberzone Shop",
+            from_phone: "0878999894",
+            from_address: process.env.SHOP_ADDRESS,
+            to_name: selectedAddress.fullName,
+            to_phone: selectedAddress.phone,
+            to_address: fullUserAddress,
+            to_province_id: selectedAddress.province.id,
+            to_district_id: selectedAddress.district.id,
+            to_ward_id: Number(selectedAddress.ward.id),
+            weight,
+            length: maxL,
+            width: maxW,
+            height: maxH,
+            cod_amount: validPayment.code.toLowerCase() === "cod" ? finalPrice : 0,
+            client_order_code: newOrder.orderCode,
+            items: orderItemsForEmail,
+            content: "Đơn hàng từ Cyberzone",
+            situation: "shop_pays",
+          });
+        } else if (provider.code === "ghtk") {
+          // GHTK
+          deliveryRes = await ghtkService.createDropoffOrder({
+            client_order_code: newOrder.orderCode,
+            from_name: "Cyberzone Shop",
+            from_phone: "0878999894",
+            from_address: process.env.SHOP_ADDRESS,
+            from_province_name: process.env.SHOP_PROVINCE,
+            from_district_name: process.env.SHOP_DISTRICT,
+            to_name: selectedAddress.fullName,
+            to_phone: selectedAddress.phone,
+            to_address: fullUserAddress,
+            to_province_name: selectedAddress.province.name,
+            to_district_name: selectedAddress.district.name,
+            to_ward_name: selectedAddress.ward?.name,
+            weight,
+            length: maxL,
+            width: maxW,
+            height: maxH,
+            items: orderItemsForEmail,
+            content: "Đơn hàng từ Cyberzone",
+          });
+        }
 
-  await newOrder.update({
-    trackingCode: deliveryRes.trackingCode,
-    labelUrl: deliveryRes.labelUrl,
-    shippingFee: deliveryRes.shippingFee,
-    shippingLeadTime: deliveryRes.expectedDelivery,
-  }, { transaction: t });
-} catch (err) {
-  console.error("GHN: lỗi tạo vận đơn", err.message);
-  // tuỳ bạn: rollback luôn hoặc vẫn commit order không có mã vận đơn
-}
+        if (deliveryRes) {
+          await newOrder.update({
+            trackingCode: deliveryRes.trackingCode,
+            labelUrl: deliveryRes.labelUrl,
+            shippingLeadTime: deliveryRes.expectedDelivery || calculatedLeadTime,
+          }, { transaction: t });
+        }
+      } catch (err) {
+        console.error("Lỗi tạo vận đơn:", err.message);
+        // tuỳ logic: rollback toàn bộ hay vẫn commit đơn không có vận đơn
+      }
+      // ---------------- END VẬN ĐƠN ----------------
+
 // 
       if (validPayment.code.toLowerCase() === "internalwallet") {
         const wallet = await Wallet.findOne({
@@ -815,176 +851,196 @@ console.log("[createOrder] GHN INPUT", {
     }
   }
 
-  static async getById(req, res) {
-    try {
-      const user = req.user;
-      const raw = (req.params.code ?? req.params.id ?? req.query.code ?? "")
-        .toString()
-        .trim();
-      if (!raw) return res.status(400).json({ message: "Thiếu mã đơn hàng" });
+ 
+static async getById(req, res) {
+  try {
+    const user = req.user;
+    const raw = (req.params.code ?? req.params.id ?? req.query.code ?? "")
+      .toString()
+      .trim();
+    if (!raw) return res.status(400).json({ message: "Thiếu mã đơn hàng" });
 
-      const isNumeric = /^\d+$/.test(raw);
-      const where = {
-        ...(user?.id ? { userId: user.id } : {}),
-        [Op.or]: [
-          ...(isNumeric ? [{ id: Number(raw) }] : []),
-          { orderCode: raw },
-          { momoOrderId: raw },
-          { vnpOrderId: raw },
-        ],
-      };
+    const isNumeric = /^\d+$/.test(raw);
+    const where = {
+      ...(user?.id ? { userId: user.id } : {}),
+      [Op.or]: [
+        ...(isNumeric ? [{ id: Number(raw) }] : []),
+        { orderCode: raw },
+        { momoOrderId: raw },
+        { vnpOrderId: raw },
+      ],
+    };
 
-      const order = await Order.findOne({
-        where,
-        include: [
-          {
-            model: OrderItem,
-            as: "items",
-            include: {
-              model: Sku,
-              as: "Sku",
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                  attributes: ["name", "thumbnail"],
-                },
-              ],
-            },
-          },
-          {
-            model: UserAddress,
-            as: "shippingAddress",
+    const order = await Order.findOne({
+      where,
+      include: [
+        {
+          model: OrderItem,
+          as: "items",
+          include: {
+            model: Sku,
+            as: "Sku",
             include: [
-              { model: Province, as: "province" },
-              { model: District, as: "district" },
-              { model: Ward, as: "ward" },
+              {
+                model: Product,
+                as: "product",
+                attributes: ["name", "thumbnail"],
+              },
             ],
           },
-          {
-            model: PaymentMethod,
-            as: "paymentMethod",
-            attributes: ["id", "name", "code"],
-          },
-          {
-            model: ShippingProvider,
-            as: "shippingProvider",
-            attributes: ["id", "name", "code"],
-          },
-          { model: ReturnRequest, as: "returnRequest" },
-        ],
-      });
-
-      if (!order)
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-
-      const [earnedPoint, spentPoint] = await Promise.all([
-        UserPoint.findOne({
-          where: {
-            userId: user?.id ?? order.userId,
-            orderId: order.id,
-            type: "earn",
-          },
-        }),
-        UserPoint.findOne({
-          where: {
-            userId: user?.id ?? order.userId,
-            orderId: order.id,
-            type: "spend",
-          },
-        }),
-      ]);
-
-      const address = order.shippingAddress;
-      const fullAddress = `${address?.streetAddress || ""}, ${
-        address?.ward?.name || ""
-      }, ${address?.district?.name || ""}, ${
-        address?.province?.name || ""
-      }`.trim();
-
-      const products = order.items.map((item) => ({
-        skuId: item.skuId,
-        name: item.Sku?.product?.name || "Sản phẩm không tồn tại",
-        image: item.Sku?.product?.thumbnail || "/images/default.jpg",
-        quantity: item.quantity,
-        originalPrice: item.Sku?.price ? Number(item.Sku.price) : null,
-        price: item.price,
-        total: item.price * item.quantity,
-      }));
-
-      let productDiscount = 0;
-      for (const p of products) {
-        if (p.originalPrice && p.originalPrice > p.price) {
-          productDiscount += (p.originalPrice - p.price) * (p.quantity || 1);
-        }
-      }
-
-      const statusTextMap = {
-        pending: "Chờ xác nhận",
-        processing: "Đang xử lý",
-        shipping: "Đang giao",
-        delivered: "Đã giao",
-        cancelled: "Đã hủy",
-        returned: "Đã hoàn trả",
-        completed: "Đã hoàn tất",
-      };
-
-      const result = {
-        id: order.id,
-        orderCode: order.orderCode,
-        status: order.status,
-        statusText: statusTextMap[order.status] || "Không xác định",
-        totalPrice: order.totalPrice,
-        finalPrice: order.finalPrice,
-        shippingFee: order.shippingFee,
-        shippingDiscount: order.shippingDiscount,
-        couponDiscount: order.couponDiscount,
-        productDiscount,
-        paymentStatus: order.paymentStatus,
-        cancelReason: order.cancelReason,
-        note: order.note,
-        createdAt: order.createdAt,
-        confirmedAt: order.confirmedAt,
-        shippedAt: order.shippedAt,
-        deliveredAt: order.deliveredAt,
-        completedAt: order.completedAt,
-        cancelledAt: order.cancelledAt,
-        returnedAt: order.returnedAt,
-        rewardPoints: earnedPoint?.points || 0,
-        usedPoints: spentPoint?.points || 0,
-        paymentMethod: order.paymentMethod
-          ? {
-              id: order.paymentMethod.id,
-              name: order.paymentMethod.name,
-              code: order.paymentMethod.code,
-            }
-          : null,
-        shippingProvider: order.shippingProvider
-          ? {
-              id: order.shippingProvider.id,
-              name: order.shippingProvider.name,
-              code: order.shippingProvider.code,
-            }
-          : null,
-        userAddress: {
-          fullAddress,
-          fullName: address?.fullName,
-          phone: address?.phone,
-          province: address?.province?.name || null,
-          district: address?.district?.name || null,
-          ward: address?.ward?.name || null,
-          streetAddress: address?.streetAddress || null,
         },
-        products,
-        returnRequest: order.returnRequest || null,
-      };
+        {
+          model: UserAddress,
+          as: "shippingAddress",
+          include: [
+            { model: Province, as: "province" },
+            { model: District, as: "district" },
+            { model: Ward, as: "ward" },
+          ],
+        },
+        {
+          model: PaymentMethod,
+          as: "paymentMethod",
+          attributes: ["id", "name", "code"],
+        },
+        {
+          model: ShippingProvider,
+          as: "shippingProvider",
+          attributes: ["id", "name", "code"],
+        },
+        { model: ReturnRequest, as: "returnRequest" },
+      ],
+    });
 
-      return res.json({ message: "Lấy đơn hàng thành công", data: result });
-    } catch (error) {
-      console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
-      return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
+    if (!order)
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+    const [earnedPoint, spentPoint] = await Promise.all([
+      UserPoint.findOne({
+        where: {
+          userId: user?.id ?? order.userId,
+          orderId: order.id,
+          type: "earn",
+        },
+      }),
+      UserPoint.findOne({
+        where: {
+          userId: user?.id ?? order.userId,
+          orderId: order.id,
+          type: "spend",
+        },
+      }),
+    ]);
+
+    const address = order.shippingAddress;
+    const fullAddress = `${address?.streetAddress || ""}, ${
+      address?.ward?.name || ""
+    }, ${address?.district?.name || ""}, ${
+      address?.province?.name || ""
+    }`.trim();
+
+    const products = order.items.map((item) => ({
+      skuId: item.skuId,
+      name: item.Sku?.product?.name || "Sản phẩm không tồn tại",
+      image: item.Sku?.product?.thumbnail || "/images/default.jpg",
+      quantity: item.quantity,
+      originalPrice: item.Sku?.price ? Number(item.Sku.price) : null,
+      price: item.price,
+      total: item.price * item.quantity,
+    }));
+
+    let productDiscount = 0;
+    for (const p of products) {
+      if (p.originalPrice && p.originalPrice > p.price) {
+        productDiscount += (p.originalPrice - p.price) * (p.quantity || 1);
+      }
     }
+
+    const statusTextMap = {
+      pending: "Chờ xác nhận",
+      processing: "Đang xử lý",
+      shipping: "Đang giao",
+      delivered: "Đã giao",
+      cancelled: "Đã hủy",
+      returned: "Đã hoàn trả",
+      completed: "Đã hoàn tất",
+    };
+
+    // ⚡ Gọi tracking từ GHN
+    let ghnTracking = null;
+    if (order.shippingProvider?.code === "ghn") {
+      try {
+        if (order.orderCode) {
+          ghnTracking = await getTrackingByClientCode(order.orderCode);
+        }
+        if (!ghnTracking && order.trackingCode) {
+          ghnTracking = await getTrackingByOrderCode(order.trackingCode);
+        }
+      } catch (err) {
+        console.warn("[Order getById] GHN tracking warn:", err.message);
+      }
+    }
+
+    const result = {
+      id: order.id,
+      orderCode: order.orderCode,
+      status: order.status,
+      statusText: statusTextMap[order.status] || "Không xác định",
+      totalPrice: order.totalPrice,
+      finalPrice: order.finalPrice,
+      shippingFee: order.shippingFee,
+      shippingDiscount: order.shippingDiscount,
+      couponDiscount: order.couponDiscount,
+      productDiscount,
+      paymentStatus: order.paymentStatus,
+      cancelReason: order.cancelReason,
+      note: order.note,
+      createdAt: order.createdAt,
+      confirmedAt: order.confirmedAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      completedAt: order.completedAt,
+      cancelledAt: order.cancelledAt,
+      returnedAt: order.returnedAt,
+      rewardPoints: earnedPoint?.points || 0,
+      usedPoints: spentPoint?.points || 0,
+      paymentMethod: order.paymentMethod
+        ? {
+            id: order.paymentMethod.id,
+            name: order.paymentMethod.name,
+            code: order.paymentMethod.code,
+          }
+        : null,
+      shippingProvider: order.shippingProvider
+        ? {
+            id: order.shippingProvider.id,
+            name: order.shippingProvider.name,
+            code: order.shippingProvider.code,
+          }
+        : null,
+      userAddress: {
+        fullAddress,
+        fullName: address?.fullName,
+        phone: address?.phone,
+        province: address?.province?.name || null,
+        district: address?.district?.name || null,
+        ward: address?.ward?.name || null,
+        streetAddress: address?.streetAddress || null,
+      },
+      products,
+      returnRequest: order.returnRequest || null,
+
+      // ✅ Tracking GHN nếu có
+      tracking: ghnTracking,
+    };
+
+    return res.json({ message: "Lấy đơn hàng thành công", data: result });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
+    return res.status(500).json({ message: "Lỗi máy chủ khi lấy đơn hàng" });
   }
+}
+
   static async getByCodePublic(req, res) {
     try {
       const orderCode = req.params.code?.trim();
@@ -1816,6 +1872,8 @@ console.log("[createOrder] GHN INPUT", {
       const options = await Promise.all(
         providers.map(async (p) => {
           try {
+            console.log("[getShippingOptions] Tổng weight:", weight, "gram");
+
             const { fee, leadTime } = await ShippingService.calcFee({
               providerId: p.id,
               toProvince: toProvinceId,

@@ -242,7 +242,11 @@ async function getDropoffServices({
 async function createDropoffOrder(payload) {
   try {
     const orderPayload = {
-      products: [
+      products: payload.items?.map(it => ({
+        name: `${it.productName} x${it.quantity}`,
+        weight: it.weight || payload.weight,
+        quantity: it.quantity,
+      })) || [
         {
           name: payload.content || "Hàng hóa",
           weight: payload.weight,
@@ -280,19 +284,20 @@ async function createDropoffOrder(payload) {
       { headers: { Token: GHTK_TOKEN }, timeout: 10000 }
     );
 
-    if (res?.success && res?.order?.label) {
-      const trackingCode = res.order.label;
-      const labelUrl = res.order?.url || null;
+    if (res?.success && res?.order) {
+      const trackingCode = res.order.label;      // Mã vận đơn GHTK
+      const labelUrl = res.order?.url || null;   // Link in phiếu
+      const expectedDelivery = res.order?.estimated_delivery_time || null; // Dự kiến giao
 
-      // 🔥 Lưu vào DB (bảng orders) với cột labelUrl
+      // 🔥 Lưu vào DB (bảng orders)
       if (dbConnection) {
         await dbConnection.execute(
-          `UPDATE orders SET trackingCode = ?, labelUrl = ? WHERE orderCode = ?`,
-          [trackingCode, labelUrl, payload.client_order_code]
+          `UPDATE orders SET trackingCode = ?, labelUrl = ?, shippingLeadTime = ? WHERE orderCode = ?`,
+          [trackingCode, labelUrl, expectedDelivery, payload.client_order_code]
         );
       }
 
-      return { trackingCode, labelUrl };
+      return { trackingCode, labelUrl, expectedDelivery };
     } else {
       throw new Error(res?.message || "Không tạo được đơn GHTK");
     }
@@ -302,5 +307,31 @@ async function createDropoffOrder(payload) {
   }
 }
 
+/**
+ * Lấy lại link in Label từ GHTK bằng mã vận đơn (trackingCode)
+ * @param {string} trackingCode - Mã vận đơn GHTK (label code)
+ */
+async function getLabel(trackingCode) {
+  try {
+    const { data: res } = await axios.get(
+      "https://services.giaohangtietkiem.vn/services/shipment/label",
+      {
+        params: { label: trackingCode }, // truyền mã vận đơn
+        headers: { Token: GHTK_TOKEN },
+        timeout: 8000,
+      }
+    );
 
-module.exports = { getDefaultService, getFee, getDropoffServices, createDropoffOrder  };
+    if (res?.success && res?.label) {
+      return res.label; // URL in phiếu
+    } else {
+      throw new Error(res?.message || "Không lấy được label GHTK");
+    }
+  } catch (err) {
+    console.error("[GHTK getLabel] error:", err?.response?.data || err.message);
+    throw err;
+  }
+}
+
+
+module.exports = { getDefaultService, getFee, getDropoffServices, createDropoffOrder, getLabel  };

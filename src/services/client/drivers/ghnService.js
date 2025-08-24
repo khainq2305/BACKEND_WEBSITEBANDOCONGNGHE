@@ -411,7 +411,13 @@ async function bookPickup(payload) {
     from_district_id: Number(fromDistrictGhnCode),
     to_name: payload.to_name,
     to_phone: payload.to_phone,
-    to_address: payload.to_address,
+ to_address: buildFullAddress(
+  payload.to_address,
+  payload.wardName,
+  payload.districtName,
+  payload.provinceName
+),
+
     to_ward_code: payload.to_ward_code,
     to_district_id: Number(payload.to_district_id),
 weight: Math.max(1, payload.weight), // DB lưu gram → truyền thẳng
@@ -422,7 +428,10 @@ height: Math.max(1, payload.height),        // cm
 
     cod_amount: 0,
     client_order_code: payload.client_order_code,
-    content: payload.content,
+    content: payload.items
+  ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
+  : (payload.content || "Đơn hàng từ Cyberzone"),
+
   };
 
   try {
@@ -522,37 +531,29 @@ async function getDropoffServices({
       orderValue
     });
 
-    // 2) Lấy danh sách bưu cục GHN
+    // 2) Lấy danh sách bưu cục GHN từ DB + API
     let dropoffPoints = [];
     try {
-      const { ghnDistId } = await getGhnCodesFromLocalDb({
+      const { ghnDistId, ghnWardCode } = await getGhnCodesFromLocalDb({
         province: toProvince,
         district: toDistrict,
         ward: toWard
       });
 
       if (ghnDistId) {
-        const { data: stationRes } = await axios.post(
-          'https://online-gateway.ghn.vn/shiip/public-api/v2/station/get',
-          { district_id: Number(ghnDistId) },
-          { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
-        );
+        // ✅ gọi hàm mới getStations thay vì axios trực tiếp
+        const stations = await getStations({
+          districtId: ghnDistId,
+          wardCode: ghnWardCode
+        });
 
-        const stations = stationRes?.data?.stations || [];
         dropoffPoints = stations.map(st => {
           let distanceKm = null;
-          if (userLat && userLng && st?.location?.lat && st?.location?.lng) {
-            distanceKm = getDistanceKm(userLat, userLng, st.location.lat, st.location.lng);
+          if (userLat && userLng && st.lat && st.lng) {
+            distanceKm = getDistanceKm(userLat, userLng, st.lat, st.lng);
           }
           return {
-            stationId: st.station_id,
-            code: st.code,
-            name: st.name,
-            address: st.address,
-            contact: st.phone,
-            lat: st?.location?.lat ?? null,
-            lng: st?.location?.lng ?? null,
-            workTime: st?.work_time ?? null,
+            ...st,
             distanceKm
           };
         });
@@ -563,7 +564,7 @@ async function getDropoffServices({
         dropoffPoints = dropoffPoints.slice(0, 5);
       }
     } catch (e) {
-      console.warn('[GHN getDropoffServices] station/get warn:', e?.response?.data || e.message);
+      console.warn('[GHN getDropoffServices] getStations warn:', e?.response?.data || e.message);
     }
 
     // 3) Trả về option drop-off chuẩn hóa
@@ -579,6 +580,46 @@ async function getDropoffServices({
   } catch (e) {
     console.error('[GHN getDropoffServices] error:', e?.response?.data || e.message);
     return [];
+  }
+}
+
+// --- LẤY DANH SÁCH BƯU CỤC GHN ---
+async function getStations({ districtId, wardCode, offset = 0, limit = 50 }) {
+  try {
+    const payload = {
+      district_id: Number(districtId),
+      ward_code: wardCode ? String(wardCode) : undefined,
+      offset,
+      limit,
+    };
+
+    console.log("[GHN getStations] Payload:", payload);
+
+    const { data: res } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/station/get",
+      payload,
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
+
+    if (res?.code !== 200) {
+      throw new Error(res?.message || "GHN: Lỗi khi lấy danh sách bưu cục.");
+    }
+
+    const stations = res?.data?.stations || [];
+
+    return stations.map(st => ({
+      id: st.station_id,
+      code: st.code,
+      name: st.name,
+      address: st.address,
+      phone: st.phone,
+      lat: st?.location?.lat ?? null,
+      lng: st?.location?.lng ?? null,
+      workTime: st?.work_time ?? null,
+    }));
+  } catch (err) {
+    console.error("[GHN getStations] Error:", err?.response?.data || err.message);
+    throw new Error("GHN: Không lấy được danh sách bưu cục.");
   }
 }
 
@@ -624,7 +665,13 @@ async function createDropoffOrder(payload) {
 
     to_name: payload.to_name,
     to_phone: payload.to_phone,
-    to_address: payload.to_address,
+   to_address: buildFullAddress(
+  payload.to_address,
+  payload.wardName,
+  payload.districtName,
+  payload.provinceName
+),
+
     to_ward_code: payload.to_ward_code,
     to_district_id: Number(payload.to_district_id),
 
@@ -635,7 +682,10 @@ async function createDropoffOrder(payload) {
 
     cod_amount: 0,
     client_order_code: payload.client_order_code,
-    content: payload.content,
+content: payload.items
+  ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
+  : (payload.content || "Đơn hàng từ Cyberzone"),
+
   };
 
   const { data: responseData } = await axios.post(
@@ -686,6 +736,13 @@ async function getServiceForOrder({ fromDistrict, toDistrict, headers, shopId })
     throw new Error("GHN: Không lấy được dịch vụ khả thi.");
   }
 }
+function buildFullAddress(street, wardName, districtName, provinceName) {
+  return [street, wardName, districtName, provinceName]
+    .filter(Boolean)   // bỏ undefined / null / ""
+    .join(", ");
+}
+
+
 async function createDeliveryOrder(payload) {
   const { ghnDistId: toDistrictGhnCode, ghnWardCode: toWardGhnCode } =
     await getGhnCodesFromLocalDb({
@@ -720,7 +777,13 @@ async function createDeliveryOrder(payload) {
     // To: CUSTOMER
     to_name: payload.to_name,
     to_phone: payload.to_phone,
-    to_address: payload.to_address,
+   to_address: buildFullAddress(
+  payload.to_address,     // địa chỉ chi tiết user nhập
+  payload.wardName,       // tên xã
+  payload.districtName,   // tên huyện
+  payload.provinceName    // tên tỉnh
+),
+
     to_ward_code: String(toWardGhnCode),
     to_district_id: Number(toDistrictGhnCode),
 
@@ -736,7 +799,10 @@ async function createDeliveryOrder(payload) {
 
     cod_amount: payload.cod_amount || 0,
     client_order_code: payload.client_order_code,
-    content: payload.content || "Đơn hàng từ hệ thống",
+content: payload.items
+  ? payload.items.map(it => `${it.productName} x${it.quantity}`).join(", ")
+  : "Đơn hàng từ Cyberzone",
+
   };
 
   console.log("[GHN createDeliveryOrder] Payload gửi GHN:", createOrderPayload);
@@ -795,7 +861,66 @@ async function getLabel(trackingCode) {
     throw err;
   }
 }
+async function getTrackingByClientCode(clientOrderCode) {
+  try {
+    const { data: res } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/detail-by-client-code",
+      { client_order_code: String(clientOrderCode) },
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
 
+    if (res?.code !== 200 || !res.data) {
+      throw new Error(res?.message || "GHN: Không lấy được chi tiết đơn hàng.");
+    }
+
+    // Chuẩn hóa log tracking
+    const logs = (res.data.log || []).map(l => ({
+      time: l.updated_date,
+      status: l.status,
+      note: l.note || null
+    }));
+
+    return {
+      orderCode: res.data.order_code,
+      clientOrderCode: res.data.client_order_code,
+      status: res.data.status,
+      logs
+    };
+  } catch (err) {
+    console.error("[GHN getTrackingByClientCode] Error:", err.response?.data || err.message);
+    throw new Error("GHN: Không thể lấy tracking bằng client_order_code.");
+  }
+}
+
+async function getTrackingByOrderCode(orderCode) {
+  try {
+    const { data: res } = await axios.post(
+      "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/detail",
+      { order_code: String(orderCode) },
+      { headers: { ...headers, ShopId: GHN_SHOP_ID }, timeout: 8000 }
+    );
+
+    if (res?.code !== 200 || !res.data) {
+      throw new Error(res?.message || "GHN: Không lấy được chi tiết đơn hàng.");
+    }
+
+    const logs = (res.data.log || []).map(l => ({
+      time: l.updated_date,
+      status: l.status,
+      note: l.note || null
+    }));
+
+    return {
+      orderCode: res.data.order_code,
+      clientOrderCode: res.data.client_order_code,
+      status: res.data.status,
+      logs
+    };
+  } catch (err) {
+    console.error("[GHN getTrackingByOrderCode] Error:", err.response?.data || err.message);
+    throw new Error("GHN: Không thể lấy tracking bằng order_code.");
+  }
+}
 
 
 module.exports = {
@@ -806,6 +931,9 @@ module.exports = {
   bookPickup,
   createDeliveryOrder,
   getLeadTime,   
+  getStations,
    getLabel,   // 👈 thêm dòng này
+   getTrackingByClientCode,  // 👈 thêm
+  getTrackingByOrderCode,    // 👈 thêm
    getDropoffServices,
 };

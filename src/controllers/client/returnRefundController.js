@@ -496,14 +496,26 @@ static async bookReturnPickup(req, res) {
     const ghnPayload = {
       from_name: addr?.name || "Khách hàng",
       from_phone: addr?.phone || "0123456789",
-      from_address: addr?.address || "Địa chỉ không xác định",
+      from_address: buildFullAddress(
+  addr?.streetAddress || addr?.address,
+  addr?.ward?.name,
+  addr?.district?.name,
+  addr?.province?.name
+),
+
       from_district_id: addr.district?.id,
       from_ward_id: addr.ward?.id,
       from_province_id: addr.province?.id,
 
       to_name: process.env.SHOP_NAME || "Kho Shop",
       to_phone: process.env.SHOP_PHONE || "0987654321",
-      to_address: process.env.SHOP_ADDRESS || "Kho mặc định",
+      to_address: buildFullAddress(
+  process.env.SHOP_ADDRESS || "Kho mặc định",
+  process.env.SHOP_WARD_NAME,
+  process.env.SHOP_DISTRICT_NAME,
+  process.env.SHOP_PROVINCE_NAME
+),
+
       to_ward_code: process.env.SHOP_WARD_CODE,
       to_district_id: process.env.SHOP_DISTRICT_CODE,
 
@@ -512,7 +524,9 @@ static async bookReturnPickup(req, res) {
       width: totalWidth,
       height: totalHeight,
       client_order_code: `RTN-${id}-${Date.now()}`,
-      content: "Trả hàng từ khách",
+ content: order.items && order.items.length
+  ? order.items.map(it => `${it.sku?.name || "SP"} x${it.quantity}`).join(", ")
+  : "Trả hàng từ khách",
 
       situation: returnReq.whoPays || "customer_pays",
     };
@@ -949,13 +963,25 @@ static async createDropoffReturnOrder(req, res) {
     const basePayload = {
       from_name: addr?.fullName || addr?.name,
       from_phone: addr?.phone,
-      from_address: addr?.streetAddress || addr?.address,
+      from_address: buildFullAddress(
+  addr?.streetAddress || addr?.address,
+  addr?.ward?.name,
+  addr?.district?.name,
+  addr?.province?.name
+),
+
       from_province_id: addr?.province?.id,
       from_district_id: addr?.district?.id,
       from_ward_id: addr?.ward?.id,
       to_name: process.env.SHOP_NAME,
       to_phone: process.env.SHOP_PHONE,
-      to_address: process.env.SHOP_ADDRESS,
+      to_address: buildFullAddress(
+  process.env.SHOP_ADDRESS,
+  process.env.SHOP_WARD_NAME,
+  process.env.SHOP_DISTRICT_NAME,
+  process.env.SHOP_PROVINCE_NAME
+),
+
       to_ward_code: process.env.SHOP_WARD_CODE,
       to_district_id: Number(process.env.SHOP_DISTRICT_CODE),
       weight,
@@ -963,7 +989,10 @@ static async createDropoffReturnOrder(req, res) {
       width,
       height,
       client_order_code: `RET-${rr.returnCode}`,
-      content: `Trả hàng ${rr.returnCode} - ${serviceName || "GHN"}`,
+      content: rr.items && rr.items.length
+  ? rr.items.map(it => `${it.sku?.name || "SP"} x${it.quantity}`).join(", ")
+  : `Trả hàng ${rr.returnCode} - ${serviceName || "GHN"}`,
+
     };
     console.log("[createDropoffReturnOrder] API payload base created:", basePayload);
 

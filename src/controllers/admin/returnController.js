@@ -419,7 +419,8 @@ static async getReturnDetail(req, res) {
       data: {
         ...request.toJSON(),
         refundAmount,
-        proofs
+        proofs,
+         returnMethod: request.returnMethod 
       }
     });
 

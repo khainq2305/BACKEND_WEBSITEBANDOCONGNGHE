@@ -597,53 +597,66 @@ static async updateStatus(req, res) {
     try {
       const { id } = req.params;
 
-      const order = await Order.findOne({
-        where: { id },
-        include: [
-          {
-            model: User,
-            attributes: ['id', 'fullName', 'email', 'phone']
-          },
-          {
-            model: UserAddress,
-            as: 'shippingAddress',
-            attributes: ['streetAddress', 'fullName', 'phone'],
-            include: [
-              { model: Province, as: 'province', attributes: ['name'] },
-              { model: District, as: 'district', attributes: ['name'] },
-              { model: Ward, as: 'ward', attributes: ['name'] }
-            ]
-          },
-          {
-            model: PaymentMethod,
-            as: 'paymentMethod',
-            attributes: ['id', 'name', 'code']
-          },
-          {
-            model: ShippingProvider,
-            as: 'shippingProvider',
-            attributes: ['id', 'name', 'code']
-          },
+const order = await Order.findOne({
+  where: { id },
+  attributes: [
+    'id',
+    'status',
+    'totalPrice',
+    'shippingLeadTime',   // thời gian dự kiến giao
+    'trackingCode',       // mã vận đơn GHN
+    'labelUrl'  ,
+  'shippingFee',
+  'finalPrice',
+  'paymentStatus',
+  'createdAt'
+  ],
+  include: [
+    {
+      model: User,
+      attributes: ['id', 'fullName', 'email', 'phone']
+    },
+    {
+      model: UserAddress,
+      as: 'shippingAddress',
+      attributes: ['streetAddress', 'fullName', 'phone'],
+      include: [
+        { model: Province, as: 'province', attributes: ['name'] },
+        { model: District, as: 'district', attributes: ['name'] },
+        { model: Ward, as: 'ward', attributes: ['name'] }
+      ]
+    },
+    {
+      model: PaymentMethod,
+      as: 'paymentMethod',
+      attributes: ['id', 'name', 'code']
+    },
+    {
+      model: ShippingProvider,
+      as: 'shippingProvider',
+      attributes: ['id', 'name', 'code']
+    },
+    {
+      model: OrderItem,
+      as: 'items',
+      include: [
+        {
+          model: Sku,
+          attributes: ['id', 'price', 'originalPrice'],
+          include: [
+            {
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name', 'thumbnail']
+            }
+          ]
+        }
+      ]
+    }
+  ]
+});
 
-          {
-            model: OrderItem,
-            as: 'items',
-            include: [
-              {
-                model: Sku,
-                attributes: ['id', 'price', 'originalPrice'],
-                include: [
-                  {
-                    model: Product,
-                    as: 'product',
-                    attributes: ['id', 'name', 'thumbnail']
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      });
+
 
       if (!order) {
         return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
