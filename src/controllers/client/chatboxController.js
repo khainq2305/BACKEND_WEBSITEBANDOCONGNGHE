@@ -370,431 +370,461 @@ class ChatboxController {
     }
 
     async processChatMessage(message, context = {}) {
-        const lower = message.toLowerCase();
-        const msgNorm = norm(lower);
-        const tokens = msgNorm.split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 2);
-        const meaningfulTokens = tokens.filter(t => !STOPWORDS.has(t));
-
-        const OFFTOPIC_MSG =
-            "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!";
-        if (isOffTopicHard(message)) return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
-        if (isCodeQuestion(message)) return { type: "text", data: "Xin lỗi, em không hỗ trợ giải code hay lập trình. Em chỉ hỗ trợ sản phẩm & dịch vụ ZYBERZONE.", isProductDetail: false };
-
-        if (isPeopleSearch(message) && !isSelfScoped(message)) {
-            return {
-                type: "text",
-                isProductDetail: false,
-                data:
-                    "Xin lỗi, em không thể hỗ trợ tra cứu/thông tin cá nhân của người khác (số điện thoại, địa chỉ, mạng xã hội, giấy tờ tuỳ thân...). " +
-                    "Nếu anh/chị cần hỗ trợ về tài khoản/đơn hàng của **chính mình**, vui lòng đăng nhập và cung cấp mã đơn hoặc thông tin tài khoản."
-            };
+  
+    const lower = message.toLowerCase();
+    const msgNorm = norm(lower);
+    const tokens = msgNorm.split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 2);
+    const meaningfulTokens = tokens.filter(t => !STOPWORDS.has(t));
+    
+    const OFFTOPIC_MSG =
+        "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!";
+    
+    // 1) Kiểm tra off-topic cứng
+    if (isOffTopicHard(message)) {
+        console.log("-> Phát hiện off-topic cứng: isOffTopicHard");
+        return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
+    }
+    if (isCodeQuestion(message)) {
+        console.log("-> Phát hiện câu hỏi lập trình.");
+        return { type: "text", data: "Xin lỗi, em không hỗ trợ giải code hay lập trình. Em chỉ hỗ trợ sản phẩm & dịch vụ ZYBERZONE.", isProductDetail: false };
+    }
+    if (isPeopleSearch(message) && !isSelfScoped(message)) {
+        console.log("-> Phát hiện tra cứu thông tin cá nhân người khác.");
+        return {
+            type: "text",
+            isProductDetail: false,
+            data:
+                "Xin lỗi, em không thể hỗ trợ tra cứu/thông tin cá nhân của người khác (số điện thoại, địa chỉ, mạng xã hội, giấy tờ tuỳ thân...). " +
+                "Nếu anh/chị cần hỗ trợ về tài khoản/đơn hàng của **chính mình**, vui lòng đăng nhập và cung cấp mã đơn hoặc thông tin tài khoản."
+        };
+    }
+    
+    // 2) Kiểm tra yêu cầu chi tiết sản phẩm theo ngữ cảnh (context)
+    if (RE_THIS_NOACCENT.test(msgNorm)) {
+        console.log("-> Phát hiện từ khóa 'này'/'sản phẩm này'.");
+        const { productSlug, productId } = context || {};
+        let targetId = null;
+        if (productSlug) {
+            console.log("-> Có productSlug trong context:", productSlug);
+            const prod = await Product.findOne({ where: { slug: productSlug, isActive: true, deletedAt: null }, attributes: ["id"] });
+            if (prod) targetId = prod.id;
+        } else if (productId) {
+            console.log("-> Có productId trong context:", productId);
+            targetId = Number(productId) || null;
         }
+
+        if (targetId) {
+            console.log("-> Đang lấy chi tiết sản phẩm với ID:", targetId);
+            const productDetailData = await this.fetchProductDetail(
+                targetId, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap
+            );
+            if (productDetailData) {
+                console.log("-> Trả về chi tiết sản phẩm thành công.");
+                return { type: "product_detail", data: productDetailData, isProductDetail: true };
+            }
+            console.log("-> Không tìm thấy chi tiết sản phẩm.");
+            return { type: "text", data: "Không tìm thấy chi tiết sản phẩm này.", isProductDetail: false };
+        } else {
+            console.log("-> Thiếu context để xem chi tiết.");
+            return { type: "text", data: "Anh/chị cho em xin tên hoặc mã sản phẩm để xem chi tiết ạ.", isProductDetail: false };
+        }
+    }
+
+    
+    const [products, categories, brands] = await Promise.all([
+        this.fetchChatProducts({
+            limit: 0,
+            allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap,
+            allActiveCategoryDealsMap: this.allActiveCategoryDealsMap,
+        }),
+        Category.findAll({ where: { isActive: true }, attributes: ["id", "name", "parentId"] }),
+        Brand.findAll({ where: { isActive: true }, attributes: ["name", "description"] }),
+    ]);
+    console.log("-> Đã lấy xong dữ liệu. Số lượng sản phẩm:", products.length);
+
+    /* 3) FUN sub-intent */
+    const funRule = detectFunSubintent(lower);
+    if (funRule) {
        
-        if (RE_THIS_NOACCENT.test(msgNorm)) {
-            const { productSlug, productId } = context || {};
-            let targetId = null;
-            if (productSlug) {
-                const prod = await Product.findOne({ where: { slug: productSlug, isActive: true, deletedAt: null }, attributes: ["id"] });
-                if (prod) targetId = prod.id;
-            } else if (productId) {
-                targetId = Number(productId) || null;
-            }
-            if (targetId) {
-                const productDetailData = await this.fetchProductDetail(
-                    targetId, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap
-                );
-                if (productDetailData) return { type: "product_detail", data: productDetailData, isProductDetail: true };
-                return { type: "text", data: "Không tìm thấy chi tiết sản phẩm này.", isProductDetail: false };
-            } else {
-                // Fallback khi thiếu context
-                return { type: "text", data: "Anh/chị cho em xin tên hoặc mã sản phẩm để xem chi tiết ạ.", isProductDetail: false };
-            }
-        }
+        const picks = pickProductsByUseCases(products, funRule.useCases, 12);
+     
+        return {
+            type: "product_grid",
+            replyMessage: `<p>${funRule.witty}</p>`,
+            data: {
+                title: funRule.label,
+                descriptionTop: `Đề xuất dựa trên nhu cầu: ${funRule.label}`,
+                table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: buildSummaryTableRows(picks, 5) },
+                products: picks
+            },
+            isProductDetail: false
+        };
+    }
 
-        /* 2) Lấy dữ liệu */
-        const [products, categories, brands] = await Promise.all([
-            this.fetchChatProducts({
-                limit: 10,
-                allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap,
-                allActiveCategoryDealsMap: this.allActiveCategoryDealsMap,
-            }),
-            Category.findAll({ where: { isActive: true }, attributes: ["id", "name", "parentId"] }),
-            Brand.findAll({ where: { isActive: true }, attributes: ["name", "description"] }),
+    /* 3.1) Intent ngành hàng cứng */
+    const intent = getQueryIntent(msgNorm);
+    if (intent) {
+        console.log("-> Phát hiện intent ngành hàng cứng:", intent.key);
+        const filtered = filterByIntent(products, intent);
+        console.log("-> Số lượng sản phẩm lọc được:", filtered.length);
+        if (filtered.length) {
+            const top = filtered
+                .sort((a, b) => (a.price - b.price) || ((b.soldCount || 0) - (a.soldCount || 0)))
+                .slice(0, 50);
+            const intentTitle = {
+                may_giat: "Máy giặt",
+                may_say_thong_hoi: "Máy sấy thông hơi (Vented dryer)",
+                may_loc_nuoc: "Máy lọc nước",
+                tu_lanh: "Tủ lạnh",
+            }[intent.key] || "Kết quả phù hợp";
+
+            return buildGridResponse({
+                title: intentTitle,
+                products: top,
+                descriptionTop: `Dưới đây là các sản phẩm thuộc nhóm “${intentTitle}”:`,
+                noteAfterGrid: "Giá và tồn kho có thể thay đổi theo biến thể/SKU."
+            });
+        }
+        console.log("-> Không có sản phẩm nào phù hợp với intent ngành hàng.");
+        return { type: "text", data: "Hiện chưa có sản phẩm đúng với tìm kiếm này còn hàng. Anh/chị thử từ khoá gần nghĩa hoặc quay lại sau giúp em nhé!", isProductDetail: false };
+    }
+
+    /* 4) Love/Baking mapping */
+    if (isLoveQuestion(message)) {
+        console.log("-> Phát hiện câu hỏi về chủ đề 'love'.");
+        const picks = pickProductsByUseCases(products, ["decor", "lighting", "audio", "beauty"], 12);
+        return buildGridResponse({
+            title: "Quà tặng & Lãng mạn",
+            products: picks,
+            descriptionTop: "Quà tặng lãng mạn cho crush nè:"
+        });
+    }
+    if (isBakingQuestion(message)) {
+        console.log("-> Phát hiện câu hỏi về chủ đề 'baking'.");
+        const picks = pickProductsByUseCases(products, ["kitchen"], 12);
+        return buildGridResponse({
+            title: "Dụng cụ & Thiết bị làm bánh",
+            products: picks,
+            descriptionTop: "Thiết bị & dụng cụ làm bánh anh/chị có thể cần:"
+        });
+    }
+
+    /* ===== Chuẩn bị regex/ý định thương mại ===== */
+    const RE = {
+        greet: /(?:\bchào\b|\bxin chào\b|\bhello\b|\bhi\b|tư vấn|giúp|mua gì|\bbắt đầu\b)/iu,
+        discount: /(giảm giá|khuyến mãi|sale|flash\s*sale)/i,
+        shipping: /(giao hàng|vận chuyển|ship hàng|đặt hàng|mua online)/i,
+        warranty: /(bảo hành|bảo trì)/i,
+        returnRefund: /(đổi trả|hoàn tiền|trả hàng)/i,
+        contact: /(liên hệ|cửa hàng|shop ở đâu|địa chỉ|chi nhánh)/i,
+        worktime: /(làm việc|giờ mở cửa|thời gian làm việc)/i,
+        payment: /(thanh toán|trả tiền|cách thanh toán|quẹt thẻ)/i,
+        trust: /(uy tín|đáng tin|chính hãng|hàng thật|giả|bảo đảm|bảo mật)/i,
+        compare: /(so sánh|khác gì|cái nào ngon hơn|loại nào ngon hơn|nên chọn cái nào)/i,
+        stock: /(còn hàng không|có sẵn không|hết hàng chưa|có không vậy)/i,
+        install: /(lắp đặt|gắn tận nơi|hướng dẫn dùng|xài sao|khó dùng quá)/i,
+        family: /(cho mẹ xài|cho ba mẹ|người già dùng được không|bé dùng được không)/i,
+        orderHistory: /(tôi có đặt chưa|đặt rồi mà|kiểm tra giúp đơn cũ|mua hồi trước|lịch sử mua hàng)/i,
+        angry: /(bực quá|mất dạy|chậm quá|không hài lòng|dịch vụ tệ|hủy đơn đi|tôi không mua nữa)/i,
+        energy: /(tiết kiệm điện|hao điện không|xài có tốn điện không|eco|công suất bao nhiêu)/i,
+        invoice: /(hóa đơn|xuất hóa đơn|vat|giấy tờ|bảo hành giấy|giấy tờ mua hàng)/i,
+        app: /(app|ứng dụng|tải app|theo dõi đơn|kiểm tra đơn|nhận được chưa|mã vận đơn)/i,
+        social: /(shopee|lazada|tiki|mạng xã hội|mua ngoài sàn|sàn thương mại)/i,
+        smallRoom: /(phòng nhỏ|nhà nhỏ|phòng trọ|diện tích nhỏ|nhà thuê)/i,
+        cancelOrChange: /(hủy đơn|dừng lại|đổi địa chỉ|thay địa chỉ|sai địa chỉ|đặt nhầm|chuyển giúp đơn)/i,
+        allProducts: /(xem tất cả|xem hết|tất cả sản phẩm)/i,
+        newArrivals: /(hàng mới|sản phẩm mới|về hàng chưa|có hàng mới|sản phẩm hot)/i,
+        loyal: /(ưu đãi|thành viên|tích điểm|chương trình khách hàng|khách thân thiết)/i,
+        deliveryTime: /(khi nào nhận|bao lâu có hàng|thời gian nhận hàng|giao mấy ngày)/i,
+        categoriesAsk: /(danh mục|nhóm hàng|loại sản phẩm|loại hàng|thiết bị nào)/i,
+        detailWith: RE_DETAIL_WITH,
+        detailNo: RE_DETAIL_NO,
+        useCaseAsk: /(dung|dành cho|cho)\s+(nha bep|bep|nau an|cat toc|keo cat toc|trang tri|decor|ve sinh|lau nha|van phong|gaming|chieu sang|den|am thanh|loa|du lich|tre em|em be|lam dep|thu cung|o to|xe hoi|the thao|hoc tap)/i,
+        brandIntent: /(?:thuong\s*hieu|thuong-hieu|thuonghieu|thương\s*hiệu)\s+([a-z0-9\s\-]+)|(?:cua|của)\s+([a-z0-9\s\-]{2,30})/i,
+    };
+
+    const RE_COMMERCE_INTENTS = [
+        /mua/i, /giá/i, /bao nhiêu/i, /ở đâu/i,
+        RE.greet, RE.discount, RE.shipping, RE.warranty, RE.returnRefund, RE.contact,
+        RE.worktime, RE.payment, RE.trust, RE.compare, RE.stock, RE.install, RE.family,
+        RE.orderHistory, RE.energy, RE.invoice, RE.app, RE.social, RE.smallRoom,
+        RE.cancelOrChange, RE.allProducts, RE.newArrivals, RE.loyal, RE.deliveryTime,
+        RE.categoriesAsk, RE.detailWith, RE.detailNo, RE.useCaseAsk, RE.brandIntent
+    ];
+
+    /* 5) Off-topic mềm */
+    let hitsFromData = 0;
+    const brandSet = new Set(brands.map(b => norm(b.name)));
+    const catSet = new Set(categories.map(c => norm(c.name)));
+
+    for (const t of meaningfulTokens) { if (brandSet.has(t)) { hitsFromData = 1; break; } }
+    if (!hitsFromData) for (const t of meaningfulTokens) { if (catSet.has(t)) { hitsFromData = 1; break; } }
+    if (!hitsFromData) {
+        for (const p of products) {
+            const nm = norm(p.name || "");
+            if (meaningfulTokens.some(t => nm.includes(t))) { hitsFromData = 1; break; }
+        }
+    }
+    const hasCommerceIntent =
+        RE_COMMERCE_INTENTS.some(re => re.test(lower)) || RE_CATEGORIES_UD.test(msgNorm);
+
+    console.log("-> Check off-topic mềm: hasCommerceIntent:", hasCommerceIntent, "hitsFromData:", hitsFromData);
+    if (!hasCommerceIntent && !hitsFromData) {
+        console.log("-> Phát hiện off-topic mềm.");
+        return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
+    }
+
+    /* 6) Intent phổ biến (trả lời nhanh) */
+    console.log("-> Đang kiểm tra các intent phổ biến...");
+    if (RE.greet.test(lower)) { console.log("-> Match RE.greet"); return { type: "product_grid", replyMessage: `<p>Xin chào! Em là trợ lý ảo của <b>${STORE_NAME}</b>. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`, data: { title: "Một số sản phẩm nổi bật", table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: buildSummaryTableRows(products.slice(0, 6), 5) }, products: products.slice(0, 6) }, isProductDetail: false }; }
+    if (RE.discount.test(lower)) { console.log("-> Match RE.discount"); const saleItems = products.filter((p) => p.discount && p.discount >= 1); const tableRows = buildSummaryTableRows(saleItems, 5); return { type: "product_grid", data: { title: "Sản phẩm đang giảm giá", descriptionTop: "Dưới đây là các sản phẩm đang khuyến mãi nổi bật:", table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: tableRows }, products: saleItems, noteAfterGrid: "💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!", }, isProductDetail: false, }; }
+    if (RE.shipping.test(lower)) { console.log("-> Match RE.shipping"); return { type: "text", data: "Bên em giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị đặt trực tiếp trên website hoặc nhắn với em nhé!", isProductDetail: false }; }
+    if (RE.payment.test(lower)) { console.log("-> Match RE.payment"); return { type: "text", data: "Hỗ trợ COD, chuyển khoản ngân hàng, và quẹt thẻ tại cửa hàng. Anh/chị chọn phương thức tiện nhất nhé!", isProductDetail: false }; }
+    if (RE.warranty.test(lower)) { console.log("-> Match RE.warranty"); return { type: "text", data: `Tất cả sản phẩm bảo hành chính hãng 6–24 tháng (tuỳ loại). Anh/chị yên tâm mua sắm tại <b>${STORE_NAME}</b> ạ!`, isProductDetail: false }; }
+    if (RE.returnRefund.test(lower)) { console.log("-> Match RE.returnRefund"); return { type: "text", data: "Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!", isProductDetail: false }; }
+    if (RE.contact.test(lower)) { console.log("-> Match RE.contact"); return { type: "text", data: "Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!", isProductDetail: false }; }
+    if (RE.worktime.test(lower)) { console.log("-> Match RE.worktime"); return { type: "text", data: "Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.", isProductDetail: false }; }
+    if (RE.trust.test(lower) && !RE.discount.test(lower)) { console.log("-> Match RE.trust"); return { type: "text", data: `<b>${STORE_NAME}</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!`, isProductDetail: false }; }
+    if (RE.compare.test(lower)) { console.log("-> Match RE.compare"); return { type: "text", data: "Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!", isProductDetail: false }; }
+    if (RE.stock.test(lower)) { console.log("-> Match RE.stock"); return { type: "text", data: "Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!", isProductDetail: false }; }
+    if (RE.install.test(lower)) { console.log("-> Match RE.install"); return { type: "text", data: "Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!", isProductDetail: false }; }
+    if (RE.family.test(lower)) { console.log("-> Match RE.family"); return { type: "text", data: "Nếu anh/chị mô tả cụ thể người dùng/mục đích, em sẽ gợi ý đúng nhu cầu hơn ạ!", isProductDetail: false }; }
+    if (RE.orderHistory.test(lower)) { console.log("-> Match RE.orderHistory"); return { type: "text", data: "Anh/chị để lại số điện thoại đặt hàng, em kiểm tra lịch sử đơn ngay nhé!", isProductDetail: false }; }
+    if (RE.angry.test(lower)) { console.log("-> Match RE.angry"); return { type: "text", data: "Em xin lỗi nếu trải nghiệm chưa tốt. Anh/chị để lại số ĐT hoặc chi tiết, bên em sẽ gọi hỗ trợ ngay ạ!", isProductDetail: false }; }
+    if (RE.energy.test(lower)) { console.log("-> Match RE.energy"); return { type: "text", data: "Nhiều sản phẩm có Inverter/ECO tiết kiệm điện. Anh/chị cần dòng nào em kiểm tra cụ thể nhé!", isProductDetail: false }; }
+    if (RE.invoice.test(lower)) { console.log("-> Match RE.invoice"); return { type: "text", data: "Bên em xuất hoá đơn VAT đầy đủ khi anh/chị yêu cầu. Cho em xin thông tin DN nếu cần nhé!", isProductDetail: false }; }
+    if (RE.app.test(lower)) { console.log("-> Match RE.app"); return { type: "text", data: "Theo dõi đơn bằng cách đăng nhập website, hoặc kiểm tra email/SMS. Cần mã đơn? Em tra ngay!", isProductDetail: false }; }
+    if (RE.social.test(lower)) { console.log("-> Match RE.social"); return { type: "text", data: `Hiện <b>${STORE_NAME}</b> chỉ bán chính thức trên website để đảm bảo dịch vụ & bảo hành tốt nhất ạ!`, isProductDetail: false }; }
+    if (RE.smallRoom.test(lower)) { console.log("-> Match RE.smallRoom"); return { type: "text", data: "Không gian nhỏ nên chọn sản phẩm gọn, tiết kiệm diện tích. Anh/chị mô tả diện tích/phòng để em tư vấn ạ!", isProductDetail: false }; }
+    if (RE.cancelOrChange.test(lower)) { console.log("-> Match RE.cancelOrChange"); return { type: "text", data: "Anh/chị gửi mã đơn hoặc số ĐT đặt hàng, em hỗ trợ hủy/chỉnh sửa ngay nhé!", isProductDetail: false }; }
+    if (RE.allProducts.test(lower)) { console.log("-> Match RE.allProducts"); return buildGridResponse({ title: "Tất cả sản phẩm hiện có", products, descriptionTop: "Danh sách tổng hợp:" }); }
+    if (RE.newArrivals.test(lower)) { console.log("-> Match RE.newArrivals"); const newest = products.slice(0, 4); return buildGridResponse({ title: "Sản phẩm mới về", products: newest, descriptionTop: "Các sản phẩm vừa cập nhật:" }); }
+    if (RE.loyal.test(lower)) { console.log("-> Match RE.loyal"); return { type: "text", data: "Đăng ký tài khoản để tích điểm, nhận ưu đãi sinh nhật và khuyến mãi riêng cho thành viên nhé!", isProductDetail: false }; }
+    if (RE.deliveryTime.test(lower)) { console.log("-> Match RE.deliveryTime"); return { type: "text", data: "Giao hàng trung bình 1–3 ngày (tuỳ khu vực). Sau khi đặt, bên em sẽ gọi xác nhận & báo thời gian cụ thể.", isProductDetail: false }; }
+
+    /* Danh mục: trả dạng grid + bảng */
+    if (RE.categoriesAsk.test(lower) || RE_CATEGORIES_UD.test(msgNorm)) {
+        console.log("-> Match RE.categoriesAsk");
+        return {
+            type: "category_list",
+            data: {
+                title: "Danh mục sản phẩm hiện có:",
+                items: categories.map((c) => ({ id: c.id, name: c.name, triggerMessage: c.name })),
+            },
+            isProductDetail: false,
+        };
+    }
+
+    /* 7) Hỏi theo mục đích sử dụng */
+    if (RE.useCaseAsk.test(msgNorm)) {
+        console.log("-> Phát hiện RE.useCaseAsk.");
+        const m = msgNorm.match(RE.useCaseAsk); const phrase = (m?.[2] || "").trim();
+        const USECASE_ALIAS = new Map([
+            ["nha bep", "kitchen"], ["bep", "kitchen"], ["nau an", "kitchen"],
+            ["cat toc", "haircut"], ["keo cat toc", "haircut"],
+            ["trang tri", "decor"], ["decor", "decor"],
+            ["ve sinh", "cleaning"], ["lau nha", "cleaning"],
+            ["van phong", "office"], ["gaming", "gaming"],
+            ["chieu sang", "lighting"], ["den", "lighting"],
+            ["am thanh", "audio"], ["loa", "audio"],
+            ["du lich", "travel"],
+            ["tre em", "baby"], ["em be", "baby"],
+            ["lam dep", "beauty"],
+            ["thu cung", "pet"],
+            ["o to", "car"], ["xe hoi", "car"],
+            ["the thao", "sport"],
+            ["hoc tap", "study"],
         ]);
-
-        /* 3) FUN sub-intent */
-        const funRule = detectFunSubintent(lower);
-        if (funRule) {
-            const picks = pickProductsByUseCases(products, funRule.useCases, 12);
-            return {
-                type: "product_grid",
-                replyMessage: `<p>${funRule.witty}</p>`,
-                data: {
-                    title: funRule.label,
-                    descriptionTop: `Đề xuất dựa trên nhu cầu: ${funRule.label}`,
-                    table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: buildSummaryTableRows(picks, 5) },
-                    products: picks
-                },
-                isProductDetail: false
-            };
-        }
-
-        /* 3.1) Intent ngành hàng cứng */
-        const intent = getQueryIntent(msgNorm);
-        if (intent) {
-            const filtered = filterByIntent(products, intent);
-            if (filtered.length) {
-                const top = filtered
-                    .sort((a, b) => (a.price - b.price) || ((b.soldCount || 0) - (a.soldCount || 0)))
-                    .slice(0, 50);
-                const intentTitle = {
-                    may_giat: "Máy giặt",
-                    may_say_thong_hoi: "Máy sấy thông hơi (Vented dryer)",
-                    may_loc_nuoc: "Máy lọc nước",
-                    tu_lanh: "Tủ lạnh",
-                }[intent.key] || "Kết quả phù hợp";
-
+        const key = USECASE_ALIAS.get(phrase);
+        console.log("-> Use case phrase:", phrase, "-> Key:", key);
+        if (key) {
+            const byUseCase = products.filter(p => (p.useCases || []).includes(key));
+            console.log("-> Số sản phẩm tìm được theo use case:", byUseCase.length);
+            if (byUseCase.length) {
                 return buildGridResponse({
-                    title: intentTitle,
-                    products: top,
-                    descriptionTop: `Dưới đây là các sản phẩm thuộc nhóm “${intentTitle}”:`,
-                    noteAfterGrid: "Giá và tồn kho có thể thay đổi theo biến thể/SKU."
+                    title: `Sản phẩm dành cho ${m[2]}`,
+                    products: byUseCase.slice(0, 50),
+                    descriptionTop: `Gợi ý cho nhu cầu “${m[2]}”:`
                 });
             }
-            return { type: "text", data: "Hiện chưa có sản phẩm đúng với tìm kiếm này còn hàng. Anh/chị thử từ khoá gần nghĩa hoặc quay lại sau giúp em nhé!", isProductDetail: false };
+            console.log("-> Không tìm thấy sản phẩm cho use case này.");
+            return { type: "text", data: `Chưa tìm thấy sản phẩm dành cho “${m[2]}”.`, isProductDetail: false };
         }
+    }
 
-        /* 4) Love/Baking mapping */
-        if (isLoveQuestion(message)) {
-            const picks = pickProductsByUseCases(products, ["decor", "lighting", "audio", "beauty"], 12);
-            return buildGridResponse({
-                title: "Quà tặng & Lãng mạn",
-                products: picks,
-                descriptionTop: "Quà tặng lãng mạn cho crush nè:"
-            });
-        }
-        if (isBakingQuestion(message)) {
-            const picks = pickProductsByUseCases(products, ["kitchen"], 12);
-            return buildGridResponse({
-                title: "Dụng cụ & Thiết bị làm bánh",
-                products: picks,
-                descriptionTop: "Thiết bị & dụng cụ làm bánh anh/chị có thể cần:"
-            });
-        }
-
-        /* ===== Chuẩn bị regex/ý định thương mại ===== */
-        const RE = {
-            greet: /(?:\bchào\b|\bxin chào\b|\bhello\b|\bhi\b|tư vấn|giúp|mua gì|\bbắt đầu\b)/iu,
-            discount: /(giảm giá|khuyến mãi|sale|flash\s*sale)/i,
-            shipping: /(giao hàng|vận chuyển|ship hàng|đặt hàng|mua online)/i,
-            warranty: /(bảo hành|bảo trì)/i,
-            returnRefund: /(đổi trả|hoàn tiền|trả hàng)/i,
-            contact: /(liên hệ|cửa hàng|shop ở đâu|địa chỉ|chi nhánh)/i,
-            worktime: /(làm việc|giờ mở cửa|thời gian làm việc)/i,
-            payment: /(thanh toán|trả tiền|cách thanh toán|quẹt thẻ)/i,
-            trust: /(uy tín|đáng tin|chính hãng|hàng thật|giả|bảo đảm|bảo mật)/i,
-            compare: /(so sánh|khác gì|cái nào ngon hơn|loại nào ngon hơn|nên chọn cái nào)/i,
-            stock: /(còn hàng không|có sẵn không|hết hàng chưa|có không vậy)/i,
-            install: /(lắp đặt|gắn tận nơi|hướng dẫn dùng|xài sao|khó dùng quá)/i,
-            family: /(cho mẹ xài|cho ba mẹ|người già dùng được không|bé dùng được không)/i,
-            orderHistory: /(tôi có đặt chưa|đặt rồi mà|kiểm tra giúp đơn cũ|mua hồi trước|lịch sử mua hàng)/i,
-            angry: /(bực quá|mất dạy|chậm quá|không hài lòng|dịch vụ tệ|hủy đơn đi|tôi không mua nữa)/i,
-            energy: /(tiết kiệm điện|hao điện không|xài có tốn điện không|eco|công suất bao nhiêu)/i,
-            invoice: /(hóa đơn|xuất hóa đơn|vat|giấy tờ|bảo hành giấy|giấy tờ mua hàng)/i,
-            app: /(app|ứng dụng|tải app|theo dõi đơn|kiểm tra đơn|nhận được chưa|mã vận đơn)/i,
-            social: /(shopee|lazada|tiki|mạng xã hội|mua ngoài sàn|sàn thương mại)/i,
-            smallRoom: /(phòng nhỏ|nhà nhỏ|phòng trọ|diện tích nhỏ|nhà thuê)/i,
-            cancelOrChange: /(hủy đơn|dừng lại|đổi địa chỉ|thay địa chỉ|sai địa chỉ|đặt nhầm|chuyển giúp đơn)/i,
-            allProducts: /(xem tất cả|xem hết|tất cả sản phẩm)/i,
-            newArrivals: /(hàng mới|sản phẩm mới|về hàng chưa|có hàng mới|sản phẩm hot)/i,
-            loyal: /(ưu đãi|thành viên|tích điểm|chương trình khách hàng|khách thân thiết)/i,
-            deliveryTime: /(khi nào nhận|bao lâu có hàng|thời gian nhận hàng|giao mấy ngày)/i,
-            categoriesAsk: /(danh mục|nhóm hàng|loại sản phẩm|loại hàng|thiết bị nào)/i,
-            detailWith: RE_DETAIL_WITH,
-            detailNo: RE_DETAIL_NO,
-            useCaseAsk: /(dung|dành cho|cho)\s+(nha bep|bep|nau an|cat toc|keo cat toc|trang tri|decor|ve sinh|lau nha|van phong|gaming|chieu sang|den|am thanh|loa|du lich|tre em|em be|lam dep|thu cung|o to|xe hoi|the thao|hoc tap)/i,
-            brandIntent: /(?:thuong\s*hieu|thuong-hieu|thuonghieu|thương\s*hiệu)\s+([a-z0-9\s\-]+)|(?:cua|của)\s+([a-z0-9\s\-]{2,30})/i,
-        };
-
-        const RE_COMMERCE_INTENTS = [
-            /mua/i, /giá/i, /bao nhiêu/i, /ở đâu/i,
-            RE.greet, RE.discount, RE.shipping, RE.warranty, RE.returnRefund, RE.contact,
-            RE.worktime, RE.payment, RE.trust, RE.compare, RE.stock, RE.install, RE.family,
-            RE.orderHistory, RE.energy, RE.invoice, RE.app, RE.social, RE.smallRoom,
-            RE.cancelOrChange, RE.allProducts, RE.newArrivals, RE.loyal, RE.deliveryTime,
-            RE.categoriesAsk, RE.detailWith, RE.detailNo, RE.useCaseAsk, RE.brandIntent
-        ];
-
-        /* 5) Off-topic mềm */
-        let hitsFromData = 0;
-        const brandSet = new Set(brands.map(b => norm(b.name)));
-        const catSet = new Set(categories.map(c => norm(c.name)));
-
-        for (const t of meaningfulTokens) { if (brandSet.has(t)) { hitsFromData = 1; break; } }
-        if (!hitsFromData) for (const t of meaningfulTokens) { if (catSet.has(t)) { hitsFromData = 1; break; } }
-        if (!hitsFromData) {
-            for (const p of products) {
-                const nm = norm(p.name || "");
-                if (meaningfulTokens.some(t => nm.includes(t))) { hitsFromData = 1; break; }
-            }
-        }
-
-        const hasCommerceIntent =
-            RE_COMMERCE_INTENTS.some(re => re.test(lower)) || RE_CATEGORIES_UD.test(msgNorm);
-
-        if (!hasCommerceIntent && !hitsFromData) {
-            return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
-        }
-
-        /* 6) Intent phổ biến (trả lời nhanh) */
-        if (RE.greet.test(lower)) {
-            return {
-                type: "product_grid",
-                replyMessage: `<p>Xin chào! Em là trợ lý ảo của <b>${STORE_NAME}</b>. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`,
-                data: {
-                    title: "Một số sản phẩm nổi bật",
-                    table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: buildSummaryTableRows(products.slice(0, 6), 5) },
-                    products: products.slice(0, 6)
-                },
-                isProductDetail: false,
-            };
-        }
-        if (RE.discount.test(lower)) {
-            const saleItems = products.filter((p) => p.discount && p.discount >= 1);
-            const tableRows = buildSummaryTableRows(saleItems, 5);
-            return {
-                type: "product_grid",
-                data: {
-                    title: "Sản phẩm đang giảm giá",
-                    descriptionTop: "Dưới đây là các sản phẩm đang khuyến mãi nổi bật:",
-                    table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: tableRows },
-                    products: saleItems,
-                    noteAfterGrid: "💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!",
-                },
-                isProductDetail: false,
-            };
-        }
-        if (RE.shipping.test(lower)) return { type: "text", data: "Bên em giao hàng toàn quốc, nhanh chóng và an toàn. Anh/chị đặt trực tiếp trên website hoặc nhắn với em nhé!", isProductDetail: false };
-        if (RE.payment.test(lower)) return { type: "text", data: "Hỗ trợ COD, chuyển khoản ngân hàng, và quẹt thẻ tại cửa hàng. Anh/chị chọn phương thức tiện nhất nhé!", isProductDetail: false };
-        if (RE.warranty.test(lower)) return { type: "text", data: `Tất cả sản phẩm bảo hành chính hãng 6–24 tháng (tuỳ loại). Anh/chị yên tâm mua sắm tại <b>${STORE_NAME}</b> ạ!`, isProductDetail: false };
-        if (RE.returnRefund.test(lower)) return { type: "text", data: "Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!", isProductDetail: false };
-        if (RE.contact.test(lower)) return { type: "text", data: "Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!", isProductDetail: false };
-        if (RE.worktime.test(lower)) return { type: "text", data: "Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.", isProductDetail: false };
-        if (RE.trust.test(lower) && !RE.discount.test(lower)) return { type: "text", data: `<b>${STORE_NAME}</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!`, isProductDetail: false };
-        if (RE.compare.test(lower)) return { type: "text", data: "Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!", isProductDetail: false };
-        if (RE.stock.test(lower)) return { type: "text", data: "Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!", isProductDetail: false };
-        if (RE.install.test(lower)) return { type: "text", data: "Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!", isProductDetail: false };
-        if (RE.family.test(lower)) return { type: "text", data: "Nếu anh/chị mô tả cụ thể người dùng/mục đích, em sẽ gợi ý đúng nhu cầu hơn ạ!", isProductDetail: false };
-        if (RE.orderHistory.test(lower)) return { type: "text", data: "Anh/chị để lại số điện thoại đặt hàng, em kiểm tra lịch sử đơn ngay nhé!", isProductDetail: false };
-        if (RE.angry.test(lower)) return { type: "text", data: "Em xin lỗi nếu trải nghiệm chưa tốt. Anh/chị để lại số ĐT hoặc chi tiết, bên em sẽ gọi hỗ trợ ngay ạ!", isProductDetail: false };
-        if (RE.energy.test(lower)) return { type: "text", data: "Nhiều sản phẩm có Inverter/ECO tiết kiệm điện. Anh/chị cần dòng nào em kiểm tra cụ thể nhé!", isProductDetail: false };
-        if (RE.invoice.test(lower)) return { type: "text", data: "Bên em xuất hoá đơn VAT đầy đủ khi anh/chị yêu cầu. Cho em xin thông tin DN nếu cần nhé!", isProductDetail: false };
-        if (RE.app.test(lower)) return { type: "text", data: "Theo dõi đơn bằng cách đăng nhập website, hoặc kiểm tra email/SMS. Cần mã đơn? Em tra ngay!", isProductDetail: false };
-        if (RE.social.test(lower)) return { type: "text", data: `Hiện <b>${STORE_NAME}</b> chỉ bán chính thức trên website để đảm bảo dịch vụ & bảo hành tốt nhất ạ!`, isProductDetail: false };
-        if (RE.smallRoom.test(lower)) return { type: "text", data: "Không gian nhỏ nên chọn sản phẩm gọn, tiết kiệm diện tích. Anh/chị mô tả diện tích/phòng để em tư vấn ạ!", isProductDetail: false };
-        if (RE.cancelOrChange.test(lower)) return { type: "text", data: "Anh/chị gửi mã đơn hoặc số ĐT đặt hàng, em hỗ trợ hủy/chỉnh sửa ngay nhé!", isProductDetail: false };
-        if (RE.allProducts.test(lower)) return buildGridResponse({ title: "Tất cả sản phẩm hiện có", products, descriptionTop: "Danh sách tổng hợp:" });
-        if (RE.newArrivals.test(lower)) {
-            const newest = products.slice(0, 4);
-            return buildGridResponse({ title: "Sản phẩm mới về", products: newest, descriptionTop: "Các sản phẩm vừa cập nhật:" });
-        }
-        if (RE.loyal.test(lower)) return { type: "text", data: "Đăng ký tài khoản để tích điểm, nhận ưu đãi sinh nhật và khuyến mãi riêng cho thành viên nhé!", isProductDetail: false };
-        if (RE.deliveryTime.test(lower)) return { type: "text", data: "Giao hàng trung bình 1–3 ngày (tuỳ khu vực). Sau khi đặt, bên em sẽ gọi xác nhận & báo thời gian cụ thể.", isProductDetail: false };
-
-        /* Danh mục: trả dạng grid + bảng */
-        if (RE.categoriesAsk.test(lower) || RE_CATEGORIES_UD.test(msgNorm)) {
-            return {
-                type: "category_list",
-                data: {
-                    title: "Danh mục sản phẩm hiện có:",
-                    items: categories.map((c) => ({ id: c.id, name: c.name, triggerMessage: c.name })),
-                },
-                isProductDetail: false,
-            };
-        }
-
-        /* 7) Hỏi theo mục đích sử dụng */
-        if (RE.useCaseAsk.test(msgNorm)) {
-            const m = msgNorm.match(RE.useCaseAsk); const phrase = (m?.[2] || "").trim();
-            const USECASE_ALIAS = new Map([
-                ["nha bep", "kitchen"], ["bep", "kitchen"], ["nau an", "kitchen"],
-                ["cat toc", "haircut"], ["keo cat toc", "haircut"],
-                ["trang tri", "decor"], ["decor", "decor"],
-                ["ve sinh", "cleaning"], ["lau nha", "cleaning"],
-                ["van phong", "office"], ["gaming", "gaming"],
-                ["chieu sang", "lighting"], ["den", "lighting"],
-                ["am thanh", "audio"], ["loa", "audio"],
-                ["du lich", "travel"],
-                ["tre em", "baby"], ["em be", "baby"],
-                ["lam dep", "beauty"],
-                ["thu cung", "pet"],
-                ["o to", "car"], ["xe hoi", "car"],
-                ["the thao", "sport"],
-                ["hoc tap", "study"],
-            ]);
-            const key = USECASE_ALIAS.get(phrase);
-            if (key) {
-                const byUseCase = products.filter(p => (p.useCases || []).includes(key));
-                if (byUseCase.length) {
-                    return buildGridResponse({
-                        title: `Sản phẩm dành cho ${m[2]}`,
-                        products: byUseCase.slice(0, 50),
-                        descriptionTop: `Gợi ý cho nhu cầu “${m[2]}”:`
-                    });
-                }
-                return { type: "text", data: `Chưa tìm thấy sản phẩm dành cho “${m[2]}”.`, isProductDetail: false };
-            }
-        }
-
-        /* 8) Hỏi theo thương hiệu */
-        const brandIntent = msgNorm.match(RE.brandIntent);
-        if (brandIntent) {
-            const kw = norm((brandIntent[1] || brandIntent[2] || "").replace(/[?.!,;:]+$/, "").trim());
-            const blacklist = new Set(["shop", "cua hang", "ben ban", "bennay", "ben nay"]);
-            if (kw && !blacklist.has(kw)) {
-                const kwTokens = kw.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 2);
-                if (kwTokens.length === 0) {
-                    return { type: "text", data: "Anh/chị cho em tên thương hiệu cụ thể để lọc giúp ạ.", isProductDetail: false };
-                }
-                const relevanceScore = (p) => {
-                    const nameNorm = norm(p.name), brandNorm = norm(p.brand), catNorm = norm(p.category);
-                    let score = 0;
-                    for (const t of kwTokens) {
-                        const inBrand = brandNorm.includes(t), inName = nameNorm.includes(t), inCat = catNorm.includes(t);
-                        if (inBrand) score += 10;
-                        if (inName) score += 6;
-                        if (inCat) score += 3;
-                        if (brandNorm.startsWith(t)) score += 3;
-                        if (nameNorm.startsWith(t)) score += 2;
-                    }
-                    const phrase = kwTokens.join(" ");
-                    if (phrase.length >= 2) { if (brandNorm.includes(phrase)) score += 4; if (nameNorm.includes(phrase)) score += 2; }
-                    return score;
-                };
-                const matchedBrand = products
-                    .map((p) => ({ p, s: relevanceScore(p) }))
-                    .filter(x => x.s > 0)
-                    .sort((a, b) => b.s - a.s || ((b.p.soldCount || 0) - (a.p.soldCount || 0)))
-                    .map(x => x.p);
-                if (matchedBrand.length) {
-                    return buildGridResponse({
-                        title: `Sản phẩm của thương hiệu ${kw}`,
-                        products: matchedBrand.slice(0, 50),
-                        descriptionTop: `Các sản phẩm nổi bật của thương hiệu “${kw}”:`
-                    });
-                }
-                return { type: "text", data: `Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${kw}".`, isProductDetail: false };
-            } else {
+    /* 8) Hỏi theo thương hiệu */
+    const brandIntent = msgNorm.match(RE.brandIntent);
+    if (brandIntent) {
+        console.log("-> Phát hiện câu hỏi về thương hiệu.");
+        const kw = norm((brandIntent[1] || brandIntent[2] || "").replace(/[?.!,;:]+$/, "").trim());
+        const blacklist = new Set(["shop", "cua hang", "ben ban", "bennay", "ben nay"]);
+        console.log("-> Keyword thương hiệu:", kw);
+        if (kw && !blacklist.has(kw)) {
+            const kwTokens = kw.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 2);
+            if (kwTokens.length === 0) {
+                console.log("-> Keyword thương hiệu quá ngắn.");
                 return { type: "text", data: "Anh/chị cho em tên thương hiệu cụ thể để lọc giúp ạ.", isProductDetail: false };
             }
-        }
-
-        // Hỗ trợ "xem chi tiết sản phẩm ..." cả có dấu & không dấu
-        const mDetailWith = msgNorm.match(RE_DETAIL_NO) || lower.match(RE_DETAIL_WITH);
-        if (mDetailWith) {
-            const keyword = (mDetailWith[3] || mDetailWith[2] || "").trim();
-            if (keyword.length >= 2) {
-                const found = products.find(p => norm(p.name).includes(norm(keyword)));
-                if (found) {
-                    const productDetailData = await this.fetchProductDetail(found.id, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap);
-                    return productDetailData
-                        ? { type: "product_detail", data: productDetailData, isProductDetail: true }
-                        : { type: "text", data: "Không tìm thấy chi tiết sản phẩm này.", isProductDetail: false };
+            const relevanceScore = (p) => {
+                const nameNorm = norm(p.name), brandNorm = norm(p.brand), catNorm = norm(p.category);
+                let score = 0;
+                for (const t of kwTokens) {
+                    const inBrand = brandNorm.includes(t), inName = nameNorm.includes(t), inCat = catNorm.includes(t);
+                    if (inBrand) score += 10;
+                    if (inName) score += 6;
+                    if (inCat) score += 3;
+                    if (brandNorm.startsWith(t)) score += 3;
+                    if (nameNorm.startsWith(t)) score += 2;
                 }
-                return { type: "text", data: `Không tìm thấy sản phẩm "${keyword}".`, isProductDetail: false };
-            }
-        }
-
-        /* 8.1) Danh mục được nhắc tới trong câu hỏi — gom cả danh mục con */
-        for (const cat of categories) {
-            const catNorm = norm(cat.name || "");
-            if (catNorm && msgNorm.includes(catNorm)) {
-                const idSet = collectDescendantIds(categories, cat.id);
-                const allInTree = products.filter(p => p.categoryId && idSet.has(p.categoryId));
-                const available = allInTree.filter(p => p.inStock);
-
-                if (allInTree.length === 0) {
-                    return { type: "text", data: `Danh mục "${cat.name}" hiện chưa có sản phẩm. Bên em đang chờ sản phẩm mới về ạ!`, isProductDetail: false };
-                }
-                if (available.length === 0) {
-                    return { type: "text", data: `Danh mục "${cat.name}" hiện tạm hết hàng. Anh/chị quay lại sau giúp em — sản phẩm mới sẽ sớm cập nhật!`, isProductDetail: false };
-                }
-
-                const result = [...available, ...allInTree.filter(p => !p.inStock)].slice(0, 50);
+                const phrase = kwTokens.join(" ");
+                if (phrase.length >= 2) { if (brandNorm.includes(phrase)) score += 4; if (nameNorm.includes(phrase)) score += 2; }
+                return score;
+            };
+            const matchedBrand = products
+                .map((p) => ({ p, s: relevanceScore(p) }))
+                .filter(x => x.s > 0)
+                .sort((a, b) => b.s - a.s || ((b.p.soldCount || 0) - (a.p.soldCount || 0)))
+                .map(x => x.p);
+            console.log("-> Số lượng sản phẩm match thương hiệu:", matchedBrand.length);
+            if (matchedBrand.length) {
                 return buildGridResponse({
-                    title: `Sản phẩm thuộc "${cat.name}"`,
-                    products: result,
-                    descriptionTop: `Danh sách sản phẩm trong danh mục “${cat.name}”:`,
-                    noteAfterGrid: "Một số sản phẩm có nhiều biến thể giá."
+                    title: `Sản phẩm của thương hiệu ${kw}`,
+                    products: matchedBrand.slice(0, 50),
+                    descriptionTop: `Các sản phẩm nổi bật của thương hiệu “${kw}”:`
                 });
             }
+            console.log("-> Không tìm thấy sản phẩm cho thương hiệu này.");
+            return { type: "text", data: `Xin lỗi, hiện chưa có sản phẩm nào thuộc thương hiệu "${kw}".`, isProductDetail: false };
+        } else {
+            return { type: "text", data: "Anh/chị cho em tên thương hiệu cụ thể để lọc giúp ạ.", isProductDetail: false };
         }
+    }
 
-        /* ===== Helper tính điểm liên quan (duy nhất) ===== */
-        const relevanceScore = (p) => {
-            const nameNorm = norm(p.name), brandNorm = norm(p.brand), catNorm = norm(p.category);
-            let score = 0;
-            for (const t of meaningfulTokens) {
-                const inBrand = brandNorm.includes(t), inName = nameNorm.includes(t), inCat = catNorm.includes(t);
-                if (inBrand) score += 10;
-                if (inName) score += 6;
-                if (inCat) score += 3;
-                if (brandNorm.startsWith(t)) score += 3;
-                if (nameNorm.startsWith(t)) score += 2;
+    // Hỗ trợ "xem chi tiết sản phẩm ..." cả có dấu & không dấu
+    const mDetailWith = msgNorm.match(RE_DETAIL_NO) || lower.match(RE_DETAIL_WITH);
+    if (mDetailWith) {
+        console.log("-> Phát hiện yêu cầu xem chi tiết sản phẩm.");
+        const keyword = (mDetailWith[3] || mDetailWith[2] || "").trim();
+        if (keyword.length >= 2) {
+            console.log("-> Keyword chi tiết sản phẩm:", keyword);
+            const found = products.find(p => norm(p.name).includes(norm(keyword)));
+            if (found) {
+                console.log("-> Đã tìm thấy sản phẩm:", found.name);
+                const productDetailData = await this.fetchProductDetail(found.id, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap);
+                return productDetailData
+                    ? { type: "product_detail", data: productDetailData, isProductDetail: true }
+                    : { type: "text", data: "Không tìm thấy chi tiết sản phẩm này.", isProductDetail: false };
             }
-            const phrase = meaningfulTokens.join(" ");
-            if (phrase.length >= 2) { if (brandNorm.includes(phrase)) score += 4; if (nameNorm.includes(phrase)) score += 2; }
-            return score;
-        };
+            console.log("-> Không tìm thấy sản phẩm với keyword:", keyword);
+            return { type: "text", data: `Không tìm thấy sản phẩm "${keyword}".`, isProductDetail: false };
+        }
+    }
 
-        // 10) Tìm theo độ liên quan (duy nhất)
-        const matched = products
-            .map(p => ({ p, s: relevanceScore(p) }))
-            .filter(x => x.s > 0)
-            .sort((a, b) => b.s - a.s || ((b.p.soldCount || 0) - (a.p.soldCount || 0)));
+    /* 8.1) Danh mục được nhắc tới trong câu hỏi — gom cả danh mục con */
+    for (const cat of categories) {
+        const catNorm = norm(cat.name || "");
+        if (catNorm && msgNorm.includes(catNorm)) {
+            console.log("-> Phát hiện danh mục trong tin nhắn:", cat.name);
+            const idSet = collectDescendantIds(categories, cat.id);
+            const allInTree = products.filter(p => p.categoryId && idSet.has(p.categoryId));
+            const available = allInTree.filter(p => p.inStock);
 
-        const MIN_SCORE = 12;
-        if (matched.length && matched[0].s >= MIN_SCORE) {
-            const list = matched.slice(0, 50).map(x => x.p);
+            if (allInTree.length === 0) {
+                console.log("-> Danh mục này chưa có sản phẩm.");
+                return { type: "text", data: `Danh mục "${cat.name}" hiện chưa có sản phẩm. Bên em đang chờ sản phẩm mới về ạ!`, isProductDetail: false };
+            }
+            if (available.length === 0) {
+                console.log("-> Danh mục này tạm hết hàng.");
+                return { type: "text", data: `Danh mục "${cat.name}" hiện tạm hết hàng. Anh/chị quay lại sau giúp em — sản phẩm mới sẽ sớm cập nhật!`, isProductDetail: false };
+            }
+
+            const result = [...available, ...allInTree.filter(p => !p.inStock)].slice(0, 50);
+            console.log("-> Trả về sản phẩm theo danh mục. Số lượng:", result.length);
             return buildGridResponse({
-                title: ` ${message}`,
-                products: list,
-                descriptionTop: "Các kết quả phù hợp nhất:"
+                title: `Sản phẩm thuộc "${cat.name}"`,
+                products: result,
+                descriptionTop: `Danh sách sản phẩm trong danh mục “${cat.name}”:`,
+                noteAfterGrid: "Một số sản phẩm có nhiều biến thể giá."
             });
         }
-
-        // Không đủ điểm liên quan + không rơi vào intent cụ thể
-        const hasCommerceIntentLocal =
-            RE_COMMERCE_INTENTS.some(re => re.test(lower)) || RE_CATEGORIES_UD.test(msgNorm);
-        if (!hasCommerceIntentLocal) {
-            return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
-        }
-
-        /* 11) Fallback LLM structured (đặt trước return cuối) */
-        if (genAI && process.env.GEMINI_API_KEY) {
-            try {
-                const structured = await askLLMStructured(message);
-                if (structured.type === "product_detail") {
-                    const candId = structured?.content?.productId;
-                    if (candId) {
-                        const detail = await this.fetchProductDetail(candId, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap);
-                        if (detail) return { type: "product_detail", data: detail, isProductDetail: true };
-                    }
-                    return buildGridResponse({
-                        title: "Gợi ý liên quan",
-                        products: products.slice(0, 8)
-                    });
-                }
-                return { type: structured.type, data: structured.content, isProductDetail: structured.isProductDetail, replyMessage: structured.replyMessage || undefined };
-            } catch (e) {
-                console.error("Gemini structured error:", e);
-                // Rơi xuống fallback cuối
-            }
-        }
-
-        /* 12) Fallback cuối cùng */
-        return { type: "text", data: "Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.", isProductDetail: false };
     }
+
+    /* ===== Helper tính điểm liên quan (duy nhất) ===== */
+    const relevanceScore = (p) => {
+        const nameNorm = norm(p.name), brandNorm = norm(p.brand), catNorm = norm(p.category);
+        let score = 0;
+        for (const t of meaningfulTokens) {
+            const inBrand = brandNorm.includes(t), inName = nameNorm.includes(t), inCat = catNorm.includes(t);
+            if (inBrand) score += 10;
+            if (inName) score += 6;
+            if (inCat) score += 3;
+            if (brandNorm.startsWith(t)) score += 3;
+            if (nameNorm.startsWith(t)) score += 2;
+        }
+        const phrase = meaningfulTokens.join(" ");
+        if (phrase.length >= 2) { if (brandNorm.includes(phrase)) score += 4; if (nameNorm.includes(phrase)) score += 2; }
+        return score;
+    };
+
+    // 10) Tìm theo độ liên quan (duy nhất)
+    const matched = products
+        .map(p => ({ p, s: relevanceScore(p) }))
+        .filter(x => x.s > 0)
+        .sort((a, b) => b.s - a.s || ((b.p.soldCount || 0) - (a.p.soldCount || 0)));
+
+    const MIN_SCORE = 12;
+    console.log("-> Tính toán điểm liên quan. Số sản phẩm có điểm:", matched.length, "Điểm cao nhất:", matched.length > 0 ? matched[0].s : 0);
+    if (matched.length && matched[0].s >= MIN_SCORE) {
+        console.log("-> Trả về kết quả tìm kiếm theo điểm liên quan.");
+        const list = matched.slice(0, 50).map(x => x.p);
+        return buildGridResponse({
+            title: `Kết quả tìm kiếm cho: ${message}`,
+            products: list,
+            descriptionTop: "Các kết quả phù hợp nhất:"
+        });
+    }
+
+    // Không đủ điểm liên quan + không rơi vào intent cụ thể
+    const hasCommerceIntentLocal =
+        RE_COMMERCE_INTENTS.some(re => re.test(lower)) || RE_CATEGORIES_UD.test(msgNorm);
+    if (!hasCommerceIntentLocal) {
+        console.log("-> Không tìm thấy intent thương mại nào, fallback về off-topic.");
+        return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
+    }
+    
+    /* 11) Fallback LLM structured (đặt trước return cuối) */
+    if (genAI && process.env.GEMINI_API_KEY) {
+        console.log("-> Thử hỏi LLM với Gemini structured.");
+        try {
+            const structured = await askLLMStructured(message);
+            console.log("-> LLM structured response:", structured);
+            if (structured.type === "product_detail") {
+                const candId = structured?.content?.productId;
+                if (candId) {
+                    const detail = await this.fetchProductDetail(candId, this.allActiveFlashSaleItemsMap, this.allActiveCategoryDealsMap);
+                    if (detail) {
+                        console.log("-> Trả về chi tiết sản phẩm từ LLM.");
+                        return { type: "product_detail", data: detail, isProductDetail: true };
+                    }
+                }
+                console.log("-> LLM trả về product_detail nhưng không tìm thấy sản phẩm. Trả về sản phẩm nổi bật.");
+                return buildGridResponse({
+                    title: "Gợi ý liên quan",
+                    products: products.slice(0, 8)
+                });
+            }
+            console.log("-> LLM trả về response:", structured.type);
+            return { type: structured.type, data: structured.content, isProductDetail: structured.isProductDetail, replyMessage: structured.replyMessage || undefined };
+        } catch (e) {
+            console.error("Lỗi khi gọi Gemini structured:", e.message);
+            // Tiếp tục xuống fallback cuối
+        }
+    }
+
+    /* 12) Fallback cuối cùng */
+    console.log("-> Không match được intent nào. Trả về fallback cuối cùng.");
+    return { type: "text", data: "Xin lỗi, hiện tại em chưa hiểu rõ câu hỏi. Anh/Chị vui lòng thử lại.", isProductDetail: false };
+}
 
     /* ========== Data fetchers ========== */
     async fetchChatProducts({ limit = 50, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap } = {}) {

@@ -41,15 +41,7 @@ class CategoryController {
         isDefault,
       });
   
-      console.log('📦 Dữ liệu tạo category:', {
-        name,
-        slug,
-        description,
-        parentId: validParentId,
-        isActive,
-        orderIndex,
-        isDefault,
-      });
+   
   
       return res.status(201).json({
         message: 'Tạo danh mục thành công',

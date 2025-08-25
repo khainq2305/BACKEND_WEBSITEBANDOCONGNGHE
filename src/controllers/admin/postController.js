@@ -89,7 +89,7 @@ class PostController {
   
 
   static async getAll(req, res) {
-    console.log('da goi getall')
+    
     try {
       const { search = "", categoryId, status } = req.query;
       const { page, limit, offset } = req.pagination;
@@ -289,9 +289,7 @@ class PostController {
   // [SOFT DELETE] Xoá mềm bài viết theo slug
   static async softDelete(req, res) {
     try {
-      console.log("=== Đã vào BE softDelete ===");
-      console.log("Body:", req.body);
-
+     
       const { slugs } = req.body;
 
       if (!Array.isArray(slugs) || slugs.length === 0) {

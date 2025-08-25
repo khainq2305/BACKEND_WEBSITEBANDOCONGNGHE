@@ -121,18 +121,13 @@ async function getFee({
   serviceCode,
   orderValue = 0,
 }) {
-  console.log("===== [GHN getFee] DEBUG =====");
-  console.log("Input params:", {
-    toProvince, toDistrict, toWard,
-    weight, length, width, height,
-    serviceCode, orderValue
-  });
+
 
   // 💥 Lấy mã GHN từ DB nội bộ
   const { ghnProvId: pid, ghnDistId: did, ghnWardCode: wcd } =
     await getGhnCodesFromLocalDb({ province: toProvince, district: toDistrict, ward: toWard });
 
-  console.log("[GHN getFee] Mapping local DB:", { pid, did, wcd });
+ 
 
   if (!did) {
     throw new Error("GHN: Không tìm thấy mã huyện GHN để tính phí.");
@@ -147,7 +142,7 @@ async function getFee({
       from_district: Number(SHOP_DISTRICT_CODE),
       to_district: Number(did),
     };
-    console.log("[GHN getFee] Payload gọi /available-services:", svcPayload);
+   
 
     const { data: svcRes } = await axios.post(
       "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services",
@@ -155,7 +150,7 @@ async function getFee({
       { headers, timeout: 5000 }
     );
 
-    console.log("[GHN getFee] Response /available-services:", JSON.stringify(svcRes, null, 2));
+    
 
     if (!svcRes?.data?.length) throw new Error("Không có dịch vụ khả dụng.");
     const matched = svcRes.data.find(s => s.service_id === Number(serviceCode));
@@ -163,7 +158,7 @@ async function getFee({
     service_type_id = svc.service_type_id;
     actualServiceId = svc.service_id;
 
-    console.log("[GHN getFee] Chọn dịch vụ:", { service_type_id, actualServiceId });
+    
   } catch (err) {
     console.error("[GHN getFee] Lỗi khi lấy service_type_id:", err?.response?.data || err.message);
     throw new Error(`GHN: Lỗi khi lấy service_type_id: ${err?.response?.data?.message || err.message}`);
@@ -173,9 +168,7 @@ async function getFee({
   const volumetricWeight = Math.floor((length * width * height) / 5000);
   const chargeableWeight = Math.max(weight, volumetricWeight);
 
-  console.log("[GHN getFee] Weight thực tế:", weight, "gram");
-  console.log("[GHN getFee] Volumetric weight:", volumetricWeight, "gram");
-  console.log("[GHN getFee] GHN chargeable weight:", chargeableWeight, "gram");
+ 
 
   // B2: Gọi API /fee
   let fee = 0;
@@ -186,7 +179,7 @@ async function getFee({
       service_type_id: Number(service_type_id),
       to_district_id: Number(did),
       to_ward_code: wcd,
-      weight: chargeableWeight, // ⚡ dùng trọng lượng chargeable
+      weight: chargeableWeight, 
       length: Math.max(1, length),
       width: Math.max(1, width),
       height: Math.max(1, height),
@@ -203,13 +196,12 @@ async function getFee({
     );
 
     feeData = res;
-    console.log("[GHN getFee] Response /fee:", JSON.stringify(feeData, null, 2));
-
+   
     if (feeData?.code !== 200) throw new Error(feeData?.message || "Lỗi không rõ khi tính phí.");
     fee = feeData?.data?.total || 0;
     if (fee === 0) console.warn("[GHN getFee] ⚠️ Phí = 0.");
   } catch (err) {
-    console.error("[GHN getFee] LỖI API /fee:", err?.response?.data || err.message);
+   
     throw new Error(`GHN: Lỗi khi tính phí: ${err?.response?.data?.message || err.message}`);
   }
 
@@ -221,7 +213,7 @@ async function getFee({
       const now = Date.now();
       const diffSec = Math.floor((etd - now) / 1000);
       if (diffSec > 0) leadTime = Math.max(1, Math.ceil(diffSec / 86400));
-      console.log("[GHN getFee] leadTime tính được:", leadTime);
+      
     } catch (e) {
       console.warn("[GHN getFee] Lỗi xử lý expected_delivery_time:", e.message);
     }
@@ -230,12 +222,10 @@ async function getFee({
   if (!leadTime) {
     const fallback = 3;
     leadTime = fallback;
-    console.warn(`[GHN getFee] ⚠️ Fallback leadTime: ${fallback} ngày`);
+  
   }
 
-  console.log("===== [GHN getFee] OUTPUT =====", {
-    fee, leadTime, service_type_id: actualServiceId
-  });
+ 
 
   return { fee, leadTime, service_type_id: actualServiceId };
 }
@@ -290,8 +280,7 @@ async function getLeadTime({ toProvince, toDistrict, toWard, serviceCode }) {
       service_id: Number(actualServiceId),
     };
 
-    console.log("[GHN getLeadTime] payload:", payload);
-
+    
     const { data: res } = await axios.post(
       "https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/leadtime",
       payload,
@@ -880,7 +869,7 @@ async function getTrackingByClientCode(clientOrderCode) {
       throw new Error(res?.message || "GHN: Không lấy được chi tiết đơn hàng.");
     }
 
-    // Chuẩn hóa log tracking
+   
     const logs = (res.data.log || []).map(l => ({
       time: l.updated_date,
       status: l.status,
@@ -933,16 +922,16 @@ async function getTrackingByOrderCode(orderCode) {
 module.exports = {
   getDefaultService,
   getFee,
-  createDropoffOrder, // <-- thêm dòng này
+  createDropoffOrder, 
   getGhnCodesFromLocalDb,
   bookPickup,
   createDeliveryOrder,
   buildFullAddress,
   getLeadTime,   
   getStations,
-   getLabel,   // 👈 thêm dòng này
-   getTrackingByClientCode,  // 👈 thêm
-  getTrackingByOrderCode,    // 👈 thêm
+   getLabel,  
+   getTrackingByClientCode,  
+  getTrackingByOrderCode,   
    getDropoffServices,
-    buildContentFromItems, // 👈 thêm export ở đây
+    buildContentFromItems,
 };

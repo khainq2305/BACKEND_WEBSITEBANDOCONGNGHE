@@ -74,7 +74,7 @@ const StockLogController = {
 
   // ✅ Tạo log mới (khi nhập kho / xuất kho)
   async create(req, res) {
-    console.log('đã gọi tạo lick sử')
+ 
     try {
       const {
         skuId,

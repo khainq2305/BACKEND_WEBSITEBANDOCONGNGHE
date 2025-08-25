@@ -7,8 +7,7 @@ class MembershipController {
    * @route GET /api/membership/:userId
    */
   static async getMembershipInfo(req, res) {
-  console.log("🔥 ĐÃ VÀO MembershipController.getMembershipInfo");
-
+ 
   const userId = req.user?.id; // 👈 fix ở đây
 
   if (!userId) {

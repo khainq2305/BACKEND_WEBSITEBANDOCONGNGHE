@@ -35,9 +35,7 @@ const recommendationCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 class RecommendationController {
   static async recordProductView(userId, productId) {
     if (!ProductView || !User || !Product) {
-      console.warn(
-        "WARN: [recordProductView] Required models (ProductView, User, Product) are not available. Skipping view recording."
-      );
+     
       return;
     }
     try {
@@ -57,24 +55,16 @@ class RecommendationController {
         view.lastViewedAt = new Date();
         await view.save();
       }
-      console.log(
-        `DEBUG: [recordProductView] User ${userId} viewed product ${productId}. View count: ${view.viewCount}.`
-      );
+      
     } catch (error) {
-      console.error(
-        `ERROR: [recordProductView] Lỗi khi ghi nhận lượt xem sản phẩm ${productId} của user ${userId}:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+     
+     
     }
   }
 
   static async _getUserRecentlyViewedProducts(userId, limit = 5) {
     if (!User || !Product || !ProductView || !Category || !Brand) {
-      console.warn(
-        "WARN: [_getUserRecentlyViewedProducts] Required models missing."
-      );
+     
       return [];
     }
     try {
@@ -117,19 +107,11 @@ class RecommendationController {
       const products = views
         .map((view) => view.product)
         .filter((p) => p !== null);
-      console.log(
-        `DEBUG: [_getUserRecentlyViewedProducts] User ${userId} recently viewed: ${
-          products.length
-        } products. Names: ${products.map((p) => p.name).join(", ")}`
-      );
+      
       return products;
     } catch (error) {
-      console.error(
-        `ERROR: [_getUserRecentlyViewedProducts] Lỗi khi lấy sản phẩm đã xem gần đây cho userId ${userId}:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+     
+      
       return [];
     }
   }
@@ -145,9 +127,7 @@ class RecommendationController {
       !Brand ||
       !sequelize
     ) {
-      console.warn(
-        "WARN: [_getUserPurchasedProducts] Required models or sequelize instance missing."
-      );
+      
       return [];
     }
     try {
@@ -193,13 +173,7 @@ class RecommendationController {
         ? [queryResults]
         : [];
 
-      console.log(
-        `DEBUG: [_getUserPurchasedProducts] User ${userId} purchased: ${
-          products.length
-        } unique products (RAW SQL). Names: ${products
-          .map((p) => p.name)
-          .join(", ")}`
-      );
+     
       return products.map((row) => ({
         id: row.id,
         name: row.name,
@@ -210,21 +184,14 @@ class RecommendationController {
         brand: { name: row.brand_name },
       }));
     } catch (error) {
-      console.error(
-        `ERROR: [_getUserPurchasedProducts] Lỗi khi lấy sản phẩm đã mua cho userId ${userId} (SQL thuần):`,
-        error.message
-      );
-      console.error("SQL Error Name:", error.name);
-      console.error("SQL Error Stack:", error.stack);
+      
       return [];
     }
   }
 
   static async _getProductDetailsForGemini(productId) {
     if (!Product || !Category || !Brand) {
-      console.warn(
-        "WARN: [_getProductDetailsForGemini] Required models missing."
-      );
+     
       return null;
     }
     try {
@@ -245,28 +212,17 @@ class RecommendationController {
         paranoid: false,
       });
 
-      console.log(
-        `DEBUG: [_getProductDetailsForGemini] Current Product (ID ${productId}): ${
-          product ? product.name : "Not Found"
-        }`
-      );
+    
       return product;
     } catch (error) {
-      console.error(
-        `ERROR: [_getProductDetailsForGemini] Lỗi khi lấy chi tiết sản phẩm ${productId} cho Gemini:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+      
       return null;
     }
   }
 
   static async _getUserSearchHistory(userId, limit = 5) {
     if (!SearchHistory) {
-      console.warn(
-        "WARN: [_getUserSearchHistory] SearchHistory model is not available. Skipping search history retrieval."
-      );
+     
       return [];
     }
     try {
@@ -278,28 +234,17 @@ class RecommendationController {
         raw: true,
       });
       const keywords = searchTerms.map((item) => item.keyword);
-      console.log(
-        `DEBUG: [_getUserSearchHistory] User ${userId} recently searched: ${keywords.join(
-          ", "
-        )}`
-      );
+      
       return keywords;
     } catch (error) {
-      console.error(
-        `ERROR: [_getUserSearchHistory] Lỗi khi lấy lịch sử tìm kiếm cho userId ${userId}:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+     
       return [];
     }
   }
 
   static async _getUserDemographics(userId) {
     if (!User) {
-      console.warn(
-        "WARN: [_getUserDemographics] User model is not available. Skipping demographic retrieval."
-      );
+     
       return { gender: null, age: null };
     }
     try {
@@ -309,7 +254,7 @@ class RecommendationController {
       });
 
       if (!user) {
-        console.log(`DEBUG: [_getUserDemographics] User ${userId} not found.`);
+       
         return { gender: null, age: null };
       }
 
@@ -319,10 +264,7 @@ class RecommendationController {
         const birthDate = new Date(user.dateOfBirth);
 
         if (isNaN(birthDate.getTime())) {
-          console.error(
-            `ERROR: [_getUserDemographics] Invalid dateOfBirth for user ${userId}:`,
-            user.dateOfBirth
-          );
+          
           age = null;
         } else {
           let calculatedAge = today.getFullYear() - birthDate.getFullYear();
@@ -334,28 +276,17 @@ class RecommendationController {
         }
       }
 
-      console.log(
-        `DEBUG: [_getUserDemographics] User ${userId} demographics: Gender: ${
-          user.gender || "N/A"
-        }, Age: ${age || "N/A"}`
-      );
+      
       return { gender: user.gender, age: age };
     } catch (error) {
-      console.error(
-        `ERROR: [_getUserDemographics] Lỗi khi lấy thông tin nhân khẩu học cho userId ${userId}:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+     
       return { gender: null, age: null };
     }
   }
 
   static async _getRelatedProductsForPrompt(userId, currentProductId) {
   if (!Product || !Category || !Brand || !ProductView || !Order) {
-    console.warn(
-      "WARN: [_getRelatedProductsForPrompt] Required models missing. Skipping related products retrieval."
-    );
+   
     return [];
   }
 
@@ -395,15 +326,7 @@ class RecommendationController {
   ]);
   if (currentProductId) excludedIds.add(currentProductId);
 
-  console.log(
-    `DEBUG: [_getRelatedProductsForPrompt] Related Category IDs: ${Array.from(relatedCategoryIds).join(", ")}`
-  );
-  console.log(
-    `DEBUG: [_getRelatedProductsForPrompt] Related Brand IDs: ${Array.from(relatedBrandIds).join(", ")}`
-  );
-  console.log(
-    `DEBUG: [_getRelatedProductsForPrompt] Excluded Product IDs: ${Array.from(excludedIds).join(", ")}`
-  );
+  
 
   let relatedProducts = [];
   const limit = 50;
@@ -438,9 +361,7 @@ class RecommendationController {
 
   // Nếu không có thì fallback sang sản phẩm phổ biến nhất
   if (relatedProducts.length === 0) {
-    console.log(
-      "WARN: [_getRelatedProductsForPrompt] No related products found. Falling back to popular products."
-    );
+    
     relatedProducts = await Product.findAll({
       attributes: ["id", "name", "description"],
       where: {
@@ -461,9 +382,7 @@ class RecommendationController {
     });
   }
 
-  console.log(
-    `DEBUG: [_getRelatedProductsForPrompt] Found ${relatedProducts.length} related products for prompt.`
-  );
+ 
   return relatedProducts;
 }
 
@@ -552,10 +471,7 @@ class RecommendationController {
     prompt +=
       "\n\nHãy gợi ý 10 ID sản phẩm khác nhau. Chỉ trả về ID, mỗi ID trên một dòng.";
 
-    console.log(
-      "DEBUG: [buildGeminiRecommendationPrompt] Final Gemini Prompt length (chars):",
-      prompt.length
-    );
+    
     return prompt;
   }
 
@@ -610,9 +526,7 @@ class RecommendationController {
 
       const ids = (topRows || []).map((r) => Number(r.id)).filter(Boolean);
       if (!ids || ids.length === 0) {
-        console.log(
-          "DEBUG: [_getPopularProducts] Không tìm thấy product nào phổ biến."
-        );
+        
         return [];
       }
 
@@ -679,19 +593,10 @@ class RecommendationController {
         paranoid: false,
       });
 
-      console.log(
-        `DEBUG: [_getPopularProducts] Found ${
-          products.length
-        } popular products (ids: ${ids.join(",")}).`
-      );
+     
       return products;
     } catch (error) {
-      console.error(
-        "ERROR: [_getPopularProducts] Lỗi khi lấy sản phẩm phổ biến:",
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+      
       return [];
     }
   }
@@ -708,9 +613,7 @@ class RecommendationController {
     const cacheKey = `gemini_recs_${userId}_${currentProductId || "null"}`;
     const cachedRecommendations = recommendationCache.get(cacheKey);
     if (cachedRecommendations) {
-      console.log(
-        `DEBUG: [getGeminiRecommendations] Returning recommendations from cache for userId: ${userId}`
-      );
+      
       return cachedRecommendations;
     }
 
@@ -728,10 +631,7 @@ class RecommendationController {
         typeof response.text === "function"
           ? response.text()
           : String(response);
-      console.log(
-        "DEBUG: [getGeminiRecommendations] Raw Gemini Response Text:\n",
-        text
-      );
+    
 
       // Robust parsing: extract first positive integer per non-empty line
       recommendedProductIds = text
@@ -744,17 +644,9 @@ class RecommendationController {
 
       // remove duplicates while preserving order
       recommendedProductIds = Array.from(new Set(recommendedProductIds));
-      console.log(
-        "DEBUG: [getGeminiRecommendations] Recommended IDs from Gemini:",
-        recommendedProductIds
-      );
+      
     } catch (error) {
-      console.error(
-        "ERROR: [getGeminiRecommendations] Lỗi khi gọi Gemini API để tạo gợi ý:",
-        error.response?.data || error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+     
       const fallbackProducts = await this._getPopularProducts(3);
       if (fallbackProducts.length > 0) {
         return await this._mapProductsToFrontendFormat(fallbackProducts);
@@ -830,21 +722,13 @@ class RecommendationController {
           const product = mappedProducts.get(id);
           if (product) {
             finalRecommendations.push(product.toJSON());
-            console.log(
-              `DEBUG: [getGeminiRecommendations] Mapped Gemini ID ${id} -> "${product.name}"`
-            );
+           
           } else {
-            console.warn(
-              `WARN: [getGeminiRecommendations] Gemini suggested ID ${id} but not found in DB.`
-            );
+            
           }
         }
       } catch (dbErr) {
-        console.error(
-          "ERROR: [getGeminiRecommendations] Lỗi khi truy vấn DB cho product IDs:",
-          dbErr.message
-        );
-        console.error("ERROR Stack:", dbErr.stack);
+        
         finalRecommendations = await this._getPopularProducts(3);
       }
     }
@@ -860,10 +744,7 @@ class RecommendationController {
         finalRecommendations
       );
     } catch (fmtErr) {
-      console.error(
-        "ERROR: [getGeminiRecommendations] Lỗi khi format sản phẩm:",
-        fmtErr.message
-      );
+      
       formattedRecommendations = finalRecommendations.map((p) =>
         typeof p.toJSON === "function" ? p.toJSON() : p
       );
@@ -879,39 +760,25 @@ class RecommendationController {
         );
       recentlyViewedForExclusion.forEach((p) => excludeProductIds.add(p.id));
     } catch (e) {
-      console.warn(
-        "WARN: [getGeminiRecommendations] Could not fetch recently viewed for exclusion:",
-        e.message
-      );
+      
     }
     try {
       const purchasedProductsForExclusion =
         await RecommendationController._getUserPurchasedProducts(userId, 10);
       purchasedProductsForExclusion.forEach((p) => excludeProductIds.add(p.id));
     } catch (e) {
-      console.warn(
-        "WARN: [getGeminiRecommendations] Could not fetch purchased products for exclusion:",
-        e.message
-      );
+     
     }
 
-    console.log(
-      "DEBUG: [getGeminiRecommendations] Products to exclude (IDs):",
-      Array.from(excludeProductIds).join(", ")
-    );
+   
 
     const filteredRecommendations = formattedRecommendations.filter(
       (p) => !excludeProductIds.has(p.id)
     );
-    console.log(
-      "DEBUG: [getGeminiRecommendations] Final recommendations AFTER filtering:",
-      filteredRecommendations.map((p) => p.name)
-    );
+   
 
     recommendationCache.set(cacheKey, filteredRecommendations);
-    console.log(
-      `DEBUG: [getGeminiRecommendations] Stored recommendations in cache for userId: ${userId}`
-    );
+   
 
     return filteredRecommendations;
   }
@@ -1102,66 +969,48 @@ class RecommendationController {
   }
 
   static async getRecommendations(req, res) {
-    console.log("DEBUG: [getRecommendations] API call received.");
+    
     try {
-      console.log("DEBUG: [getRecommendations] req.user:", req.user);
+     
       const userId = req.user ? req.user.id : null;
-      console.log("DEBUG: [getRecommendations] Derived userId:", userId);
-
+    
       const currentProductId = req.query.currentProductId
         ? parseInt(req.query.currentProductId)
         : null;
 
       if (!userId) {
-        console.log(
-          "DEBUG: [getRecommendations] User not authenticated (userId is null). Returning popular products."
-        );
+        
         const popularProducts =
           await RecommendationController._getPopularProducts(3);
         const formattedProducts =
           await RecommendationController._mapProductsToFrontendFormat(
             popularProducts
           );
-        console.log(
-          "DEBUG: [getRecommendations] DATA SENT TO FRONTEND (fallback):",
-          JSON.stringify({ recommendations: formattedProducts }, null, 2)
-        );
+       
         return res.status(200).json({ recommendations: formattedProducts });
       }
 
-      console.log(
-        `DEBUG: [getRecommendations] Requesting recommendations for userId: ${userId}, currentProductId: ${currentProductId}`
-      );
+     
       const recommendations =
         await RecommendationController._getGeminiRecommendations(
           userId,
           currentProductId
         );
 
-      console.log(
-        "DEBUG: [getRecommendations] DATA SENT TO FRONTEND:",
-        JSON.stringify({ recommendations: recommendations }, null, 2)
-      );
+     
 
       return res.status(200).json({
         recommendations: recommendations,
       });
     } catch (error) {
-      console.error(
-        "ERROR: [getRecommendations] Lỗi hệ thống khi lấy gợi ý sản phẩm:",
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+      
       return res.status(500).json({ message: "Lỗi server nội bộ." });
     }
   }
 
   static async recordSearchKeyword(userId, keyword) {
     if (!SearchHistory || !userId || !keyword || keyword.trim() === "") {
-      console.warn(
-        "WARN: [recordSearchKeyword] Missing userId or keyword, or SearchHistory model not available. Skipping record."
-      );
+      
       return;
     }
     try {
@@ -1174,22 +1023,14 @@ class RecommendationController {
         existingSearch.changed("createdAt", true);
         existingSearch.createdAt = new Date();
         await existingSearch.save();
-        console.log(
-          `DEBUG: [recordSearchKeyword] Updated timestamp for existing search keyword '${trimmedKeyword}' for user ${userId}.`
-        );
+       
       } else {
         await SearchHistory.create({ userId, keyword: trimmedKeyword });
-        console.log(
-          `DEBUG: [recordSearchKeyword] Recorded new search keyword '${trimmedKeyword}' for user ${userId}.`
-        );
+        
       }
     } catch (error) {
-      console.error(
-        `ERROR: [recordSearchKeyword] Lỗi khi ghi nhận từ khóa tìm kiếm '${keyword}' của user ${userId}:`,
-        error.message
-      );
-      console.error("ERROR Name:", error.name);
-      console.error("ERROR Stack:", error.stack);
+      
+     
     }
   }
 }

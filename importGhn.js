@@ -39,19 +39,9 @@ const norm = t => deAccent(stripDist(stripProv(stripWard(t || ''))))
     charset: 'utf8mb4',
   });
 
-  console.time('⏳ GHN import');
-
-  /* 1️⃣ Lấy dữ liệu nội bộ từ DB ---------------------------------------------------- */
   const [provs] = await db.query('SELECT id, name FROM provinces');
   const [dists] = await db.query('SELECT id, name, provinceId FROM districts');
   const [wards] = await db.query('SELECT id, name, districtId FROM wards');
-
-  console.log('--- Dữ liệu từ DB của bạn ---');
-  console.log('Số tỉnh đọc được (provinces):', provs.length);
-  console.log('Số huyện đọc được (districts):', dists.length);
-  console.log('Số xã/phường đọc được (wards):', wards.length);
-  console.log('-----------------------------');
-
   const provMap = new Map(); // Khởi tạo map để điền sau
   const dbProvIdToNameMap = new Map(provs.map(p => [p.id, norm(p.name)]));
 
@@ -60,7 +50,7 @@ const norm = t => deAccent(stripDist(stripProv(stripWard(t || ''))))
       const normalizedDbName = norm(p.name);
       provMap.set(normalizedDbName, p.id);
       if (p.name.includes('Thừa Thiên Huế') || p.name.includes('Huế')) { // Lọc đúng tỉnh cần debug
-          console.log(`[DEBUG NORM DB] Tên gốc DB: "${p.name}" -> Chuẩn hóa DB: "${normalizedDbName}"`);
+         
       }
   }
   

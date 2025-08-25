@@ -73,12 +73,12 @@ async function askLLMStructured(userMessage) {
 
     const parsed = ChatResponseSchema.safeParse(parsedJson);
     if (!parsed.success) {
-      console.error('Zod validation errors:', parsed.error.errors);
+     
       throw new Error("JSON shape not valid");
     }
     return parsed.data;
   } catch (e) {
-    console.error('Gemini structured error:', e?.message, '\nRaw:', raw?.slice?.(0, 600));
+    
     throw e;
   }
 }
