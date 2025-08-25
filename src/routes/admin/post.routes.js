@@ -39,7 +39,7 @@ router.get("/edit/:slug", PostController.getBySlug);
 router.put(
   "/update/:slug",
   authorize("Post"),
-  upload.single("thumbnail"),
+  upload.single("thumbnailUrl"),
   validatePost,
   autoSlug(Post),
   PostController.update

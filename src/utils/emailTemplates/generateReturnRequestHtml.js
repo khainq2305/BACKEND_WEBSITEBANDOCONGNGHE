@@ -1,10 +1,38 @@
-function generateReturnRequestHtml({ 
+// mapping từ id sang label
+const returnSituations = [
+  {
+    id: 'seller_pays',
+    label: 'Shop chịu phí vận chuyển (hàng lỗi, sai sản phẩm, khác mô tả...)',
+    reasons: [
+      { id: 'WRONG_SIZE_COLOR', label: 'Nhận sai kích cỡ, màu sắc, hoặc sai sản phẩm' },
+      { id: 'NOT_AS_DESCRIBED', label: 'Sản phẩm khác với mô tả của shop' },
+      { id: 'DEFECTIVE', label: 'Sản phẩm bị lỗi, hư hỏng, không hoạt động' }
+    ]
+  },
+  {
+    id: 'customer_pays',
+    label: 'Khách hàng chịu phí vận chuyển (đổi ý, không muốn mua nữa...)',
+    reasons: [
+      { id: 'CHANGE_MIND', label: 'Không còn nhu cầu mua nữa' },
+      { id: 'ORDER_BY_MISTAKE', label: 'Đặt nhầm sản phẩm' },
+      { id: 'FOUND_BETTER_PRICE', label: 'Tìm được sản phẩm giá tốt hơn' }
+    ]
+  }
+];
+
+// helper lấy label
+function getReasonLabel(reasonId, situation) {
+  const situationObj = returnSituations.find(s => s.id === situation);
+  if (!situationObj) return reasonId;
+  const reasonObj = situationObj.reasons.find(r => r.id === reasonId);
+  return reasonObj ? reasonObj.label : reasonId;
+}
+
+function generateReturnRequestHtml({
   orderCode,
-  userName,
-  userEmail,
   reason,
   detailedReason,
-  situation, // seller_pays | customer_pays
+  situation,
   refundAmount,
   returnFee,
   returnCode,
@@ -12,10 +40,12 @@ function generateReturnRequestHtml({
   evidenceImages = [],
   evidenceVideos = [],
   companyName = "CYBERZONE",
-  companyLogoUrl = "https://yourdomain.com/logo.png",
+  companyLogoUrl = "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
   companySupportEmail = "support@yourdomain.com",
-  requestDetailUrl = `https://yourdomain.com/return-requests/${returnCode}`
+  requestDetailUrl = `https://www.cyberzone.com.vn/admin/return-requests/${returnCode}`
 }) {
+  const reasonLabel = getReasonLabel(reason, situation);
+
   const orderItemsHtml = orderItems.map(item => `
     <tr>
       <td style="padding: 10px; border-top: 1px solid #eee;">${item.productName}</td>
@@ -33,83 +63,57 @@ function generateReturnRequestHtml({
   `).join('');
 
   return `
-    <mjml>
-      <mj-head>
-        <mj-title>Yêu cầu trả hàng ${returnCode}</mj-title>
-      </mj-head>
-      <mj-body background-color="#f9f9f9">
+    <div style="background-color:#f9f9f9; padding:20px; font-family:Arial,sans-serif; color:#333;">
+      <div style="background:#fff; max-width:600px; margin:auto; border-radius:8px; overflow:hidden; border:1px solid #ddd;">
+        
+        <div style="text-align:center; padding:20px;">
+          <img src="${companyLogoUrl}" alt="${companyName}" style="max-width:150px;"/>
+          <h2 style="margin-top:10px; color:#333;">YÊU CẦU TRẢ HÀNG MỚI</h2>
+        </div>
 
-        <mj-section background-color="#ffffff" padding="20px">
-          <mj-column>
-            <mj-image width="150px" src="${companyLogoUrl}" />
-            <mj-divider border-color="#333333" border-width="1px" />
-            <mj-text font-size="20px" font-weight="bold" align="center" color="#333333">
-              Xác nhận yêu cầu trả hàng
-            </mj-text>
-          </mj-column>
-        </mj-section>
+        <div style="padding:20px; font-size:14px; line-height:1.6;">
+          <p><strong>Đơn hàng:</strong> ${orderCode}</p>
+          <p><strong>Mã yêu cầu:</strong> ${returnCode}</p>
+          <p><strong>Lý do:</strong> ${reasonLabel}</p>
+          <p><strong>Chi tiết:</strong> ${detailedReason || "Không có"}</p>
+          <p><strong>Tình huống phí:</strong> ${situation === "seller_pays" ? "Người bán chịu phí" : "Khách hàng chịu phí"}</p>
+          <p><strong>Phí trả hàng:</strong> ${Number(returnFee).toLocaleString('vi-VN')} đ</p>
+          <p><strong>Số tiền hoàn dự kiến:</strong> ${Number(refundAmount).toLocaleString('vi-VN')} đ</p>
+        </div>
 
-        <mj-section background-color="#ffffff" padding="20px">
-          <mj-column>
-            <mj-text font-size="16px">
-              Xin chào ${userName} (${userEmail}),<br/>
-              Yêu cầu trả hàng của bạn cho đơn <strong>${orderCode}</strong> đã được ghi nhận.
-            </mj-text>
-            <mj-text font-size="14px">
-              <strong>Mã yêu cầu:</strong> ${returnCode}<br/>
-              <strong>Lý do:</strong> ${reason}<br/>
-              <strong>Chi tiết:</strong> ${detailedReason || "Không có"}<br/>
-              <strong>Tình huống phí:</strong> ${situation === "seller_pays" ? "Người bán chịu phí" : "Khách hàng chịu phí"}<br/>
-              <strong>Phí trả hàng:</strong> ${Number(returnFee).toLocaleString('vi-VN')} đ<br/>
-              <strong>Số tiền hoàn dự kiến:</strong> ${Number(refundAmount).toLocaleString('vi-VN')} đ
-            </mj-text>
-          </mj-column>
-        </mj-section>
+        <div style="padding:20px; font-size:14px;">
+          <h3 style="margin-bottom:10px;">Danh sách sản phẩm khách trả:</h3>
+          <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <tr style="background:#f2f2f2;">
+              <th style="padding:10px; text-align:left;">Sản phẩm</th>
+              <th style="padding:10px; text-align:center;">SL</th>
+              <th style="padding:10px; text-align:right;">Đơn giá</th>
+            </tr>
+            ${orderItemsHtml}
+          </table>
+        </div>
 
-        <mj-section background-color="#ffffff" padding="20px">
-          <mj-column>
-            <mj-text font-size="16px" font-weight="bold">Sản phẩm trả:</mj-text>
-            <mj-divider border-width="1px" border-style="dashed" border-color="#eee" />
-            <mj-table>
-              <tr style="background:#f2f2f2;">
-                <th style="padding:10px; width:60%;">Sản phẩm</th>
-                <th style="padding:10px; text-align:center; width:15%;">SL</th>
-                <th style="padding:10px; text-align:right; width:25%;">Đơn giá</th>
-              </tr>
-              ${orderItemsHtml}
-            </mj-table>
-          </mj-column>
-        </mj-section>
+        ${(imagesHtml || videosHtml) ? `
+        <div style="padding:20px; font-size:14px;">
+          <h3 style="margin-bottom:10px;">Bằng chứng khách cung cấp:</h3>
+          <div>${imagesHtml}</div>
+          <div>${videosHtml}</div>
+        </div>` : ''}
 
-        ${imagesHtml || videosHtml ? `
-        <mj-section background-color="#ffffff" padding="20px">
-          <mj-column>
-            <mj-text font-size="16px" font-weight="bold">Bằng chứng:</mj-text>
-            <mj-divider border-width="1px" border-style="dashed" border-color="#eee" />
-            <mj-text>${imagesHtml}</mj-text>
-            <mj-text>${videosHtml}</mj-text>
-          </mj-column>
-        </mj-section>` : ''}
+        <div style="text-align:center; padding:20px;">
+          <a href="${requestDetailUrl}" 
+             style="display:inline-block; padding:12px 20px; background:#F45E43; color:#fff; 
+                    text-decoration:none; border-radius:4px; font-weight:bold;">
+            Xử lý yêu cầu ngay
+          </a>
+        </div>
 
-        <mj-section background-color="#ffffff" padding="20px">
-          <mj-column>
-            <mj-button background-color="#F45E43" color="#ffffff" font-weight="bold" href="${requestDetailUrl}" width="220px">
-              Xem chi tiết yêu cầu
-            </mj-button>
-          </mj-column>
-        </mj-section>
+        <div style="padding:20px; font-size:12px; color:#888; text-align:center; border-top:1px solid #eee;">
+          Email hệ thống của ${companyName}. Vui lòng không trả lời trực tiếp email này.
+        </div>
 
-        <mj-section padding="20px">
-          <mj-column>
-            <mj-text font-size="12px" color="#888888" align="center">
-              Nếu bạn cần hỗ trợ, vui lòng liên hệ:<br/>
-              Email: <a href="mailto:${companySupportEmail}" style="color:#007bff;">${companySupportEmail}</a>
-            </mj-text>
-          </mj-column>
-        </mj-section>
-
-      </mj-body>
-    </mjml>
+      </div>
+    </div>
   `;
 }
 

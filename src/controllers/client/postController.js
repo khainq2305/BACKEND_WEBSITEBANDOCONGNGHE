@@ -130,7 +130,7 @@ class PostController {
   static async getAllTitle(req, res) {
     try {
       const posts = await Post.findAll({
-        attributes: ["id", "title", "slug", "createdAt"],
+        attributes: ["id", "title", "slug", "createdAt", "publishAt"],
         where: { deletedAt: null },
       });
       return res.json({ data: posts });

@@ -3,6 +3,7 @@ const axios     = require('axios');
 const NodeCache = require('node-cache');
 const cache     = new NodeCache({ stdTTL: 86_400 });
 const mysql = require('mysql2/promise'); 
+const PARTNER_CODE = "S22856075"; // mã do GHTK cấp cho shop của bạn
 
 const {
   GHTK_TOKEN,
@@ -239,60 +240,176 @@ async function getDropoffServices({
     return [];
   }
 }
+
 async function createDropoffOrder(payload) {
   try {
-    const orderPayload = {
-      products: payload.items?.map(it => ({
-        name: `${it.productName} x${it.quantity}`,
-        weight: it.weight || payload.weight,
-        quantity: it.quantity,
-      })) || [
+    // ✅ Khai giá (>= 1000)
+    let orderValue = Number(payload.value) || 0;
+    if (orderValue <= 0) {
+      console.warn("[GHTK] Khai giá <= 0, ép về 1000đ");
+      orderValue = 1000;
+    }
+
+    // ✅ Cân nặng mặc định (gram)
+    let defaultWeight = 100;
+    if (payload.weight) {
+      defaultWeight =
+        payload.weight < 1
+          ? Math.round(payload.weight * 1000) // kg → g
+          : Math.round(payload.weight);       // g
+    }
+
+    // ✅ Fix loại dịch vụ
+    let transport = "road";
+    if (payload.serviceType?.toLowerCase() === "express") {
+      if (orderValue > 0) {
+        console.warn("[GHTK] EXPRESS không hỗ trợ khai giá, ép về road");
+      } else {
+        transport = "fly";
+        orderValue = 0;
+      }
+    }
+
+    // ✅ Fix số điện thoại trùng
+    let pickTel = payload.from_phone;
+    if (pickTel === payload.to_phone) {
+      console.warn("[GHTK] pick_tel trùng tel, đổi số shop mặc định");
+      pickTel = "0900000000";
+    }
+
+    // ✅ Danh sách sản phẩm + trọng lượng thực
+    let totalWeight = 0;
+    const products =
+      payload.items?.map((it) => {
+        let itemWeight =
+          !it.weight || it.weight <= 0
+            ? defaultWeight
+            : it.weight < 1
+            ? Math.round(it.weight * 1000) // kg → g
+            : Math.round(it.weight);
+
+        if (itemWeight < 50) itemWeight = 50; // min 50g
+        const lineWeight = itemWeight * (it.quantity || 1);
+        totalWeight += lineWeight;
+
+        return {
+          name: `${it.productName} x${it.quantity}`,
+          weight: itemWeight / 1000, // gram → kg
+          quantity: it.quantity,
+          product_code: it.productCode || undefined,
+        };
+      }) || [
         {
           name: payload.content || "Hàng hóa",
-          weight: payload.weight,
+          weight: Math.max(50, defaultWeight) / 1000,
           quantity: 1,
         },
-      ],
+      ];
+
+    if (products.length === 1 && !payload.items) {
+      totalWeight = products[0].weight * 1000; // vì đang tính kg
+    }
+
+    // ✅ Tính trọng lượng thể tích (cm³/6000 * 1000g)
+    const length = payload.length || 10;
+    const width = payload.width || 10;
+    const height = payload.height || 10;
+    const volumeWeight = Math.ceil((length * width * height) / 6000 * 1000);
+
+    // ✅ Lấy max giữa trọng lượng thực và thể tích
+    let finalWeight = Math.max(totalWeight, volumeWeight);
+    if (finalWeight < 50) finalWeight = 50;
+
+    console.log(
+      `[DEBUG] totalWeight=${totalWeight}g, volumeWeight=${volumeWeight}g, finalWeight=${finalWeight}g`
+    );
+
+    // 🚨 Check quá tải
+    if (finalWeight >= 20000) {
+      throw new Error(
+        `[GHTK] Đơn quá khối lượng (${finalWeight}g). GHTK không nhận >= 20kg`
+      );
+    }
+
+    // ✅ Payload gửi GHTK
+    const orderPayload = {
+      products,
       order: {
         id: payload.client_order_code,
-        pick_name: payload.from_name,
-        pick_address: payload.from_address,
-        pick_province: payload.from_province_name,
-        pick_district: payload.from_district_name,
-        pick_tel: payload.from_phone,
 
+        // 🏬 Điểm lấy (shop)
+        pick_address_id: process.env.GHTK_PICK_ADDRESS_ID,
+        pick_address: process.env.GHTK_PICK_ADDRESS,
+        pick_province: process.env.GHTK_PICK_PROVINCE || "Cần Thơ",
+        pick_district: process.env.GHTK_PICK_DISTRICT || "Quận Cái Răng",
+        pick_ward: process.env.GHTK_PICK_WARD || "Phường Thường Thạnh",
+        pick_name: payload.from_name || "Cyberzone Shop",
+        pick_tel: pickTel,
+        pick_email: payload.from_email || "shop@default.com",
+
+        // 📦 Điểm giao
         name: payload.to_name,
         address: payload.to_address,
         province: payload.to_province_name,
         district: payload.to_district_name,
-        ward: payload.to_ward_name,
+        ward: payload.to_ward_name || undefined,
+        hamlet: "Khác",
         tel: payload.to_phone,
+        email: payload.to_email || "customer@default.com",
 
+        // 🚚 Thông tin khác
         is_freeship: 1,
-        value: 0,
-        weight: payload.weight,
-        length: payload.length,
-        width: payload.width,
-        height: payload.height,
-        content: payload.content,
+        pick_money: Number(payload.codAmount) || 0,
+        value: orderValue,
+        weight: finalWeight,
+        length,
+        width,
+        height,
+        content: payload.content || "Hàng hóa",
+        transport,
+        pick_option: "cod",
+        note: payload.note || "Đơn hàng API",
       },
     };
 
+    console.log("[GHTK] Payload gửi:", JSON.stringify(orderPayload, null, 2));
+
+    // ✅ Call API GHTK
     const { data: res } = await axios.post(
-      "https://services.giaohangtietkiem.vn/services/shipment/order",
+      "https://services.giaohangtietkiem.vn/services/shipment/order/?ver=1.5",
       orderPayload,
-      { headers: { Token: GHTK_TOKEN }, timeout: 10000 }
+      {
+        headers: {
+          Token: GHTK_TOKEN,
+          "X-Client-Source": PARTNER_CODE,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
     );
 
-    if (res?.success && res?.order) {
-      const trackingCode = res.order.label;      // Mã vận đơn GHTK
-      const labelUrl = res.order?.url || null;   // Link in phiếu
-      const expectedDelivery = res.order?.estimated_delivery_time || null; // Dự kiến giao
+    console.log("[GHTK] Response:", JSON.stringify(res, null, 2));
 
-      // 🔥 Lưu vào DB (bảng orders)
+    if (res?.success && res?.order) {
+      const trackingCode = res.order.label;
+
+      // ✅ Gọi API lấy labelUrl
+      let labelUrl = null;
+      try {
+        labelUrl = await getLabel(trackingCode);
+      } catch (e) {
+        console.warn("[GHTK] Không lấy được labelUrl:", e.message);
+      }
+
+      // ✅ Ngày giao dự kiến
+      const expectedDelivery = res.order?.estimated_deliver_time || null;
+
+      // ✅ Lưu DB
       if (dbConnection) {
         await dbConnection.execute(
-          `UPDATE orders SET trackingCode = ?, labelUrl = ?, shippingLeadTime = ? WHERE orderCode = ?`,
+          `UPDATE orders 
+           SET trackingCode = ?, labelUrl = ?, shippingLeadTime = ? 
+           WHERE orderCode = ?`,
           [trackingCode, labelUrl, expectedDelivery, payload.client_order_code]
         );
       }
@@ -302,10 +419,17 @@ async function createDropoffOrder(payload) {
       throw new Error(res?.message || "Không tạo được đơn GHTK");
     }
   } catch (err) {
-    console.error("[GHTK createDropoffOrder] error:", err?.response?.data || err.message);
+    console.error(
+      "[GHTK createDropoffOrder] error:",
+      err?.response?.data || err.message
+    );
     throw err;
   }
 }
+
+
+
+
 
 /**
  * Lấy lại link in Label từ GHTK bằng mã vận đơn (trackingCode)

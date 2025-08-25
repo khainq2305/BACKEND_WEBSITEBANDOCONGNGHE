@@ -9,9 +9,8 @@ class PostController {
       const {
         title,
         content,
-        category,
+        categoryId,
         authorId,
-        status = 0,
         orderIndex = 0,
         publishAt,
         slug,
@@ -22,30 +21,21 @@ class PostController {
       const tags = JSON.parse(req.body.tags || "[]");
   
       let finalPublishAt = null;
-      let finalStatus = parseInt(status, 10);
-  
-      if (publishAt) {
-        const pubDate = new Date(publishAt);
-  
-        if (pubDate > new Date()) {
-          // 👉 Hẹn giờ đăng
-          finalPublishAt = pubDate;
-          finalStatus = 0; // scheduled
-        } else {
-          // 👉 Ngày <= hiện tại => đăng liền
-          finalPublishAt = new Date();
-          finalStatus = 1; // published
-        }
-      } else {
-        // Không truyền => đăng ngay
-        finalPublishAt = new Date();
-        finalStatus = 1;
-      }
+let finalStatus = 1; // mặc định đăng ngay
+
+// Nếu publishAt là 'null' hoặc undefined thì bỏ qua
+if (publishAt && publishAt !== 'null') {
+  const pubDate = new Date(publishAt);
+  if (!isNaN(pubDate)) { // kiểm tra date hợp lệ
+    finalPublishAt = pubDate;
+    finalStatus = pubDate > new Date() ? 2 : 1; // quá khứ → đăng ngay, tương lai → scheduled
+  }
+}
   
       const newPost = await Post.create({
         title,
         content,
-        categoryId: category,
+        categoryId,
         authorId,
         orderIndex,
         slug,
@@ -55,22 +45,19 @@ class PostController {
         status: finalStatus,
       });
   
-      // Xử lý tags (giữ nguyên logic cũ)
+      // Xử lý tags
       const tagInstances = [];
       for (const tagItem of tags) {
         const tagName = typeof tagItem === "string" ? tagItem : tagItem?.name;
         const tagSlug =
           typeof tagItem === "string"
             ? tagItem.toLowerCase().trim().replace(/\s+/g, "-")
-            : tagItem?.slug ||
-              tagName?.toLowerCase().trim().replace(/\s+/g, "-");
+            : tagItem?.slug || tagName?.toLowerCase().trim().replace(/\s+/g, "-");
   
         if (!tagName || !tagSlug) continue;
   
         let tag = await Tags.findOne({ where: { slug: tagSlug } });
-        if (!tag) {
-          tag = await Tags.create({ name: tagName, slug: tagSlug });
-        }
+        if (!tag) tag = await Tags.create({ name: tagName, slug: tagSlug });
   
         tagInstances.push(tag);
       }
@@ -86,10 +73,8 @@ class PostController {
     }
   }
   
-  
-
   static async getAll(req, res) {
-    
+    console.log('da goi getall')
     try {
       const { search = "", categoryId, status } = req.query;
       const { page, limit, offset } = req.pagination;
@@ -219,27 +204,25 @@ class PostController {
         content,
         categoryId,
         authorId,
-        status,
         orderIndex,
         publishAt,
         isFeature,
-        thumbnail, // có thể truyền lại thumbnail cũ từ body
+        thumbnail, // truyền lại thumbnail cũ nếu không đổi
       } = req.body;
   
-      // 👉 Xử lý publishAt và status đồng bộ với create
-      let finalPublishAt = post.publishAt; // giữ nguyên mặc định
-      let finalStatus = status !== undefined ? parseInt(status, 10) : post.status;
-  
-      if (publishAt) {
-        const pubDate = new Date(publishAt);
-        if (pubDate > new Date()) {
-          finalPublishAt = pubDate;
-          finalStatus = 0; // scheduled
-        } else {
-          finalPublishAt = new Date();
-          finalStatus = 1; // published
-        }
-      }
+      // Xử lý publishAt và status
+      let finalPublishAt = null;
+let finalStatus = 1; // mặc định đăng ngay
+
+// Nếu publishAt là 'null' hoặc undefined thì bỏ qua
+if (publishAt && publishAt !== 'null') {
+  const pubDate = new Date(publishAt);
+  if (!isNaN(pubDate)) { // kiểm tra date hợp lệ
+    finalPublishAt = pubDate;
+    finalStatus = pubDate > new Date() ? 2 : 1; // quá khứ → đăng ngay, tương lai → scheduled
+  }
+}
+
   
       await post.update({
         title,
@@ -253,22 +236,19 @@ class PostController {
         thumbnail: file ? file.path : thumbnail || post.thumbnail,
       });
   
-      // 👉 Xử lý tag
+      // Xử lý tags
       const tagInstances = [];
       for (const tagItem of tags) {
         const tagName = typeof tagItem === "string" ? tagItem : tagItem?.name;
         const tagSlug =
           typeof tagItem === "string"
             ? tagItem.toLowerCase().trim().replace(/\s+/g, "-")
-            : tagItem?.slug ||
-              tagName?.toLowerCase().trim().replace(/\s+/g, "-");
+            : tagItem?.slug || tagName?.toLowerCase().trim().replace(/\s+/g, "-");
   
         if (!tagName || !tagSlug) continue;
   
         let tag = await Tags.findOne({ where: { slug: tagSlug } });
-        if (!tag) {
-          tag = await Tags.create({ name: tagName, slug: tagSlug });
-        }
+        if (!tag) tag = await Tags.create({ name: tagName, slug: tagSlug });
   
         tagInstances.push(tag);
       }
@@ -285,11 +265,15 @@ class PostController {
   }
   
   
+  
+  
 
   // [SOFT DELETE] Xoá mềm bài viết theo slug
   static async softDelete(req, res) {
     try {
-     
+      console.log("=== Đã vào BE softDelete ===");
+      console.log("Body:", req.body);
+
       const { slugs } = req.body;
 
       if (!Array.isArray(slugs) || slugs.length === 0) {

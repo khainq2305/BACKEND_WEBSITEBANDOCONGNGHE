@@ -566,29 +566,31 @@ class OrderController {
             content: "Đơn hàng từ Cyberzone",
             situation: "shop_pays",
           });
-        } else if (provider.code === "ghtk") {
-          // GHTK
-          deliveryRes = await ghtkService.createDropoffOrder({
-            client_order_code: newOrder.orderCode,
-            from_name: "Cyberzone Shop",
-            from_phone: "0878999894",
-            from_address: process.env.SHOP_ADDRESS,
-            from_province_name: process.env.SHOP_PROVINCE,
-            from_district_name: process.env.SHOP_DISTRICT,
-            to_name: selectedAddress.fullName,
-            to_phone: selectedAddress.phone,
-            to_address: fullUserAddress,
-            to_province_name: selectedAddress.province.name,
-            to_district_name: selectedAddress.district.name,
-            to_ward_name: selectedAddress.ward?.name,
-            weight,
-            length: maxL,
-            width: maxW,
-            height: maxH,
-            items: orderItemsForEmail,
-            content: "Đơn hàng từ Cyberzone",
-          });
-        }
+       } else if (provider.code === "ghtk") {
+  const normalizedWeight = Math.max(0.1, weight / 1000); // gram → kg
+  deliveryRes = await ghtkService.createDropoffOrder({
+    client_order_code: newOrder.orderCode,
+    from_name: "Cyberzone Shop",
+    from_phone: "0878999894",
+    from_address: process.env.SHOP_ADDRESS,
+    from_province_name: process.env.SHOP_PROVINCE || "TP. Hồ Chí Minh",
+    from_district_name: process.env.SHOP_DISTRICT || "Thành phố Thủ Đức",
+    to_name: selectedAddress.fullName,
+    to_phone: selectedAddress.phone,
+    to_address: fullUserAddress,
+    to_province_name: selectedAddress.province.name,
+    to_district_name: selectedAddress.district.name,
+    to_ward_name: selectedAddress.ward?.name || undefined,
+    hamlet: "Khác",
+    weight: normalizedWeight,
+    length: maxL,
+    width: maxW,
+    height: maxH,
+    items: orderItemsForEmail,
+    content: "Đơn hàng từ Cyberzone",
+  });
+}
+
 
         if (deliveryRes) {
           await newOrder.update({
