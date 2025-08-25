@@ -1,15 +1,18 @@
 const validator = require("validator");
 
 const validatePost = (req, res, next) => {
+  const thumbnailUrl = req.file?.path || req.body.thumbnailUrl;
   const formData = {
     title: req.body.title,
     content: req.body.content,
-    category: req.body.category,
-    thumbnail: req.file,
+    categoryId: req.body.categoryId,
+    thumbnailUrl,
     isScheduled: req.body.isScheduled === "true",
     publishAt: req.body.publishAt,
   };
-
+  console.table(req.body);
+  console.log("req.file:", req.file);
+console.log("req.body:", req.body);
   const errors = {};
 
   if (!formData.title || validator.isEmpty(formData.title.trim())) {
@@ -20,12 +23,12 @@ const validatePost = (req, res, next) => {
     errors.content = "Nội dung phải có ít nhất 20 ký tự";
   }
 
-  if (!formData.category || isNaN(Number(formData.category))) {
-    errors.category = "Danh mục không hợp lệ";
+  if (!formData.categoryId || isNaN(Number(formData.categoryId))) {
+    errors.categoryId = "Danh mục không hợp lệ";
   }
 
-  if (!formData.thumbnail) {
-    errors.thumbnail = "Vui lòng chọn ảnh đại diện (thumbnail)";
+  if (!formData.thumbnailUrl) {
+    errors.thumbnailUrl = "Vui lòng chọn ảnh đại diện hahaaaa (thumbnail)";
   }
 
   if (formData.isScheduled && (!formData.publishAt || validator.isEmpty(formData.publishAt))) {
