@@ -112,11 +112,7 @@ class FlashSaleController {
       if (!flashSale) {
         return res.status(404).json({ message: "Không tìm thấy Flash Sale" });
       }
-      console.log("--- DỮ LIỆU TỪ DATABASE SERVER ---");
-      console.log(JSON.stringify(flashSale, null, 2));
-      console.log("-----------------------------------");
-      // ====================================================
-
+   
       res.json(flashSale);
     } catch (err) {
       console.error("Lỗi getById Flash Sale:", err);

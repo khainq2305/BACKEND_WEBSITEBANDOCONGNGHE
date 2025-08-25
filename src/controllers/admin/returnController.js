@@ -16,6 +16,8 @@ const {
   PaymentMethod,
   sequelize
 } = require('../../models');
+const sendEmail = require("../../utils/sendEmail");
+const { generateReturnStatusEmailHtml } = require("../../utils/emailTemplates/generateReturnStatusEmailHtml");
 
 const refundGateway = require('../../utils/refundGateway');
 const calculateRefundAmount = require('../../utils/calculateRefundAmount');
@@ -316,8 +318,29 @@ static async updateReturnStatus(req, res) {
       req.app.locals.io.to(`user-${request.order.userId}`).emit('new-client-notification', clientNotification);
     }
 
-    await t.commit();
-    return res.json({ message: 'Cập nhật trạng thái trả hàng thành công', data: request });
+ await t.commit();
+
+// === Gửi email cho khách hàng ===
+try {
+  if (sendNotif) {
+    const emailHtml = generateReturnStatusEmailHtml({
+      status,
+      returnCode: request.returnCode,
+      orderCode: request.order.orderCode,
+      userName: request.order.User.fullName || request.order.User.email,
+      message: clientNotifMessage,
+      refundAmount: request.order.finalPrice,
+      requestDetailUrl: `${process.env.BASE_URL}/user-profile/return-order/${request.id}`
+    });
+
+    await sendEmail(request.order.User.email, clientNotifTitle, emailHtml);
+  }
+} catch (mailErr) {
+  console.error("❌ Không gửi được email update trạng thái trả hàng:", mailErr);
+}
+
+return res.json({ message: 'Cập nhật trạng thái trả hàng thành công', data: request });
+
   } catch (err) {
     await t.rollback();
     console.error('[updateReturnStatus][ERROR]', err);

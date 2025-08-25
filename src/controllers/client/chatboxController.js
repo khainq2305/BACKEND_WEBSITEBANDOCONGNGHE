@@ -102,6 +102,35 @@ function isCodeQuestion(t = "") { return RE_CODE.test(t.toLowerCase()); }
 function isLoveQuestion(t = "") { return RE_LOVE.test(t.toLowerCase()); }
 function isBakingQuestion(t = "") { return RE_BAKING.test(t.toLowerCase()); }
 
+/* ========== Privacy Guard: chặn tìm thông tin người khác (PII) ========== */
+// PII patterns
+const RE_PHONE = /\b(?:0|\+?84)\d{8,11}\b/;
+const RE_EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const RE_ID = /\b(?:cmnd|cccd|căn\s*cước|chứng\s*minh|passport|hộ\s*chiếu)\b.*?\b\d{6,12}\b/i;
+const RE_ADDRESS = /\b(địa\s*chỉ|address|số\s*nhà|phường|quận|tỉnh|thành\s*phố)\b/i;
+const RE_SOCIAL = /\b(zalo|facebook|fb|messenger|instagram|ig|tiktok)\b/i;
+// Ý định tra cứu người khác
+const RE_PEOPLE_SEARCH_INTENT = new RegExp([
+  "(tim|tra\\s*c\\u1ee9u|tra\\s*thong\\s*tin|xem)\\s+(thong\\s*tin|profile|tai\\s*khoan|dia\\s*chi|sdt|so\\s*dien\\s*thoai|facebook|zalo)",
+  "(thong\\s*tin)\\s+(nguoi|khach|khach\\s*hang|ban\\s*be|ban)\\b",
+  "(so\\s*dien\\s*thoai|sdt|email|cccd|cmnd)\\s+(cua)\\s+(ai|nguoi\\s*khac|ban\\s*ay|anh\\s*ay|chi\\s*ay)",
+  "(ai\\s+ten|nguoi\\s+ten)\\s+[a-zA-Z\\p{L}]{2,}(\\s+[a-zA-Z\\p{L}]{2,})*"
+].join("|"), "iu");
+// Heuristic tên riêng
+const RE_POSSIBLE_NAME = /\b([A-ZÀ-Ỵ][a-zà-ỹ]{1,})(?:\s+[A-ZÀ-Ỵ][a-zà-ỹ]{1,}){0,3}\b/u;
+// Cho phép hẹp “của tôi”
+const RE_SELF_CONTEXT = /\b(của\s*tôi|cua\s*toi|tôi|toi|mình|minh|tài\s*khoản\s*của\s*tôi|account\s*của\s*tôi|đơn\s*hàng\s*của\s*tôi|don\s*hang\s*cua\s*toi)\b/iu;
+
+function isPeopleSearch(msg = "") {
+    const m = msg.toLowerCase();
+    if (RE_PEOPLE_SEARCH_INTENT.test(m)) return true;
+    if (RE_PHONE.test(m) || RE_EMAIL.test(m) || RE_ID.test(m)) return true;
+    if (RE_ADDRESS.test(m) || RE_SOCIAL.test(m)) return true;
+    if (/(thong\s*tin|tra\s*cứu|tra\s*cuu|tim)\s+/i.test(m) && RE_POSSIBLE_NAME.test(msg)) return true;
+    return false;
+}
+function isSelfScoped(msg = "") { return RE_SELF_CONTEXT.test(msg); }
+
 /* ========== Query INTENTS (lọc cứng theo ngành hàng) ========== */
 const QUERY_INTENTS = [
     {
@@ -318,7 +347,6 @@ class ChatboxController {
     }
 
     async chat(req, res) {
-          console.log(">>> Chatbox body:", req.body);
         const { message, context = {} } = req.body || {};
         if (!message || typeof message !== "string" || !message.trim()) {
             return res.status(400).json({ message: "Câu hỏi không hợp lệ hoặc trống." });
@@ -341,20 +369,27 @@ class ChatboxController {
         }
     }
 
-    /* ========== Core: Xử lý message ========== */
     async processChatMessage(message, context = {}) {
         const lower = message.toLowerCase();
         const msgNorm = norm(lower);
         const tokens = msgNorm.split(/[^\p{L}\p{N}]+/u).filter(t => t.length >= 2);
         const meaningfulTokens = tokens.filter(t => !STOPWORDS.has(t));
 
-        /* 0) Early filters */
         const OFFTOPIC_MSG =
             "Xin lỗi, em chỉ hỗ trợ các câu hỏi liên quan đến sản phẩm, đơn hàng, giao hàng, bảo hành của cửa hàng ạ. Anh/chị vui lòng cho em biết nhu cầu hoặc tên sản phẩm nhé!";
         if (isOffTopicHard(message)) return { type: "text", data: OFFTOPIC_MSG, isProductDetail: false };
         if (isCodeQuestion(message)) return { type: "text", data: "Xin lỗi, em không hỗ trợ giải code hay lập trình. Em chỉ hỗ trợ sản phẩm & dịch vụ ZYBERZONE.", isProductDetail: false };
 
-        /* 1) 'sản phẩm này' theo context */
+        if (isPeopleSearch(message) && !isSelfScoped(message)) {
+            return {
+                type: "text",
+                isProductDetail: false,
+                data:
+                    "Xin lỗi, em không thể hỗ trợ tra cứu/thông tin cá nhân của người khác (số điện thoại, địa chỉ, mạng xã hội, giấy tờ tuỳ thân...). " +
+                    "Nếu anh/chị cần hỗ trợ về tài khoản/đơn hàng của **chính mình**, vui lòng đăng nhập và cung cấp mã đơn hoặc thông tin tài khoản."
+            };
+        }
+       
         if (RE_THIS_NOACCENT.test(msgNorm)) {
             const { productSlug, productId } = context || {};
             let targetId = null;
@@ -379,7 +414,7 @@ class ChatboxController {
         /* 2) Lấy dữ liệu */
         const [products, categories, brands] = await Promise.all([
             this.fetchChatProducts({
-                limit: 10,
+                limit: 50,
                 allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap,
                 allActiveCategoryDealsMap: this.allActiveCategoryDealsMap,
             }),
@@ -515,7 +550,7 @@ class ChatboxController {
         if (RE.greet.test(lower)) {
             return {
                 type: "product_grid",
-                replyMessage: `<p>👋 Xin chào! Em là trợ lý ảo của <b>${STORE_NAME}</b>. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`,
+                replyMessage: `<p>Xin chào! Em là trợ lý ảo của <b>${STORE_NAME}</b>. Anh/chị cần tư vấn sản phẩm nào ạ?</p>`,
                 data: {
                     title: "Một số sản phẩm nổi bật",
                     table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: buildSummaryTableRows(products.slice(0, 6), 5) },
@@ -534,7 +569,7 @@ class ChatboxController {
                     descriptionTop: "Dưới đây là các sản phẩm đang khuyến mãi nổi bật:",
                     table: { headers: ["Tên sản phẩm", "Giá (VNĐ)", "Đã bán"], rows: tableRows },
                     products: saleItems,
-                    noteAfterGrid: "Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!",
+                    noteAfterGrid: "💡 Giá khuyến mãi chỉ áp dụng trong thời gian có hạn – nhanh tay kẻo lỡ!",
                 },
                 isProductDetail: false,
             };
@@ -545,7 +580,7 @@ class ChatboxController {
         if (RE.returnRefund.test(lower)) return { type: "text", data: "Đổi trả trong 7 ngày nếu sản phẩm lỗi do NSX. Nhớ giữ hoá đơn/bao bì đầy đủ giúp em nha!", isProductDetail: false };
         if (RE.contact.test(lower)) return { type: "text", data: "Mình đang bán online toàn quốc. Cần hỗ trợ trực tiếp, gọi hotline <b>1900 8922</b> hoặc nhắn fanpage nhé!", isProductDetail: false };
         if (RE.worktime.test(lower)) return { type: "text", data: "Hỗ trợ 8:00–21:00 mỗi ngày, kể cả cuối tuần & ngày lễ.", isProductDetail: false };
-        if (RE.trust.test(lower) && !RE.discount.test(lower)) return { type: "text", data: `🔒 <b>${STORE_NAME}</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!`, isProductDetail: false };
+        if (RE.trust.test(lower) && !RE.discount.test(lower)) return { type: "text", data: `<b>${STORE_NAME}</b> cam kết 100% chính hãng, nguồn gốc rõ ràng, bảo hành đầy đủ. Mua là yên tâm!`, isProductDetail: false };
         if (RE.compare.test(lower)) return { type: "text", data: "Anh/chị cho em biết đang phân vân giữa những sản phẩm nào nhé, em so sánh chi tiết ngay!", isProductDetail: false };
         if (RE.stock.test(lower)) return { type: "text", data: "Anh/chị cho em xin tên sản phẩm cụ thể, em kiểm tra tồn kho giúp liền ạ!", isProductDetail: false };
         if (RE.install.test(lower)) return { type: "text", data: "Bên em hỗ trợ hướng dẫn sử dụng và lắp đặt (tuỳ sản phẩm). Anh/chị cần dòng nào em gửi hướng dẫn ngay!", isProductDetail: false };

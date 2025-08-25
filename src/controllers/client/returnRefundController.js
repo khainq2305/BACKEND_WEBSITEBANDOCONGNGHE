@@ -28,6 +28,8 @@ const ShippingService = require("../../services/client/shippingService"); // Đi
 const {buildFullAddress} =  require ("../../services/client/drivers/ghnService")
 const { Op } = require("sequelize");
 const { buildContentFromItems } = require("../../services/client/drivers/ghnService");
+// Import template
+const { generateReturnRequestHtml } = require("../../utils/emailTemplates/generateReturnRequestHtml");
 
 class ReturnRefundController {
  
@@ -182,6 +184,41 @@ static async requestReturn(req, res) {
         }, { transaction: t });
 
         await t.commit();
+
+// Chuẩn bị HTML cho user
+const userHtml = generateReturnRequestHtml({
+  orderCode: order.orderCode,
+  userName: order.user.email, // hoặc lấy từ profile nếu có tên
+  userEmail: order.user.email,
+  reason,
+  detailedReason,
+  situation,
+  refundAmount,
+  returnFee: feeToSave,
+  returnCode: returnReq.returnCode,
+  orderItems: parsedItems.map(i => {
+    const oi = order.items.find(o => o.skuId === i.skuId);
+    return {
+      productName: `SKU ${i.skuId}`, // nếu có bảng product join thì thay bằng product.name
+      quantity: i.quantity,
+      price: oi.price
+    };
+  }),
+  evidenceImages: imageFiles.map(f => f.path),
+  evidenceVideos: videoFiles.map(f => f.path)
+});
+
+// Gửi email xác nhận cho user
+await sendEmail(order.user.email, "Xác nhận yêu cầu trả hàng", userHtml);
+
+await sendEmail(
+  process.env.ADMIN_EMAIL,
+  "Có yêu cầu trả hàng mới",
+  `<h3>Đơn hàng ${order.orderCode} vừa có yêu cầu trả hàng</h3>
+   <p>Lý do: ${reason}</p>
+   <p><a href="${process.env.BASE_URL}/admin/return-requests/${returnReq.id}">Xem chi tiết</a></p>`
+);
+
 
         req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotification);
 
