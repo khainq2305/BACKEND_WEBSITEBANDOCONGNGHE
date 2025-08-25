@@ -177,7 +177,11 @@ class PaymentController {
     }
 
     // ====== KẾT THÚC ======
-    res.type("text/plain").end("OK");
+return res.json({
+  message: "OK",
+  order,  // 👈 gửi luôn thông tin đơn đã update
+});
+
   } catch (err) {
  
     return res.status(500).type("text/plain").end("ERROR");
@@ -344,8 +348,13 @@ class PaymentController {
         
       }
 
-      // 4. Nếu gọi từ frontend (fetch) → chỉ trả kết quả đơn giản
-      if (isFromFrontend) return res.end("OK");
+     if (isFromFrontend) {
+  return res.json({
+    message: "OK",
+    order,   // 👈 gửi về luôn order đã cập nhật
+  });
+}
+
 
       // 5. Nếu redirect từ VNPay → điều hướng về trang xác nhận
       const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
