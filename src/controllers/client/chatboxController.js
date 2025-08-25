@@ -414,7 +414,7 @@ class ChatboxController {
         /* 2) Lấy dữ liệu */
         const [products, categories, brands] = await Promise.all([
             this.fetchChatProducts({
-                limit: 20,
+                limit: 10,
                 allActiveFlashSaleItemsMap: this.allActiveFlashSaleItemsMap,
                 allActiveCategoryDealsMap: this.allActiveCategoryDealsMap,
             }),
