@@ -953,12 +953,11 @@ class RecommendationController {
         badge: productJson.badge,
         badgeImage: productJson.badgeImage,
         price: bestSku.price !== null ? formatCurrencyVND(bestSku.price) : null,
-        oldPrice:
-          bestSku.flashSaleInfo && bestSku.flashSaleInfo.isSoldOut === false
-            ? formatCurrencyVND(bestSku.originalPrice)
-            : bestSku.originalPrice > bestSku.price
-            ? formatCurrencyVND(bestSku.originalPrice)
-            : null,
+      oldPrice:
+  bestSku.originalPrice && bestSku.originalPrice > bestSku.price
+    ? formatCurrencyVND(bestSku.originalPrice)
+    : null,
+
         discount: bestSku.discount ?? null,
         inStock: productInStock,
         soldCount: totalSoldCount,
