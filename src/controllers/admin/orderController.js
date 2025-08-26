@@ -11,6 +11,8 @@ const {
   District,
   ShippingProvider,
   Ward,
+  Wallet,
+  WalletTransaction,
   PaymentMethod,
   OrderItem,
 
