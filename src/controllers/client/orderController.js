@@ -447,34 +447,53 @@ class OrderController {
       shippingDiscount = Math.min(shippingDiscount, shippingFee);
 
       let pointDiscountAmount = 0;
-      if (usePoints && pointsToSpend > 0) {
-        const usablePoints =
-          (await UserPoint.sum("points", { where: { userId: user.id } })) -
-          (await UserPoint.sum("points", {
-            where: { userId: user.id, type: "spend" },
-          }));
+// ------------------- XỬ LÝ ĐIỂM THƯỞNG -------------------
+if (usePoints && pointsToSpend > 0) {
+  const now = new Date();
 
-        if (usablePoints < pointsToSpend) {
-          await t.rollback();
-          return res
-            .status(400)
-            .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
-        }
+  // Tổng điểm đã earn (chưa hết hạn)
+  const earned = (await UserPoint.sum("points", {
+    where: {
+      userId: user.id,
+      type: "earn",
+      [Op.or]: [
+        { expiresAt: null },
+        { expiresAt: { [Op.gt]: now } }
+      ]
+    },
+  })) || 0;
 
-      // Trừ điểm khi user sử dụng
-const earnRate = 10000;   // 10k = 1 điểm
-const redeemRate = 100;   // 1 điểm = 100đ
+  // Tổng điểm đã dùng (spend)
+  const spent = (await UserPoint.sum("points", {
+    where: {
+      userId: user.id,
+      type: "spend"
+    },
+  })) || 0;
 
-pointDiscountAmount = pointsToSpend * redeemRate;
+  // Điểm khả dụng = earned - spent
+  const usablePoints = earned - spent;
 
-       const tempFinalPriceForPointCheck =
-  totalPrice - couponDiscount + shippingFee - shippingDiscount;
+  if (usablePoints < pointsToSpend) {
+    await t.rollback();
+    return res.status(400).json({
+      message: `Bạn chỉ có ${usablePoints} điểm khả dụng.`
+    });
+  }
 
-if (pointDiscountAmount > tempFinalPriceForPointCheck) {
-  pointDiscountAmount = tempFinalPriceForPointCheck;
+  // Quy đổi điểm sang tiền
+  const redeemRate = 100; // 1 điểm = 100đ
+  pointDiscountAmount = pointsToSpend * redeemRate;
+
+  // Không cho trừ quá số tiền còn lại sau giảm giá & phí ship
+  const tempFinalPriceForPointCheck =
+    totalPrice - couponDiscount + shippingFee - shippingDiscount;
+
+  if (pointDiscountAmount > tempFinalPriceForPointCheck) {
+    pointDiscountAmount = tempFinalPriceForPointCheck;
+  }
 }
 
-      }
 
       const finalPrice = Math.max(
         0,
