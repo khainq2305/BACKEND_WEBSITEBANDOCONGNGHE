@@ -1871,41 +1871,42 @@ static async getById(req, res) {
           .status(404)
           .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
 
-      const options = await Promise.all(
-        providers.map(async (p) => {
-          try {
-            console.log("[getShippingOptions] Tổng weight:", weight, "gram");
+    const options = await Promise.all(
+  providers.map(async (p) => {
+    try {
+      console.log("[getShippingOptions] Tổng weight:", weight, "gram");
 
-            const { fee, leadTime } = await ShippingService.calcFee({
-              providerId: p.id,
-              toProvince: toProvinceId,
-              toDistrict: toDistrictId,
-              toWard: toWardId,
-              provinceName: toProvinceName,
-              districtName: toDistrictName,
-              wardName: toWardName,
-              weight,
-              length: maxL,
-              width: maxW,
-              height: maxH,
-              orderValue,
-            });
+      const { fee, leadTime } = await ShippingService.calcFee({
+        provider: p, // truyền nguyên provider object
+        toProvince: toProvinceId,
+        toDistrict: toDistrictId,
+        toWard: toWardId,
+        provinceName: toProvinceName,
+        districtName: toDistrictName,
+        wardName: toWardName,
+        weight,
+        length: maxL,
+        width: maxW,
+        height: maxH,
+        orderValue,
+      });
 
-            return {
-              providerId: p.id,
-              code: p.code,
-              name: p.name,
-              fee,
-              leadTime,
-            };
-          } catch (err) {
-            console.warn(
-              `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`
-            );
-            return null;
-          }
-        })
+      return {
+        providerId: p.id,
+        code: p.code,
+        name: p.name,
+        fee,
+        leadTime,
+      };
+    } catch (err) {
+      console.warn(
+        `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`
       );
+      return null;
+    }
+  })
+);
+
 
       const available = options.filter(Boolean);
       if (!available.length)

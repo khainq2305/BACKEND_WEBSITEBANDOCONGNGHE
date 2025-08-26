@@ -27,37 +27,38 @@ class ShippingService {
    * @param {object} payload
    * @returns {Promise<{ fee:number, leadTime:number|null }>}
    */
-  static async calcFee({
-    providerId, toProvince, toDistrict, toWard,
-    weight, length, width, height,
-    serviceCode = null,
-    orderValue = 0,
-    provinceName = null, districtName = null, wardName = null,
-  }) {
-    const provider = await ShippingProvider.findByPk(providerId);
-    if (!provider || !provider.isActive) {
-      console.warn(`[calcFee] Hãng vận chuyển ID ${providerId} không hoạt động hoặc không tồn tại.`);
-      throw new Error('Hãng vận chuyển không hoạt động');
-    }
-
-    const driver = drivers[provider.code];
-    if (!driver) {
-      console.error(`[calcFee] Driver cho hãng "${provider.code}" không được định nghĩa.`);
-      throw new Error(`Chưa hỗ trợ driver “${provider.code}”`);
-    }
-
-    return driver.getFee({
-      toProvince,
-      toDistrict,
-      toWard,
-      weight,
-      length,
-      width,
-      height,
-      serviceCode,
-      orderValue,
-    });
+ static async calcFee({
+  provider, // truyền provider trực tiếp thay vì providerId
+  toProvince, toDistrict, toWard,
+  weight, length, width, height,
+  serviceCode = null,
+  orderValue = 0,
+  provinceName = null, districtName = null, wardName = null,
+}) {
+  if (!provider || !provider.isActive) {
+    console.warn(`[calcFee] Hãng vận chuyển không hoạt động hoặc không tồn tại.`);
+    throw new Error('Hãng vận chuyển không hoạt động');
   }
+
+  const driver = drivers[provider.code];
+  if (!driver) {
+    console.error(`[calcFee] Driver cho hãng "${provider.code}" không được định nghĩa.`);
+    throw new Error(`Chưa hỗ trợ driver “${provider.code}”`);
+  }
+
+  return driver.getFee({
+    toProvince,
+    toDistrict,
+    toWard,
+    weight,
+    length,
+    width,
+    height,
+    serviceCode,
+    orderValue,
+  });
+}
+
 
   /**
    * Lấy thời gian giao hàng dự kiến (leadTime).
