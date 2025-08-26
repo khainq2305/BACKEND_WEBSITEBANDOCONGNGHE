@@ -62,23 +62,30 @@ class RoleService {
     return role;
   }
 
-  async remove(id, force = false) {
-    const DEFAULT_ROLE_ID = 2; // User
-    const role = await Role.findByPk(id);
-    if (!role) return { notFound: true };
-  
-    // Check riêng từng role
-    if (role.name === "Admin") return { isAdmin: true };
-    if (role.name === "User") return { isUser: true };
-  
-    if (force) {
-      await RolePermission.destroy({ where: { roleId: id } });
-      await User.update({ roleId: DEFAULT_ROLE_ID }, { where: { roleId: id } });
-    }
-  
-    await role.destroy();
-    return { success: true };
+ async remove(id, force = false) {
+  const DEFAULT_ROLE_ID = 2; // User
+  const ADMIN_ROLE_ID = 1;   // Admin
+
+  const role = await Role.findByPk(id);
+  if (!role) return { notFound: true };
+
+  // Không cho xóa Admin và User
+  if (role.id === ADMIN_ROLE_ID) {
+    return { isAdmin: true, message: "Không thể xoá quyền Admin" };
   }
+  if (role.id === DEFAULT_ROLE_ID) {
+    return { isUser: true, message: "Không thể xoá quyền User mặc định" };
+  }
+
+  if (force) {
+    await RolePermission.destroy({ where: { roleId: id } });
+    await User.update({ roleId: DEFAULT_ROLE_ID }, { where: { roleId: id } });
+  }
+
+  await role.destroy();
+  return { success: true };
+}
+
   
   
 }
