@@ -553,24 +553,32 @@ class CartController {
       // 3. Lấy tổng điểm hiện tại của user
       // ----------------------------
       const result = await UserPoint.findOne({
-        attributes: [
-          [
-            sequelize.fn(
-              "SUM",
-              sequelize.literal(`
-          CASE
-            WHEN type = 'earn' THEN points
-            WHEN type IN ('spend','expired') THEN -points
-            ELSE 0
-          END
-        `)
-            ),
-            "totalPoints",
-          ],
-        ],
-        where: { userId },
-        raw: true,
-      });
+  attributes: [
+    [
+      sequelize.fn(
+        "COALESCE",
+        sequelize.fn(
+          "SUM",
+          sequelize.literal(`
+            CASE
+              WHEN type = 'earn' THEN points
+              WHEN type IN ('spend','expired') THEN -points
+              ELSE 0
+            END
+          `)
+        ),
+        0
+      ),
+      "totalPoints",
+    ],
+  ],
+  where: { userId },
+  raw: true,
+});
+
+// ✅ Ép kiểu về số, tránh lỗi chuỗi
+const userPoints = Number(result?.totalPoints) || 0;
+
 
       const userPoints = result?.totalPoints || 0;
 
