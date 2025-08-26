@@ -312,75 +312,69 @@ class PaymentController {
     }
   }
   // trong OrderController
-  static async vnpayCallback(req, res) {
-    try {
-      const raw = req.body.rawQuery;
-      const isFromFrontend = Boolean(raw);
+ static async vnpayCallback(req, res) {
+  try {
+    const raw = req.body.rawQuery;
+    const isFromFrontend = Boolean(raw);
 
-      // Parse query params (raw từ FE fetch hoặc query từ redirect)
-      const qs = raw
-        ? require("querystring").parse(raw, null, null, {
-            decodeURIComponent: (v) => v, // KHÔNG decode 2 lần
-          })
-        : req.query;
+    // Parse query params
+    const qs = raw
+      ? require("querystring").parse(raw, null, null, {
+          decodeURIComponent: (v) => v, // KHÔNG decode 2 lần
+        })
+      : req.query;
 
-      const vnpTxnRef = qs.vnp_TxnRef; // Đây là vnpOrderId
-      const rspCode = qs.vnp_ResponseCode;
-      const secureHash = qs.vnp_SecureHash;
+    const vnpTxnRef = qs.vnp_TxnRef; // Đây là vnpOrderId
+    const rspCode = qs.vnp_ResponseCode;
+    const secureHash = qs.vnp_SecureHash;
 
-    
-      // 1. Kiểm tra chữ ký
-      const isValid = vnpayService.verifySignature(qs, secureHash);
-      if (!isValid) {
-       
-        return res.status(400).end("INVALID_CHECKSUM");
-      }
+    // 1. Kiểm tra chữ ký
+    const isValid = vnpayService.verifySignature(qs, secureHash);
+    if (!isValid) {
+      return res.status(400).json({ message: "INVALID_CHECKSUM" });
+    }
 
-      // 2. Tìm đơn theo vnpOrderId
-      const order = await Order.findOne({
-        where: {
-          vnpOrderId: {
-            [Op.like]: `${vnpTxnRef}%`, // dùng LIKE để match bản ghi có thêm timestamp
-          },
+    // 2. Tìm đơn theo vnpOrderId
+    const order = await Order.findOne({
+      where: {
+        vnpOrderId: {
+          [Op.like]: `${vnpTxnRef}%`, // match bản ghi có thêm timestamp
         },
+      },
+    });
+    if (!order) {
+      return res.status(404).json({ message: "ORDER_NOT_FOUND" });
+    }
+
+    // 3. Nếu thanh toán thành công
+    if (rspCode === "00") {
+      order.paymentStatus = "paid";
+      order.paymentTime = new Date();
+      order.vnpTransactionId = qs.vnp_TransactionNo;
+      order.vnpPayDate = moment(qs.vnp_PayDate, "YYYYMMDDHHmmss").toDate();
+      await order.save();
+    } else {
+      // Giữ trạng thái "waiting"
+    }
+
+    // 4. Nếu gọi từ frontend → trả JSON
+    if (isFromFrontend) {
+      return res.json({
+        message: "OK",
+        order,
       });
-      if (!order) {
-        
-        return res.status(404).end("ORDER_NOT_FOUND");
-      }
+    }
 
-      // 3. Nếu thanh toán thành công
-      if (rspCode === "00") {
-        order.paymentStatus = "paid";
-        order.paymentTime = new Date();
-        order.vnpTransactionId = qs.vnp_TransactionNo;
+    // 5. Nếu redirect từ VNPay → điều hướng về trang FE
+    const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
+    return res.redirect(redirectUrl);
 
-       
-        order.vnpPayDate = moment(qs.vnp_PayDate, "YYYYMMDDHHmmss").toDate();
-       
-        await order.save();
-       
-      } else {
-        // Giữ trạng thái "waiting", để CRON xử lý sau hoặc cho phép thanh toán lại
-        
-      }
-
-     if (isFromFrontend) {
-  return res.json({
-    message: "OK",
-    order,   // 👈 gửi về luôn order đã cập nhật
-  });
+  } catch (err) {
+    console.error("❌ VNPay callback error:", err);
+    return res.status(500).json({ message: "ERROR" });
+  }
 }
 
-
-      // 5. Nếu redirect từ VNPay → điều hướng về trang xác nhận
-      const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
-      return res.redirect(redirectUrl);
-    } catch (err) {
-     
-      return res.status(500).end("ERROR");
-    }
-  }
 
   static async stripePay(req, res) {
     try {
