@@ -579,10 +579,12 @@ const earnRate = 10000;   // 10k VNĐ mua hàng = 1 điểm
 const redeemRate = 100;   // 1 điểm = 100 VNĐ khi đổi
 
 const minPointRequired = 1;
-const maxUsablePoints = Math.min(
-  userPoints,
-  Math.floor(totalAmount / redeemRate)
-);
+// Giới hạn số điểm có thể dùng = số điểm user đang có
+// và không vượt quá giá trị đơn hàng
+const maxPointsByBalance = userPoints;
+const maxPointsByOrder = Math.floor(totalAmount / redeemRate);
+const maxUsablePoints = Math.min(maxPointsByBalance, maxPointsByOrder);
+
 const pointDiscountAmount = maxUsablePoints * redeemRate;
 
 // 🎁 Điểm user sẽ được cộng thêm từ đơn này
