@@ -17,7 +17,7 @@ const {
 } = require("../../models");
 const { Sequelize, Op } = require("sequelize");
 const { processSkuPrices } = require("../../helpers/priceHelper");
-const { sequelize } = require("../../models"); 
+const { sequelize } = require("../../models");
 
 class CartController {
   static async addToCart(req, res) {
@@ -32,22 +32,19 @@ class CartController {
       });
 
       if (!sku) {
-       
         return res
           .status(404)
           .json({ message: "Không tìm thấy phiên bản sản phẩm này." });
       }
       if ((sku.stock || 0) <= 0) {
-       
         return res.status(400).json({ message: "Sản phẩm này đã hết hàng." });
       }
-     
 
       const [cart, createdCart] = await Cart.findOrCreate({
         where: { userId },
         defaults: { userId },
       });
-      
+
       const existingItem = await CartItem.findOne({
         where: { cartId: cart.id, skuId },
       });
@@ -110,7 +107,6 @@ class CartController {
           },
         ],
       });
-      
 
       const allActiveFlashSaleItemsMap = new Map();
       const allActiveCategoryDealsMap = new Map();
@@ -275,278 +271,333 @@ class CartController {
     }
   }
 
-static async getCart(req, res) {
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(200).json({
-        cartItems: [],
-        totalAmount: 0,
-        rewardPoints: 0,
-        payablePrice: 0,
-        couponDiscount: 0,
-        pointInfo: {
-          userPointBalance: 0,
-          exchangeRate: 10,
-          minPointRequired: 20,
-          canUsePoints: false,
-          maxUsablePoints: 0,
-          pointDiscountAmount: 0,
-        },
-      });
-    }
-
-    const userId = req.user.id;
-    const now = new Date();
-
-    const allActiveFlashSales = await FlashSale.findAll({
-      where: {
-        isActive: true,
-        deletedAt: null,
-        startTime: { [Op.lte]: now },
-        endTime: { [Op.gte]: now },
-      },
-      include: [
-        {
-          model: FlashSaleItem,
-          as: "flashSaleItems",
-          required: false,
-          attributes: ["id", "flashSaleId", "skuId", "salePrice", "quantity", "maxPerUser"],
-          include: [
-            {
-              model: Sku,
-              as: "sku",
-              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
-              where: { isActive: true, deletedAt: null },
-              required: false,
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                  attributes: ["categoryId"],
-                  where: { isActive: true, deletedAt: null },
-                  required: false,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          model: FlashSaleCategory,
-          as: 'categories',
-          required: false,
-          attributes: ['id', 'discountType', 'discountValue', 'priority', 'categoryId'],
-          include: [{ model: FlashSale, as: 'flashSale', attributes: ['endTime'], required: false }]
-        }
-      ],
-    });
-
-    const allActiveFlashSaleItemsMap = new Map();
-    const allActiveCategoryDealsMap = new Map();
-    const skuIds = [];
-
-    for (const saleEvent of allActiveFlashSales) {
-      const saleEndTime = saleEvent.endTime;
-      const saleId = saleEvent.id;
-
-      for (const fsi of saleEvent.flashSaleItems || []) {
-        const skuInFsi = fsi.sku;
-        if (!skuInFsi) continue;
-        const skuIdInFsi = skuInFsi.id;
-        skuIds.push(skuIdInFsi);
-        const flashItemSalePrice = parseFloat(fsi.salePrice);
-        const flashLimit = fsi.quantity;
-        const soldForThisItem = 0;
-        const isSoldOutForThisItem = flashLimit != null && soldForThisItem >= flashLimit;
-
-        if (!isSoldOutForThisItem) {
-          const existing = allActiveFlashSaleItemsMap.get(skuIdInFsi);
-          if (!existing || flashItemSalePrice < existing.salePrice) {
-            allActiveFlashSaleItemsMap.set(skuIdInFsi, {
-              salePrice: flashItemSalePrice,
-              quantity: flashLimit,
-              soldQuantity: soldForThisItem,
-              maxPerUser: fsi.maxPerUser,
-              flashSaleId: saleId,
-              flashSaleEndTime: saleEndTime,
-            });
-          }
-        }
-      }
-
-      for (const fsc of saleEvent.categories || []) {
-        const categoryId = fsc.categoryId;
-        if (!allActiveCategoryDealsMap.has(categoryId)) {
-          allActiveCategoryDealsMap.set(categoryId, []);
-        }
-        allActiveCategoryDealsMap.get(categoryId).push({
-          discountType: fsc.discountType,
-          discountValue: fsc.discountValue,
-          priority: fsc.priority,
-          endTime: saleEndTime,
-          flashSaleId: saleId,
-          flashSaleCategoryId: fsc.id,
+  static async getCart(req, res) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(200).json({
+          cartItems: [],
+          totalAmount: 0,
+          rewardPoints: 0,
+          payablePrice: 0,
+          couponDiscount: 0,
+          pointInfo: {
+            userPointBalance: 0,
+            exchangeRate: 10,
+            minPointRequired: 20,
+            canUsePoints: false,
+            maxUsablePoints: 0,
+            pointDiscountAmount: 0,
+          },
         });
       }
-    }
 
-    const cart = await Cart.findOne({
-      where: { userId },
-      include: [
-        {
-          model: CartItem,
-          include: [
-            {
-              model: Sku,
-              as: "Sku",
-              attributes: ["id", "skuCode", "price", "originalPrice", "stock", "productId"],
-              where: { isActive: true, deletedAt: null },
-              required: false,
-              include: [
-                {
-                  model: Product,
-                  as: "product",
-                  attributes: ["id", "name", "slug", "thumbnail", "categoryId"],
-                  where: { isActive: true, deletedAt: null },
-                  required: false,
-                },
-                {
-                  model: ProductMedia,
-                  as: "ProductMedia",
-                  attributes: ["mediaUrl"],
-                },
-                {
-                  model: SkuVariantValue,
-                  as: "variantValues",
-                  include: [
-                    {
-                      model: VariantValue,
-                      as: "variantValue",
-                      attributes: ["id", "value"],
-                      where: { isActive: true, deletedAt: null },
-                      required: false,
-                      include: [
-                        {
-                          model: Variant,
-                          as: "variant",
-                          attributes: ["name"],
-                          where: { isActive: true, deletedAt: null },
-                          required: false,
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+      const userId = req.user.id;
+      const now = new Date();
 
-    if (!cart || !cart.CartItems) {
-      return res.status(200).json({
-        cartItems: [],
-        totalAmount: 0,
-        rewardPoints: 0,
-        payablePrice: 0,
-        couponDiscount: 0,
-        pointInfo: {
-          userPointBalance: 0,
-          exchangeRate: 10,
-          minPointRequired: 20,
-          canUsePoints: false,
-          maxUsablePoints: 0,
-          pointDiscountAmount: 0,
+      const allActiveFlashSales = await FlashSale.findAll({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          startTime: { [Op.lte]: now },
+          endTime: { [Op.gte]: now },
         },
+        include: [
+          {
+            model: FlashSaleItem,
+            as: "flashSaleItems",
+            required: false,
+            attributes: [
+              "id",
+              "flashSaleId",
+              "skuId",
+              "salePrice",
+              "quantity",
+              "maxPerUser",
+            ],
+            include: [
+              {
+                model: Sku,
+                as: "sku",
+                attributes: [
+                  "id",
+                  "skuCode",
+                  "price",
+                  "originalPrice",
+                  "stock",
+                  "productId",
+                ],
+                where: { isActive: true, deletedAt: null },
+                required: false,
+                include: [
+                  {
+                    model: Product,
+                    as: "product",
+                    attributes: ["categoryId"],
+                    where: { isActive: true, deletedAt: null },
+                    required: false,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: FlashSaleCategory,
+            as: "categories",
+            required: false,
+            attributes: [
+              "id",
+              "discountType",
+              "discountValue",
+              "priority",
+              "categoryId",
+            ],
+            include: [
+              {
+                model: FlashSale,
+                as: "flashSale",
+                attributes: ["endTime"],
+                required: false,
+              },
+            ],
+          },
+        ],
       });
-    }
 
-    const formattedItems = cart.CartItems.map((ci) => {
-      const sku = ci.Sku;
-      const product = sku?.product;
+      const allActiveFlashSaleItemsMap = new Map();
+      const allActiveCategoryDealsMap = new Map();
+      const skuIds = [];
 
-      if (!sku || !product) {
-        return null;
-      }
-      
-      const skuData = {
-        ...sku.toJSON(),
-        product: {
-          category: {
-            id: product.categoryId
+      for (const saleEvent of allActiveFlashSales) {
+        const saleEndTime = saleEvent.endTime;
+        const saleId = saleEvent.id;
+
+        for (const fsi of saleEvent.flashSaleItems || []) {
+          const skuInFsi = fsi.sku;
+          if (!skuInFsi) continue;
+          const skuIdInFsi = skuInFsi.id;
+          skuIds.push(skuIdInFsi);
+          const flashItemSalePrice = parseFloat(fsi.salePrice);
+          const flashLimit = fsi.quantity;
+          const soldForThisItem = 0;
+          const isSoldOutForThisItem =
+            flashLimit != null && soldForThisItem >= flashLimit;
+
+          if (!isSoldOutForThisItem) {
+            const existing = allActiveFlashSaleItemsMap.get(skuIdInFsi);
+            if (!existing || flashItemSalePrice < existing.salePrice) {
+              allActiveFlashSaleItemsMap.set(skuIdInFsi, {
+                salePrice: flashItemSalePrice,
+                quantity: flashLimit,
+                soldQuantity: soldForThisItem,
+                maxPerUser: fsi.maxPerUser,
+                flashSaleId: saleId,
+                flashSaleEndTime: saleEndTime,
+              });
+            }
           }
         }
-      };
-      
-      const processedSku = processSkuPrices(skuData, allActiveFlashSaleItemsMap, allActiveCategoryDealsMap);
-      const finalPrice = processedSku.price;
-      const lineTotal = ci.quantity * finalPrice;
 
-      return {
-        id: ci.id,
-        skuId: sku.id,
-        productName: product.name,
-        productSlug: product.slug,
-        image: sku.ProductMedia?.[0]?.mediaUrl || product.thumbnail || null,
-        quantity: ci.quantity,
-        isSelected: ci.isSelected,
-        stock: sku.stock || 0,
-        variantValues: (sku.variantValues || []).map((v) => ({
-          variant: v.variantValue?.variant?.name,
-          value: v.variantValue?.value,
-        })),
-        originalPrice: processedSku.originalPrice,
-        price: processedSku.price,
-        finalPrice,
-        lineTotal,
-        flashSaleInfo: processedSku.flashSaleInfo,
-        hasDeal: processedSku.hasDeal
-      };
-    }).filter(item => item !== null);
+        for (const fsc of saleEvent.categories || []) {
+          const categoryId = fsc.categoryId;
+          if (!allActiveCategoryDealsMap.has(categoryId)) {
+            allActiveCategoryDealsMap.set(categoryId, []);
+          }
+          allActiveCategoryDealsMap.get(categoryId).push({
+            discountType: fsc.discountType,
+            discountValue: fsc.discountValue,
+            priority: fsc.priority,
+            endTime: saleEndTime,
+            flashSaleId: saleId,
+            flashSaleCategoryId: fsc.id,
+          });
+        }
+      }
 
-    const totalAmount = formattedItems.reduce(
-      (sum, item) => sum + (item.isSelected ? item.lineTotal : 0),
-      0
-    );
-// ----------------------------
-// 3. Lấy tổng điểm hiện tại của user
-// ----------------------------
-const result = await UserPoint.findOne({
-  attributes: [
-    [
-      sequelize.fn(
-        "SUM",
-        sequelize.literal(`
+      const cart = await Cart.findOne({
+        where: { userId },
+        include: [
+          {
+            model: CartItem,
+            include: [
+              {
+                model: Sku,
+                as: "Sku",
+                attributes: [
+                  "id",
+                  "skuCode",
+                  "price",
+                  "originalPrice",
+                  "stock",
+                  "productId",
+                ],
+                where: { isActive: true, deletedAt: null },
+                required: false,
+                include: [
+                  {
+                    model: Product,
+                    as: "product",
+                    attributes: [
+                      "id",
+                      "name",
+                      "slug",
+                      "thumbnail",
+                      "categoryId",
+                    ],
+                    where: { isActive: true, deletedAt: null },
+                    required: false,
+                  },
+                  {
+                    model: ProductMedia,
+                    as: "ProductMedia",
+                    attributes: ["mediaUrl"],
+                  },
+                  {
+                    model: SkuVariantValue,
+                    as: "variantValues",
+                    include: [
+                      {
+                        model: VariantValue,
+                        as: "variantValue",
+                        attributes: ["id", "value"],
+                        where: { isActive: true, deletedAt: null },
+                        required: false,
+                        include: [
+                          {
+                            model: Variant,
+                            as: "variant",
+                            attributes: ["name"],
+                            where: { isActive: true, deletedAt: null },
+                            required: false,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+
+      if (!cart || !cart.CartItems) {
+        return res.status(200).json({
+          cartItems: [],
+          totalAmount: 0,
+          rewardPoints: 0,
+          payablePrice: 0,
+          couponDiscount: 0,
+          pointInfo: {
+            userPointBalance: 0,
+            exchangeRate: 10,
+            minPointRequired: 20,
+            canUsePoints: false,
+            maxUsablePoints: 0,
+            pointDiscountAmount: 0,
+          },
+        });
+      }
+
+      const formattedItems = cart.CartItems.map((ci) => {
+        const sku = ci.Sku;
+        const product = sku?.product;
+
+        if (!sku || !product) {
+          return null;
+        }
+
+        const skuData = {
+          ...sku.toJSON(),
+          product: {
+            category: {
+              id: product.categoryId,
+            },
+          },
+        };
+
+        const processedSku = processSkuPrices(
+          skuData,
+          allActiveFlashSaleItemsMap,
+          allActiveCategoryDealsMap
+        );
+        const finalPrice = processedSku.price;
+        const lineTotal = ci.quantity * finalPrice;
+
+        return {
+          id: ci.id,
+          skuId: sku.id,
+          productName: product.name,
+          productSlug: product.slug,
+          image: sku.ProductMedia?.[0]?.mediaUrl || product.thumbnail || null,
+          quantity: ci.quantity,
+          isSelected: ci.isSelected,
+          stock: sku.stock || 0,
+          variantValues: (sku.variantValues || []).map((v) => ({
+            variant: v.variantValue?.variant?.name,
+            value: v.variantValue?.value,
+          })),
+          originalPrice: processedSku.originalPrice,
+          price: processedSku.price,
+          finalPrice,
+          lineTotal,
+          flashSaleInfo: processedSku.flashSaleInfo,
+          hasDeal: processedSku.hasDeal,
+        };
+      }).filter((item) => item !== null);
+
+      const totalAmount = formattedItems.reduce(
+        (sum, item) => sum + (item.isSelected ? item.lineTotal : 0),
+        0
+      );
+      // ----------------------------
+      // 3. Lấy tổng điểm hiện tại của user
+      // ----------------------------
+      const result = await UserPoint.findOne({
+        attributes: [
+          [
+            sequelize.fn(
+              "SUM",
+              sequelize.literal(`
           CASE
             WHEN type = 'earn' THEN points
             WHEN type IN ('spend','expired') THEN -points
             ELSE 0
           END
         `)
-      ),
-      "totalPoints",
-    ],
-  ],
-  where: { userId },
-  raw: true,
-});
+            ),
+            "totalPoints",
+          ],
+        ],
+        where: { userId },
+        raw: true,
+      });
 
-const userPoints = result?.totalPoints || 0;
+      const userPoints = result?.totalPoints || 0;
 
-const exchangeRate = 4000;       
-const minPointRequired = 1;      
-const maxUsablePoints = Math.min(userPoints, Math.floor(totalAmount / exchangeRate));
-const pointDiscountAmount = maxUsablePoints * exchangeRate;
+// 🎯 Tỷ lệ tích điểm và đổi điểm
+const earnRate = 10000;   // 10k VNĐ mua hàng = 1 điểm
+const redeemRate = 100;   // 1 điểm = 100 VNĐ khi đổi
 
-    return res.status(200).json({
+const minPointRequired = 1;
+const maxUsablePoints = Math.min(
+  userPoints,
+  Math.floor(totalAmount / redeemRate)
+);
+const pointDiscountAmount = maxUsablePoints * redeemRate;
+
+// 🎁 Điểm user sẽ được cộng thêm từ đơn này
+const rewardPoints = Math.floor(totalAmount / earnRate);
+
+return res.status(200).json({
   cartItems: formattedItems,
   totalAmount,
-  rewardPoints: 0,
-  payablePrice: totalAmount,
+  rewardPoints,
+  payablePrice: totalAmount - pointDiscountAmount,
   couponDiscount: 0,
   pointInfo: {
     userPointBalance: userPoints,
-    exchangeRate,
+    earnRate,
+    redeemRate,
     minPointRequired,
     canUsePoints: userPoints >= minPointRequired,
     maxUsablePoints,
@@ -554,12 +605,11 @@ const pointDiscountAmount = maxUsablePoints * exchangeRate;
   },
 });
 
-  } catch (err) {
-    console.error("Lỗi lấy giỏ hàng:", err);
-    return res.status(500).json({ message: "Lỗi server" });
+    } catch (err) {
+      console.error("Lỗi lấy giỏ hàng:", err);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
   }
-}
-
 
   static async updateQuantity(req, res) {
     try {

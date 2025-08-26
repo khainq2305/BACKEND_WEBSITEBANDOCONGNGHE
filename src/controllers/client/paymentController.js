@@ -64,7 +64,7 @@ class PaymentController {
     }
   }
 
-  static async momoCallback(req, res) {
+ static async momoCallback(req, res) {
   const start = Date.now();
   try {
     const ip =
@@ -89,44 +89,62 @@ class PaymentController {
       message,
       signature,
     } = data || {};
+
     const isSuccess = Number(resultCode) === 0;
 
-  
-
+    // ❌ Nếu MoMo báo thất bại
     if (!isSuccess) {
-      console.warn(`[MoMo CALLBACK] resultCode=${resultCode} != 0 -> skip update.`);
-      return res.type("text/plain").end("OK");
+      console.warn(`[MoMo CALLBACK] Thanh toán thất bại resultCode=${resultCode}`);
+      return res.status(400).json({
+        success: false,
+        message: "Thanh toán MoMo thất bại",
+        orderId,
+        resultCode,
+      });
     }
 
+    // ✅ Tìm đơn hàng theo orderId
     let order =
       (await Order.findOne({ where: { momoOrderId: orderId } })) ||
       (await Order.findOne({ where: { orderCode: orderId } }));
 
     if (!order) {
       console.warn("[MoMo CALLBACK] ORDER_NOT_FOUND:", orderId);
-      return res.type("text/plain").end("ORDER_NOT_FOUND");
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng",
+        orderId,
+      });
     }
 
+    // ✅ Kiểm tra số tiền có khớp không
     if (amount != null) {
       const ipnAmount = Number(amount);
       const dbAmount = Number(order.finalPrice);
       if (!Number.isNaN(ipnAmount) && !Number.isNaN(dbAmount)) {
         if (ipnAmount !== dbAmount) {
-         
-          return res.type("text/plain").end("OK");
+          console.warn(`[MoMo CALLBACK] Amount mismatch: MoMo=${ipnAmount}, DB=${dbAmount}`);
+          return res.status(400).json({
+            success: false,
+            message: "Số tiền thanh toán không khớp",
+            orderId,
+          });
         }
       }
     }
 
+    // Nếu đã thanh toán rồi thì bỏ qua
     if (order.paymentStatus === "paid") {
-     
-      return res.type("text/plain").end("OK");
+      return res.status(200).json({
+        success: true,
+        message: "Đơn hàng đã thanh toán trước đó",
+        order,
+      });
     }
 
     // ====== CẬP NHẬT TRẠNG THÁI ======
     let momoTransId = transId;
     if (!momoTransId) {
-   
       try {
         const queryRes = await momoService.queryTransaction({
           orderId,
@@ -134,12 +152,9 @@ class PaymentController {
         });
         if (queryRes.resultCode === 0 && queryRes.transId) {
           momoTransId = queryRes.transId;
-         
-        } else {
-          
         }
       } catch (err) {
-        
+        console.error("[MoMo CALLBACK] Query transaction error:", err);
       }
     }
 
@@ -149,9 +164,7 @@ class PaymentController {
     order.paymentTime = new Date();
     await order.save();
 
-   
-
-    // ====== THÔNG BÁO ======
+    // ====== GỬI THÔNG BÁO ======
     const slug = `order-${order.orderCode}`;
     const existingNoti = await Notification.findOne({ where: { slug } });
     if (existingNoti) {
@@ -160,7 +173,6 @@ class PaymentController {
       existingNoti.startAt = new Date();
       existingNoti.isActive = true;
       await existingNoti.save();
-      
     } else {
       await Notification.create({
         userId: order.userId,
@@ -173,22 +185,27 @@ class PaymentController {
         startAt: new Date(),
         isActive: true,
       });
-      
     }
 
-    // ====== KẾT THÚC ======
-return res.json({
-  message: "OK",
-  order,  // 👈 gửi luôn thông tin đơn đã update
-});
+    // ✅ Thành công
+    return res.status(200).json({
+      success: true,
+      message: "Thanh toán MoMo thành công",
+      order,
+    });
 
   } catch (err) {
- 
-    return res.status(500).type("text/plain").end("ERROR");
+    console.error("[MoMo CALLBACK] ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xử lý callback MoMo",
+      error: err.message,
+    });
   } finally {
     console.log("[MoMo CALLBACK] done in", Date.now() - start, "ms");
   }
 }
+
 
 
   static async zaloPay(req, res) {

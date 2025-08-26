@@ -59,37 +59,43 @@ class RoleController {
     }
   }
 
-  async remove(req, res, next) {
-    try {
-      const { force } = req.body;
-      const result = await roleService.remove(req.params.id, force);
+  async remove(req, res) {
+  try {
+    const { force } = req.body;
+    await roleService.remove(req.params.id, force);
 
-      if (result.notFound) {
+    return res.status(200).json({
+      success: true,
+      message: "Đã xoá vai trò thành công."
+    });
+
+  } catch (err) {
+    switch (err.code) {
+      case 'NOT_FOUND':
         return res.status(404).json({ success: false, message: "Vai trò không tồn tại." });
-      }
-
-      if (result.isAdmin) {
+      case 'IS_ADMIN':
         return res.status(403).json({ success: false, message: "Không thể xoá vai trò Admin." });
-      }
-
-      return res.status(200).json({ success: true, message: "Đã xoá vai trò thành công." });
-
-    } catch (err) {
-      if (err.name === 'SequelizeForeignKeyConstraintError') {
-        return res.status(409).json({
+      case 'IS_USER':
+        return res.status(403).json({ success: false, message: "Không thể xoá vai trò User mặc định." });
+      default:
+        if (err.name === 'SequelizeForeignKeyConstraintError') {
+          return res.status(409).json({
+            success: false,
+            code: 'FK_CONSTRAINT',
+            message: 'Vai trò đang được sử dụng. Bạn có muốn xoá và xử lý dữ liệu liên quan không?'
+          });
+        }
+        console.error('Lỗi xoá role:', err);
+        return res.status(500).json({
           success: false,
-          code: 'FK_CONSTRAINT',
-          message: 'Vai trò đang được sử dụng. Bạn có muốn xoá và xử lý dữ liệu liên quan không?'
+          message: 'Lỗi khi xoá vai trò.',
+          error: err.message
         });
-      }
-      console.error('Lỗi xoá role:', err);
-      res.status(500).json({
-        success: false,
-        message: 'Lỗi khi xoá vai trò.',
-        error: err.message
-      });
     }
   }
+}
+
+  
 }
 
 module.exports = new RoleController();

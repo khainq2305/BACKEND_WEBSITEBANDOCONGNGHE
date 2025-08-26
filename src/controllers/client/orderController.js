@@ -461,14 +461,19 @@ class OrderController {
             .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
         }
 
-        const pointsConversionRate = 4000;
-        pointDiscountAmount = pointsToSpend * pointsConversionRate;
+      // Trừ điểm khi user sử dụng
+const earnRate = 10000;   // 10k = 1 điểm
+const redeemRate = 100;   // 1 điểm = 100đ
 
-        const tempFinalPriceForPointCheck =
-          totalPrice - couponDiscount + shippingFee - shippingDiscount;
-        if (pointDiscountAmount > tempFinalPriceForPointCheck) {
-          pointDiscountAmount = tempFinalPriceForPointCheck;
-        }
+pointDiscountAmount = pointsToSpend * redeemRate;
+
+       const tempFinalPriceForPointCheck =
+  totalPrice - couponDiscount + shippingFee - shippingDiscount;
+
+if (pointDiscountAmount > tempFinalPriceForPointCheck) {
+  pointDiscountAmount = tempFinalPriceForPointCheck;
+}
+
       }
 
       const finalPrice = Math.max(
@@ -701,8 +706,9 @@ class OrderController {
           { transaction: t }
         );
       }
-      const rewardPointsConversionRate = 4000;
-      const rewardPoints = Math.floor(finalPrice / rewardPointsConversionRate);
+    const earnRate = 10000; // 10k = 1 điểm
+const rewardPoints = Math.floor(finalPrice / earnRate);
+
       if (rewardPoints > 0) {
         await UserPoint.create(
           {
