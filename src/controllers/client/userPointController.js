@@ -12,10 +12,12 @@ class UserController {
       `SELECT
          SUM(
            CASE
-             WHEN type = 'earn' THEN points
-             WHEN type IN ('spend', 'expired') THEN -points
-             ELSE 0
-           END
+  WHEN type = 'earn' THEN points
+  WHEN type = 'spend' THEN -points
+  WHEN type = 'expired' THEN points  -- giữ nguyên vì đã âm rồi
+  ELSE 0
+END
+
          ) AS totalPoints
        FROM userpoints
        WHERE userId = :userId`,
