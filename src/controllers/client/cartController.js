@@ -580,7 +580,7 @@ class CartController {
 const userPoints = Number(result?.totalPoints) || 0;
 
 
-      const userPoints = result?.totalPoints || 0;
+      
 
 // 🎯 Tỷ lệ tích điểm và đổi điểm
 const earnRate = 10000;   // 10k VNĐ mua hàng = 1 điểm
