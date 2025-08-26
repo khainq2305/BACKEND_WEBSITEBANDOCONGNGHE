@@ -152,23 +152,13 @@ const vnp_SecureHash = crypto
     vnp_SecureHash
   };
 
-  // 🔍 LOG TOÀN BỘ
-  console.log('🔐 [VNPAY REFUND] ENV CONFIG:');
-  console.log('  ➤ TMNCODE:', VNP_TMN_CODE);
-  console.log('  ➤ SECRET (length):', VNP_HASHSECRET.length);
-  console.log('  ➤ REFUND_URL:', REFUND_URL);
-  console.log('🧾 [VNPAY REFUND] INPUT:', { orderCode, transactionId, amount, transDate });
-  console.log('🧩 [VNPAY REFUND] RAW DATA:', rawData);
-  console.log('🔑 [VNPAY REFUND] HASH:', vnp_SecureHash);
-  console.log('📦 [VNPAY REFUND] PAYLOAD:', body);
-
   try {
     const { data } = await axios.post(REFUND_URL, body, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 15000
     });
 
-    console.log('✅ VNPAY Refund Response:', data);
+   
     return data;
   } catch (err) {
     console.error('❌ Lỗi khi gọi VNPAY refund:', err?.response?.data || err.message);

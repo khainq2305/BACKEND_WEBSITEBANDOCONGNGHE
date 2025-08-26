@@ -17,15 +17,15 @@ module.exports = {
     io = socketIo;
 
     socketIo.on('connection', (socket) => {
-      console.log('📡 Socket connected:', socket.id);
+   
 
       socket.on('join', (room) => {
-        console.log('👥 Join room:', room);
+       
         socket.join(room);
       });
 
       socket.on('disconnect', () => {
-        console.log('❌ Socket disconnected:', socket.id);
+        
       });
     });
 

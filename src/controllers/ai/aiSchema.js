@@ -20,7 +20,16 @@ const FlashSaleInfo = z.object({
   quantity: z.number().int().optional(),
   soldQuantity: z.number().int().optional(),
 }).passthrough();
+const CategoryListItem = z.object({
+  id: z.union([z.number().int(), z.string()]),
+  name: z.string(),
+  triggerMessage: z.string().optional()
+}).passthrough();
 
+const CategoryList = z.object({
+  title: z.string().default('Danh mục'),
+  items: z.array(CategoryListItem)
+}).passthrough();
 const ProductCard = z.object({
   id: z.union([z.number().int(), z.string()]),
   name: z.string(),
@@ -102,10 +111,9 @@ const ProductDetailContent = z.object({
 }).passthrough();
 
 const ChatResponseSchema = z.object({
-  type: z.enum(['text', 'product_grid', 'product_grid_only', 'table_only', 'product_detail']),
-  content: z.union([z.string(), ProductGrid, ProductGridOnly, TableData, ProductDetailContent]),
+  type: z.enum(['text','product_grid','product_grid_only','table_only','product_detail','category_list']),
+  content: z.union([z.string(), ProductGrid, ProductGridOnly, TableData, ProductDetailContent, CategoryList]),
   isProductDetail: z.boolean().default(false),
   replyMessage: z.string().nullable().optional()
 }).strict();
-
 module.exports = { ChatResponseSchema };

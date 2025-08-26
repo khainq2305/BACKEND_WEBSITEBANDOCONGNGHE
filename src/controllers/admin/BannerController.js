@@ -109,7 +109,7 @@ class BannerController {
       });
     } catch (error) {
       await t.rollback();
-      console.error("CREATE BANNER ERROR:", error);
+    
       return res.status(500).json({
         message: "Lỗi server khi tạo banner",
         error: error.message,

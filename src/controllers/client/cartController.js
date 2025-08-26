@@ -32,29 +32,22 @@ class CartController {
       });
 
       if (!sku) {
-        console.log(`[addToCart] Lỗi: Không tìm thấy SKU với skuId: ${skuId}`);
+       
         return res
           .status(404)
           .json({ message: "Không tìm thấy phiên bản sản phẩm này." });
       }
       if ((sku.stock || 0) <= 0) {
-        console.log(
-          `[addToCart] Lỗi: Sản phẩm SKU ${skuId} đã hết hàng (stock: ${sku.stock}).`
-        );
+       
         return res.status(400).json({ message: "Sản phẩm này đã hết hàng." });
       }
-      console.log(`[addToCart] SKU ${skuId} (stock: ${sku.stock}) hợp lệ.`);
+     
 
       const [cart, createdCart] = await Cart.findOrCreate({
         where: { userId },
         defaults: { userId },
       });
-      console.log(
-        `[addToCart] Giỏ hàng cho userId ${userId} đã ${
-          createdCart ? "được tạo mới" : "tồn tại"
-        } (cartId: ${cart.id}).`
-      );
-
+      
       const existingItem = await CartItem.findOne({
         where: { cartId: cart.id, skuId },
       });
@@ -117,9 +110,7 @@ class CartController {
           },
         ],
       });
-      console.log(
-        `[addToCart] Tìm thấy ${allActiveFlashSales.length} tổng số Flash Sale đang hoạt động.`
-      );
+      
 
       const allActiveFlashSaleItemsMap = new Map();
       const allActiveCategoryDealsMap = new Map();

@@ -1421,81 +1421,97 @@ class AuthController {
     }
   }
 
-  static async googleLogin(req, res) {
-    try {
-      const { token } = req.body;
-      if (!token) return res.status(400).json({ message: "Thiếu token!" });
+static async googleLogin(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: "Thiếu token!" });
 
-      const { data } = await axios.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    // Lấy thông tin từ Google
+    const { data } = await axios.get(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      const providerId = data.sub;
-      const email = data.email;
-      const name = data.name || email.split("@")[0];
-      const avatar = data.picture;
+    const providerId = data.sub;
+    const email = data.email;
+    const name = data.name || email.split("@")[0];
+    const avatar = data.picture;
 
-      let user = await User.findOne({
-        where: {
+    // Tìm user theo providerId
+    let user = await User.findOne({
+      where: {
+        provider: "google",
+        providerId,
+      },
+    });
+
+    if (!user) {
+      // Nếu chưa có thì tìm theo email
+      user = await User.findOne({ where: { email } });
+
+      if (user) {
+        // Nếu đã có user bằng email thì update thêm provider
+        await user.update({
           provider: "google",
           providerId,
-        },
-      });
-
-      if (!user) {
-        user = await User.findOne({ where: { email } });
-
-        if (user) {
-          await user.update({
-            provider: "google",
-            providerId,
-          });
-        } else {
-          user = await User.create({
-            fullName: name,
-            email,
-            provider: "google",
-            providerId,
-            password: null,
-            roleId: 2,
-            status: 1,
-            isVerified: 1,
-          });
-        }
+        });
+      } else {
+        // Nếu chưa có thì tạo mới
+        user = await User.create({
+          fullName: name,
+          email,
+          provider: "google",
+          providerId,
+          password: null,
+          status: 1,
+          isVerified: 1,
+        });
       }
-
-      const accessToken = jwt.sign(
-        {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          roleId: user.roleId,
-        },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      return res.status(200).json({
-        message: "Đăng nhập Google thành công!",
-        token: accessToken,
-        user: {
-          id: user.id,
-          fullName: user.fullName,
-          email: user.email,
-          roleId: user.roleId,
-          status: user.status,
-        },
-      });
-    } catch (err) {
-      console.error("Lỗi Google Login:", err);
-      return res.status(401).json({ message: "Token không hợp lệ" });
     }
+
+    // ✅ Đảm bảo luôn có role trong bảng userroles
+    let userRole = await UserRole.findOne({ where: { userId: user.id } });
+    if (!userRole) {
+      userRole = await UserRole.create({
+        userId: user.id,
+        roleId: 2, // role mặc định là user
+      });
+    }
+
+    // Tạo JWT token
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        roleId: userRole.roleId,
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.status(200).json({
+      message: "Đăng nhập Google thành công!",
+      token: accessToken,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        roleId: userRole.roleId,
+        status: user.status,
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi Google Login:", err);
+    return res.status(401).json({ message: "Token không hợp lệ" });
   }
+}
+
+
 
   static async logout(req, res) {
     try {

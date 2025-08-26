@@ -33,11 +33,7 @@ const authorize = (subject) => {
       finalAction = methodToAction[req.method] || null;
     }
 
-    console.log("  authorize middleware:", {
-      method: req.method,
-      path: req.path,
-      finalAction,
-    });
+  
 
     if (!finalAction) {
       return res.status(405).json({

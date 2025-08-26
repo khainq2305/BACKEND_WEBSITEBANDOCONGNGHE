@@ -101,9 +101,7 @@ const validateResetPassword = (req, res, next) => {
   next();
 };
 const validateUpdateProfile = (req, res, next) => {
-  console.log("body:", req.body);
-  console.log("file:", req.file);
-
+ 
   const { fullName, dateOfBirth, phone } = req.body;
   const errors = {};
 

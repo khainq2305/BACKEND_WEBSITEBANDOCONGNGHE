@@ -56,11 +56,7 @@ class ClientComboController {
         };
       });
 
-      // Giữ format đơn giản: trả mảng (FE của bạn đã xử lý cả hai trường hợp)
-      console.log(
-        "[COMBO][getAll] rows=%d",
-        Array.isArray(data) ? data.length : 0
-      );
+      
 
       return res.json(data);
     } catch (error) {
@@ -72,11 +68,7 @@ class ClientComboController {
   // Lấy chi tiết combo theo slug
   static async getBySlug(req, res) {
     try {
-      console.log(
-        "[COMBO][getBySlug] slug=%s auth=%s",
-        req.params.slug,
-        req.headers.authorization ? "yes" : "no"
-      );
+      
       const combo = await Combo.findOne({
         where: { slug: req.params.slug },
         include: [
@@ -125,11 +117,11 @@ class ClientComboController {
       });
 
       if (!combo) {
-        console.warn("[COMBO][getBySlug] NOT_FOUND slug=%s", req.params.slug);
+       
         return res.status(404).json({ message: "Combo không tồn tại" });
       }
 
-      // 👉 TÍNH sức chứa theo tồn SKU + số suất marketing còn lại
+     
       const [capRows] = await sequelize.query(
         `
       SELECT
@@ -201,23 +193,8 @@ class ClientComboController {
           };
         }),
       };
-      console.log(
-        "[COMBO][getBySlug] comboId=%s skus=%d availableForSale=%d inStock=%s",
-        formatted.id,
-        formatted.comboSkus?.length || 0,
-        formatted.availableForSale,
-        formatted.inStock
-      );
-      // log nhanh các trường FE cần
-      console.table(
-        (formatted.comboSkus || [])
-          .map((s) => ({
-            skuId: s.skuId,
-            productId: s.productId,
-            productName: s.productName,
-          }))
-          .slice(0, 5)
-      );
+      
+      
       return res.json(formatted);
     } catch (err) {
       console.error("[COMBO][getBySlug][ERR]", err?.message, err?.stack);
@@ -231,11 +208,7 @@ class ClientComboController {
       const limit = Number(req.query.limit || 50);
       const offset = Number(req.query.offset || 0);
 
-      // remainingSlots: còn lại theo suất marketing (quantity - sold)
-      // capacityByStock: sức chứa theo tồn kho thực của các SKU con
-      // availableForSale = min(remainingSlots, capacityByStock)
-      // Lọc: chỉ ẩn khi hết "suất marketing" (remainingSlots <= 0).
-      // => Nếu SKU con hết tồn (capacityByStock <= 0) thì vẫn trả về để FE gắn nhãn HẾT HÀNG.
+      
       const [rows] = await sequelize.query(
         `
       SELECT

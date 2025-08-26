@@ -1,7 +1,7 @@
 // testGHTK.js
 const axios = require("axios");
 
-const GHTK_TOKEN = "123djad61bRzc5wWAtqvbeV3NskYB6cprlnKGXa"; // token thật
+const GHTK_TOKEN = "2MXR4ZWV5jUDdqzwmFDFU4MHbeYhQCoOlnOAFP9"; // token thật
 const PARTNER_CODE = "S22856075"; // mã shop (góc dashboard)
 
 async function testCreateOrder() {

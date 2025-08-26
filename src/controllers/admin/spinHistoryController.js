@@ -5,8 +5,7 @@ const { SpinHistory, User, SpinReward } = require('../../models');
 const spinHistoryController = {
   async getAll(req, res) {
   try {
-    console.log("Received query parameters (spinHistoryController.js):", req.query); 
-
+  
     const {
       page = 1,
       limit = 10,

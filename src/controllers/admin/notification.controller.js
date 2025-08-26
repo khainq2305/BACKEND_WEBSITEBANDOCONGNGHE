@@ -23,7 +23,7 @@ const NotificationController = {
       } = req.body;
 
       const imageUrl = req.file?.path || "";
-      console.log("✅ [create] req.user:", req.user);
+   
 
       // 🚫 Kiểm tra trùng tiêu đề
       const existing = await Notification.findOne({ where: { title } });
@@ -49,8 +49,7 @@ const NotificationController = {
         startAt: startAt ? new Date(startAt) : null,
         createdBy: req.user?.fullName || `Admin #${req.user?.id}`, // ghi rõ ai tạo
       });
-      console.log("✅ [create] Notification created:", notification?.id);
-
+     
       // relltime
       getIO().emit("new-admin-notification", notification);
       getIO().emit("new-client-notification", notification);
@@ -84,8 +83,7 @@ const NotificationController = {
       // ✅ Gửi thông báo hệ thống cho tất cả admin
       // ====================== //
       if (req.user?.roleId === 1) {
-        console.log("✅ [create] Creating admin system notification");
-
+     
         const adminId = req.user.id;
         const adminName = req.user.fullName || `Admin #${adminId}`;
 
@@ -100,12 +98,7 @@ const NotificationController = {
           targetId: notification.id,
           startAt: new Date(),
         });
-        // 👇 Thêm log ở đây
-        console.log("✅ [System Noti] Created system notification:", {
-          id: systemNotification.id,
-          title: systemNotification.title,
-          type: systemNotification.type,
-        });
+       
 
         const allAdmins = await User.findAll({ where: { roleId: 1 } });
         const adminNotiUsers = allAdmins.map((a) => ({

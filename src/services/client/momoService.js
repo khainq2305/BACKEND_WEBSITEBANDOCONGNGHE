@@ -89,7 +89,7 @@ async function createPaymentLink({ orderId, amount, orderInfo }) {
     signature  : mask(signature, 8),
     secretKey  : undefined, // ko log secret
   });
-  console.log("[MoMo CREATE] rawSignature:", rawSignature);
+
 
   const http = axios.create({
     timeout: 15000,
@@ -101,7 +101,7 @@ async function createPaymentLink({ orderId, amount, orderInfo }) {
       "https://test-payment.momo.vn/v2/gateway/api/create",
       payload
     );
-    console.log("[MoMo CREATE] Response:", data);
+
     return data;
   } catch (err) {
     console.error(
@@ -145,12 +145,6 @@ async function refund({ orderCode, amount, momoTransId, description = "" }) {
     lang: "vi",
   };
 
-  console.log("[MoMo REFUND] Payload:", {
-    ...payload,
-    accessKey : mask(accessKey),
-    signature : mask(signature, 8),
-  });
-  console.log("[MoMo REFUND] rawSignature:", rawSignature);
 
   try {
     const { data } = await axios.post(
@@ -198,12 +192,7 @@ async function queryTransaction({ orderId, requestId }) {
     lang: "vi",
   };
 
-  console.log("[MoMo QUERY] Payload:", {
-    ...payload,
-    accessKey: mask(accessKey),
-    signature: mask(signature, 8),
-  });
-  console.log("[MoMo QUERY] rawSignature:", rawSignature);
+
 
   try {
     const { data } = await axios.post(

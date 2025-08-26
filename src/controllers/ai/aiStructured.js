@@ -23,12 +23,13 @@ Chỉ trả về **JSON hợp lệ**, KHÔNG markdown, KHÔNG giải thích.
 
 Schema:
 {
-  "type": "text" | "product_grid" | "product_grid_only" | "table_only" | "product_detail",
+"type": "text" | "product_grid" | "product_grid_only" | "table_only" | "product_detail" | "category_list"
   "content": (string if type='text')
            | (ProductGrid if 'product_grid')
            | (ProductGridOnly if 'product_grid_only')
            | (TableData if 'table_only')
            | (ProductDetailContent if 'product_detail'),
+           | (CategoryList if 'category_list'),
   "isProductDetail": boolean,
   "replyMessage": string | null
 }
@@ -72,12 +73,12 @@ async function askLLMStructured(userMessage) {
 
     const parsed = ChatResponseSchema.safeParse(parsedJson);
     if (!parsed.success) {
-      console.error('Zod validation errors:', parsed.error.errors);
+     
       throw new Error("JSON shape not valid");
     }
     return parsed.data;
   } catch (e) {
-    console.error('Gemini structured error:', e?.message, '\nRaw:', raw?.slice?.(0, 600));
+    
     throw e;
   }
 }

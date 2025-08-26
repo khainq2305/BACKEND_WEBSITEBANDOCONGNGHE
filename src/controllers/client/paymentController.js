@@ -91,27 +91,7 @@ class PaymentController {
     } = data || {};
     const isSuccess = Number(resultCode) === 0;
 
-    console.log("[MoMo CALLBACK] hit", {
-      t: new Date().toISOString(),
-      method: req.method,
-      ip,
-      ua: req.get("user-agent"),
-      ctype: req.get("content-type"),
-      hasBody,
-      bodyKeys: Object.keys(req.body || {}),
-      queryKeys: Object.keys(req.query || {}),
-      summary: {
-        orderId,
-        resultCode,
-        hasTransId: !!transId,
-        hasSignature: !!signature,
-        amount,
-        payType,
-        partnerCode,
-        requestId,
-        message,
-      },
-    });
+  
 
     if (!isSuccess) {
       console.warn(`[MoMo CALLBACK] resultCode=${resultCode} != 0 -> skip update.`);
@@ -132,28 +112,21 @@ class PaymentController {
       const dbAmount = Number(order.finalPrice);
       if (!Number.isNaN(ipnAmount) && !Number.isNaN(dbAmount)) {
         if (ipnAmount !== dbAmount) {
-          console.warn(
-            `[MoMo CALLBACK] amount mismatch -> IPN=${ipnAmount} DB=${dbAmount}. Skip update.`
-          );
+         
           return res.type("text/plain").end("OK");
         }
       }
     }
 
     if (order.paymentStatus === "paid") {
-      console.log(
-        "[MoMo CALLBACK] already paid ->",
-        order.orderCode,
-        "transId:",
-        order.momoTransId
-      );
+     
       return res.type("text/plain").end("OK");
     }
 
     // ====== CẬP NHẬT TRẠNG THÁI ======
     let momoTransId = transId;
     if (!momoTransId) {
-      console.warn("[MoMo CALLBACK] Thiếu transId → fallback queryTransaction");
+   
       try {
         const queryRes = await momoService.queryTransaction({
           orderId,
@@ -161,12 +134,12 @@ class PaymentController {
         });
         if (queryRes.resultCode === 0 && queryRes.transId) {
           momoTransId = queryRes.transId;
-          console.log("[MoMo CALLBACK] ✅ QueryTransaction lấy được transId:", momoTransId);
+         
         } else {
-          console.warn("[MoMo CALLBACK] QueryTransaction thất bại:", queryRes);
+          
         }
       } catch (err) {
-        console.error("[MoMo CALLBACK] ❌ QueryTransaction error:", err.message);
+        
       }
     }
 
@@ -176,11 +149,7 @@ class PaymentController {
     order.paymentTime = new Date();
     await order.save();
 
-    console.log("[MoMo CALLBACK] ✅ updated order ->", {
-      orderCode: order.orderCode,
-      transId: order.momoTransId,
-      paymentStatus: order.paymentStatus,
-    });
+   
 
     // ====== THÔNG BÁO ======
     const slug = `order-${order.orderCode}`;
@@ -191,7 +160,7 @@ class PaymentController {
       existingNoti.startAt = new Date();
       existingNoti.isActive = true;
       await existingNoti.save();
-      console.log("[MoMo CALLBACK] 🔔 updated notification:", slug);
+      
     } else {
       await Notification.create({
         userId: order.userId,
@@ -204,13 +173,17 @@ class PaymentController {
         startAt: new Date(),
         isActive: true,
       });
-      console.log("[MoMo CALLBACK] 🔔 created notification:", slug);
+      
     }
 
     // ====== KẾT THÚC ======
-    res.type("text/plain").end("OK");
+return res.json({
+  message: "OK",
+  order,  // 👈 gửi luôn thông tin đơn đã update
+});
+
   } catch (err) {
-    console.error("[MoMo CALLBACK] ❌ error:", err);
+ 
     return res.status(500).type("text/plain").end("ERROR");
   } finally {
     console.log("[MoMo CALLBACK] done in", Date.now() - start, "ms");
@@ -230,9 +203,7 @@ class PaymentController {
         amount: order.finalPrice,
         orderInfo: order.orderCode,
       });
-      console.log("🧾 ZaloPay response:", zaloRes);
-
-      console.log("🧾 ZaloPay response:", zaloRes); // ✅ thêm dòng này để xem lỗi chi tiết
+      
 
       if (zaloRes.return_code !== 1) {
         return res
@@ -254,17 +225,15 @@ class PaymentController {
   }
   static async zaloCallback(req, res) {
     try {
-      console.log("📥 [ZaloPay Callback] BẮT ĐẦU ==========================");
-      console.log("➡️ req.body:", req.body);
-      console.log("➡️ req.query:", req.query);
+     
 
       const rawData = req.body?.data || "{}";
       const parsedData = JSON.parse(rawData);
 
-      console.log("🧾 DỮ LIỆU CALLBACK đã parse:", parsedData);
+     
 
       const { embed_data, zp_trans_id, app_trans_id } = parsedData;
-      console.log("🧾 CALLBACK app_id:", parsedData.app_id); // ← THÊM DÒNG NÀY
+     
 
       // ✅ Lấy orderCode từ embed_data
       let orderCode = null;
@@ -272,17 +241,17 @@ class PaymentController {
         const embed = JSON.parse(embed_data);
         orderCode = embed.orderCode;
       } catch (err) {
-        console.error("❌ Lỗi parse embed_data:", err);
+        
       }
 
       if (!orderCode) {
-        console.warn("⚠️ Thiếu orderCode trong embed_data");
+        
         return res.status(400).send("Thiếu orderCode");
       }
 
       const order = await Order.findOne({ where: { orderCode } });
       if (!order) {
-        console.warn("⚠️ Không tìm thấy đơn hàng:", orderCode);
+       
         return res.status(404).send("Không tìm thấy đơn hàng");
       }
 
@@ -292,7 +261,7 @@ class PaymentController {
       if (zp_trans_id) order.zaloTransId = zp_trans_id;
       if (app_trans_id) order.zaloAppTransId = app_trans_id; // ← THÊM DÒNG NÀY
       await order.save();
-      console.log("✅ Cập nhật đơn hàng thành công:", order.orderCode);
+      
 
       const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
       return res.redirect(redirectUrl);
@@ -342,14 +311,11 @@ class PaymentController {
       const rspCode = qs.vnp_ResponseCode;
       const secureHash = qs.vnp_SecureHash;
 
-      console.log("[VNPay CALLBACK] vnpTxnRef:", vnpTxnRef);
-      console.log("[VNPay CALLBACK] Response Code:", rspCode);
-      console.log("[VNPay CALLBACK] vnp_PayDate:", qs.vnp_PayDate); // Log giá trị gốc từ VNPAY
-
+    
       // 1. Kiểm tra chữ ký
       const isValid = vnpayService.verifySignature(qs, secureHash);
       if (!isValid) {
-        console.warn("❌ Sai chữ ký!");
+       
         return res.status(400).end("INVALID_CHECKSUM");
       }
 
@@ -362,7 +328,7 @@ class PaymentController {
         },
       });
       if (!order) {
-        console.warn("❌ Không tìm thấy đơn với vnpOrderId:", vnpTxnRef);
+        
         return res.status(404).end("ORDER_NOT_FOUND");
       }
 
@@ -372,34 +338,29 @@ class PaymentController {
         order.paymentTime = new Date();
         order.vnpTransactionId = qs.vnp_TransactionNo;
 
-        // 💡 SỬA ĐỔI DÒNG NÀY: Chuyển đổi chuỗi vnp_PayDate sang đối tượng Date
-        // Sử dụng moment để parse chuỗi theo định dạng YYYYMMDDHHmmss
-        // và sau đó chuyển đổi thành đối tượng Date chuẩn của JavaScript.
+       
         order.vnpPayDate = moment(qs.vnp_PayDate, "YYYYMMDDHHmmss").toDate();
-        console.log(
-          "[VNPay CALLBACK] vnpPayDate after parsing:",
-          order.vnpPayDate
-        ); // Log giá trị sau khi parse
-
+       
         await order.save();
-        console.log(
-          `✅ Đơn ${order.orderCode} đã thanh toán VNPay thành công.`
-        );
+       
       } else {
         // Giữ trạng thái "waiting", để CRON xử lý sau hoặc cho phép thanh toán lại
-        console.log(
-          `🔁 Đơn ${order.orderCode} bị huỷ hoặc lỗi VNPay, giữ trạng thái waiting.`
-        );
+        
       }
 
-      // 4. Nếu gọi từ frontend (fetch) → chỉ trả kết quả đơn giản
-      if (isFromFrontend) return res.end("OK");
+     if (isFromFrontend) {
+  return res.json({
+    message: "OK",
+    order,   // 👈 gửi về luôn order đã cập nhật
+  });
+}
+
 
       // 5. Nếu redirect từ VNPay → điều hướng về trang xác nhận
       const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
       return res.redirect(redirectUrl);
     } catch (err) {
-      console.error("[VNPay CALLBACK] Lỗi xử lý:", err);
+     
       return res.status(500).end("ERROR");
     }
   }
@@ -407,20 +368,14 @@ class PaymentController {
   static async stripePay(req, res) {
     try {
       const { orderId } = req.body;
-      console.log(
-        `[stripePay] Bắt đầu xử lý yêu cầu thanh toán Stripe cho Order ID: ${orderId}`
-      );
+     
 
       const order = await Order.findByPk(orderId);
       if (!order) {
-        console.warn(
-          `[stripePay] Không tìm thấy đơn hàng với Order ID: ${orderId}`
-        );
+      
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
-      console.log(
-        `[stripePay] Đã tìm thấy đơn hàng: ${order.orderCode} với tổng giá: ${order.finalPrice}`
-      );
+      
 
       // Đảm bảo rằng process.env.CLIENT_URL có scheme (http:// hoặc https://)
       // Đây là điểm mấu chốt để khắc phục lỗi "Invalid URL: An explicit scheme must be provided."
@@ -430,12 +385,7 @@ class PaymentController {
         !process.env.CLIENT_URL.startsWith("http://") &&
         !process.env.CLIENT_URL.startsWith("https://")
       ) {
-        console.error(
-          `[stripePay] Lỗi cấu hình CLIENT_URL: Thiếu scheme (http:// hoặc https://).`
-        );
-        console.error(
-          `[stripePay] CLIENT_URL hiện tại: ${process.env.CLIENT_URL}`
-        );
+        
         return res.status(500).json({
           message:
             "Lỗi cấu hình URL máy khách. Vui lòng kiểm tra biến môi trường CLIENT_URL.",
@@ -445,13 +395,7 @@ class PaymentController {
       const successUrl = `${process.env.CLIENT_URL}/order-confirmation?orderCode=${order.orderCode}`;
       const cancelUrl = `${process.env.CLIENT_URL}/checkout`;
 
-      console.log(`[stripePay] Success URL: ${successUrl}`);
-      console.log(`[stripePay] Cancel URL: ${cancelUrl}`);
-      console.log(
-        `[stripePay] Chuẩn bị tạo Stripe Checkout Session với giá: ${Math.round(
-          order.finalPrice
-        )} VND`
-      );
+     
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
@@ -477,25 +421,14 @@ class PaymentController {
         },
       });
 
-      console.log(
-        `[stripePay] Đã tạo Stripe Checkout Session thành công. Session ID: ${session.id}`
-      );
-      console.log(
-        `[stripePay] Chuyển hướng người dùng đến URL: ${session.url}`
-      );
+     
       return res.json({ url: session.url });
     } catch (error) {
-      console.error(
-        "[stripePay] Đã xảy ra lỗi khi tạo session thanh toán Stripe:",
-        error
-      );
+     
       // Log chi tiết lỗi Stripe nếu có
       if (error.type === "StripeInvalidRequestError") {
-        console.error(
-          `[stripePay] Lỗi StripeInvalidRequestError: ${error.message}`
-        );
-        console.error(`[stripePay] Param lỗi: ${error.param}`);
-        console.error(`[stripePay] Doc URL: ${error.doc_url}`);
+       
+      
       }
       return res.status(500).json({
         message: "Không thể tạo session thanh toán Stripe",
@@ -701,22 +634,10 @@ class PaymentController {
       const { accountNumber, accountName, bankCode, amount, message } =
         req.body;
 
-      console.log("⚡ [generate VietQR] Nhận request với dữ liệu:", {
-        accountNumber,
-        accountName,
-        bankCode,
-        amount,
-        message,
-      });
+    
 
       if (!accountNumber || !accountName || !bankCode || !amount || !message) {
-        console.warn("⚠️ [generate VietQR] Thiếu thông tin cần thiết:", {
-          accountNumber: !!accountNumber,
-          accountName: !!accountName,
-          bankCode: !!bankCode,
-          amount: !!amount,
-          message: !!message,
-        });
+       
         return res.status(400).json({ message: "Thiếu thông tin cần thiết." });
       }
 
@@ -724,7 +645,7 @@ class PaymentController {
 
       const vietqrUrl = `https://img.vietqr.io/image/${bankCode}-${accountNumber}-basic.png?amount=${amount}&addInfo=${encodedMessage}`;
 
-      console.log("✅ [generate VietQR] URL QR đã tạo:", vietqrUrl);
+
 
       return res.json({
         qrImage: vietqrUrl,
@@ -767,18 +688,14 @@ class PaymentController {
         order.paymentStatus = "paid";
         order.paymentTime = new Date();
         await order.save();
-        console.log(
-          `[payosCallback] ✅ Đã cập nhật trạng thái đơn #${order.id} thành 'paid'`
-        );
+       
       } else {
-        console.log(
-          `[payosCallback] ⚠ Đơn #${order.id} không ở trạng thái 'PAID', bỏ qua update`
-        );
+        
       }
 
       return res.json({ message: "Cập nhật trạng thái PayOS thành công" });
     } catch (error) {
-      console.error("[payosCallback] ❌ Lỗi:", error);
+     
       return res.status(500).json({ message: "Lỗi xử lý callback PayOS" });
     }
   }
@@ -823,13 +740,10 @@ class PaymentController {
         ],
       });
 
-      console.log(`[payosPay] ✅ Tạo link PayOS thành công`);
+    
       return res.json({ payUrl: payosRes.checkoutUrl });
     } catch (error) {
-      console.error(
-        "[payosPay] ❌ Lỗi tạo link:",
-        error?.response?.data || error.message
-      );
+     
       return res.status(500).json({ message: "Không thể tạo link PayOS" });
     }
   }
@@ -846,13 +760,13 @@ class PaymentController {
       );
 
       if (!isValid) {
-        console.error("[payosWebhook] ❌ Invalid signature");
+    
         return res.status(400).json({ message: "Invalid signature" });
       }
 
       // Nếu giao dịch không thành công thì bỏ qua
       if (!success || code !== "00") {
-        console.warn("[payosWebhook] ❗ Giao dịch thất bại");
+        
         return res.status(400).json({ message: "Giao dịch thất bại" });
       }
 
@@ -869,9 +783,7 @@ class PaymentController {
         order.payosTransactionId = transactionId;
         await order.save();
 
-        console.log(
-          `[payosWebhook] ✅ Đã cập nhật đơn hàng #${order.id} thành 'paid'`
-        );
+        
       }
 
       return res.json({ message: "Đã xử lý webhook" });
@@ -943,16 +855,7 @@ class PaymentController {
             bankCode,
           });
 
-          // 🔍 LOG THÔNG TIN DEBUG
-          console.log("\n--- [payAgain: VNPAY] ---");
-          console.log("✅ orderCode:", order.orderCode);
-          console.log("✅ vnpOrderId:", vnpOrderId);
-          console.log("✅ amount:", amount);
-          console.log("✅ bankCode:", bankCode);
-          console.log("✅ orderInfo:", orderInfo);
-          console.log("✅ payUrl:", payUrl);
-          console.log("--------------------------\n");
-
+        
           break;
         }
 
@@ -1001,13 +904,7 @@ class PaymentController {
 
           payUrl = session.url;
 
-          console.log("\n--- [payAgain: STRIPE] ---");
-          console.log("✅ orderCode:", order.orderCode);
-          console.log("✅ amount:", order.finalPrice);
-          console.log("✅ sessionId:", session.id);
-          console.log("✅ payUrl:", payUrl);
-          console.log("--------------------------\n");
-
+      
           break;
         }
 

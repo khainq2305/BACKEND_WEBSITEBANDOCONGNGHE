@@ -17,26 +17,28 @@ const generateKeyFromName = (name) => {
 };
 
 class RoleService {
-  async findAll() {
-    return await Role.findAll({
-      attributes: [
-        "id",
-        "name",
-        "description",
-        [sequelize.fn("COUNT", sequelize.col("users.id")), "userCount"],
-      ],
-      include: [
-        {
-          model: User,
-          attributes: [],
-          through: { attributes: [] }, // ẩn bảng trung gian
-          required: false,
-        },
-      ],
-      group: ["Role.id", "Role.name", "Role.description", "Role.createdAt"],
-      order: [["createdAt", "ASC"]],
-    });
-  }
+ async findAll() {
+  return await Role.findAll({
+    attributes: [
+      "id",
+      "name",
+      "description",
+      [sequelize.fn("COUNT", sequelize.col("users.id")), "userCount"], // ✅ alias đúng theo as: "users"
+    ],
+    include: [
+      {
+        model: User,
+        as: "users",   // ✅ phải khớp với alias định nghĩa trong Role.belongsToMany
+        attributes: [],
+        through: { attributes: [] },
+        required: false,
+      },
+    ],
+    group: ["Role.id", "Role.name", "Role.description", "Role.createdAt"],
+    order: [["createdAt", "ASC"]],
+  });
+}
+
 
   async create({ name, description, canAccess }) {
     const key = generateKeyFromName(name);
