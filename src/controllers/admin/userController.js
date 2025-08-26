@@ -10,7 +10,7 @@ const {
 } = require("../../services/common/emailService");
 const { getUserDetail } = require("../../services/admin/user.service");
 
-const { User, UserRoles, Sequelize  } = require("../../models");
+const { User, UserRole, Sequelize  } = require("../../models");
 
 const STATUS_MAP = { active: 1, inactive: 0, pending: 2 };
 const coerceStatus = (raw) => {
@@ -62,71 +62,84 @@ class UserController {
     }
   }
 
- static async createUser(req, res) {
-    try {
-      const { fullName, email, password, phone, dateOfBirth, status } = req.body;
 
-      // Email đã tồn tại?
-      const existedEmail = await User.findOne({ where: { email } });
-      if (existedEmail) {
-        return res.status(400).json({
-          errors: [{ field: "email", message: "Email đã được sử dụng!" }],
-        });
-      }
+static async createUser(req, res) {
+  try {
+    const { fullName, email, password, phone, dateOfBirth, status } = req.body;
 
-      // Phone đã tồn tại? (nếu có gửi lên)
-      if (phone) {
-        const existedPhone = await User.findOne({ where: { phone } });
-        if (existedPhone) {
-          return res.status(400).json({
-            errors: [{ field: "phone", message: "Số điện thoại đã được sử dụng!" }],
-          });
-        }
-      }
-
-      // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Chuẩn hoá status
-      const statusValue = coerceStatus(status);
-
-      // Avatar (nếu có middleware upload.single('avatar'))
-      const avatarUrl = req.file?.path || null;
-
-      // NOTE: chỉ set roleId=2 nếu bảng users có cột roleId
-      const payload = {
-        fullName: fullName || null,
-        email: String(email).trim().toLowerCase(),
-        password: hashedPassword,
-        phone: phone || null,
-        dateOfBirth: dateOfBirth || null,
-        status: statusValue,
-        provider: "local",
-        avatarUrl,
-      };
-
-      // Nếu DB có cột roleId thì gán mặc định 2
-      if (User.rawAttributes.roleId) payload.roleId = 2;
-
-      const newUser = await User.create(payload);
-      const json = newUser.toJSON();
-      delete json.password;
-
-      return res.status(201).json({ message: "Tạo tài khoản thành công", user: json });
-    } catch (error) {
-      // Bắt lỗi unique (email/phone)
-      if (error instanceof Sequelize.UniqueConstraintError) {
-        const field = error?.errors?.[0]?.path || "email";
-        const label = field === "email" ? "Email" : field === "phone" ? "Số điện thoại" : field;
-        return res.status(400).json({
-          errors: [{ field, message: `${label} đã được sử dụng!` }],
-        });
-      }
-      console.error("❌ Lỗi createUser:", error);
-      return res.status(500).json({ message: "Không thể tạo tài khoản" });
+    // Email đã tồn tại?
+    const existedEmail = await User.findOne({ where: { email } });
+    if (existedEmail) {
+      return res.status(400).json({
+        errors: [{ field: "email", message: "Email đã được sử dụng!" }],
+      });
     }
+
+    // Phone đã tồn tại? (nếu có gửi lên)
+    if (phone) {
+      const existedPhone = await User.findOne({ where: { phone } });
+      if (existedPhone) {
+        return res.status(400).json({
+          errors: [{ field: "phone", message: "Số điện thoại đã được sử dụng!" }],
+        });
+      }
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Chuẩn hoá status
+    const statusValue = coerceStatus(status);
+
+    // Avatar (nếu có middleware upload.single('avatar'))
+    const avatarUrl = req.file?.path || null;
+
+    // Payload user
+    const payload = {
+      fullName: fullName || null,
+      email: String(email).trim().toLowerCase(),
+      password: hashedPassword,
+      phone: phone || null,
+      dateOfBirth: dateOfBirth || null,
+      status: statusValue,
+      provider: "local",
+      avatarUrl,
+    };
+
+    // Tạo user
+    const newUser = await User.create(payload);
+
+    // Gán role mặc định (ví dụ: roleId = 2)
+    await UserRole.create({
+      userId: newUser.id,
+      roleId: 2
+    });
+
+    const json = newUser.toJSON();
+    delete json.password;
+
+    return res.status(201).json({ message: "Tạo tài khoản thành công", user: json });
+
+  } catch (error) {
+    // Bắt lỗi unique (email/phone)
+    if (error instanceof Sequelize.UniqueConstraintError) {
+      const field = error?.errors?.[0]?.path || "email";
+      const label =
+        field === "email"
+          ? "Email"
+          : field === "phone"
+          ? "Số điện thoại"
+          : field;
+      return res.status(400).json({
+        errors: [{ field, message: `${label} đã được sử dụng!` }],
+      });
+    }
+    console.error("❌ Lỗi createUser:", error);
+    return res.status(500).json({ message: "Không thể tạo tài khoản" });
   }
+}
+
 
   static async getAllRoles(req, res) {
     try {
