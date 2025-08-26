@@ -574,29 +574,37 @@ class CartController {
 
       const userPoints = result?.totalPoints || 0;
 
-      const exchangeRate = 4000;
-      const minPointRequired = 1;
-      const maxUsablePoints = Math.min(
-        userPoints,
-        Math.floor(totalAmount / exchangeRate)
-      );
-      const pointDiscountAmount = maxUsablePoints * exchangeRate;
+// 🎯 Tỷ lệ tích điểm và đổi điểm
+const earnRate = 10000;   // 10k VNĐ mua hàng = 1 điểm
+const redeemRate = 100;   // 1 điểm = 100 VNĐ khi đổi
 
-      return res.status(200).json({
-        cartItems: formattedItems,
-        totalAmount,
-        rewardPoints: 0,
-        payablePrice: totalAmount,
-        couponDiscount: 0,
-        pointInfo: {
-          userPointBalance: userPoints,
-          exchangeRate,
-          minPointRequired,
-          canUsePoints: userPoints >= minPointRequired,
-          maxUsablePoints,
-          pointDiscountAmount,
-        },
-      });
+const minPointRequired = 1;
+const maxUsablePoints = Math.min(
+  userPoints,
+  Math.floor(totalAmount / redeemRate)
+);
+const pointDiscountAmount = maxUsablePoints * redeemRate;
+
+// 🎁 Điểm user sẽ được cộng thêm từ đơn này
+const rewardPoints = Math.floor(totalAmount / earnRate);
+
+return res.status(200).json({
+  cartItems: formattedItems,
+  totalAmount,
+  rewardPoints,
+  payablePrice: totalAmount - pointDiscountAmount,
+  couponDiscount: 0,
+  pointInfo: {
+    userPointBalance: userPoints,
+    earnRate,
+    redeemRate,
+    minPointRequired,
+    canUsePoints: userPoints >= minPointRequired,
+    maxUsablePoints,
+    pointDiscountAmount,
+  },
+});
+
     } catch (err) {
       console.error("Lỗi lấy giỏ hàng:", err);
       return res.status(500).json({ message: "Lỗi server" });
