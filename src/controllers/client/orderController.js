@@ -713,34 +713,40 @@ if (usePoints && pointsToSpend > 0) {
         await CartItem.destroy({ where: { id: cartItemIds }, transaction: t });
       }
 
-      if (usePoints && pointsToSpend > 0 && pointDiscountAmount > 0) {
-        await UserPoint.create(
-          {
-            userId: user.id,
-            orderId: newOrder.id,
-            points: -pointsToSpend,
-            type: "spend",
-            description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}`,
-          },
-          { transaction: t }
-        );
-      }
-    const earnRate = 10000; // 10k = 1 điểm
+    // ================== XỬ LÝ ĐIỂM THƯỞNG ==================
+if (usePoints && pointsToSpend > 0 && pointDiscountAmount > 0) {
+  // Lưu bản ghi tiêu điểm (spend)
+  await UserPoint.create(
+    {
+      userId: user.id,
+      orderId: newOrder.id,
+      points: pointsToSpend, // 👈 để DƯƠNG, không để âm
+      type: "spend",
+      description: `Sử dụng ${pointsToSpend} điểm cho đơn ${newOrder.orderCode}`,
+    },
+    { transaction: t }
+  );
+}
+
+// Tặng điểm mới cho user
+const earnRate = 10000; // 10k = 1 điểm
 const rewardPoints = Math.floor(finalPrice / earnRate);
 
-      if (rewardPoints > 0) {
-        await UserPoint.create(
-          {
-            userId: user.id,
-            orderId: newOrder.id,
-            points: rewardPoints,
-            type: "earn",
-            description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
-            expiresAt: new Date(Date.now() + 1 * 60 * 1000),
-          },
-          { transaction: t }
-        );
-      }
+if (rewardPoints > 0) {
+  await UserPoint.create(
+    {
+      userId: user.id,
+      orderId: newOrder.id,
+      points: rewardPoints, // 👈 để DƯƠNG
+      type: "earn",
+      description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
+      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // hết hạn sau 90 ngày
+    },
+    { transaction: t }
+  );
+}
+
+
 
       const payCode = validPayment.code.toLowerCase();
 
