@@ -63,17 +63,21 @@ class RoleController {
     try {
       const { force } = req.body;
       const result = await roleService.remove(req.params.id, force);
-
+  
       if (result.notFound) {
         return res.status(404).json({ success: false, message: "Vai trò không tồn tại." });
       }
-
+  
       if (result.isAdmin) {
         return res.status(403).json({ success: false, message: "Không thể xoá vai trò Admin." });
       }
-
+  
+      if (result.isUser) {
+        return res.status(403).json({ success: false, message: "Không thể xoá vai trò User." });
+      }
+  
       return res.status(200).json({ success: true, message: "Đã xoá vai trò thành công." });
-
+  
     } catch (err) {
       if (err.name === 'SequelizeForeignKeyConstraintError') {
         return res.status(409).json({
@@ -90,6 +94,7 @@ class RoleController {
       });
     }
   }
+  
 }
 
 module.exports = new RoleController();

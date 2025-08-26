@@ -200,15 +200,54 @@ class UserController {
       const user = await User.findByPk(id);
       if (!user)
         return res.status(404).json({ message: "Người dùng không tồn tại" });
-
+  
+      // Tạo mật khẩu random 8 ký tự (hex)
       const newPassword = crypto.randomBytes(4).toString("hex");
       const hashed = await bcrypt.hash(newPassword, 10);
+  
+      // Lưu mật khẩu mới vào DB
       await user.update({ password: hashed });
-
-      const html = `...`; // Nội dung email HTML
+  
+      // URL trang đăng nhập (có thể lấy từ .env để dễ bảo trì)
+      const loginUrl = "https://www.cyberzone.com.vn/dang-nhap";
+  
+      // Nội dung email (HTML)
+      const html = `
+        <div style="font-family: Arial, sans-serif; background:#f4f6fa; padding:20px;">
+          <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:8px; padding:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+            <h2 style="color:#2b6ef6;">Cấp lại mật khẩu truy cập</h2>
+            <p>Xin chào <strong>${user.fullName || "Người dùng"}</strong>,</p>
+            <p>Mật khẩu của bạn đã được reset bởi quản trị viên.</p>
+  
+            <p style="margin:16px 0; font-size:16px; font-weight:bold; text-align:center;">
+              Mật khẩu mới của bạn là: 
+              <span style="display:inline-block; padding:10px 16px; background:#0f172a; color:#fff; border-radius:6px;">
+                ${newPassword}
+              </span>
+            </p>
+  
+            <p>Vui lòng đăng nhập bằng mật khẩu trên và đổi mật khẩu ngay để đảm bảo an toàn.</p>
+  
+            <div style="text-align:center; margin:24px 0;">
+              <a href="${loginUrl}" 
+                 style="display:inline-block; padding:12px 20px; background:#2b6ef6; color:#fff; text-decoration:none; font-weight:bold; border-radius:6px;">
+                Đăng nhập ngay
+              </a>
+            </div>
+  
+            <p style="font-size:12px; color:#888;">Nếu bạn không yêu cầu reset mật khẩu, vui lòng liên hệ với quản trị viên.</p>
+  
+            <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+            <p style="font-size:12px; color:#666;">Trân trọng,<br/>Hệ thống</p>
+          </div>
+        </div>
+      `;
+  
+      // Gửi email
       await sendEmail(user.email, "Cấp lại mật khẩu truy cập hệ thống", html);
-
+  
       res.json({
+        success: true,
         message: "Mật khẩu mới đã được gửi về email của người dùng.",
       });
     } catch (error) {
@@ -221,6 +260,8 @@ class UserController {
       res.status(500).json({ message: "Không thể cấp lại mật khẩu", error });
     }
   }
+  
+  
 
   static async deleteInactiveUsers(req, res) {
     try {

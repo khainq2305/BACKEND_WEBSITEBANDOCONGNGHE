@@ -63,20 +63,24 @@ class RoleService {
   }
 
   async remove(id, force = false) {
-    const DEFAULT_ROLE_ID = 2;
+    const DEFAULT_ROLE_ID = 2; // User
     const role = await Role.findByPk(id);
     if (!role) return { notFound: true };
-
+  
+    // Check riêng từng role
     if (role.name === "Admin") return { isAdmin: true };
-
+    if (role.name === "User") return { isUser: true };
+  
     if (force) {
       await RolePermission.destroy({ where: { roleId: id } });
       await User.update({ roleId: DEFAULT_ROLE_ID }, { where: { roleId: id } });
     }
-
+  
     await role.destroy();
     return { success: true };
   }
+  
+  
 }
 
 module.exports = new RoleService();
