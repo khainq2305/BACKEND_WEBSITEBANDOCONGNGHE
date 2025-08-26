@@ -1386,270 +1386,272 @@ static async getById(req, res) {
   }
 
   static async cancel(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const { reason } = req.body || {};
-      const reasonText = typeof reason === "string" ? reason : reason?.reason;
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
-      if (!reasonText?.trim()) {
-        return res
-          .status(400)
-          .json({ message: "Lý do huỷ đơn không được bỏ trống" });
-      }
+    if (!reasonText?.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Lý do huỷ đơn không được bỏ trống" });
+    }
 
-      const order = await Order.findByPk(id, {
-        include: [
-          { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
-        ],
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
+    const order = await Order.findByPk(id, {
+      include: [
+        { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
+      ],
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
 
-      if (!order) {
-        await t.rollback();
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-      }
+    if (!order) {
+      await t.rollback();
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
 
-      if (order.status === "cancelled") {
-        await t.rollback();
-        return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
-      }
+    if (order.status === "cancelled") {
+      await t.rollback();
+      return res.status(400).json({ message: "Đơn hàng đã bị huỷ trước đó" });
+    }
 
-      if (["shipping", "delivered", "completed"].includes(order.status)) {
-        await t.rollback();
-        return res
-          .status(400)
-          .json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
-      }
+    if (["shipping", "delivered", "completed"].includes(order.status)) {
+      await t.rollback();
+      return res
+        .status(400)
+        .json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
+    }
 
-      const paid = order.paymentStatus === "paid";
-      const payCode = order.paymentMethod?.code?.toLowerCase();
+    const paid = order.paymentStatus === "paid";
+    const payCode = order.paymentMethod?.code?.toLowerCase();
 
-      if (paid && ["momo", "vnpay", "zalopay", "stripe"].includes(payCode)) {
-        const payload = {
-          orderCode: order.orderCode,
-          amount: order.finalPrice,
-        };
+    /* ───────────────────── Refund trực tiếp ───────────────────── */
+    if (paid && ["momo", "vnpay", "stripe"].includes(payCode)) {
+      const payload = {
+        orderCode: order.orderCode,
+        amount: order.finalPrice,
+      };
 
-        if (payCode === "momo") {
-          if (!order.momoTransId)
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch MoMo" });
-          payload.momoTransId = order.momoTransId;
-        } else if (payCode === "vnpay") {
-          if (!order.vnpTransactionId || !order.paymentTime)
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch VNPay" });
-          payload.vnpTransactionId = order.vnpTransactionId;
-          payload.originalAmount = order.finalPrice;
-          payload.transDate = order.paymentTime;
-        } else if (payCode === "stripe") {
-          if (!order.stripePaymentIntentId)
-            return res
-              .status(400)
-              .json({ message: "Thiếu stripePaymentIntentId" });
-          payload.stripePaymentIntentId = order.stripePaymentIntentId;
-        } else if (payCode === "zalopay") {
-          if (!order.zaloTransId || !order.zaloAppTransId)
-            return res
-              .status(400)
-              .json({ message: "Thiếu thông tin giao dịch ZaloPay" });
-          payload.zp_trans_id = order.zaloTransId;
-          payload.app_trans_id = order.zaloAppTransId;
-          payload.amount = Math.round(Number(order.finalPrice));
-        }
-
-        const { ok, transId } = await refundGateway(payCode, payload);
-        if (!ok) {
-          await t.rollback();
-          return res.status(400).json({ message: "Hoàn tiền thất bại" });
-        }
-
-        order.paymentStatus = "refunded";
-        order.gatewayTransId = transId || null;
-      } else if (
-        (payCode === "payos" && paid) ||
-        payCode === "cod" ||
-        (payCode === "internalwallet" && paid) ||
-        (payCode === "atm" && paid)
-      ) {
-        const wallet = await Wallet.findOne({
-          where: { userId: order.userId },
-          transaction: t,
-        });
-        if (!wallet) {
-          await t.rollback();
+      if (payCode === "momo") {
+        if (!order.momoTransId) {
           return res
             .status(400)
-            .json({ message: "Không tìm thấy ví người dùng" });
+            .json({ message: "Thiếu thông tin giao dịch MoMo" });
         }
+        payload.momoTransId = order.momoTransId;
+      } else if (payCode === "vnpay") {
+  if (!order.vnpTransactionId || !order.vnpPayDate)
+    return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
 
-        wallet.balance = (
-          Number(wallet.balance || 0) + Number(order.finalPrice || 0)
-        ).toFixed(2);
-        await wallet.save({ transaction: t });
-
-        await WalletTransaction.create(
-          {
-            userId: order.userId,
-            walletId: wallet.id,
-            orderId: order.id,
-            type: "refund",
-            amount: order.finalPrice,
-            description: `Hoàn tiền do huỷ đơn hàng ${
-              order.orderCode
-            } (${payCode.toUpperCase()})`,
-          },
-          { transaction: t }
-        );
-
-        order.paymentStatus = "refunded";
-        order.gatewayTransId = null;
-      } else {
-        order.paymentStatus = "unpaid";
+  payload.vnpTransactionId = order.vnpTransactionId;
+  payload.amount = Number(order.finalPrice); // ✅ gốc, chưa *100
+  payload.transDate = moment(order.vnpPayDate).format("YYYYMMDDHHmmss");
+  payload.orderCode = order.vnpOrderId;
+}
+else if (payCode === "stripe") {
+        if (!order.stripePaymentIntentId) {
+          return res
+            .status(400)
+            .json({ message: "Thiếu stripePaymentIntentId" });
+        }
+        payload.stripePaymentIntentId = order.stripePaymentIntentId;
       }
 
-      order.status = "cancelled";
-      order.cancelReason = reasonText.trim();
-      await order.save({ transaction: t });
+      console.log("🔄 [cancel] Refund payload:", payCode, payload);
+      const { ok, transId, error } = await refundGateway(payCode, payload);
+      console.log("✅ [cancel] Refund response:", { ok, transId, error });
 
-      const orderItems = await OrderItem.findAll({
-        where: { orderId: order.id },
-        transaction: t,
-      });
-
-      for (const item of orderItems) {
-        if (item.flashSaleId) {
-          await FlashSaleItem.update(
-            {
-              quantity: Sequelize.literal(`quantity + ${item.quantity}`),
-              soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
-            },
-            { where: { id: item.flashSaleId }, transaction: t }
-          );
-        }
-
-        await Sku.increment(
-          { stock: item.quantity },
-          { where: { id: item.skuId }, transaction: t }
-        );
-      }
-
-      await UserPoint.destroy({
-        where: { orderId: order.id, userId: order.userId, type: "earn" },
-        transaction: t,
-      });
-
-      if (order.couponId != null) {
-        await CouponUser.decrement("used", {
-          by: 1,
-          where: { userId: order.userId, couponId: order.couponId },
-          transaction: t,
-        });
-
-        await Coupon.decrement("usedCount", {
-          by: 1,
-          where: { id: order.couponId },
-          transaction: t,
+      if (!ok) {
+        await t.rollback();
+        return res.status(400).json({
+          message: "Hoàn tiền thất bại",
+          detail: error || "Gateway không chấp nhận refund",
         });
       }
 
-      const slug = `user-cancel-order-${order.orderCode}`;
-      let clientNotif;
+      order.paymentStatus = "refunded";
+      order.gatewayTransId = transId || null;
 
-      const existingNotif = await Notification.findOne({ where: { slug } });
-
-      if (!existingNotif) {
-        clientNotif = await Notification.create(
-          {
-            title: "Đơn hàng bị huỷ",
-            message: `Đơn ${
-              order.orderCode
-            } đã bị huỷ. Lý do: ${reasonText.trim()}`,
-            slug,
-            type: "order",
-            targetRole: "client",
-            targetId: order.id,
-            link: `/user-profile/orders/${order.orderCode}`,
-            isGlobal: false,
-          },
-          { transaction: t }
-        );
-
-        await NotificationUser.create(
-          { notificationId: clientNotif.id, userId: order.userId },
-          { transaction: t }
-        );
-      } else {
-        clientNotif = existingNotif;
+    /* ───────────────────── Hoàn về ví nội bộ ───────────────────── */
+    } else if (
+      (payCode === "zalopay" && paid) ||  // 👈 ZaloPay hoàn vào ví
+      (payCode === "payos" && paid) ||
+      payCode === "cod" ||
+      (payCode === "internalwallet" && paid) ||
+      (payCode === "atm" && paid)
+    ) {
+      const wallet = await Wallet.findOne({
+        where: { userId: order.userId },
+        transaction: t,
+      });
+      if (!wallet) {
+        await t.rollback();
+        return res
+          .status(400)
+          .json({ message: "Không tìm thấy ví người dùng" });
       }
 
-      const adminNotif = await Notification.create(
+      wallet.balance = (
+        Number(wallet.balance || 0) + Number(order.finalPrice || 0)
+      ).toFixed(2);
+      await wallet.save({ transaction: t });
+
+      await WalletTransaction.create(
         {
-          title: "Có đơn hàng bị huỷ",
-          message: `Đơn ${
-            order.orderCode
-          } vừa bị huỷ bởi người dùng. Lý do: ${reasonText.trim()}`,
-          slug: `admin-cancel-order-${order.orderCode}`,
-          type: "order",
-          targetRole: "admin",
-          targetId: order.id,
-          link: `/admin/orders/${order.id}`,
-          isGlobal: true,
+          userId: order.userId,
+          walletId: wallet.id,
+          orderId: order.id,
+          type: "refund",
+          amount: order.finalPrice,
+          description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode} (${payCode.toUpperCase()})`,
         },
         { transaction: t }
       );
 
-      req.app.locals.io
-        .to(`user-${order.userId}`)
-        .emit("new-client-notification", clientNotif);
+      order.paymentStatus = "refunded";
+      order.gatewayTransId = null;
 
-      req.app.locals.io
-        .to("admin-room")
-        .emit("new-admin-notification", adminNotif);
-      const user = await User.findByPk(order.userId, { transaction: t });
-      if (user?.email) {
-        const emailMjmlContent = generateOrderCancellationHtml({
-          orderCode: order.orderCode,
-          cancelReason: order.cancelReason,
-          userName: user.fullName || user.email || "Khách hàng",
-          orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
-          companyName: "Cyberzone",
-          companyLogoUrl:
-            "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
-          companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
-          companyPhone: "0878999894",
-          companySupportEmail: "contact@cyberzone.com",
-        });
+    } else {
+      order.paymentStatus = "unpaid";
+    }
 
-        const { html: emailHtml } = mjml2html(emailMjmlContent);
-        try {
-          await sendEmail(
-            user.email,
-            `Đơn hàng ${order.orderCode} đã bị hủy`,
-            emailHtml
-          );
-        } catch (emailErr) {
-          console.error(
-            `[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`,
-            emailErr
-          );
-        }
+    /* ───────────────────── Update order ───────────────────── */
+    order.status = "cancelled";
+    order.cancelReason = reasonText.trim();
+    await order.save({ transaction: t });
+
+    /* ───────────────────── Hoàn lại stock & flash sale ───────────────────── */
+    const orderItems = await OrderItem.findAll({
+      where: { orderId: order.id },
+      transaction: t,
+    });
+
+    for (const item of orderItems) {
+      if (item.flashSaleId) {
+        await FlashSaleItem.update(
+          {
+            quantity: Sequelize.literal(`quantity + ${item.quantity}`),
+            soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
+          },
+          { where: { id: item.flashSaleId }, transaction: t }
+        );
       }
 
-      await t.commit();
-      return res
-        .status(200)
-        .json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
-    } catch (err) {
-      await t.rollback();
-      console.error("[cancel][ERROR]", err);
-      return res.status(500).json({ message: "Hủy đơn thất bại" });
+      await Sku.increment(
+        { stock: item.quantity },
+        { where: { id: item.skuId }, transaction: t }
+      );
     }
+
+    /* ───────────────────── Xoá điểm thưởng & cập nhật coupon ───────────────────── */
+    await UserPoint.destroy({
+      where: { orderId: order.id, userId: order.userId, type: "earn" },
+      transaction: t,
+    });
+
+    if (order.couponId != null) {
+      await CouponUser.decrement("used", {
+        by: 1,
+        where: { userId: order.userId, couponId: order.couponId },
+        transaction: t,
+      });
+
+      await Coupon.decrement("usedCount", {
+        by: 1,
+        where: { id: order.couponId },
+        transaction: t,
+      });
+    }
+
+    /* ───────────────────── Notification ───────────────────── */
+    const slug = `user-cancel-order-${order.orderCode}`;
+    let clientNotif = await Notification.findOne({ where: { slug } });
+
+    if (!clientNotif) {
+      clientNotif = await Notification.create(
+        {
+          title: "Đơn hàng bị huỷ",
+          message: `Đơn ${order.orderCode} đã bị huỷ. Lý do: ${reasonText.trim()}`,
+          slug,
+          type: "order",
+          targetRole: "client",
+          targetId: order.id,
+          link: `/user-profile/orders/${order.orderCode}`,
+          isGlobal: false,
+        },
+        { transaction: t }
+      );
+
+      await NotificationUser.create(
+        { notificationId: clientNotif.id, userId: order.userId },
+        { transaction: t }
+      );
+    }
+
+    const adminNotif = await Notification.create(
+      {
+        title: "Có đơn hàng bị huỷ",
+        message: `Đơn ${order.orderCode} vừa bị huỷ bởi người dùng. Lý do: ${reasonText.trim()}`,
+        slug: `admin-cancel-order-${order.orderCode}`,
+        type: "order",
+        targetRole: "admin",
+        targetId: order.id,
+        link: `/admin/orders/${order.id}`,
+        isGlobal: true,
+      },
+      { transaction: t }
+    );
+
+    req.app.locals.io
+      .to(`user-${order.userId}`)
+      .emit("new-client-notification", clientNotif);
+
+    req.app.locals.io
+      .to("admin-room")
+      .emit("new-admin-notification", adminNotif);
+
+    /* ───────────────────── Email notify ───────────────────── */
+    const user = await User.findByPk(order.userId, { transaction: t });
+    if (user?.email) {
+      const emailMjmlContent = generateOrderCancellationHtml({
+        orderCode: order.orderCode,
+        cancelReason: order.cancelReason,
+        userName: user.fullName || user.email || "Khách hàng",
+        orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
+        companyName: "Cyberzone",
+        companyLogoUrl:
+          "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+        companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+        companyPhone: "0878999894",
+        companySupportEmail: "contact@cyberzone.com",
+      });
+
+      const { html: emailHtml } = mjml2html(emailMjmlContent);
+      try {
+        await sendEmail(
+          user.email,
+          `Đơn hàng ${order.orderCode} đã bị hủy`,
+          emailHtml
+        );
+      } catch (emailErr) {
+        console.error(
+          `[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`,
+          emailErr
+        );
+      }
+    }
+
+    await t.commit();
+    return res
+      .status(200)
+      .json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
+  } catch (err) {
+    await t.rollback();
+    console.error("[cancel][ERROR]", err);
+    return res.status(500).json({ message: "Hủy đơn thất bại" });
   }
+}
 
   static async lookupOrder(req, res) {
   try {

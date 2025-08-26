@@ -336,7 +336,8 @@ static async updateStatus(req, res) {
         const paid = order.paymentStatus === 'paid';
         const payCode = order.paymentMethod?.code?.toLowerCase();
 
-        if (paid && ['momo', 'vnpay', 'zalopay', 'stripe'].includes(payCode)) {
+      if (paid && ['momo', 'vnpay', 'stripe'].includes(payCode)) {
+
           const payload = { orderCode: order.orderCode, amount: order.finalPrice };
           if (payCode === 'momo') {
             if (!order.momoTransId) {
@@ -374,12 +375,13 @@ static async updateStatus(req, res) {
           }
           order.paymentStatus = 'refunded';
           order.gatewayTransId = transId || null;
-        } else if (
-          (payCode === 'payos' && paid) ||
-          payCode === 'cod' ||
-          (payCode === 'internalwallet' && paid) ||
-          (payCode === 'atm' && paid)
-        ) {
+       } else if (
+  (payCode === 'zalopay' && paid) || 
+  (payCode === 'payos' && paid) ||
+  payCode === 'cod' ||
+  (payCode === 'internalwallet' && paid) ||
+  (payCode === 'atm' && paid)
+) {
           const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
           if (!wallet) {
             await t.rollback();

@@ -7,36 +7,40 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 module.exports = async function refundGateway(gateway, payload) {
   switch (gateway) {
     /* ─────────────────────── VNPay ─────────────────────── */
-    case "vnpay": {
-      const { orderCode, amount, vnpTransactionId, transDate, originalAmount } =
-        payload;
+case "vnpay": {
+  const { orderCode, vnpTransactionId, amount, transDate } = payload;
 
-      if (!vnpTransactionId || !transDate) {
-        return {
-          ok: false,
-          transId: null,
-          rawResp: {
-            RspCode: "99",
-            Message: "Missing transactionId or transDate",
-          },
-        };
-      }
+  console.log("🚀 RefundGateway VNPay payload:", payload);
 
-      const resp = await vnpay.refund({
-        orderCode,
-        transactionId: vnpTransactionId,
-        amount,
-        transDate,
-        originalAmount,
-        user: "admin",
-      });
+  if (!vnpTransactionId || !transDate) {
+    return {
+      ok: false,
+      transId: null,
+      rawResp: {
+        vnp_ResponseCode: "99",
+        vnp_Message: "Missing transactionId or transDate",
+      },
+    };
+  }
 
-      return {
-        ok: resp?.vnp_ResponseCode === "00",
-        transId: resp?.vnp_TransactionNo || null,
-        rawResp: resp,
-      };
-    }
+  const resp = await vnpay.refund({
+    orderCode,
+    transactionId: vnpTransactionId,
+    amount,
+    transDate,
+    user: "admin",
+  });
+
+  console.log("📥 VNPay raw refund resp:", resp);
+
+  return {
+    ok: resp?.vnp_ResponseCode === "00",
+    transId: resp?.vnp_TransactionNo || null,
+    rawResp: resp,
+    error: resp?.vnp_Message || resp?.vnp_ResponseCode,
+  };
+}
+
     case "stripe": {
       const { stripePaymentIntentId, amount } = payload;
 

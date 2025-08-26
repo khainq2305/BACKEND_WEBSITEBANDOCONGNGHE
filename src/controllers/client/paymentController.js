@@ -314,8 +314,12 @@ class PaymentController {
   // trong OrderController
  static async vnpayCallback(req, res) {
   try {
+    console.log("===== VNPay Callback Start =====");
+
     const raw = req.body.rawQuery;
     const isFromFrontend = Boolean(raw);
+    console.log("📥 isFromFrontend:", isFromFrontend);
+    console.log("📥 rawQuery:", raw);
 
     // Parse query params
     const qs = raw
@@ -324,12 +328,19 @@ class PaymentController {
         })
       : req.query;
 
+    console.log("📥 Parsed QS:", qs);
+
     const vnpTxnRef = qs.vnp_TxnRef; // Đây là vnpOrderId
     const rspCode = qs.vnp_ResponseCode;
     const secureHash = qs.vnp_SecureHash;
 
+    console.log("🔑 vnpTxnRef:", vnpTxnRef);
+    console.log("🔑 rspCode:", rspCode);
+    console.log("🔑 secureHash:", secureHash);
+
     // 1. Kiểm tra chữ ký
     const isValid = vnpayService.verifySignature(qs, secureHash);
+    console.log("✅ Signature valid:", isValid);
     if (!isValid) {
       return res.status(400).json({ message: "INVALID_CHECKSUM" });
     }
@@ -342,6 +353,7 @@ class PaymentController {
         },
       },
     });
+    console.log("🔎 Found order:", order ? order.id : null);
     if (!order) {
       return res.status(404).json({ message: "ORDER_NOT_FOUND" });
     }
@@ -353,12 +365,15 @@ class PaymentController {
       order.vnpTransactionId = qs.vnp_TransactionNo;
       order.vnpPayDate = moment(qs.vnp_PayDate, "YYYYMMDDHHmmss").toDate();
       await order.save();
+      console.log("💰 Payment SUCCESS:", order.orderCode);
     } else {
+      console.log("⚠️ Payment FAILED or PENDING:", rspCode);
       // Giữ trạng thái "waiting"
     }
 
     // 4. Nếu gọi từ frontend → trả JSON
     if (isFromFrontend) {
+      console.log("↩️ Responding JSON to frontend");
       return res.json({
         message: "OK",
         order,
@@ -367,6 +382,7 @@ class PaymentController {
 
     // 5. Nếu redirect từ VNPay → điều hướng về trang FE
     const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
+    console.log("🔀 Redirecting user to:", redirectUrl);
     return res.redirect(redirectUrl);
 
   } catch (err) {

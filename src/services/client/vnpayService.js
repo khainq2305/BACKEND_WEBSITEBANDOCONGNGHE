@@ -94,10 +94,9 @@ async function refund({
   user = 'admin'
 }) {
   const VNP_TMN_CODE = process.env.VNP_TMNCODE;
-const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
+  const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
 
   const REFUND_URL = 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction';
-
   const now = moment().tz('Asia/Ho_Chi_Minh');
 
   const vnp_RequestId = uuidv4().replace(/-/g, '').slice(0, 32);
@@ -107,7 +106,12 @@ const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
   const vnp_TxnRef = orderCode;
   const vnp_Amount = Math.round(+amount) * 100;
   const vnp_TransactionNo = transactionId;
-  const vnp_TransactionDate = moment(transDate).format('YYYYMMDDHHmmss');
+
+  // ✅ transDate đã là YYYYMMDDHHmmss rồi → giữ nguyên
+  const vnp_TransactionDate = typeof transDate === 'string'
+    ? transDate
+    : moment(transDate).format('YYYYMMDDHHmmss');
+
   const vnp_CreateBy = user;
   const vnp_CreateDate = now.format('YYYYMMDDHHmmss');
   const vnp_IpAddr = '127.0.0.1';
@@ -129,11 +133,10 @@ const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
     vnp_OrderInfo
   ].join('|');
 
-const vnp_SecureHash = crypto
-  .createHmac('sha512', VNP_HASHSECRET)
-  .update(rawData)
-  .digest('hex');
-
+  const vnp_SecureHash = crypto
+    .createHmac('sha512', VNP_HASHSECRET)
+    .update(rawData)
+    .digest('hex');
 
   const body = {
     vnp_RequestId,
@@ -152,19 +155,21 @@ const vnp_SecureHash = crypto
     vnp_SecureHash
   };
 
-  try {
-    const { data } = await axios.post(REFUND_URL, body, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 15000
-    });
+try {
+  const { data } = await axios.post(REFUND_URL, body, {
+    headers: { "Content-Type": "application/json" },
+    timeout: 15000,
+  });
 
-   
-    return data;
-  } catch (err) {
-    console.error('❌ Lỗi khi gọi VNPAY refund:', err?.response?.data || err.message);
-    throw err;
-  }
+  console.log("📥 VNPay refund raw response:", data);
+  return data;
+} catch (err) {
+  console.error("❌ VNPay refund error:", err?.response?.data || err.message);
+  return err?.response?.data || { vnp_ResponseCode: "99", vnp_Message: err.message };
 }
+
+}
+
 
 
 module.exports = {
