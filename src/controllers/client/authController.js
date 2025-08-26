@@ -1422,80 +1422,87 @@ class AuthController {
   }
 
   static async googleLogin(req, res) {
-    try {
-      const { token } = req.body;
-      if (!token) return res.status(400).json({ message: "Thiếu token!" });
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: "Thiếu token!" });
 
-      const { data } = await axios.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    const { data } = await axios.get(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      const providerId = data.sub;
-      const email = data.email;
-      const name = data.name || email.split("@")[0];
-      const avatar = data.picture;
+    const providerId = data.sub;
+    const email = data.email;
+    const name = data.name || email.split("@")[0];
+    const avatar = data.picture;
 
-      let user = await User.findOne({
-        where: {
+    let user = await User.findOne({
+      where: {
+        provider: "google",
+        providerId,
+      },
+    });
+
+    if (!user) {
+      user = await User.findOne({ where: { email } });
+
+      if (user) {
+        await user.update({
           provider: "google",
           providerId,
-        },
-      });
+        });
+      } else {
+        user = await User.create({
+          fullName: name,
+          email,
+          provider: "google",
+          providerId,
+          password: null,
+          status: 1,
+          isVerified: 1,
+        });
 
-      if (!user) {
-        user = await User.findOne({ where: { email } });
-
-        if (user) {
-          await user.update({
-            provider: "google",
-            providerId,
-          });
-        } else {
-          user = await User.create({
-            fullName: name,
-            email,
-            provider: "google",
-            providerId,
-            password: null,
-            roleId: 2,
-            status: 1,
-            isVerified: 1,
-          });
-        }
+      
+        await UserRole.create({
+          userId: user.id,
+          roleId: 2, 
+        });
       }
-
-      const accessToken = jwt.sign(
-        {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          roleId: user.roleId,
-        },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      return res.status(200).json({
-        message: "Đăng nhập Google thành công!",
-        token: accessToken,
-        user: {
-          id: user.id,
-          fullName: user.fullName,
-          email: user.email,
-          roleId: user.roleId,
-          status: user.status,
-        },
-      });
-    } catch (err) {
-      console.error("Lỗi Google Login:", err);
-      return res.status(401).json({ message: "Token không hợp lệ" });
     }
+    const userRole = await UserRole.findOne({ where: { userId: user.id } });
+
+    const accessToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        roleId: userRole?.roleId || null,
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.status(200).json({
+      message: "Đăng nhập Google thành công!",
+      token: accessToken,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        roleId: userRole?.roleId || null,
+        status: user.status,
+      },
+    });
+  } catch (err) {
+    console.error("Lỗi Google Login:", err);
+    return res.status(401).json({ message: "Token không hợp lệ" });
   }
+}
+
 
   static async logout(req, res) {
     try {
