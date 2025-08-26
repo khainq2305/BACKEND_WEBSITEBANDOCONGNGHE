@@ -6,7 +6,7 @@ const checkPermission = (action, subject) => {
 
     if (!user || !user.roles || !user.permissions) {
       return res.status(403).json({
-        message: 'Cấm: Người dùng không có vai trò hoặc quyền hợp lệ.'
+        message: 'Người dùng không có vai trò hoặc quyền hợp lệ.'
       });
     }
     const ability = defineAbilitiesFor(user.permissions, user.roles);
@@ -15,7 +15,7 @@ const checkPermission = (action, subject) => {
       return next();
     }
     return res.status(403).json({
-      message: `Cấm: Không có quyền ${action} trên ${subject} 🚨 Danh sách quyền hiện tại: ${JSON.stringify(user.permissions)}`
+      message: `Không Có Quyền Xóa`
 
     });
   };
