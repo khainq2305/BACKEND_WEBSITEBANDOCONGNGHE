@@ -27,23 +27,31 @@ class ShippingService {
    * @param {object} payload
    * @returns {Promise<{ fee:number, leadTime:number|null }>}
    */
- static async calcFee({
-  provider, // truyền provider trực tiếp thay vì providerId
+static async calcFee({
+  provider,
+  providerId, // 👈 thêm
   toProvince, toDistrict, toWard,
   weight, length, width, height,
   serviceCode = null,
   orderValue = 0,
   provinceName = null, districtName = null, wardName = null,
 }) {
-  if (!provider || !provider.isActive) {
+  let prov = provider;
+
+  // Nếu chưa có provider thì load bằng providerId
+  if (!prov && providerId) {
+    prov = await ShippingProvider.findByPk(providerId);
+  }
+
+  if (!prov || !prov.isActive) {
     console.warn(`[calcFee] Hãng vận chuyển không hoạt động hoặc không tồn tại.`);
     throw new Error('Hãng vận chuyển không hoạt động');
   }
 
-  const driver = drivers[provider.code];
+  const driver = drivers[prov.code];
   if (!driver) {
-    console.error(`[calcFee] Driver cho hãng "${provider.code}" không được định nghĩa.`);
-    throw new Error(`Chưa hỗ trợ driver “${provider.code}”`);
+    console.error(`[calcFee] Driver cho hãng "${prov.code}" không được định nghĩa.`);
+    throw new Error(`Chưa hỗ trợ driver “${prov.code}”`);
   }
 
   return driver.getFee({
@@ -58,6 +66,7 @@ class ShippingService {
     orderValue,
   });
 }
+
 
 
   /**
