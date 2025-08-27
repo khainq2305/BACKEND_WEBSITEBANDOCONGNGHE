@@ -266,9 +266,10 @@ Disallow: /api/admin/`,
       }
       
       // Map backend fields to frontend expected format
+      const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:9999';
       const frontendData = {
         siteName: config.siteName || '',
-        siteUrl: config.schema?.website?.url || 'http://localhost:5001',
+        siteUrl: config.schema?.website?.url || frontendUrl,
         metaDescription: config.defaultMetaDescription || '',
         keywords: Array.isArray(config.siteKeywords) ? config.siteKeywords.join(', ') : '',
         titleSeparator: config.titleSeparator || '-',
@@ -462,7 +463,10 @@ Disallow: /api/admin/`,
       
       // Lấy cấu hình SEO để có base URL và sitemap settings
       let config = await SEOConfig.findOne();
-      const baseUrl = config?.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+      
+      // Sử dụng URL frontend thay vì backend
+      const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:9999';
+      const baseUrl = config?.schema?.website?.url || frontendUrl;
       
       // Kiểm tra xem sitemap có được bật hay không
       const sitemapEnabled = config?.sitemap?.enabled !== false;
@@ -587,7 +591,8 @@ Disallow: /api/admin/`,
       console.error('❌ Generate sitemap error:', error);
       
       // Fallback sitemap với ít nhất trang chủ (nếu có lỗi)
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:9999';
+      const baseUrl = frontendUrl;
       const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -623,13 +628,15 @@ Disallow: /api/admin/`,
         if (!robotsTxt.includes('Sitemap:')) {
           const sitemapEnabled = config.sitemap?.enabled !== false;
           if (sitemapEnabled) {
-            const baseUrl = config.schema?.website?.url || `${req.protocol}://${req.get('host')}`;
+            const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:9999';
+            const baseUrl = config.schema?.website?.url || frontendUrl;
             robotsTxt += `\n\n# Sitemap\nSitemap: ${baseUrl}/sitemap.xml`;
           }
         }
       } else {
         // Default robots.txt
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:9999';
+        const baseUrl = frontendUrl;
         robotsTxt = `User-agent: *
 Allow: /
 
