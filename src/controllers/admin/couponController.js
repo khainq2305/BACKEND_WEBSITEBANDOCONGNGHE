@@ -11,39 +11,167 @@ const {
 const { sequelize } = require("../../models");
 
 class CouponController {
-  static async create(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { userIds = [], productIds = [], ...couponData } = req.body;
+static async create(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { userIds = [], productIds = [], ...couponData } = req.body;
 
-      const coupon = await Coupon.create(couponData, { transaction: t });
+    const coupon = await Coupon.create(couponData, { transaction: t });
 
-      if (userIds.length > 0) {
-        const userRecords = userIds.map((userId) => ({
-          couponId: coupon.id,
-          userId,
-        }));
-        await CouponUser.bulkCreate(userRecords, { transaction: t });
-      }
-
-      if (productIds.length > 0) {
-        const productRecords = productIds.map((skuId) => ({
-          couponId: coupon.id,
-          skuId,
-        }));
-        await CouponItem.bulkCreate(productRecords, { transaction: t });
-      }
-
-      await t.commit();
-      res
-        .status(201)
-        .json({ message: "Thêm mã giảm giá thành công", data: coupon });
-    } catch (err) {
-      await t.rollback();
-      console.error("Lỗi tạo mã giảm giá:", err);
-      res.status(500).json({ message: "Lỗi server", error: err.message });
+    if (couponData.visibility === 'private' && userIds.length > 0) {
+      const userRecords = userIds.map((userId) => ({
+        couponId: coupon.id,
+        userId,
+      }));
+      await CouponUser.bulkCreate(userRecords, { transaction: t });
     }
+
+    if (couponData.applyScope === 'product' && productIds.length > 0) {
+      const productRecords = productIds.map((skuId) => ({
+        couponId: coupon.id,
+        skuId,
+      }));
+      await CouponItem.bulkCreate(productRecords, { transaction: t });
+    }
+
+    await t.commit();
+    res.status(201).json({ message: "Thêm mã giảm giá thành công", data: coupon });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+}
+static async getById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const coupon = await Coupon.findOne({
+      where: { id },
+      include: [
+        {
+          model: CouponUser,
+          as: "users",
+          attributes: ["userId"],
+          paranoid: false,
+        },
+        {
+          model: CouponItem,
+          as: "products",
+          attributes: ["skuId"],
+          paranoid: false,
+        },
+      ],
+      paranoid: false,
+    });
+
+    if (!coupon) {
+      return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+    }
+
+    res.json({
+      ...coupon.toJSON(),
+      userIds: coupon.users?.map((c) => c.userId) || [],
+      productIds: coupon.products?.map((c) => c.skuId) || [],
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+}
+
+static async update(req, res) {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+
+    const coupon = await Coupon.findByPk(id, { transaction: t });
+    if (!coupon) {
+      await t.rollback();
+      return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
+    }
+
+    const {
+      userIds = [],
+      productIds = [],
+      ...couponData
+    } = req.body;
+
+    const sanitizedCouponData = {
+        ...couponData,
+        discountValue: couponData.discountValue || 0,
+        minOrderValue: couponData.minOrderValue || 0,
+        maxDiscountValue: couponData.maxDiscountValue || 0,
+        totalQuantity: couponData.totalQuantity || null,
+        maxUsagePerUser: couponData.maxUsagePerUser || null,
+    };
+
+    await coupon.update(sanitizedCouponData, { transaction: t });
+
+    if (couponData.visibility === 'private') {
+      const currentUsers = await CouponUser.findAll({
+        where: { couponId: id },
+        transaction: t,
+      });
+      const currentUserIds = currentUsers.map((u) => u.id);
+
+      const toDeleteUser = currentUserIds.filter((uid) => !userIds.includes(uid));
+      const toAddUser = userIds.filter((uid) => !currentUserIds.includes(uid));
+
+      if (toDeleteUser.length > 0) {
+        await CouponUser.destroy({
+          where: { couponId: id, id: toDeleteUser },
+          force: true,
+          transaction: t,
+        });
+      }
+      if (toAddUser.length > 0) {
+        const newUsers = toAddUser.map((userId) => ({ couponId: id, userId }));
+        await CouponUser.bulkCreate(newUsers, { transaction: t });
+      }
+    } else {
+        await CouponUser.destroy({
+            where: { couponId: id },
+            force: true,
+            transaction: t
+        });
+    }
+
+    if (couponData.applyScope === 'product') {
+      const currentItems = await CouponItem.findAll({
+        where: { couponId: id },
+        paranoid: false,
+        transaction: t,
+      });
+      const currentItemIds = currentItems.map((i) => i.id);
+
+      const toDeleteItem = currentItemIds.filter((pid) => !productIds.includes(pid));
+      const toAddItem = productIds.filter((pid) => !currentItemIds.includes(pid));
+
+      if (toDeleteItem.length > 0) {
+        await CouponItem.destroy({
+          where: { couponId: id, id: toDeleteItem },
+          force: true,
+          transaction: t,
+        });
+      }
+      if (toAddItem.length > 0) {
+        const newItems = toAddItem.map((skuId) => ({ couponId: id, skuId }));
+        await CouponItem.bulkCreate(newItems, { transaction: t });
+      }
+    } else {
+        await CouponItem.destroy({
+            where: { couponId: id },
+            force: true,
+            transaction: t
+        });
+    }
+
+    await t.commit();
+    res.json({ message: "Cập nhật thành công", data: coupon });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: "Lỗi cập nhật", error: err.message });
+  }
+}
 
   static async list(req, res) {
     try {
@@ -107,79 +235,7 @@ class CouponController {
     }
   }
 
-  static async update(req, res) {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-
-      const coupon = await Coupon.findByPk(id);
-      if (!coupon) {
-        return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
-      }
-
-      const { userIds = [], productIds = [], ...couponData } = req.body;
-
-      await coupon.update(couponData, { transaction: t });
-
-      // Xử lý user
-      const currentUsers = await CouponUser.findAll({
-        where: { couponId: id },
-        transaction: t,
-      });
-      const currentUserIds = currentUsers.map((u) => u.userId);
-
-      const toDeleteUser = currentUserIds.filter(
-        (uid) => !userIds.includes(uid)
-      );
-      const toAddUser = userIds.filter((uid) => !currentUserIds.includes(uid));
-
-      if (toDeleteUser.length > 0) {
-        await CouponUser.destroy({
-          where: { couponId: id, userId: toDeleteUser },
-          force: true,
-          transaction: t,
-        });
-      }
-
-      if (toAddUser.length > 0) {
-        const newUsers = toAddUser.map((userId) => ({ couponId: id, userId }));
-        await CouponUser.bulkCreate(newUsers, { transaction: t });
-      }
-      const currentItems = await CouponItem.findAll({
-        where: { couponId: id },
-        paranoid: false,
-        transaction: t,
-      });
-      const currentItemIds = currentItems.map((i) => i.skuId);
-
-      const toDeleteItem = currentItemIds.filter(
-        (pid) => !productIds.includes(pid)
-      );
-      const toAddItem = productIds.filter(
-        (pid) => !currentItemIds.includes(pid)
-      );
-
-      if (toDeleteItem.length > 0) {
-        await CouponItem.destroy({
-          where: { couponId: id, skuId: toDeleteItem },
-          force: true,
-          transaction: t,
-        });
-      }
-
-      if (toAddItem.length > 0) {
-        const newItems = toAddItem.map((skuId) => ({ couponId: id, skuId }));
-        await CouponItem.bulkCreate(newItems, { transaction: t });
-      }
-
-      await t.commit();
-      res.json({ message: "Cập nhật thành công", data: coupon });
-    } catch (err) {
-      await t.rollback();
-      console.error("Lỗi cập nhật mã giảm:", err);
-      res.status(500).json({ message: "Lỗi cập nhật", error: err.message });
-    }
-  }
+ 
 
   static async softDelete(req, res) {
     try {
@@ -425,43 +481,7 @@ class CouponController {
     }
   }
 
-  static async getById(req, res) {
-    try {
-      const { id } = req.params;
-
-      const coupon = await Coupon.findOne({
-        where: { id },
-        include: [
-          {
-            model: CouponUser,
-            as: "users",
-            attributes: ["userId"],
-            paranoid: false,
-          },
-          {
-            model: CouponItem,
-            as: "products",
-            attributes: ["skuId"],
-            paranoid: false,
-          },
-        ],
-        paranoid: false,
-      });
-
-      if (!coupon) {
-        return res.status(404).json({ message: "Không tìm thấy mã giảm giá" });
-      }
-
-      res.json({
-        ...coupon.toJSON(),
-        userIds: coupon.users?.map((c) => c.userId) || [],
-        productIds: coupon.products?.map((c) => c.skuId) || [],
-      });
-    } catch (err) {
-      console.error("Lỗi getById:", err);
-      res.status(500).json({ message: "Lỗi server", error: err.message });
-    }
-  }
+  
 }
 
 module.exports = CouponController;

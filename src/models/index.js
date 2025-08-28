@@ -7,6 +7,7 @@ const Role = require("./roleModel");
 const UserToken = require("./userTokenModel");
 const Withdrawal = require("./Withdrawal");
 const UserAddress = require("./userAddress");
+const OrderCoupon = require("./OrderCoupon");
 
 //
 const HighlightedCategoryItem = require("./highlightedCategoryItem");
@@ -700,6 +701,11 @@ Combo.hasMany(ComboSku, { foreignKey: "comboId", as: "comboSkus" });
 ComboSku.belongsTo(Combo, { foreignKey: "comboId" });
 // Có thể thêm nếu cần:
 ComboSku.belongsTo(Sku, { foreignKey: "skuId", as: "sku" });
+Order.hasMany(OrderCoupon, { foreignKey: "orderId", as: "orderCoupons" });
+OrderCoupon.belongsTo(Order, { foreignKey: "orderId", as: "order" });
+
+Coupon.hasMany(OrderCoupon, { foreignKey: "couponId", as: "orderCoupons" });
+OrderCoupon.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
 
 module.exports = {
   Sequelize,
@@ -726,6 +732,8 @@ module.exports = {
   WishlistItem,
   Wishlist,
   categoryPostModel,
+    OrderCoupon,
+
   Cart,
   CartItem,
   Ward ,

@@ -6,7 +6,8 @@ const validateCoupon = async (req, res, next) => {
   const {
     code,
     title,
-    discountType,
+    type,            // discount | shipping
+    discountType,    // percent | amount (chỉ dùng khi type = discount)
     discountValue,
     startTime,
     endTime,
@@ -23,7 +24,7 @@ const validateCoupon = async (req, res, next) => {
   const isUpdate = !!req.params.id;
   const currentId = req.params.id;
 
-  // 1. Validate required
+  // ========== COMMON ==========
   if (!code || typeof code !== "string" || code.trim() === "") {
     errors.push({ field: "code", message: "Mã không được để trống" });
   }
@@ -32,39 +33,28 @@ const validateCoupon = async (req, res, next) => {
     errors.push({ field: "title", message: "Tiêu đề không được để trống" });
   }
 
-  if (!discountType) {
-    errors.push({
-      field: "discountType",
-      message: "Loại giảm giá là bắt buộc",
-    });
+  if (!type || !["discount", "shipping"].includes(type)) {
+    errors.push({ field: "type", message: "Loại voucher không hợp lệ" });
   }
 
-  if (discountValue === undefined || discountValue === "") {
-    errors.push({
-      field: "discountValue",
-      message: "Giá trị giảm là bắt buộc",
-    });
+  // ⚡ Không bắt buộc maxUsagePerUser
+  if (maxUsagePerUser !== undefined && maxUsagePerUser !== "") {
+    if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) < 0) {
+      errors.push({
+        field: "maxUsagePerUser",
+        message: "Số lần dùng mỗi người không hợp lệ",
+      });
+    }
   }
 
-  if (maxUsagePerUser === undefined || maxUsagePerUser === "") {
-    errors.push({
-      field: "maxUsagePerUser",
-      message: "Số lần dùng mỗi người là bắt buộc",
-    });
-  }
-
+  // minOrderValue: có thể null/0 => không bắt buộc khi freeship
   if (minOrderValue === undefined || minOrderValue === "") {
-    errors.push({
-      field: "minOrderValue",
-      message: "Giá trị đơn hàng tối thiểu là bắt buộc",
-    });
-  }
-
-  if (maxDiscountValue === undefined || maxDiscountValue === "") {
-    errors.push({
-      field: "maxDiscountValue",
-      message: "Giá trị giảm tối đa là bắt buộc",
-    });
+    if (type === "discount") {
+      errors.push({
+        field: "minOrderValue",
+        message: "Giá trị đơn hàng tối thiểu là bắt buộc",
+      });
+    }
   }
 
   if (!startTime || typeof startTime !== "string") {
@@ -79,19 +69,24 @@ const validateCoupon = async (req, res, next) => {
     return res.status(400).json({ errors });
   }
 
-  // 2. Validate logic
-  if (!["percent", "amount", "shipping"].includes(discountType)) {
-    errors.push({
-      field: "discountType",
-      message: "Loại giảm giá không hợp lệ",
-    });
-  }
-
-  if (["percent", "amount"].includes(discountType)) {
-    if (isNaN(discountValue) || Number(discountValue) <= 0) {
+  // ========== LOGIC THEO TYPE ==========
+  if (type === "discount") {
+    if (
+      discountValue === undefined ||
+      discountValue === "" ||
+      isNaN(discountValue) ||
+      Number(discountValue) <= 0
+    ) {
       errors.push({
         field: "discountValue",
         message: "Giá trị giảm phải lớn hơn 0",
+      });
+    }
+
+    if (!["percent", "amount"].includes(discountType)) {
+      errors.push({
+        field: "discountType",
+        message: "Loại giảm giá phải là phần trăm hoặc cố định",
       });
     }
 
@@ -112,14 +107,24 @@ const validateCoupon = async (req, res, next) => {
     }
   }
 
-  if (discountType === "shipping") {
-    if (isNaN(discountValue) || Number(discountValue) < 0) {
+  if (type === "shipping") {
+    if (
+      discountValue === undefined ||
+      discountValue === null ||
+      isNaN(discountValue) ||
+      Number(discountValue) < 0
+    ) {
       errors.push({
         field: "discountValue",
-        message: "Giá trị hỗ trợ phí ship phải >= 0",
+        message: "Mức hỗ trợ phí ship phải >= 0 (0 = miễn phí toàn phần)",
       });
     }
-
+    if (discountType) {
+      errors.push({
+        field: "discountType",
+        message: "Voucher phí ship không cần loại giảm giá",
+      });
+    }
     if (maxDiscountValue !== undefined && Number(maxDiscountValue) > 0) {
       errors.push({
         field: "maxDiscountValue",
@@ -128,6 +133,7 @@ const validateCoupon = async (req, res, next) => {
     }
   }
 
+  // ========== OTHER VALIDATION ==========
   if (
     totalQuantity !== undefined &&
     totalQuantity !== "" &&
@@ -139,36 +145,34 @@ const validateCoupon = async (req, res, next) => {
     });
   }
 
-  if (isNaN(maxUsagePerUser) || Number(maxUsagePerUser) < 0) {
-    errors.push({
-      field: "maxUsagePerUser",
-      message: "Số lần dùng mỗi người không hợp lệ",
-    });
-  }
-
-  if (isNaN(minOrderValue) || Number(minOrderValue) < 0) {
+  if (
+    minOrderValue !== undefined &&
+    minOrderValue !== "" &&
+    (isNaN(minOrderValue) || Number(minOrderValue) < 0)
+  ) {
     errors.push({
       field: "minOrderValue",
       message: "Giá trị đơn hàng tối thiểu không hợp lệ",
     });
   }
+
   if (
-    req.body.type === "private" &&
+    req.body.visibility === "private" &&
     (!Array.isArray(userIds) || userIds.length === 0)
   ) {
     errors.push({
       field: "userIds",
-      message: "Phải chọn người dùng cho coupon chỉ định",
+      message: "Phải chọn người dùng cho coupon private",
     });
   }
 
   if (
-    req.body.applyProduct &&
+    req.body.applyScope === "product" &&
     (!Array.isArray(productIds) || productIds.length === 0)
   ) {
     errors.push({
       field: "productIds",
-      message: "Phải chọn ít nhất 1 sản phẩm",
+      message: "Phải chọn ít nhất 1 sản phẩm khi scope = product",
     });
   }
 
@@ -205,16 +209,6 @@ const validateCoupon = async (req, res, next) => {
   });
   if (existing) {
     errors.push({ field: "code", message: "Mã giảm giá đã tồn tại" });
-  }
-
-  const existingTitle = await Coupon.findOne({
-    where: {
-      title,
-      ...(isUpdate ? { id: { [Op.ne]: currentId } } : {}),
-    },
-  });
-  if (existingTitle) {
-    errors.push({ field: "title", message: "Tiêu đề mã giảm giá đã tồn tại" });
   }
 
   if (errors.length > 0) {
