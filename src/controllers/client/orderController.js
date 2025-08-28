@@ -835,12 +835,18 @@ const newOrder = await Order.create(
 // ❌ Xoá các item đã chọn trong giỏ hàng
 if (cartItemIds.length > 0) {
   try {
-    await CartItem.destroy({
-      where: {
-        id: cartItemIds,
-        userId: user.id
-      }
+    const cart = await Cart.findOne({
+      where: { userId: user.id },
     });
+
+    if (cart) {
+      await CartItem.destroy({
+        where: {
+          id: cartItemIds,    // danh sách item FE gửi lên khi checkout
+          cartId: cart.id     // đảm bảo xoá đúng giỏ hàng của user
+        }
+      });
+    }
   } catch (err) {
     console.error("Không thể xoá item giỏ hàng sau khi đặt:", err);
   }
