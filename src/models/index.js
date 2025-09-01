@@ -92,7 +92,7 @@ const Product = require("./product");
 const RolePermission = require("./RolePermission");
 const Action = require("./actionModel");
 const Subject = require("./Subject");
-
+const ComboCartItem = require("./ComboCartItem"); // ✅ thêm dòng này
 
 // Mini Game
 const SpinReward = require("./spinRewardModel");
@@ -706,6 +706,13 @@ OrderCoupon.belongsTo(Order, { foreignKey: "orderId", as: "order" });
 
 Coupon.hasMany(OrderCoupon, { foreignKey: "couponId", as: "orderCoupons" });
 OrderCoupon.belongsTo(Coupon, { foreignKey: "couponId", as: "coupon" });
+// Cart ↔ ComboCartItem
+Cart.hasMany(ComboCartItem, { foreignKey: "cartId", as: "comboCartItems" });
+ComboCartItem.belongsTo(Cart, { foreignKey: "cartId", as: "cart" });
+
+// ComboCartItem ↔ Combo
+ComboCartItem.belongsTo(Combo, { foreignKey: "comboId", as: "combo" });
+Combo.hasMany(ComboCartItem, { foreignKey: "comboId", as: "comboCartItems" });
 
 module.exports = {
   Sequelize,
@@ -733,7 +740,7 @@ module.exports = {
   Wishlist,
   categoryPostModel,
     OrderCoupon,
-
+ComboCartItem,   // ✅ thêm ở đây
   Cart,
   CartItem,
   Ward ,

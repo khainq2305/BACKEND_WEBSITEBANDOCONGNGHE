@@ -11,6 +11,7 @@ const OrderController = require('./controllers/client/paymentController');
 
 
 const app = express();
+app.use(require("../testLatency"));
 
 app.get('/health', (_req, res) => res.send('ok'));
 
