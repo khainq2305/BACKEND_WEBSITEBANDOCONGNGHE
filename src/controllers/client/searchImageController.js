@@ -25,6 +25,8 @@ exports.searchByImage = async (req, res) => {
 
   try {
     const filePath = req.file?.path;
+    log("Received filePath:", filePath);
+
     if (!filePath)
       return res.status(400).json({ message: "Thiếu ảnh để tìm kiếm!" });
 
@@ -32,6 +34,8 @@ exports.searchByImage = async (req, res) => {
     const formData = new FormData();
     if (!/^https?:\/\//i.test(filePath)) {
       const abs = path.resolve(filePath);
+      log("Resolved abs path:", abs);
+
       if (!fs.existsSync(abs)) {
         return res
           .status(400)
@@ -39,11 +43,13 @@ exports.searchByImage = async (req, res) => {
       }
       formData.append("image", fs.createReadStream(abs));
     } else {
+      log("Fetching remote image:", filePath);
       const img = await axios.get(filePath, {
         responseType: "arraybuffer",
         timeout: 30000,
       });
       const ct = img.headers["content-type"] || "image/jpeg";
+      log("Remote image content-type:", ct);
       formData.append("image", Buffer.from(img.data), {
         filename: "image",
         contentType: ct,
@@ -51,9 +57,10 @@ exports.searchByImage = async (req, res) => {
     }
 
     // ----- call Flask
-    const baseUrl = (process.env.FLASK_BASE_URL || "http://127.0.0.1:8000")
+    const baseUrl = (process.env.FLASK_BASE_URL || "http://127.0.0.1:5000")
       .trim()
       .replace(/\/$/, "");
+    log("Using Flask baseUrl:", baseUrl);
 
     const resp = await axios.post(`${baseUrl}/embed`, formData, {
       headers: {
@@ -67,6 +74,9 @@ exports.searchByImage = async (req, res) => {
       validateStatus: () => true,
     });
 
+    log("Flask response status:", resp.status);
+    log("Flask response preview:", JSON.stringify(resp.data)?.slice(0, 200));
+
     if (resp.status !== 200) {
       return res.status(resp.status).json({
         message: `Flask trả về status ${resp.status}`,
@@ -75,6 +85,9 @@ exports.searchByImage = async (req, res) => {
     }
 
     const queryEmbedding = resp.data?.vector;
+    log("Query embedding length:", queryEmbedding?.length);
+    log("Query embedding sample:", queryEmbedding?.slice(0, 5));
+
     if (!Array.isArray(queryEmbedding) || queryEmbedding.length < 100) {
       return res.status(500).json({
         message: "Không nhận được vector hợp lệ từ Flask hoặc vector quá ngắn.",
@@ -159,6 +172,7 @@ exports.searchByImage = async (req, res) => {
         },
       ],
     });
+    log("Loaded FlashSales:", allActiveFlashSales.length);
 
     const allActiveFlashSaleItemsMap = new Map();
     const allActiveCategoryDealsMap = new Map();
@@ -249,7 +263,7 @@ exports.searchByImage = async (req, res) => {
             },
             {
               model: Review,
-              as: "reviews", // <--- chỗ này gắn qua SKU
+              as: "reviews",
               attributes: [],
               required: false,
             },
@@ -258,10 +272,12 @@ exports.searchByImage = async (req, res) => {
       ],
       group: ["Product.id", "skus.id"],
     });
+    log("Products with embeddings:", productsWithEmbeddings.length);
 
     const scored = productsWithEmbeddings.map((p) => {
       const vector = JSON.parse(p.imageVector);
       const score = cosineSimilarity(queryEmbedding, vector);
+      log("Product:", p.id, "Score:", score.toFixed(4));
       return { product: p, score };
     });
 
@@ -272,6 +288,8 @@ exports.searchByImage = async (req, res) => {
       .filter((x) => x.score >= SIMILARITY_THRESHOLD)
       .sort((a, b) => b.score - a.score)
       .slice(0, MAX_RESULTS);
+
+    log("Top results count:", top.length);
 
     const results = top.map(({ product, score }) => {
       const skus = (product.skus || [])
@@ -346,6 +364,7 @@ exports.searchByImage = async (req, res) => {
       };
     });
 
+    log("Final results:", results.length, "items in", Date.now() - t0, "ms");
     return res.status(200).json({ similarProducts: results });
   } catch (err) {
     console.error("❌ Lỗi searchByImage:", err.code || err.message);
@@ -369,6 +388,7 @@ exports.searchByImage = async (req, res) => {
     return res.status(500).json({ message: "Lỗi server khi tìm kiếm ảnh." });
   }
 };
+
 
 exports.searchByName = async (req, res) => {
   try {
