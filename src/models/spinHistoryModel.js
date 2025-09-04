@@ -20,7 +20,11 @@ const SpinHistory = sequelize.define('SpinHistory', {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  rewardNameWon: {    
+  rewardNameWon: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  couponCode: {
     type: DataTypes.STRING,
     allowNull: true,
   },
