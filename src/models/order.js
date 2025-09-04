@@ -65,7 +65,8 @@ labelUrl: {
   },
   note: DataTypes.TEXT,
   shippingFee: DataTypes.DECIMAL(10, 2),
-  finalPrice: DataTypes.DECIMAL(10, 2),
+totalPrice: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+  finalPrice: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
   ghnOrderCode: DataTypes.STRING,
   cancelReason: DataTypes.TEXT,
   momoOrderId: {
@@ -117,7 +118,7 @@ labelUrl: {
 
 
   refundStatus: DataTypes.ENUM('none', 'requested', 'approved', 'rejected'),
-  totalPrice: DataTypes.DECIMAL(10, 2),
+
   paymentTime: DataTypes.DATE,
   userId: DataTypes.INTEGER,
   userAddressId: DataTypes.INTEGER,
