@@ -89,6 +89,15 @@ const Order = sequelize.define(
       unique: true,
       allowNull: true,
     },
+    payosOrderId: {
+  type: DataTypes.BIGINT,
+  allowNull: true
+},
+payosTransactionId: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+
     momoTransId: {
       type: DataTypes.STRING,
       allowNull: true,

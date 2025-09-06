@@ -423,24 +423,20 @@ if (Array.isArray(couponCodes) && couponCodes.length > 0) {
       couponDiscount += discount;
     }
 
-    // --- ghi nhận coupon ---
-    appliedCoupons.push(coupon);
-
     // --- trừ totalQuantity nếu có giới hạn ---
     if (coupon.totalQuantity !== null && coupon.totalQuantity !== undefined) {
       await coupon.decrement("totalQuantity", { by: 1, transaction: t });
     }
 
-    // --- lưu vào OrderCoupon ---
-    await OrderCoupon.create({
-      orderId: newOrder.id,
-      couponId: coupon.id,
-    }, { transaction: t });
+    // --- ghi nhận coupon để xử lý sau khi tạo đơn ---
+    appliedCoupons.push(coupon);
   }
 }
 
 // bảo vệ: không giảm quá phí ship
 shippingDiscount = Math.min(shippingDiscount, shippingFee);
+
+
 
 // ====== XỬ LÝ ĐIỂM THƯỞNG ======
 let pointDiscountAmount = 0;
@@ -551,7 +547,13 @@ const newOrder = await Order.create(
         .slice(0, 10)
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
-
+// 👉 Sau khi tạo newOrder thành công, thêm đoạn này ngay sau Order.create():
+for (const coupon of appliedCoupons) {
+  await OrderCoupon.create({
+    orderId: newOrder.id,
+    couponId: coupon.id,
+  }, { transaction: t });
+}
       // 
       // ---------------- TẠO VẬN ĐƠN ----------------
       try {
@@ -1503,10 +1505,22 @@ if (cartItemIds.length > 0) {
         await Sku.increment({ stock: item.quantity }, { where: { id: item.skuId }, transaction: t });
       }
 
-      await UserPoint.destroy({
-        where: { orderId: order.id, userId: order.userId, type: "earn" },
-        transaction: t,
-      });
+     const earnedPoints = await UserPoint.findOne({
+  where: { orderId: order.id, userId: order.userId, type: "earn" },
+  transaction: t,
+});
+
+if (earnedPoints) {
+  await UserPoint.create({
+    userId: order.userId,
+    orderId: order.id,
+    points: -earnedPoints.points,
+    type: "refund", // hoặc "revoke" nếu bạn thêm enum mới
+    sourceType: "order",
+    description: `Thu hồi ${earnedPoints.points} điểm do huỷ đơn ${order.orderCode}`,
+  }, { transaction: t });
+}
+
 
       if (order.couponId != null) {
         await CouponUser.decrement("used", {

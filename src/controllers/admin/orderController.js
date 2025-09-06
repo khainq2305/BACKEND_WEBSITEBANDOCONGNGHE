@@ -18,20 +18,28 @@ const {
 
   sequelize,
   Sku,
-  Product
-} = require('../../models');
-const mjml2html = require('mjml');
-const { sendEmail } = require('../../utils/sendEmail');
+  Product,
+} = require("../../models");
+const mjml2html = require("mjml");
+const { sendEmail } = require("../../utils/sendEmail");
 
-const { Notification, NotificationUser, UserPoint, Coupon, CouponUser } = require('../../models');
+const {
+  Notification,
+  NotificationUser,
+  UserPoint,
+  Coupon,
+  CouponUser,
+} = require("../../models");
 
-const { generateOrderCancellationHtml } = require('../../utils/emailTemplates/orderCancellationTemplate'); // ← đường dẫn tùy vị trí bạn đặt file template
+const {
+  generateOrderCancellationHtml,
+} = require("../../utils/emailTemplates/orderCancellationTemplate"); // ← đường dẫn tùy vị trí bạn đặt file template
 
-const refundGateway = require('../../utils/refundGateway');
-const { Sequelize, Op } = require('sequelize');
+const refundGateway = require("../../utils/refundGateway");
+const { Sequelize, Op } = require("sequelize");
 const returnStock = async (orderItems, t) => {
   for (const it of orderItems) {
-    await Sku.increment('stock', {
+    await Sku.increment("stock", {
       by: it.quantity,
       where: { id: it.skuId },
       transaction: t,
@@ -39,7 +47,7 @@ const returnStock = async (orderItems, t) => {
 
     const fsItem = it.Sku?.flashSaleSkus?.[0];
     if (fsItem) {
-      await FlashSaleItem.increment('quantity', {
+      await FlashSaleItem.increment("quantity", {
         by: it.quantity,
         where: { id: fsItem.id },
         transaction: t,
@@ -54,11 +62,11 @@ class OrderController {
       const {
         page = 1,
         limit = 10,
-        search = '',
-        status = '',
-        paymentStatus = '',
+        search = "",
+        status = "",
+        paymentStatus = "",
         startDate,
-        endDate
+        endDate,
       } = req.query;
 
       const offset = (page - 1) * limit;
@@ -72,85 +80,84 @@ class OrderController {
           { orderCode: { [Op.like]: `%${search}%` } },
           Sequelize.literal(`User.fullName LIKE '%${search}%'`),
           Sequelize.literal(`User.phone LIKE '%${search}%'`),
-          Sequelize.literal(`shippingAddress.phone LIKE '%${search}%'`)
+          Sequelize.literal(`shippingAddress.phone LIKE '%${search}%'`),
         ];
       }
-
 
       if (startDate && endDate) {
         whereClause.createdAt = {
           [Op.between]: [
-            new Date(startDate + 'T00:00:00'),
-            new Date(endDate + 'T23:59:59')
-          ]
+            new Date(startDate + "T00:00:00"),
+            new Date(endDate + "T23:59:59"),
+          ],
         };
       } else if (startDate) {
         whereClause.createdAt = {
-          [Op.gte]: new Date(startDate + 'T00:00:00')
+          [Op.gte]: new Date(startDate + "T00:00:00"),
         };
       } else if (endDate) {
         whereClause.createdAt = {
-          [Op.lte]: new Date(endDate + 'T23:59:59')
+          [Op.lte]: new Date(endDate + "T23:59:59"),
         };
       }
 
       const includeClause = [
         {
           model: User,
-          attributes: ['id', 'fullName', 'email', 'phone'],
-          required: false
+          attributes: ["id", "fullName", "email", "phone"],
+          required: false,
         },
         {
           model: UserAddress,
-          as: 'shippingAddress',
-          attributes: ['streetAddress', 'fullName', 'phone'],
+          as: "shippingAddress",
+          attributes: ["streetAddress", "fullName", "phone"],
           include: [
-            { model: Province, as: 'province', attributes: ['name'] },
-            { model: District, as: 'district', attributes: ['name'] },
-            { model: Ward, as: 'ward', attributes: ['name'] }
-          ]
+            { model: Province, as: "province", attributes: ["name"] },
+            { model: District, as: "district", attributes: ["name"] },
+            { model: Ward, as: "ward", attributes: ["name"] },
+          ],
         },
         {
           model: PaymentMethod,
-          as: 'paymentMethod',
-          attributes: ['name', 'code']
+          as: "paymentMethod",
+          attributes: ["name", "code"],
         },
         {
           model: OrderItem,
-          as: 'items',
+          as: "items",
           include: [
             {
               model: Sku,
               include: [
                 {
                   model: Product,
-                  as: 'product',
-                  attributes: ['name']
-                }
-              ]
-            }
-          ]
+                  as: "product",
+                  attributes: ["name"],
+                },
+              ],
+            },
+          ],
         },
         {
           model: ReturnRequest,
-          as: 'returnRequest',
-          attributes: ['id', 'status'],
+          as: "returnRequest",
+          attributes: ["id", "status"],
           required: false,
           where: {
             status: {
               [Op.in]: [
-                'pending',
-                'approved',
-                'awaiting_pickup',
-                'pickup_booked',
-                'received'
-              ]
-            }
-          }
-        }
+                "pending",
+                "approved",
+                "awaiting_pickup",
+                "pickup_booked",
+                "received",
+              ],
+            },
+          },
+        },
       ];
 
-     const orderClause = [['createdAt', 'DESC']];
+      const orderClause = [["createdAt", "DESC"]];
 
       const { count, rows } = await Order.findAndCountAll({
         subQuery: false,
@@ -159,22 +166,22 @@ class OrderController {
         order: orderClause,
         offset: parseInt(offset),
         limit: parseInt(limit),
-        distinct: true
+        distinct: true,
       });
 
       const formattedOrders = rows.map((o) => ({
         id: o.id,
         code: o.orderCode,
-        customer: o.User?.fullName || '—',
-       total: o.finalPrice || 0,
+        customer: o.User?.fullName || "—",
+        total: o.finalPrice || 0,
 
-        phone: o.User?.phone || o.shippingAddress?.phone || '—',
+        phone: o.User?.phone || o.shippingAddress?.phone || "—",
 
         status: o.status,
         paymentStatus: o.paymentStatus,
         paymentMethodCode: o.paymentMethod?.code || null,
         createdAt: o.createdAt,
-        hasPendingReturn: !!o.returnRequest
+        hasPendingReturn: !!o.returnRequest,
       }));
 
       // --- Đếm status đúng theo điều kiện lọc ---
@@ -182,31 +189,31 @@ class OrderController {
 
       if (search) {
         statusWhereClause[Op.or] = [
-          { orderCode: { [Op.like]: `%${search}%` } }
+          { orderCode: { [Op.like]: `%${search}%` } },
         ];
       }
 
       if (startDate && endDate) {
         statusWhereClause.createdAt = {
           [Op.between]: [
-            new Date(startDate + 'T00:00:00'),
-            new Date(endDate + 'T23:59:59')
-          ]
+            new Date(startDate + "T00:00:00"),
+            new Date(endDate + "T23:59:59"),
+          ],
         };
       } else if (startDate) {
         statusWhereClause.createdAt = {
-          [Op.gte]: new Date(startDate + 'T00:00:00')
+          [Op.gte]: new Date(startDate + "T00:00:00"),
         };
       } else if (endDate) {
         statusWhereClause.createdAt = {
-          [Op.lte]: new Date(endDate + 'T23:59:59')
+          [Op.lte]: new Date(endDate + "T23:59:59"),
         };
       }
 
       const statusCountRaw = await Order.findAll({
         attributes: [
-          'status',
-          [Sequelize.fn('COUNT', Sequelize.col('Order.id')), 'count']
+          "status",
+          [Sequelize.fn("COUNT", Sequelize.col("Order.id")), "count"],
         ],
         include: [
           {
@@ -215,12 +222,12 @@ class OrderController {
             required: false,
             where: search
               ? { fullName: { [Op.like]: `%${search}%` } }
-              : undefined
-          }
+              : undefined,
+          },
         ],
         where: statusWhereClause,
-        group: ['status'],
-        raw: true
+        group: ["status"],
+        raw: true,
       });
 
       const statusCountMap = statusCountRaw.reduce((acc, cur) => {
@@ -235,448 +242,546 @@ class OrderController {
         totalPages: Math.ceil(count / limit),
         data: formattedOrders,
         statusStats: [
-          { status: '', label: 'Tất cả', count: totalAll },
+          { status: "", label: "Tất cả", count: totalAll },
           {
-            status: 'processing',
-            label: 'Đang xử lý',
-            count: statusCountMap['processing'] || 0
+            status: "processing",
+            label: "Đang xử lý",
+            count: statusCountMap["processing"] || 0,
           },
           {
-            status: 'shipping',
-            label: 'Vận chuyển',
-            count: statusCountMap['shipping'] || 0
+            status: "shipping",
+            label: "Vận chuyển",
+            count: statusCountMap["shipping"] || 0,
           },
           {
-            status: 'delivered',
-            label: 'Đã giao',
-            count: statusCountMap['delivered'] || 0
+            status: "delivered",
+            label: "Đã giao",
+            count: statusCountMap["delivered"] || 0,
           },
           {
-            status: 'completed',
-            label: 'Hoàn thành',
-            count: statusCountMap['completed'] || 0
+            status: "completed",
+            label: "Hoàn thành",
+            count: statusCountMap["completed"] || 0,
           },
           {
-            status: 'cancelled',
-            label: 'Đã hủy',
-            count: statusCountMap['cancelled'] || 0
-          }
-        ]
+            status: "cancelled",
+            label: "Đã hủy",
+            count: statusCountMap["cancelled"] || 0,
+          },
+        ],
       });
     } catch (error) {
-      console.error('Lỗi lấy danh sách đơn hàng:', error);
+      console.error("Lỗi lấy danh sách đơn hàng:", error);
       return res.status(500).json({
-        message: 'Lỗi server khi lấy danh sách đơn hàng'
+        message: "Lỗi server khi lấy danh sách đơn hàng",
       });
     }
   }
 
+  static async updateStatus(req, res) {
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const t = await sequelize.transaction();
+      try {
+        const { id } = req.params;
+        const { status, cancelReason } = req.body;
 
-static async updateStatus(req, res) {
-  const maxRetries = 3;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const { status, cancelReason } = req.body;
-
-      if (!status) {
-        await t.rollback();
-        return res.status(400).json({ message: 'Thiếu trạng thái cần cập nhật' });
-      }
-
-      const order = await Order.findOne({
-        where: { id },
-        include: [
-          {
-            model: OrderItem,
-            as: 'items',
-            include: [
-              {
-                model: Sku,
-                required: true,
-                include: {
-                  model: FlashSaleItem,
-                  as: 'flashSaleSkus',
-                  required: false
-                }
-              }
-            ]
-          },
-          { model: PaymentMethod, as: 'paymentMethod', attributes: ['code'] },
-          { model: User, attributes: ['id', 'email', 'fullName'] }
-        ],
-        transaction: t,
-        lock: t.LOCK.UPDATE
-      });
-
-      if (!order) {
-        await t.rollback();
-        return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-      }
-
-      if (order.status === status) {
-        await t.rollback();
-        return res.status(400).json({ message: 'Đơn hàng đã ở trạng thái này' });
-      }
-
-      if (['completed', 'cancelled'].includes(order.status)) {
-        await t.rollback();
-        return res.status(400).json({ message: 'Đơn hàng đã kết thúc, không thể cập nhật' });
-      }
-
-      if (status === 'cancelled') {
-        if (!cancelReason?.trim()) {
+        if (!status) {
           await t.rollback();
-          return res.status(400).json({ message: 'Lý do huỷ đơn không được bỏ trống' });
+          return res
+            .status(400)
+            .json({ message: "Thiếu trạng thái cần cập nhật" });
         }
-    if (['shipping', 'delivered', 'completed'].includes(order.status)) {
-  await t.rollback();
-  return res.status(400).json({
-    message: 'Không thể huỷ đơn khi đã vận chuyển hoặc đã giao thành công',
-  });
-}
 
-
-        const paid = order.paymentStatus === 'paid';
-        const payCode = order.paymentMethod?.code?.toLowerCase();
-
-        if (paid && ['momo', 'vnpay', 'stripe'].includes(payCode)) {
-          const payload = { orderCode: order.orderCode, amount: order.finalPrice };
-          if (payCode === 'momo') {
-            if (!order.momoTransId) {
-              await t.rollback();
-              return res.status(400).json({ message: 'Thiếu thông tin giao dịch MoMo' });
-            }
-            payload.momoTransId = order.momoTransId;
-          } else if (payCode === 'vnpay') {
-            if (!order.vnpTransactionId || !order.paymentTime) {
-              await t.rollback();
-              return res.status(400).json({ message: 'Thiếu thông tin giao dịch VNPay' });
-            }
-            payload.vnpTransactionId = order.vnpTransactionId;
-            payload.originalAmount = order.finalPrice;
-            payload.transDate = order.paymentTime;
-          } else if (payCode === 'stripe') {
-            if (!order.stripePaymentIntentId) {
-              await t.rollback();
-              return res.status(400).json({ message: 'Thiếu stripePaymentIntentId' });
-            }
-            payload.stripePaymentIntentId = order.stripePaymentIntentId;
-          } else if (payCode === 'zalopay') {
-            if (!order.zaloTransId || !order.zaloAppTransId) {
-              await t.rollback();
-              return res.status(400).json({ message: 'Thiếu thông tin giao dịch ZaloPay' });
-            }
-            payload.zp_trans_id = order.zaloTransId;
-            payload.app_trans_id = order.zaloAppTransId;
-            payload.amount = Math.round(Number(order.finalPrice));
-          }
-          const { ok, transId } = await refundGateway(payCode, payload);
-          if (!ok) {
-            await t.rollback();
-            return res.status(400).json({ message: 'Hoàn tiền thất bại' });
-          }
-          order.paymentStatus = 'refunded';
-          order.gatewayTransId = transId || null;
-        } else if (
-          (payCode === 'zalopay' && paid) ||
-          (payCode === 'payos' && paid) ||
-          (payCode === 'internalwallet' && paid) ||
-          (payCode === 'atm' && paid)
-        ) {
-          const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
-          if (!wallet) {
-            await t.rollback();
-            return res.status(400).json({ message: 'Không tìm thấy ví người dùng' });
-          }
-          wallet.balance = (Number(wallet.balance || 0) + Number(order.finalPrice || 0)).toFixed(2);
-          await wallet.save({ transaction: t });
-          await WalletTransaction.create(
+        const order = await Order.findOne({
+          where: { id },
+          include: [
             {
-              userId: order.userId,
-              walletId: wallet.id,
-              orderId: order.id,
-              type: 'refund',
+              model: OrderItem,
+              as: "items",
+              include: [
+                {
+                  model: Sku,
+                  required: true,
+                  include: {
+                    model: FlashSaleItem,
+                    as: "flashSaleSkus",
+                    required: false,
+                  },
+                },
+              ],
+            },
+            { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
+            { model: User, attributes: ["id", "email", "fullName"] },
+          ],
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+
+        if (!order) {
+          await t.rollback();
+          return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        }
+
+        if (order.status === status) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({ message: "Đơn hàng đã ở trạng thái này" });
+        }
+
+        if (["completed", "cancelled"].includes(order.status)) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({ message: "Đơn hàng đã kết thúc, không thể cập nhật" });
+        }
+
+        if (status === "cancelled") {
+          if (!cancelReason?.trim()) {
+            await t.rollback();
+            return res
+              .status(400)
+              .json({ message: "Lý do huỷ đơn không được bỏ trống" });
+          }
+          if (["shipping", "delivered", "completed"].includes(order.status)) {
+            await t.rollback();
+            return res.status(400).json({
+              message:
+                "Không thể huỷ đơn khi đã vận chuyển hoặc đã giao thành công",
+            });
+          }
+
+          const paid = order.paymentStatus === "paid";
+          const payCode = order.paymentMethod?.code?.toLowerCase();
+
+          if (paid && ["momo", "vnpay", "stripe"].includes(payCode)) {
+            const payload = {
+              orderCode: order.orderCode,
               amount: order.finalPrice,
-              description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode} (${payCode.toUpperCase()})`,
+            };
+            if (payCode === "momo") {
+              if (!order.momoTransId) {
+                await t.rollback();
+                return res
+                  .status(400)
+                  .json({ message: "Thiếu thông tin giao dịch MoMo" });
+              }
+              payload.momoTransId = order.momoTransId;
+            } else if (payCode === "vnpay") {
+              if (!order.vnpTransactionId || !order.paymentTime) {
+                await t.rollback();
+                return res
+                  .status(400)
+                  .json({ message: "Thiếu thông tin giao dịch VNPay" });
+              }
+              payload.vnpTransactionId = order.vnpTransactionId;
+              payload.originalAmount = order.finalPrice;
+              payload.transDate = order.paymentTime;
+            } else if (payCode === "stripe") {
+              if (!order.stripePaymentIntentId) {
+                await t.rollback();
+                return res
+                  .status(400)
+                  .json({ message: "Thiếu stripePaymentIntentId" });
+              }
+              payload.stripePaymentIntentId = order.stripePaymentIntentId;
+            } else if (payCode === "zalopay") {
+              if (!order.zaloTransId || !order.zaloAppTransId) {
+                await t.rollback();
+                return res
+                  .status(400)
+                  .json({ message: "Thiếu thông tin giao dịch ZaloPay" });
+              }
+              payload.zp_trans_id = order.zaloTransId;
+              payload.app_trans_id = order.zaloAppTransId;
+              payload.amount = Math.round(Number(order.finalPrice));
+            }
+            const { ok, transId } = await refundGateway(payCode, payload);
+            if (!ok) {
+              await t.rollback();
+              return res.status(400).json({ message: "Hoàn tiền thất bại" });
+            }
+            order.paymentStatus = "refunded";
+            order.gatewayTransId = transId || null;
+          } else if (
+            (payCode === "zalopay" && paid) ||
+            (payCode === "payos" && paid) ||
+            (payCode === "internalwallet" && paid) ||
+            (payCode === "atm" && paid)
+          ) {
+            const wallet = await Wallet.findOne({
+              where: { userId: order.userId },
+              transaction: t,
+            });
+            if (!wallet) {
+              await t.rollback();
+              return res
+                .status(400)
+                .json({ message: "Không tìm thấy ví người dùng" });
+            }
+            wallet.balance = (
+              Number(wallet.balance || 0) + Number(order.finalPrice || 0)
+            ).toFixed(2);
+            await wallet.save({ transaction: t });
+            await WalletTransaction.create(
+              {
+                userId: order.userId,
+                walletId: wallet.id,
+                orderId: order.id,
+                type: "refund",
+                amount: order.finalPrice,
+                description: `Hoàn tiền do huỷ đơn hàng ${
+                  order.orderCode
+                } (${payCode.toUpperCase()})`,
+              },
+              { transaction: t }
+            );
+            order.paymentStatus = "refunded";
+            order.gatewayTransId = null;
+          } else if (payCode === "cod") {
+            order.paymentStatus = "unpaid";
+          } else {
+            order.paymentStatus = "unpaid";
+          }
+
+          for (const it of order.items) {
+            await Sku.increment("stock", {
+              by: it.quantity,
+              where: { id: it.skuId },
+              transaction: t,
+            });
+            const fsItem = it.Sku.flashSaleSkus?.[0];
+            if (fsItem) {
+              await FlashSaleItem.increment("quantity", {
+                by: it.quantity,
+                where: { id: fsItem.id },
+                transaction: t,
+              });
+              await FlashSaleItem.decrement("soldCount", {
+                by: it.quantity,
+                where: { id: fsItem.id },
+                transaction: t,
+              });
+            }
+          }
+
+          // Thay vì destroy:
+          const earnedPoints = await UserPoint.findOne({
+            where: { orderId: order.id, userId: order.userId, type: "earn" },
+            transaction: t,
+          });
+
+          if (earnedPoints) {
+            await UserPoint.create(
+              {
+                userId: order.userId,
+                orderId: order.id,
+                points: -earnedPoints.points,
+                type: "refund", // hoặc "revoke" nếu bạn muốn thêm enum mới
+                sourceType: "order",
+                description: `Thu hồi ${earnedPoints.points} điểm do huỷ đơn ${order.orderCode}`,
+              },
+              { transaction: t }
+            );
+          }
+
+          if (order.couponId != null) {
+            await CouponUser.decrement("used", {
+              by: 1,
+              where: { userId: order.userId, couponId: order.couponId },
+              transaction: t,
+            });
+            await Coupon.decrement("usedCount", {
+              by: 1,
+              where: { id: order.couponId },
+              transaction: t,
+            });
+          }
+
+          order.status = "cancelled";
+          order.cancelReason = cancelReason.trim();
+          await order.save({ transaction: t });
+
+          const clientNotif = await Notification.create(
+            {
+              title: "Đơn hàng của bạn đã bị hủy",
+              message: `Đơn hàng ${order.orderCode} đã bị hủy bởi quản trị viên.`,
+              slug: `client-cancelled-${order.orderCode}`,
+              type: "order",
+              targetRole: "client",
+              targetId: order.id,
+              link: `/user-profile/orders/${order.orderCode}`,
+              isGlobal: false,
             },
             { transaction: t }
           );
-          order.paymentStatus = 'refunded';
-          order.gatewayTransId = null;
-        } else if (payCode === 'cod') {
-          order.paymentStatus = 'unpaid';
-        } else {
-          order.paymentStatus = 'unpaid';
-        }
 
-        for (const it of order.items) {
-          await Sku.increment('stock', { by: it.quantity, where: { id: it.skuId }, transaction: t });
-          const fsItem = it.Sku.flashSaleSkus?.[0];
-          if (fsItem) {
-            await FlashSaleItem.increment('quantity', { by: it.quantity, where: { id: fsItem.id }, transaction: t });
-            await FlashSaleItem.decrement('soldCount', { by: it.quantity, where: { id: fsItem.id }, transaction: t });
+          await NotificationUser.create(
+            {
+              notificationId: clientNotif.id,
+              userId: order.userId,
+              isRead: false,
+            },
+            { transaction: t }
+          );
+
+          req.app.locals.io
+            .to(`user-${order.userId}`)
+            .emit("new-client-notification", clientNotif);
+
+          const adminNotif = await Notification.create(
+            {
+              title: "Có đơn hàng bị huỷ bởi quản trị viên",
+              message: `Đơn ${order.orderCode} đã bị huỷ bởi một quản trị viên.`,
+              slug: `admin-cancelled-${order.orderCode}`,
+              type: "order",
+              targetRole: "admin",
+              targetId: order.id,
+              link: `/admin/orders/${order.id}`,
+              isGlobal: true,
+            },
+            { transaction: t }
+          );
+
+          req.app.locals.io
+            .to("admin-room")
+            .emit("new-admin-notification", adminNotif);
+
+          if (order.user?.email) {
+            const emailMjmlContent = generateOrderCancellationHtml({
+              orderCode: order.orderCode,
+              cancelReason: order.cancelReason,
+              userName: order.user.fullName || order.user.email || "Khách hàng",
+              orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
+              companyName: "Cyberzone",
+              companyLogoUrl:
+                "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+              companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+              companyPhone: "0878999894",
+              companySupportEmail: "contact@cyberzone.com",
+            });
+            const { html: emailHtml } = mjml2html(emailMjmlContent);
+            try {
+              await sendEmail(
+                order.user.email,
+                `Đơn hàng ${order.orderCode} đã bị huỷ`,
+                emailHtml
+              );
+            } catch (emailErr) {
+              console.error(
+                `[updateStatus] Lỗi gửi email huỷ đơn ${order.orderCode}:`,
+                emailErr
+              );
+            }
           }
-        }
 
-        await UserPoint.destroy({
-          where: { orderId: order.id, userId: order.userId, type: 'earn' },
-          transaction: t,
-        });
-
-        if (order.couponId != null) {
-          await CouponUser.decrement('used', {
-            by: 1,
-            where: { userId: order.userId, couponId: order.couponId },
-            transaction: t,
-          });
-          await Coupon.decrement('usedCount', {
-            by: 1,
-            where: { id: order.couponId },
-            transaction: t,
+          await t.commit();
+          return res.json({
+            message: "Huỷ đơn & hoàn tiền thành công",
+            orderId: order.id,
           });
         }
 
-        order.status = 'cancelled';
-        order.cancelReason = cancelReason.trim();
+        const statusOrder = [
+          "processing",
+          "shipping",
+          "delivered",
+          "completed",
+        ];
+        const currentIndex = statusOrder.indexOf(order.status);
+        const newIndex = statusOrder.indexOf(status);
+
+        if (newIndex !== -1 && currentIndex !== -1 && newIndex < currentIndex) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({
+              message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"`,
+            });
+        }
+
+        order.status = status;
         await order.save({ transaction: t });
 
-        const clientNotif = await Notification.create(
-          {
-            title: 'Đơn hàng của bạn đã bị hủy',
-            message: `Đơn hàng ${order.orderCode} đã bị hủy bởi quản trị viên.`,
-            slug: `client-cancelled-${order.orderCode}`,
-            type: 'order',
-            targetRole: 'client',
-            targetId: order.id,
-            link: `/user-profile/orders/${order.orderCode}`,
-            isGlobal: false,
-          },
-          { transaction: t }
-        );
+        let clientNotifTitle = "";
+        let clientNotifMessage = "";
+        let sendNotification = false;
 
-        await NotificationUser.create(
-          { notificationId: clientNotif.id, userId: order.userId, isRead: false },
-          { transaction: t }
-        );
+        switch (status) {
+          case "shipping":
+            clientNotifTitle = "Đơn hàng đang trên đường đến bạn";
+            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
+            sendNotification = true;
+            break;
+          case "delivered":
+            clientNotifTitle = "Đơn hàng đã được giao thành công";
+            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
+            sendNotification = true;
+            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
+              order.paymentStatus = "paid";
+              await order.save({ transaction: t });
+            }
+            break;
+          case "completed":
+            clientNotifTitle = "Đơn hàng đã hoàn tất";
+            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
+            sendNotification = true;
+            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
+              order.paymentStatus = "paid";
+              await order.save({ transaction: t });
+            }
+            break;
+        }
 
-        req.app.locals.io.to(`user-${order.userId}`).emit('new-client-notification', clientNotif);
+        if (sendNotification && order.userId) {
+          const clientNotification = await Notification.create(
+            {
+              title: clientNotifTitle,
+              message: clientNotifMessage,
+              slug: `client-status-update-${order.orderCode}-${status}`,
+              type: "order",
+              targetRole: "client",
+              targetId: order.id,
+              link: `/user-profile/orders/${order.orderCode}`,
+              isGlobal: false,
+            },
+            { transaction: t }
+          );
 
-        const adminNotif = await Notification.create(
-          {
-            title: 'Có đơn hàng bị huỷ bởi quản trị viên',
-            message: `Đơn ${order.orderCode} đã bị huỷ bởi một quản trị viên.`,
-            slug: `admin-cancelled-${order.orderCode}`,
-            type: 'order',
-            targetRole: 'admin',
-            targetId: order.id,
-            link: `/admin/orders/${order.id}`,
-            isGlobal: true,
-          },
-          { transaction: t }
-        );
+          await NotificationUser.create(
+            {
+              notificationId: clientNotification.id,
+              userId: order.userId,
+              isRead: false,
+            },
+            { transaction: t }
+          );
 
-        req.app.locals.io.to('admin-room').emit('new-admin-notification', adminNotif);
-
-        if (order.user?.email) {
-          const emailMjmlContent = generateOrderCancellationHtml({
-            orderCode: order.orderCode,
-            cancelReason: order.cancelReason,
-            userName: order.user.fullName || order.user.email || "Khách hàng",
-            orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
-            companyName: "Cyberzone",
-            companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
-            companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
-            companyPhone: "0878999894",
-            companySupportEmail: "contact@cyberzone.com",
-          });
-          const { html: emailHtml } = mjml2html(emailMjmlContent);
-          try {
-            await sendEmail(order.user.email, `Đơn hàng ${order.orderCode} đã bị huỷ`, emailHtml);
-          } catch (emailErr) {
-            console.error(`[updateStatus] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
-          }
+          req.app.locals.io
+            .to(`user-${order.userId}`)
+            .emit("new-client-notification", clientNotification);
         }
 
         await t.commit();
-        return res.json({ message: 'Huỷ đơn & hoàn tiền thành công', orderId: order.id });
-      }
 
-      const statusOrder = ['processing', 'shipping', 'delivered', 'completed'];
-      const currentIndex = statusOrder.indexOf(order.status);
-      const newIndex = statusOrder.indexOf(status);
-
-      if (newIndex !== -1 && currentIndex !== -1 && newIndex < currentIndex) {
-        await t.rollback();
-        return res.status(400).json({ message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"` });
-      }
-
-      order.status = status;
-      await order.save({ transaction: t });
-
-      let clientNotifTitle = '';
-      let clientNotifMessage = '';
-      let sendNotification = false;
-
-      switch (status) {
-        case 'shipping':
-          clientNotifTitle = 'Đơn hàng đang trên đường đến bạn';
-          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
-          sendNotification = true;
-          break;
-        case 'delivered':
-          clientNotifTitle = 'Đơn hàng đã được giao thành công';
-          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
-          sendNotification = true;
-          if (order.paymentMethod?.code?.toLowerCase() === 'cod') {
-            order.paymentStatus = 'paid';
-            await order.save({ transaction: t });
-          }
-          break;
-        case 'completed':
-          clientNotifTitle = 'Đơn hàng đã hoàn tất';
-          clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
-          sendNotification = true;
-          if (order.paymentMethod?.code?.toLowerCase() === 'cod') {
-            order.paymentStatus = 'paid';
-            await order.save({ transaction: t });
-          }
-          break;
-      }
-
-      if (sendNotification && order.userId) {
-        const clientNotification = await Notification.create(
-          {
-            title: clientNotifTitle,
-            message: clientNotifMessage,
-            slug: `client-status-update-${order.orderCode}-${status}`,
-            type: 'order',
-            targetRole: 'client',
-            targetId: order.id,
-            link: `/user-profile/orders/${order.orderCode}`,
-            isGlobal: false,
-          },
-          { transaction: t }
-        );
-
-        await NotificationUser.create(
-          { notificationId: clientNotification.id, userId: order.userId, isRead: false },
-          { transaction: t }
-        );
-
-        req.app.locals.io.to(`user-${order.userId}`).emit('new-client-notification', clientNotification);
-      }
-
-      await t.commit();
-
-      req.app.locals.io.to(`order-${order.id}`).emit('order-status-updated', {
-        orderId: order.id,
-        newStatus: order.status,
-      });
-
-      if (order.user?.id) {
-        req.app.locals.io.to(`user-${order.user.id}`).emit('order-updated', {
+        req.app.locals.io.to(`order-${order.id}`).emit("order-status-updated", {
           orderId: order.id,
           newStatus: order.status,
         });
-      }
 
-      return res.json({ message: 'Cập nhật trạng thái thành công', status: order.status });
-    } catch (err) {
-      if (!t.finished) {
-        await t.rollback();
+        if (order.user?.id) {
+          req.app.locals.io.to(`user-${order.user.id}`).emit("order-updated", {
+            orderId: order.id,
+            newStatus: order.status,
+          });
+        }
+
+        return res.json({
+          message: "Cập nhật trạng thái thành công",
+          status: order.status,
+        });
+      } catch (err) {
+        if (!t.finished) {
+          await t.rollback();
+        }
+        if (
+          err.parent?.code === "ER_LOCK_WAIT_TIMEOUT" &&
+          attempt < maxRetries
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+          continue;
+        }
+        console.error(
+          "[updateStatus] Lỗi server khi cập nhật trạng thái:",
+          err
+        );
+        return res
+          .status(500)
+          .json({ message: "Lỗi server khi cập nhật trạng thái" });
       }
-      if (err.parent?.code === 'ER_LOCK_WAIT_TIMEOUT' && attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-        continue;
-      }
-      console.error('[updateStatus] Lỗi server khi cập nhật trạng thái:', err);
-      return res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái' });
     }
+    return res
+      .status(500)
+      .json({ message: "Cập nhật trạng thái thất bại do quá tải hệ thống." });
   }
-  return res.status(500).json({ message: 'Cập nhật trạng thái thất bại do quá tải hệ thống.' });
-}
-
-
-
 
   static async getDetail(req, res) {
     try {
       const { id } = req.params;
 
-const order = await Order.findOne({
-  where: { id },
-  attributes: [
-    'id',
-    'status',
-    'totalPrice',
-    'shippingLeadTime',   // thời gian dự kiến giao
-    'trackingCode',       // mã vận đơn GHN
-    'labelUrl'  ,
-  'shippingFee',
-  'finalPrice',
-  'paymentStatus',
-  'createdAt'
-  ],
-  include: [
-    {
-      model: User,
-      attributes: ['id', 'fullName', 'email', 'phone']
-    },
-    {
-      model: UserAddress,
-      as: 'shippingAddress',
-      attributes: ['streetAddress', 'fullName', 'phone'],
-      include: [
-        { model: Province, as: 'province', attributes: ['name'] },
-        { model: District, as: 'district', attributes: ['name'] },
-        { model: Ward, as: 'ward', attributes: ['name'] }
-      ]
-    },
-    {
-      model: PaymentMethod,
-      as: 'paymentMethod',
-      attributes: ['id', 'name', 'code']
-    },
-    {
-      model: ShippingProvider,
-      as: 'shippingProvider',
-      attributes: ['id', 'name', 'code']
-    },
-    {
-      model: OrderItem,
-      as: 'items',
-      include: [
-        {
-          model: Sku,
-          attributes: ['id', 'price', 'originalPrice'],
-          include: [
-            {
-              model: Product,
-              as: 'product',
-              attributes: ['id', 'name', 'thumbnail']
-            }
-          ]
-        }
-      ]
-    }
-  ]
-});
-
-
+      const order = await Order.findOne({
+        where: { id },
+        attributes: [
+          "id",
+          "status",
+          "totalPrice",
+          "shippingLeadTime", // thời gian dự kiến giao
+          "trackingCode", // mã vận đơn GHN
+          "labelUrl",
+          "shippingFee",
+          "finalPrice",
+          "paymentStatus",
+          "createdAt",
+        ],
+        include: [
+          {
+            model: User,
+            attributes: ["id", "fullName", "email", "phone"],
+          },
+          {
+            model: UserAddress,
+            as: "shippingAddress",
+            attributes: ["streetAddress", "fullName", "phone"],
+            include: [
+              { model: Province, as: "province", attributes: ["name"] },
+              { model: District, as: "district", attributes: ["name"] },
+              { model: Ward, as: "ward", attributes: ["name"] },
+            ],
+          },
+          {
+            model: PaymentMethod,
+            as: "paymentMethod",
+            attributes: ["id", "name", "code"],
+          },
+          {
+            model: ShippingProvider,
+            as: "shippingProvider",
+            attributes: ["id", "name", "code"],
+          },
+          {
+            model: OrderItem,
+            as: "items",
+            include: [
+              {
+                model: Sku,
+                attributes: ["id", "price", "originalPrice"],
+                include: [
+                  {
+                    model: Product,
+                    as: "product",
+                    attributes: ["id", "name", "thumbnail"],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
 
       if (!order) {
-        return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
       return res.json(order);
     } catch (error) {
-      console.error('Lỗi khi lấy chi tiết đơn hàng:', error);
-      return res.status(500).json({ message: 'Lỗi server khi lấy chi tiết đơn hàng' });
+      console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi lấy chi tiết đơn hàng" });
     }
   }
- 
+
   static async updatePaymentStatus(req, res) {
     const t = await sequelize.transaction();
     try {
@@ -686,7 +791,7 @@ const order = await Order.findOne({
       if (!paymentStatus) {
         return res
           .status(400)
-          .json({ message: 'Thiếu trạng thái thanh toán cần cập nhật' });
+          .json({ message: "Thiếu trạng thái thanh toán cần cập nhật" });
       }
 
       const order = await Order.findByPk(id, {
@@ -695,23 +800,23 @@ const order = await Order.findOne({
       });
       if (!order) {
         await t.rollback();
-        return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
       }
 
       // Chỉ cho phép chuyển từ 'waiting' hoặc 'unpaid' sang 'paid'
       // Đây là nơi bạn định nghĩa logic chuyển đổi trạng thái thanh toán thủ công.
-      if (!['waiting', 'unpaid'].includes(order.paymentStatus)) {
+      if (!["waiting", "unpaid"].includes(order.paymentStatus)) {
         await t.rollback();
         return res.status(400).json({
-          message: 'Không thể cập nhật trạng thái thanh toán cho đơn hàng này',
+          message: "Không thể cập nhật trạng thái thanh toán cho đơn hàng này",
         });
       }
 
-      if (paymentStatus === 'paid') {
-        order.paymentStatus = 'paid';
+      if (paymentStatus === "paid") {
+        order.paymentStatus = "paid";
         // Có thể thêm logic khác ở đây nếu cần, ví dụ:
         // Cập nhật trạng thái đơn hàng nếu nó đang ở 'processing' và bây giờ đã thanh toán
-        if (order.status === 'processing') {
+        if (order.status === "processing") {
           // Bạn có thể chọn chuyển sang 'confirmed' hoặc giữ 'processing' tùy quy trình của bạn
           // order.status = 'confirmed';
         }
@@ -719,25 +824,23 @@ const order = await Order.findOne({
         await order.save({ transaction: t });
         await t.commit();
         return res.json({
-          message: 'Cập nhật trạng thái thanh toán thành công',
+          message: "Cập nhật trạng thái thanh toán thành công",
           paymentStatus: order.paymentStatus,
         });
       } else {
         await t.rollback();
         return res
           .status(400)
-          .json({ message: 'Trạng thái thanh toán không hợp lệ' });
+          .json({ message: "Trạng thái thanh toán không hợp lệ" });
       }
     } catch (error) {
       await t.rollback();
-      console.error('Lỗi khi cập nhật trạng thái thanh toán:', error);
+      console.error("Lỗi khi cập nhật trạng thái thanh toán:", error);
       return res
         .status(500)
-        .json({ message: 'Lỗi server khi cập nhật trạng thái thanh toán' });
+        .json({ message: "Lỗi server khi cập nhật trạng thái thanh toán" });
     }
   }
-
-
 }
 
 module.exports = OrderController;

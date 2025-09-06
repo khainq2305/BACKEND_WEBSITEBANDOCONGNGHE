@@ -10,15 +10,16 @@ class UserController {
 
     const [result] = await sequelize.query(
       `SELECT
-         SUM(
-           CASE
-  WHEN type = 'earn' THEN points
-  WHEN type = 'spend' THEN -points
-  WHEN type = 'expired' THEN points  -- giữ nguyên vì đã âm rồi
-  ELSE 0
-END
+       SUM(
+  CASE
+    WHEN type = 'earn' THEN points
+    WHEN type = 'spend' THEN -points
+    WHEN type = 'expired' THEN points
+    WHEN type = 'refund' THEN points
+    ELSE 0
+  END
+) AS totalPoints
 
-         ) AS totalPoints
        FROM userpoints
        WHERE userId = :userId`,
       {

@@ -155,7 +155,8 @@ class SpinController {
                         usedCount: 0,
                         maxUsagePerUser: 1,
                         isActive: true,
-                        type: "private",
+                     type: baseCoupon.type,
+
                     },
                     { transaction: t }
                 );

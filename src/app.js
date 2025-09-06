@@ -8,6 +8,7 @@ const adminRoutes = require('./routes/admin');
 const sequelize = require('./config/database');
 const WalletController = require('./controllers/client/WalletController');
 const OrderController = require('./controllers/client/paymentController');
+const PaymentController = require('./controllers/client/paymentController');
 
 
 const app = express();
@@ -37,11 +38,11 @@ app.post(
   bodyParser.raw({ type: 'application/json' }),
   OrderController.handleStripeWebhook
 );
-app.post(
-  '/webhooks/payos/payout',
-  express.json({ type: 'application/json' }),
-  WalletController.payoutWebhook
-);
+app.post('/payment/payos-webhook', express.json(), (req, res) => {
+  console.log("📩 Webhook từ PayOS:", req.body);
+  return PaymentController.payosWebhook(req, res);
+});
+
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));

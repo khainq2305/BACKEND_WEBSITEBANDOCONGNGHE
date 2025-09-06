@@ -41,8 +41,6 @@ router.post("/payment/zalopay-callback", paymentController.zaloCallback);
 router.get("/payment/zalopay-callback", paymentController.zaloCallback);
 router.post("/payment/vnpay-callback", paymentController.vnpayCallback);
 router.get("/payment/vnpay-callback", paymentController.vnpayCallback);
-router.post("/payment/payos-callback", paymentController.payosCallback);
-router.get("/payment/payos-callback", paymentController.payosCallback);
 router.post("/webhooks/payos/payout", express.json(), WalletController.payoutWebhook);
 router.use("/combo", comboRoutes);
 router.use("/", sliderRoutes);

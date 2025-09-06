@@ -690,135 +690,73 @@ class PaymentController {
     }
   }
 
-  static async payosCallback(req, res) {
-    try {
-      // Nhận dữ liệu từ cả webhook (POST JSON) lẫn returnUrl (GET/query)
-      const { orderCode, status } = req.body?.orderCode ? req.body : req.query;
 
-      if (!orderCode) {
-        console.warn("[payosCallback] Thiếu orderCode");
-        return res.status(400).json({ message: "Thiếu orderCode" });
-      }
+static async payosPay(req, res) {
+  try {
+    const { amount, userId } = req.body;
 
-      const orderId = Number(orderCode);
-      if (isNaN(orderId)) {
-        return res.status(400).json({ message: "orderCode không hợp lệ" });
-      }
-
-      const order = await Order.findByPk(orderId);
-      if (!order) {
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-      }
-
-      // ✨ CẬP NHẬT TẠM THỜI: Buộc cập nhật trạng thái đơn hàng nếu status là 'PAID'
-      if (status?.toUpperCase() === "PAID") {
-        order.paymentStatus = "paid";
-        order.paymentTime = new Date();
-        await order.save();
-       
-      } else {
-        
-      }
-
-      return res.json({ message: "Cập nhật trạng thái PayOS thành công" });
-    } catch (error) {
-     
-      return res.status(500).json({ message: "Lỗi xử lý callback PayOS" });
+    const finalPrice = Math.round(Number(amount));
+    if (!finalPrice || isNaN(finalPrice) || finalPrice <= 0) {
+      return res.status(400).json({ message: "Giá trị thanh toán không hợp lệ" });
     }
+
+    // Tạo orderCode tạm duy nhất (không insert DB)
+    const tempOrderCode = Number(Date.now().toString().slice(-12));
+
+    const payosRes = await payos.createPaymentLink({
+      orderCode: tempOrderCode,
+      amount: finalPrice,
+      description: `Thanh toán đơn hàng tạm`,
+      returnUrl: `${process.env.CLIENT_URL}/order-confirmation?orderCode=${tempOrderCode}`,
+      cancelUrl: `${process.env.CLIENT_URL}/checkout`,
+      buyerName: req.user?.fullName || "Khách hàng",
+      buyerEmail: req.user?.email || "test@example.com",
+      buyerPhone: req.user?.phone || "0912345678",
+      items: [{ name: `Thanh toán giỏ hàng`, quantity: 1, price: finalPrice }],
+    });
+
+    return res.json({ payUrl: payosRes.checkoutUrl, tempCode: tempOrderCode });
+  } catch (err) {
+    console.error("[payosPay] ❌", err);
+    return res.status(500).json({ message: "Không thể tạo link PayOS" });
   }
-  static async payosPay(req, res) {
-    try {
-      const { orderId } = req.body;
-      const order = await Order.findByPk(orderId);
-      if (!order)
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+}
 
-      const finalPrice = Math.round(Number(order.finalPrice));
-      if (
-        !finalPrice ||
-        isNaN(finalPrice) ||
-        finalPrice <= 0 ||
-        finalPrice > 10000000000
-      ) {
-        return res
-          .status(400)
-          .json({ message: "Giá trị thanh toán không hợp lệ" });
-      }
 
-      // ✅ orderCode = ID đơn hàng (PayOS yêu cầu số < 9007199254740991)
-      const safeOrderCode = Number(order.id);
 
-      // Lưu orderCode để đối chiếu khi webhook về
-      order.payosOrderId = safeOrderCode;
-      order.paymentStatus = "waiting";
-      await order.save();
 
-      const payosRes = await payos.createPaymentLink({
-        orderCode: safeOrderCode,
-        amount: finalPrice,
-        description: `Đơn ${order.orderCode}`,
-        returnUrl: `${process.env.BASE_URL}/order-confirmation?orderId=${order.id}`,
-        cancelUrl: `${process.env.CLIENT_URL}/checkout`,
-        buyerName: order.fullName || "Khách hàng",
-        buyerEmail: order.email || "test@example.com",
-        buyerPhone: order.phone || "0912345678",
-        items: [
-          { name: `Đơn ${order.orderCode}`, quantity: 1, price: finalPrice },
-        ],
-      });
+static async payosWebhook(req, res) {
+  try {
+    console.log("📩 [payosWebhook] Payload:", req.body);
+    const { orderCode, status, transactionId, amount } = req.body;
 
-    
-      return res.json({ payUrl: payosRes.checkoutUrl });
-    } catch (error) {
-     
-      return res.status(500).json({ message: "Không thể tạo link PayOS" });
+    if (status !== "PAID") {
+      return res.json({ message: "Bỏ qua vì giao dịch chưa thành công" });
     }
+
+    // ✅ Chỉ khi PAID thì mới tạo đơn chính thức
+    const newOrder = await Order.create({
+      userId: 1, // TODO: lấy userId từ metadata khi tạo link
+      orderCode: `DH${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${orderCode}`,
+      finalPrice: amount,
+      status: "processing",
+      paymentStatus: "paid",
+      payosOrderId: orderCode,
+      payosTransactionId: transactionId || null,
+      paymentTime: new Date(),
+    });
+
+    console.log("✅ Đã tạo đơn từ webhook:", newOrder.toJSON());
+
+    return res.json({ message: "Đã tạo đơn hàng từ PayOS", orderId: newOrder.id });
+  } catch (err) {
+    console.error("[payosWebhook] ❌", err);
+    return res.status(500).json({ message: "Lỗi webhook PayOS" });
   }
+}
 
-  static async payosWebhook(req, res) {
-    try {
-      const { code, desc, success, data, signature } = req.body;
 
-      // ✅ Xác thực chữ ký để đảm bảo request từ PayOS
-      const isValid = verifyPayosSignature(
-        { code, desc, success, data },
-        signature,
-        process.env.PAYOS_CHECKSUM_KEY
-      );
 
-      if (!isValid) {
-    
-        return res.status(400).json({ message: "Invalid signature" });
-      }
-
-      // Nếu giao dịch không thành công thì bỏ qua
-      if (!success || code !== "00") {
-        
-        return res.status(400).json({ message: "Giao dịch thất bại" });
-      }
-
-      const { orderCode, amount, transactionId } = data;
-
-      // ✅ Tìm đơn hàng bằng payosOrderId
-      const order = await Order.findOne({ where: { payosOrderId: orderCode } });
-      if (!order)
-        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-
-      if (order.paymentStatus !== "paid") {
-        order.paymentStatus = "paid";
-        order.paymentTime = new Date();
-        order.payosTransactionId = transactionId;
-        await order.save();
-
-        
-      }
-
-      return res.json({ message: "Đã xử lý webhook" });
-    } catch (err) {
-      console.error("[payosWebhook] ❌ Lỗi xử lý:", err);
-      return res.status(500).json({ message: "Lỗi webhook" });
-    }
-  }
 
   static async payAgain(req, res) {
     try {
@@ -947,36 +885,40 @@ class PaymentController {
           });
           break;
         }
-        case "payos": {
-          const amount = Math.round(Number(order.finalPrice));
-          if (!Number.isSafeInteger(amount) || amount <= 0) {
-            return res
-              .status(400)
-              .json({ message: "Giá trị thanh toán không hợp lệ" });
-          }
+      case "payos": {
+  const amount = Math.round(Number(order.finalPrice));
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    return res.status(400).json({ message: "Giá trị thanh toán không hợp lệ" });
+  }
 
-          // Dùng luôn order.id làm orderCode
-          const safeOrderCode = Number(order.id);
+  // Nếu đã có link PayOS trước đó → trả lại luôn
+  if (order.payosCheckoutUrl) {
+    payUrl = order.payosCheckoutUrl;
+    break;
+  }
 
-          order.paymentStatus = "waiting";
+  // Nếu chưa có thì tạo mới lần đầu
+  const safeOrderCode = Number(order.id); // fix theo order.id để duy nhất
 
-          const payosRes = await payos.createPaymentLink({
-            orderCode: safeOrderCode,
-            amount,
-            description: `đơn ${order.orderCode}`,
-            returnUrl: `${process.env.BASE_URL}/order-confirmation?orderId=${order.id}`,
-            cancelUrl: `${process.env.CLIENT_URL}/checkout`,
-            buyerName: order.fullName || "Khách hàng",
-            buyerEmail: order.email || "test@example.com",
-            buyerPhone: order.phone || "0912345678",
-            items: [
-              { name: `Đơn ${order.orderCode}`, quantity: 1, price: amount },
-            ],
-          });
+  const payosRes = await payos.createPaymentLink({
+    orderCode: safeOrderCode,
+    amount,
+    description: `Đơn ${order.orderCode}`,
+    returnUrl: `${process.env.CLIENT_URL}/order-confirmation?orderId=${order.id}`,
+    cancelUrl: `${process.env.CLIENT_URL}/checkout`,
+    buyerName: order.fullName || "Khách hàng",
+    buyerEmail: order.email || "test@example.com",
+    buyerPhone: order.phone || "0912345678",
+    items: [{ name: `Đơn ${order.orderCode}`, quantity: 1, price: amount }],
+  });
 
-          payUrl = payosRes.checkoutUrl;
-          break;
-        }
+  // Lưu lại để dùng lại sau này
+  order.payosOrderCode = safeOrderCode;
+  order.payosCheckoutUrl = payosRes.checkoutUrl;
+  payUrl = payosRes.checkoutUrl;
+  break;
+}
+
 
         default:
           return res.status(400).json({
