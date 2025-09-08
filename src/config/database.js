@@ -17,12 +17,13 @@ const connection = new Sequelize(
       },
       connectTimeout: 60000,
     },
-    pool: {
-      max: 20, 
-      min: 5, 
-      acquire: 60000, 
-      idle: 30000, 
-    },
+  pool: {
+  max: 20,
+  min: 0,
+  acquire: 60000,
+  idle: 10000,   // giữ ít hơn để tránh connection stale
+}
+
   }
 );
 
