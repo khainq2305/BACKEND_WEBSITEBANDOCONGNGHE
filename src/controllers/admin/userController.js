@@ -10,7 +10,7 @@ const {
 } = require("../../services/common/emailService");
 const { getUserDetail } = require("../../services/admin/user.service");
 
-const { User, UserRole, Sequelize  } = require("../../models");
+const { User, UserRole, Sequelize } = require("../../models");
 
 const STATUS_MAP = { active: 1, inactive: 0, pending: 2 };
 const coerceStatus = (raw) => {
@@ -19,6 +19,34 @@ const coerceStatus = (raw) => {
   if (!Number.isNaN(n)) return n;
   return STATUS_MAP[String(raw).toLowerCase()] ?? STATUS_MAP.active;
 };
+
+function generateStrongPassword() {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const numbers = "0123456789";
+  const special = "!@#$%^&*()_+[]{}|;:,.<>?";
+
+  // Đảm bảo có ít nhất 1 ký tự mỗi loại
+  const mustHave = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    numbers[Math.floor(Math.random() * numbers.length)],
+    special[Math.floor(Math.random() * special.length)],
+  ];
+
+  // Đổ thêm các ký tự ngẫu nhiên cho đủ 8
+  const all = upper + lower + numbers + special;
+  while (mustHave.length < 8) {
+    mustHave.push(all[Math.floor(Math.random() * all.length)]);
+  }
+
+  // Xáo trộn thứ tự
+  return mustHave
+    .map((c) => ({ sort: crypto.randomInt(1000), value: c }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((x) => x.value)
+    .join("");
+}
 
 class UserController {
   static async getAllUsers(req, res) {
@@ -62,84 +90,86 @@ class UserController {
     }
   }
 
+  static async createUser(req, res) {
+    try {
+      const { fullName, email, password, phone, dateOfBirth, status } =
+        req.body;
 
-static async createUser(req, res) {
-  try {
-    const { fullName, email, password, phone, dateOfBirth, status } = req.body;
-
-    // Email đã tồn tại?
-    const existedEmail = await User.findOne({ where: { email } });
-    if (existedEmail) {
-      return res.status(400).json({
-        errors: [{ field: "email", message: "Email đã được sử dụng!" }],
-      });
-    }
-
-    // Phone đã tồn tại? (nếu có gửi lên)
-    if (phone) {
-      const existedPhone = await User.findOne({ where: { phone } });
-      if (existedPhone) {
+      // Email đã tồn tại?
+      const existedEmail = await User.findOne({ where: { email } });
+      if (existedEmail) {
         return res.status(400).json({
-          errors: [{ field: "phone", message: "Số điện thoại đã được sử dụng!" }],
+          errors: [{ field: "email", message: "Email đã được sử dụng!" }],
         });
       }
-    }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+      // Phone đã tồn tại? (nếu có gửi lên)
+      if (phone) {
+        const existedPhone = await User.findOne({ where: { phone } });
+        if (existedPhone) {
+          return res.status(400).json({
+            errors: [
+              { field: "phone", message: "Số điện thoại đã được sử dụng!" },
+            ],
+          });
+        }
+      }
 
-    // Chuẩn hoá status
-    const statusValue = coerceStatus(status);
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Avatar (nếu có middleware upload.single('avatar'))
-    const avatarUrl = req.file?.path || null;
+      // Chuẩn hoá status
+      const statusValue = coerceStatus(status);
 
-    // Payload user
-    const payload = {
-      fullName: fullName || null,
-      email: String(email).trim().toLowerCase(),
-      password: hashedPassword,
-      phone: phone || null,
-      dateOfBirth: dateOfBirth || null,
-      status: statusValue,
-      provider: "local",
-      avatarUrl,
-    };
+      // Avatar (nếu có middleware upload.single('avatar'))
+      const avatarUrl = req.file?.path || null;
 
-    // Tạo user
-    const newUser = await User.create(payload);
+      // Payload user
+      const payload = {
+        fullName: fullName || null,
+        email: String(email).trim().toLowerCase(),
+        password: hashedPassword,
+        phone: phone || null,
+        dateOfBirth: dateOfBirth || null,
+        status: statusValue,
+        provider: "local",
+        avatarUrl,
+      };
 
-    // Gán role mặc định (ví dụ: roleId = 2)
-    await UserRole.create({
-      userId: newUser.id,
-      roleId: 2
-    });
+      // Tạo user
+      const newUser = await User.create(payload);
 
-    const json = newUser.toJSON();
-    delete json.password;
-
-    return res.status(201).json({ message: "Tạo tài khoản thành công", user: json });
-
-  } catch (error) {
-    // Bắt lỗi unique (email/phone)
-    if (error instanceof Sequelize.UniqueConstraintError) {
-      const field = error?.errors?.[0]?.path || "email";
-      const label =
-        field === "email"
-          ? "Email"
-          : field === "phone"
-          ? "Số điện thoại"
-          : field;
-      return res.status(400).json({
-        errors: [{ field, message: `${label} đã được sử dụng!` }],
+      // Gán role mặc định (ví dụ: roleId = 2)
+      await UserRole.create({
+        userId: newUser.id,
+        roleId: 2,
       });
-    }
-    console.error("❌ Lỗi createUser:", error);
-    return res.status(500).json({ message: "Không thể tạo tài khoản" });
-  }
-}
 
+      const json = newUser.toJSON();
+      delete json.password;
+
+      return res
+        .status(201)
+        .json({ message: "Tạo tài khoản thành công", user: json });
+    } catch (error) {
+      // Bắt lỗi unique (email/phone)
+      if (error instanceof Sequelize.UniqueConstraintError) {
+        const field = error?.errors?.[0]?.path || "email";
+        const label =
+          field === "email"
+            ? "Email"
+            : field === "phone"
+            ? "Số điện thoại"
+            : field;
+        return res.status(400).json({
+          errors: [{ field, message: `${label} đã được sử dụng!` }],
+        });
+      }
+      console.error("❌ Lỗi createUser:", error);
+      return res.status(500).json({ message: "Không thể tạo tài khoản" });
+    }
+  }
 
   static async getAllRoles(req, res) {
     try {
@@ -213,17 +243,15 @@ static async createUser(req, res) {
       const user = await User.findByPk(id);
       if (!user)
         return res.status(404).json({ message: "Người dùng không tồn tại" });
-  
-      // Tạo mật khẩu random 8 ký tự (hex)
-      const newPassword = crypto.randomBytes(4).toString("hex");
+
+      // const newPassword = crypto.randomBytes(4).toString("hex");
+      const newPassword = generateStrongPassword();
       const hashed = await bcrypt.hash(newPassword, 10);
-  
-      // Lưu mật khẩu mới vào DB
       await user.update({ password: hashed });
-  
+
       // URL trang đăng nhập (có thể lấy từ .env để dễ bảo trì)
       const loginUrl = "https://www.cyberzone.com.vn/dang-nhap";
-  
+
       // Nội dung email (HTML)
       const html = `
         <div style="font-family: Arial, sans-serif; background:#f4f6fa; padding:20px;">
@@ -255,10 +283,10 @@ static async createUser(req, res) {
           </div>
         </div>
       `;
-  
+
       // Gửi email
       await sendEmail(user.email, "Cấp lại mật khẩu truy cập hệ thống", html);
-  
+
       res.json({
         success: true,
         message: "Mật khẩu mới đã được gửi về email của người dùng.",
@@ -273,8 +301,6 @@ static async createUser(req, res) {
       res.status(500).json({ message: "Không thể cấp lại mật khẩu", error });
     }
   }
-  
-  
 
   static async deleteInactiveUsers(req, res) {
     try {

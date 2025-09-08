@@ -500,6 +500,7 @@ console.table([
         "zalopay",
         "atm",
         "stripe",
+        "payos",
       ].includes(validPayment.code.toLowerCase())
         ? "waiting"
         : validPayment.code.toLowerCase() === "internalwallet"

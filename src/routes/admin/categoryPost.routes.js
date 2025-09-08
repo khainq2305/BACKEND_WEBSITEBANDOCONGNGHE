@@ -13,7 +13,7 @@ const { attachUserDetail } = require('../../middlewares/getUserDetail ');
 const { authorize } = require('../../middlewares/authorize');
 router.use(checkJWT);
 router.use(attachUserDetail)
-router.use(authorize("PostCategory"))
+router.use(authorize("Post"))
 router.get('/',pagination, CategoryController.getAll);
 router.post('/create',upload.none(), validatePostCategory, autoSlug(Category), checkDuplicateCategory(Category) , CategoryController.create)
 router.get('/edit/:slug' , CategoryController.getBySlug)

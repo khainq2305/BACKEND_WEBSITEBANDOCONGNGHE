@@ -48,57 +48,63 @@ cron.schedule("*/1 * * * *", async () => {
     }
 
     for (const order of cancellableOrders) {
-      const transaction = await sequelize.transaction();
+      // Gom side-effects để chạy SAU COMMIT
+      let sideEffects = {};
+
       try {
-        for (const item of order.items) {
-          await Sku.increment("stock", {
-            by: item.quantity,
-            where: { id: item.skuId },
-            transaction,
-          });
+        // DÙNG MANAGED TRANSACTION: Sequelize tự commit/rollback
+        await sequelize.transaction(async (t) => {
+          // Hoàn kho/flash sale
+          for (const item of order.items) {
+            await Sku.increment("stock", {
+              by: item.quantity,
+              where: { id: item.skuId },
+              transaction: t,
+            });
 
-          if (item.flashSaleId) {
-            await FlashSaleItem.update(
-              {
-                quantity: Sequelize.literal(`quantity + ${item.quantity}`),
-                soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
-              },
-              { where: { id: item.flashSaleId }, transaction }
-            );
+            if (item.flashSaleId) {
+              await FlashSaleItem.update(
+                {
+                  quantity: Sequelize.literal(`quantity + ${item.quantity}`),
+                  soldCount: Sequelize.literal(`soldCount - ${item.quantity}`),
+                },
+                { where: { id: item.flashSaleId }, transaction: t }
+              );
+            }
           }
-        }
 
-        await UserPoint.destroy({
-          where: { orderId: order.id, userId: order.userId, type: "earn" },
-          transaction,
-        });
-
-        if (order.couponId != null) {
-          await CouponUser.decrement("used", {
-            by: 1,
-            where: { userId: order.userId, couponId: order.couponId },
-            transaction,
+          // Huỷ điểm thưởng kiếm được (nếu có)
+          await UserPoint.destroy({
+            where: { orderId: order.id, userId: order.userId, type: "earn" },
+            transaction: t,
           });
 
-          await Coupon.decrement("usedCount", {
-            by: 1,
-            where: { id: order.couponId },
-            transaction,
-          });
-        }
+          // Hoàn coupon đã dùng (nếu có)
+          if (order.couponId != null) {
+            await CouponUser.decrement("used", {
+              by: 1,
+              where: { userId: order.userId, couponId: order.couponId },
+              transaction: t,
+            });
 
-        order.status = "cancelled";
-        order.paymentStatus = "unpaid";
-        order.cancelReason = "Thanh toán không hoàn tất trong 15 phút";
-        await order.save({ transaction });
+            await Coupon.decrement("usedCount", {
+              by: 1,
+              where: { id: order.couponId },
+              transaction: t,
+            });
+          }
 
-        const slug = `order-${order.orderCode}`;
-        const existingNotif = await Notification.findOne({ where: { slug } });
-        let notif = existingNotif;
+          // Cập nhật đơn
+          order.status = "cancelled";
+          order.paymentStatus = "unpaid";
+          order.cancelReason = "Thanh toán không hoàn tất trong 15 phút";
+          await order.save({ transaction: t });
 
-        if (!existingNotif) {
-          notif = await Notification.create(
-            {
+          // Notification + NotificationUser (dùng findOrCreate để gọn và tránh trùng)
+          const slug = `order-${order.orderCode}`;
+          const [notif] = await Notification.findOrCreate({
+            where: { slug },
+            defaults: {
               title: "Đơn hàng tự huỷ",
               message: `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`,
               slug,
@@ -108,93 +114,87 @@ cron.schedule("*/1 * * * *", async () => {
               startAt: new Date(),
               isActive: true,
             },
-            { transaction }
-          );
-
-          await NotificationUser.create(
-            { notificationId: notif.id, userId: order.userId },
-            { transaction }
-          );
-
-          console.log(`[Cron] ✅ Tạo notification & user: ${slug}`);
-        } else {
-          existingNotif.title = "Đơn hàng tự huỷ";
-          existingNotif.message = `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`;
-          existingNotif.startAt = new Date();
-          existingNotif.isActive = true;
-          await existingNotif.save({ transaction });
-
-          const existedUser = await NotificationUser.findOne({
-            where: { notificationId: existingNotif.id, userId: order.userId },
+            transaction: t,
           });
-          if (!existedUser) {
-            await NotificationUser.create(
-              { notificationId: existingNotif.id, userId: order.userId },
-              { transaction }
-            );
+
+          // Nếu đã tồn tại thì cập nhật nội dung
+          if (notif) {
+            notif.title = "Đơn hàng tự huỷ";
+            notif.message = `Đơn ${order.orderCode} đã bị huỷ do quá hạn thanh toán.`;
+            notif.startAt = new Date();
+            notif.isActive = true;
+            await notif.save({ transaction: t });
           }
 
-          console.log(`[Cron] 🔁 Cập nhật notification: ${slug}`);
-        }
-
-        if (order.userId) {
-          const existNU = await NotificationUser.findOne({
+          await NotificationUser.findOrCreate({
             where: { notificationId: notif.id, userId: order.userId },
+            defaults: { notificationId: notif.id, userId: order.userId },
+            transaction: t,
           });
 
-          if (!existNU) {
-            await NotificationUser.create(
-              { notificationId: notif.id, userId: order.userId },
-              { transaction }
-            );
-            console.log(`[Cron] ✅ Đã tạo NotificationUser cho userId=${order.userId}`);
-          } else {
-            console.log(`[Cron] 🔁 NotificationUser đã tồn tại`);
-          }
-        }
-
-        const emailMjmlContent = generateOrderCancellationHtml({
-          orderCode: order.orderCode,
-          cancelReason: order.cancelReason,
-          userName: order.user?.fullName || order.user?.email || "Khách hàng",
-          orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
-          companyName: "Cyberzone",
-          companyLogoUrl:
-            "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
-          companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
-          companyPhone: "0878999894",
-          companySupportEmail: "contact@cyberzone.com",
+          // Chuẩn bị dữ liệu cho side-effects (email/socket) SAU COMMIT
+          sideEffects = {
+            notifPayload: {
+              id: notif.id,
+              title: notif.title,
+              message: notif.message,
+              link: notif.link,
+              createdAt: notif.startAt,
+              isRead: false,
+              type: notif.type,
+              userRoom: `user-${order.userId}`,
+            },
+            email: {
+              to: order.User?.email,
+              name: order.User?.fullName || order.User?.email || "Khách hàng",
+              orderCode: order.orderCode,
+              cancelReason: order.cancelReason,
+            },
+          };
         });
 
-        const { html: emailHtml } = mjml2html(emailMjmlContent);
-
-        if (order.user?.email) {
+        // ====== SAU COMMIT: chạy side-effects, không ảnh hưởng dữ liệu ======
+        // Gửi email (không để trong transaction)
+        if (sideEffects.email?.to) {
           try {
+            const emailMjmlContent = generateOrderCancellationHtml({
+              orderCode: sideEffects.email.orderCode,
+              cancelReason: sideEffects.email.cancelReason,
+              userName: sideEffects.email.name,
+              orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${sideEffects.email.orderCode}`,
+              companyName: "Cyberzone",
+              companyLogoUrl:
+                "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+              companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
+              companyPhone: "0878999894",
+              companySupportEmail: "contact@cyberzone.com",
+            });
+            const { html: emailHtml } = mjml2html(emailMjmlContent);
             await sendEmail(
-              order.user.email,
-              `Đơn hàng ${order.orderCode} đã bị hủy`,
+              sideEffects.email.to,
+              `Đơn hàng ${sideEffects.email.orderCode} đã bị hủy`,
               emailHtml
             );
           } catch (emailErr) {
-            console.error(`[Cron] Lỗi gửi email hủy đơn ${order.orderCode}:`, emailErr);
+            console.error(`[Cron] Lỗi gửi email hủy đơn ${sideEffects.email.orderCode}:`, emailErr);
           }
         }
 
-        await transaction.commit();
-        console.log(`[Cron] Đã huỷ và xử lý đơn ${order.orderCode}`);
+        // Emit socket
+        try {
+          const io = require("../socket");
+          io.to(sideEffects.notifPayload.userRoom).emit(
+            "new-client-notification",
+            sideEffects.notifPayload
+          );
+        } catch (sockErr) {
+          console.error("[Cron] Lỗi emit socket:", sockErr);
+        }
 
-        const io = require("../socket");
-        io.to(`user-${order.userId}`).emit("new-client-notification", {
-          id: notif.id,
-          title: notif.title,
-          message: notif.message,
-          link: notif.link,
-          createdAt: notif.startAt,
-          isRead: false,
-          type: notif.type,
-        });
+        console.log(`[Cron] Đã huỷ và xử lý đơn ${order.orderCode}`);
       } catch (innerErr) {
-        await transaction.rollback();
+        // Với managed transaction, lỗi trong callback đã tự rollback.
+        // Lỗi ở đây chủ yếu là lỗi ngoài transaction (không cần rollback).
         console.error(`[Cron] Lỗi xử lý huỷ đơn ${order.orderCode}:`, innerErr);
       }
     }

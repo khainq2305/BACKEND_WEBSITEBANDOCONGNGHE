@@ -48,7 +48,7 @@ router.put(
 // [POST] /chuyen-vao-thung-rac -> Ghi đè action thành 'delete'
 router.post(
   "/trash",
-  authorize("Post", "delete"), // Ghi đè action mặc định của POST
+  authorize("Post", "softDelete"), // Ghi đè action mặc định của POST
   PostController.softDelete
 );
 

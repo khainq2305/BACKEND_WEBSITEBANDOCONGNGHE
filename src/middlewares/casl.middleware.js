@@ -14,9 +14,9 @@ const checkPermission = (action, subject) => {
     if (ability.can(action, subject)) {
       return next();
     }
+    console.log(user.permissions)
     return res.status(403).json({
-      message: `Không Có Quyền Xóa`
-
+      message: `Không có quyền thực hiện`
     });
   };
 };

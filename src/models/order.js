@@ -90,13 +90,23 @@ const Order = sequelize.define(
       allowNull: true,
     },
     payosOrderId: {
-  type: DataTypes.BIGINT,
-  allowNull: true
-},
-payosTransactionId: {
-  type: DataTypes.STRING,
-  allowNull: true
-},
+      type: DataTypes.BIGINT,
+      allowNull: true
+    },
+    payosTransactionId: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    payosOrderCode: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      comment: "Mã orderCode numeric dùng khi gọi PayOS API"
+    },
+    payosCheckoutUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Link checkout PayOS để reuse khi thanh toán lại"
+    },
 
     momoTransId: {
       type: DataTypes.STRING,
