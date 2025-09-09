@@ -408,10 +408,16 @@ if (Array.isArray(couponCodes) && couponCodes.length > 0) {
     }
 
     // --- tính discount ---
-    if (coupon.type === "shipping") {
-      shippingDiscount = coupon.discountValue
-        ? Math.min(Number(coupon.discountValue), shippingFee)
-        : shippingFee;
+  if (coupon.type === "shipping") {
+    const discountValue = Number(coupon.discountValue);
+    if (discountValue === 0 || isNaN(discountValue)) { // Thêm isNaN để xử lý trường hợp null/undefined/string rỗng
+        console.log("Case: Freeship toàn phần. Set shippingDiscount = shippingFee");
+        shippingDiscount = shippingFee;
+    } else {
+        console.log("Case: Giảm giá cố định. Set shippingDiscount = Math.min(...)");
+        shippingDiscount = Math.min(discountValue, shippingFee);
+    }
+
     } else if (coupon.type === "discount") {
       let discount = coupon.discountType === "percent"
         ? Math.floor((totalPrice * coupon.discountValue) / 100)
@@ -437,6 +443,7 @@ if (Array.isArray(couponCodes) && couponCodes.length > 0) {
 shippingDiscount = Math.min(shippingDiscount, shippingFee);
 
 
+const finalShippingFee = Math.max(0, shippingFee - shippingDiscount);
 
 // ====== XỬ LÝ ĐIỂM THƯỞNG ======
 let pointDiscountAmount = 0;
@@ -476,10 +483,11 @@ if (usePoints && pointsToSpend > 0) {
 
     
 
-   // ====== TÍNH FINAL PRICE ======
+
+// TÍNH FINAL PRICE MỚI VÀ CHÍNH XÁC
 const finalPrice = Math.max(
-  0,
-  totalPrice - couponDiscount + shippingFee - shippingDiscount - pointDiscountAmount
+  0,
+  totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
 );
 
 console.table([
@@ -522,7 +530,7 @@ const newOrder = await Order.create(
     userAddressId: selectedAddress.id,
     totalPrice,
     finalPrice,
-    shippingFee,
+     shippingFee: finalShippingFee, // <-- LƯU PHÍ SHIP CUỐI CÙNG
     couponDiscount,
     shippingDiscount,
     pointDiscount: pointDiscountAmount,

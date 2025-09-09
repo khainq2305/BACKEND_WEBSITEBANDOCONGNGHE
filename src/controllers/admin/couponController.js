@@ -12,34 +12,54 @@ const { sequelize } = require("../../models");
 
 class CouponController {
 static async create(req, res) {
-  const t = await sequelize.transaction();
-  try {
-    const { userIds = [], productIds = [], ...couponData } = req.body;
+  const t = await sequelize.transaction();
+  try {
+    const { userIds = [], productIds = [], ...couponData } = req.body;
 
-    const coupon = await Coupon.create(couponData, { transaction: t });
+    // Làm sạch và chuyển đổi giá trị số một cách an toàn
+    const sanitizedCouponData = {
+      ...couponData,
+      discountValue: (couponData.discountValue === null || couponData.discountValue === '') 
+        ? null 
+        : Number(String(couponData.discountValue).replace(/[^0-9.]/g, '')),
+      minOrderValue: (couponData.minOrderValue === null || couponData.minOrderValue === '') 
+        ? null 
+        : Number(String(couponData.minOrderValue).replace(/[^0-9.]/g, '')),
+      maxDiscountValue: (couponData.maxDiscountValue === null || couponData.maxDiscountValue === '') 
+        ? null 
+        : Number(String(couponData.maxDiscountValue).replace(/[^0-9.]/g, '')),
+      totalQuantity: (couponData.totalQuantity === null || couponData.totalQuantity === '') 
+        ? null 
+        : Number(String(couponData.totalQuantity).replace(/[^0-9.]/g, '')),
+      maxUsagePerUser: (couponData.maxUsagePerUser === null || couponData.maxUsagePerUser === '') 
+        ? null 
+        : Number(String(couponData.maxUsagePerUser).replace(/[^0-9.]/g, '')),
+    };
 
-    if (couponData.visibility === 'private' && userIds.length > 0) {
-      const userRecords = userIds.map((userId) => ({
-        couponId: coupon.id,
-        userId,
-      }));
-      await CouponUser.bulkCreate(userRecords, { transaction: t });
-    }
+    const coupon = await Coupon.create(sanitizedCouponData, { transaction: t });
 
-    if (couponData.applyScope === 'product' && productIds.length > 0) {
-      const productRecords = productIds.map((skuId) => ({
-        couponId: coupon.id,
-        skuId,
-      }));
-      await CouponItem.bulkCreate(productRecords, { transaction: t });
-    }
+    if (sanitizedCouponData.visibility === 'private' && userIds.length > 0) {
+      const userRecords = userIds.map((userId) => ({
+        couponId: coupon.id,
+        userId,
+      }));
+      await CouponUser.bulkCreate(userRecords, { transaction: t });
+    }
 
-    await t.commit();
-    res.status(201).json({ message: "Thêm mã giảm giá thành công", data: coupon });
-  } catch (err) {
-    await t.rollback();
-    res.status(500).json({ message: "Lỗi server", error: err.message });
-  }
+    if (sanitizedCouponData.applyScope === 'product' && productIds.length > 0) {
+      const productRecords = productIds.map((skuId) => ({
+        couponId: coupon.id,
+        skuId,
+      }));
+      await CouponItem.bulkCreate(productRecords, { transaction: t });
+    }
+
+    await t.commit();
+    res.status(201).json({ message: "Thêm mã giảm giá thành công", data: coupon });
+  } catch (err) {
+    await t.rollback();
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
 }
 static async getById(req, res) {
   try {
@@ -94,15 +114,22 @@ static async update(req, res) {
       productIds = [],
       ...couponData
     } = req.body;
-
-    const sanitizedCouponData = {
-        ...couponData,
-        discountValue: couponData.discountValue || 0,
-        minOrderValue: couponData.minOrderValue || 0,
-        maxDiscountValue: couponData.maxDiscountValue || 0,
-        totalQuantity: couponData.totalQuantity || null,
-        maxUsagePerUser: couponData.maxUsagePerUser || null,
-    };
+    
+    // DEBUG: In ra dữ liệu nhận được từ frontend
+    console.log("📝 Dữ liệu gốc từ req.body:", req.body);
+    
+   const sanitizedCouponData = {
+  ...couponData,
+  // Sửa dòng này để làm sạch chuỗi trước khi chuyển đổi
+  discountValue: (couponData.discountValue === null || couponData.discountValue === '') ? null : Number(String(couponData.discountValue).replace(/[^0-9.]/g, '')),
+  minOrderValue: (couponData.minOrderValue === null || couponData.minOrderValue === '') ? null : Number(String(couponData.minOrderValue).replace(/[^0-9.]/g, '')),
+  maxDiscountValue: (couponData.maxDiscountValue === null || couponData.maxDiscountValue === '') ? null : Number(String(couponData.maxDiscountValue).replace(/[^0-9.]/g, '')),
+  totalQuantity: (couponData.totalQuantity === null || couponData.totalQuantity === '') ? null : Number(String(couponData.totalQuantity).replace(/[^0-9.]/g, '')),
+  maxUsagePerUser: (couponData.maxUsagePerUser === null || couponData.maxUsagePerUser === '') ? null : Number(String(couponData.maxUsagePerUser).replace(/[^0-9.]/g, '')),
+};
+    
+    // DEBUG: In ra dữ liệu sau khi làm sạch để chuẩn bị cập nhật
+    console.log("📝 Dữ liệu đã làm sạch (sanitizedCouponData):", sanitizedCouponData);
 
     await coupon.update(sanitizedCouponData, { transaction: t });
 
@@ -128,11 +155,11 @@ static async update(req, res) {
         await CouponUser.bulkCreate(newUsers, { transaction: t });
       }
     } else {
-        await CouponUser.destroy({
-            where: { couponId: id },
-            force: true,
-            transaction: t
-        });
+      await CouponUser.destroy({
+        where: { couponId: id },
+        force: true,
+        transaction: t,
+      });
     }
 
     if (couponData.applyScope === 'product') {
@@ -158,11 +185,11 @@ static async update(req, res) {
         await CouponItem.bulkCreate(newItems, { transaction: t });
       }
     } else {
-        await CouponItem.destroy({
-            where: { couponId: id },
-            force: true,
-            transaction: t
-        });
+      await CouponItem.destroy({
+        where: { couponId: id },
+        force: true,
+        transaction: t,
+      });
     }
 
     await t.commit();
