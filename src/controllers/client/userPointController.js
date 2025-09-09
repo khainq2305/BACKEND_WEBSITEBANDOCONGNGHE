@@ -67,7 +67,7 @@ static async getPointHistory(req, res) {
 
     const { UserPoint, Order } = require('../../models');
 
-    // 👇 Thêm filter theo type
+    // Thêm filter theo type
     const where = { userId };
     if (req.query.type && ['earn', 'spend', 'expired', 'refund'].includes(req.query.type)) {
       where.type = req.query.type;
@@ -78,6 +78,7 @@ static async getPointHistory(req, res) {
       order: [['createdAt', 'DESC']],
       limit,
       offset,
+      distinct: true, // 👈 để count không bị nhân đôi khi join
       include: [
         {
           model: Order,
