@@ -107,12 +107,12 @@ const validateCoupon = async (req, res, next) => {
   }
 
   if (type === "shipping") {
-    if (parsedDiscountValue === null || isNaN(parsedDiscountValue) || parsedDiscountValue < 0) {
-      errors.push({
-        field: "discountValue",
-        message: "Mức hỗ trợ phí ship phải >= 0 (0 = miễn phí toàn phần)",
-      });
-    }
+   if (parsedDiscountValue !== null && (isNaN(parsedDiscountValue) || parsedDiscountValue < 0)) {
+        errors.push({
+            field: "discountValue",
+            message: "Mức hỗ trợ phí ship phải >= 0 (0 = miễn phí toàn phần)",
+        });
+    }
     if (discountType) {
       errors.push({
         field: "discountType",
