@@ -58,7 +58,7 @@ class UserController {
 
 
   // Lấy lịch sử điểm
- static async getPointHistory(req, res) {
+static async getPointHistory(req, res) {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page) || 1;
@@ -67,8 +67,14 @@ class UserController {
 
     const { UserPoint, Order } = require('../../models');
 
+    // 👇 Thêm filter theo type
+    const where = { userId };
+    if (req.query.type && ['earn', 'spend', 'expired', 'refund'].includes(req.query.type)) {
+      where.type = req.query.type;
+    }
+
     const { count, rows } = await UserPoint.findAndCountAll({
-      where: { userId },
+      where,
       order: [['createdAt', 'DESC']],
       limit,
       offset,
@@ -106,6 +112,7 @@ class UserController {
     return res.status(500).json({ message: 'Lỗi server' });
   }
 }
+
 
 
 }
