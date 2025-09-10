@@ -73,37 +73,53 @@ class WalletController {
  
 
 static async getTransactions(req, res) {
-  try {
-    const userId = req.user.id;
-    const wallet = await Wallet.findOne({ where: { userId } });
-    if (!wallet) {
-      return res.status(404).json({ message: 'Không tìm thấy ví' });
-    }
+  try {
+    console.log('Bắt đầu lấy lịch sử giao dịch...');
+    const userId = req.user.id;
+    console.log(`Đang tìm ví cho userId: ${userId}`);
+    const wallet = await Wallet.findOne({ where: { userId } });
+    if (!wallet) {
+        console.log('Không tìm thấy ví cho người dùng này.');
+      return res.status(404).json({ message: 'Không tìm thấy ví' });
+    }
+    console.log('Đã tìm thấy ví:', wallet.id);
 
-    const page = parseInt(req.query.page, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize, 10) || 10;
-    const offset = (page - 1) * pageSize;
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = parseInt(req.query.pageSize, 10) || 10;
+    const offset = (page - 1) * pageSize;
+    console.log(`Phân trang: Trang ${page}, Kích thước ${pageSize}, Bắt đầu từ offset ${offset}`);
 
-    const { count, rows: transactions } = await WalletTransaction.findAndCountAll({
-      where: { walletId: wallet.id },
-      order: [['createdAt', 'DESC']],
-      limit: pageSize,
-      offset,
-    });
+    // Lấy type từ query nếu có
+    const { type } = req.query;
+    const where = { walletId: wallet.id };
+    console.log('Lọc theo type ban đầu:', type);
+    
+    if (type) {
+      where.type = type; // filter theo type: 'refund' hoặc 'purchase'
+    }
+    console.log('Điều kiện lọc cuối cùng (where):', where);
 
-    return res.json({
-      data: transactions,
-      pagination: {
-        total: count,
-        page,
-        pageSize,
-        totalPages: Math.ceil(count / pageSize),
-      },
-    });
-  } catch (error) {
-    console.error('Lỗi khi lấy lịch sử giao dịch ví:', error);
-    return res.status(500).json({ message: 'Lỗi server' });
-  }
+    const { count, rows: transactions } = await WalletTransaction.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit: pageSize,
+      offset,
+    });
+    console.log(`Đã lấy được ${count} giao dịch. Giao dịch trên trang này:`, transactions.length);
+
+    return res.json({
+      data: transactions,
+      pagination: {
+        total: count,
+        page,
+        pageSize,
+        totalPages: Math.ceil(count / pageSize),
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi server khi lấy lịch sử giao dịch:', error.message);
+    return res.status(500).json({ message: 'Lỗi server' });
+  }
 }
 
 
