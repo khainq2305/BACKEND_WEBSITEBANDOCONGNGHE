@@ -1433,25 +1433,15 @@ if (cartItemIds.length > 0) {
           }
           payload.momoTransId = order.momoTransId;
        } else if (payCode === "vnpay") {
-          if (!order.vnpTransactionId || !order.vnpPayDate) {
-            return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
-          }
+         if (!order.vnpTransactionId || !order.paymentTime) {
+  await t.rollback();
+  return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
+}
 
-          // Debugging: Ghi log các giá trị ban đầu từ database
-          console.log("🔍 [VNPay Refund Debug] Initial values from DB:");
-          console.log(` - order.vnpTransactionId: ${order.vnpTransactionId}`);
-          console.log(` - order.vnpPayDate: ${order.vnpPayDate}`);
-          console.log(` - order.finalPrice: ${order.finalPrice}`);
-          console.log(` - order.vnpOrderId: ${order.vnpOrderId}`);
+payload.vnpTransactionId = order.vnpTransactionId;
+payload.originalAmount = Math.round(order.finalPrice); // như code cũ
+payload.transDate = order.paymentTime; // giữ nguyên format trả về từ VNPay
 
-          payload.vnpTransactionId = order.vnpTransactionId;
-          payload.amount = Number(order.finalPrice);
-          payload.transDate = moment(order.vnpPayDate).format("YYYYMMDDHHmmss");
-          payload.orderCode = order.vnpOrderId;
-        
-          // Debugging: Ghi log các giá trị cuối cùng của payload trước khi gửi
-          console.log("📦 [VNPay Refund Debug] Final payload to be sent:");
-          console.log(payload);
         
         } else if (payCode === "stripe") {
           if (!order.stripePaymentIntentId) {
