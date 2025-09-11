@@ -24,14 +24,14 @@ function generateStrongPassword() {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
   const numbers = "0123456789";
-  const special = "!@#$%^&*()_+[]{}|;:,.<>?";
+  const special = "@"; // ✅ chỉ cho phép ký tự @
 
   // Đảm bảo có ít nhất 1 ký tự mỗi loại
   const mustHave = [
     upper[Math.floor(Math.random() * upper.length)],
     lower[Math.floor(Math.random() * lower.length)],
     numbers[Math.floor(Math.random() * numbers.length)],
-    special[Math.floor(Math.random() * special.length)],
+    special, // luôn có @
   ];
 
   // Đổ thêm các ký tự ngẫu nhiên cho đủ 8
@@ -47,6 +47,7 @@ function generateStrongPassword() {
     .map((x) => x.value)
     .join("");
 }
+
 
 class UserController {
   static async getAllUsers(req, res) {
