@@ -295,62 +295,72 @@ class CouponController {
       });
     }
 
-    const data = coupons.map((coupon) => {
-      const allowedUserIds = coupon.users.map((u) => u.userId);
-      const allowedSkuIds = coupon.products.map((p) => Number(p.skuId));
+    const data = coupons
+  .filter((coupon) => {
+    const usedCount = usedCountMap[coupon.id] || 0;
+    const userUsedCount = userUsedCountMap[coupon.id] || 0;
 
-      const userHasAccess = coupon.visibility === "public" || allowedUserIds.includes(userId);
-      const skuMatched =
-        coupon.applyScope === "all" ||
-        allowedSkuIds.length === 0 ||
-        skuIdsFromQuery.some((id) => allowedSkuIds.includes(id));
-      const minOrderValue = Number(coupon.minOrderValue || 0);
-      const orderValid = !coupon.minOrderValue || orderTotal >= minOrderValue;
+    const unlimited = coupon.totalQuantity === null || typeof coupon.totalQuantity === "undefined";
+    const hasRemainingUsage = unlimited ? true : usedCount < coupon.totalQuantity;
+    const perUserValid =
+      coupon.maxUsagePerUser == null || userUsedCount < coupon.maxUsagePerUser;
 
-      const usedCount = usedCountMap[coupon.id] || 0;
-      const userUsedCount = userUsedCountMap[coupon.id] || 0;
-      const unlimited = coupon.totalQuantity === null || typeof coupon.totalQuantity === "undefined";
-      const hasRemainingUsage = unlimited ? true : usedCount < coupon.totalQuantity;
-      const perUserValid =
-        coupon.maxUsagePerUser == null || userUsedCount < coupon.maxUsagePerUser;
+    const hasStarted = coupon.startTime <= now;
+    const stillValid = coupon.endTime >= now;
 
-      const hasStarted = coupon.startTime <= now;
-      const stillValid = coupon.endTime >= now;
+    // ⚠️ Nếu đã hết hạn, hết lượt, hoặc user hết số lần dùng → ẩn luôn
+    return stillValid && hasRemainingUsage && perUserValid;
+  })
+  .map((coupon) => {
+    const allowedUserIds = coupon.users.map((u) => u.userId);
+    const allowedSkuIds = coupon.products.map((p) => Number(p.skuId));
 
-      const isApplicable =
-        hasStarted && stillValid && userHasAccess && skuMatched && orderValid && hasRemainingUsage && perUserValid;
+    const userHasAccess = coupon.visibility === "public" || allowedUserIds.includes(userId);
+    const skuMatched =
+      coupon.applyScope === "all" ||
+      allowedSkuIds.length === 0 ||
+      skuIdsFromQuery.some((id) => allowedSkuIds.includes(id));
+    const minOrderValue = Number(coupon.minOrderValue || 0);
+    const orderValid = !coupon.minOrderValue || orderTotal >= minOrderValue;
 
-      let notApplicableReason = null;
-      if (!hasStarted) notApplicableReason = "Chưa tới thời gian áp dụng";
-      else if (!stillValid) notApplicableReason = "Mã đã hết hạn";
-      else if (!userHasAccess) notApplicableReason = "Bạn không có quyền sử dụng mã này";
-      else if (!skuMatched) notApplicableReason = "Sản phẩm không thỏa điều kiện voucher";
-      else if (!orderValid) notApplicableReason = `Đơn hàng chưa đạt giá trị tối thiểu ${minOrderValue.toLocaleString()}đ`;
-      else if (!hasRemainingUsage) notApplicableReason = "Mã đã hết lượt sử dụng";
-      else if (!perUserValid) notApplicableReason = "Bạn đã dùng tối đa số lần cho mã này";
+    const usedCount = usedCountMap[coupon.id] || 0;
+    const userUsedCount = userUsedCountMap[coupon.id] || 0;
 
-      return {
-        id: coupon.id,
-        code: coupon.code,
-        title: coupon.title,
-        type: coupon.type,
-        discountType: coupon.discountType,
-        discountValue: coupon.discountValue,
-        maxDiscountValue: coupon.maxDiscountValue,
-        minOrderValue: coupon.minOrderValue,
-        totalQuantity: coupon.totalQuantity,
-        maxUsagePerUser: coupon.maxUsagePerUser,
-        allowedSkuIds,
-        usedCount,
-        userUsedCount,
-        isApplicable,
-        notApplicableReason,
-        isActiveNow: hasStarted && stillValid,
-        isUpcoming: !hasStarted && stillValid,
-        startsInMs: !hasStarted ? coupon.startTime - now : 0,
-        expiryDate: coupon.endTime
-      };
-    });
+    const hasStarted = coupon.startTime <= now;
+    const stillValid = coupon.endTime >= now;
+
+    const isApplicable =
+      hasStarted && stillValid && userHasAccess && skuMatched && orderValid;
+
+    let notApplicableReason = null;
+    if (!hasStarted) notApplicableReason = "Chưa tới thời gian áp dụng";
+    else if (!userHasAccess) notApplicableReason = "Bạn không có quyền sử dụng mã này";
+    else if (!skuMatched) notApplicableReason = "Sản phẩm không thỏa điều kiện voucher";
+    else if (!orderValid) notApplicableReason = `Đơn hàng chưa đạt giá trị tối thiểu ${minOrderValue.toLocaleString()}đ`;
+
+    return {
+      id: coupon.id,
+      code: coupon.code,
+      title: coupon.title,
+      type: coupon.type,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      maxDiscountValue: coupon.maxDiscountValue,
+      minOrderValue: coupon.minOrderValue,
+      totalQuantity: coupon.totalQuantity,
+      maxUsagePerUser: coupon.maxUsagePerUser,
+      allowedSkuIds,
+      usedCount,
+      userUsedCount,
+      isApplicable,
+      notApplicableReason,
+      isActiveNow: hasStarted && stillValid,
+      isUpcoming: !hasStarted && stillValid,
+      startsInMs: !hasStarted ? coupon.startTime - now : 0,
+      expiryDate: coupon.endTime
+    };
+  });
+
 
     return res.json({ data });
   } catch (err) {
