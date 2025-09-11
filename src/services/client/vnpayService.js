@@ -87,87 +87,96 @@ function verifySignature(params, secureHash) {
 }
 
 async function refund({
-  orderCode,
-  transactionId,
-  amount,
-  transDate,
-  user = 'admin'
+  orderCode, // Tên tham số này gây nhầm lẫn. Nên đổi thành `vnpTxnRef`.
+  transactionId, // Tên tham số này gây nhầm lẫn. Nên đổi thành `vnpTransactionNo`.
+  amount,
+  transDate,
+  user = 'admin'
 }) {
-  const VNP_TMN_CODE = process.env.VNP_TMNCODE;
-  const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
+  const VNP_TMN_CODE = process.env.VNP_TMNCODE;
+  const VNP_HASHSECRET = process.env.VNP_HASH_SECRET.trim();
 
-  const REFUND_URL = 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction';
-  const now = moment().tz('Asia/Ho_Chi_Minh');
+  const REFUND_URL = 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction';
+  const now = moment().tz('Asia/Ho_Chi_Minh');
 
-  const vnp_RequestId = uuidv4().replace(/-/g, '').slice(0, 32);
-  const vnp_Version = '2.1.0';
-  const vnp_Command = 'refund';
-  const vnp_TransactionType = '02'; // Full refund
-  const vnp_TxnRef = orderCode;
-  const vnp_Amount = Math.round(+amount) * 100;
-  const vnp_TransactionNo = transactionId;
+  const vnp_RequestId = uuidv4().replace(/-/g, '').slice(0, 32);
+  const vnp_Version = '2.1.0';
+  const vnp_Command = 'refund';
+  const vnp_TransactionType = '02'; // Full refund
+  const vnp_TxnRef = orderCode; // Lỗi: Đây phải là order.vnpOrderId
+  const vnp_Amount = Math.round(+amount) * 100;
+  const vnp_TransactionNo = transactionId; // Lỗi: Đây phải là order.vnpTransactionId
 
-  // ✅ transDate đã là YYYYMMDDHHmmss rồi → giữ nguyên
-  const vnp_TransactionDate = typeof transDate === 'string'
-    ? transDate
-    : moment(transDate).format('YYYYMMDDHHmmss');
+  // Gỡ lỗi: Ghi log các giá trị ban đầu được truyền vào hàm refund
+  console.log("🔍 [VNPay Refund Debug] Parameters passed to refund function:");
+  console.log(` - orderCode (vnp_TxnRef): ${orderCode}`);
+  console.log(` - transactionId (vnp_TransactionNo): ${transactionId}`);
+  console.log(` - amount: ${amount}`);
+  console.log(` - transDate: ${transDate}`);
 
-  const vnp_CreateBy = user;
-  const vnp_CreateDate = now.format('YYYYMMDDHHmmss');
-  const vnp_IpAddr = '127.0.0.1';
-  const vnp_OrderInfo = `Refund order ${orderCode}`;
+  const vnp_TransactionDate = typeof transDate === 'string'
+    ? transDate
+    : moment(transDate).format('YYYYMMDDHHmmss');
 
-  const rawData = [
-    vnp_RequestId,
-    vnp_Version,
-    vnp_Command,
-    VNP_TMN_CODE,
-    vnp_TransactionType,
-    vnp_TxnRef,
-    vnp_Amount,
-    vnp_TransactionNo,
-    vnp_TransactionDate,
-    vnp_CreateBy,
-    vnp_CreateDate,
-    vnp_IpAddr,
-    vnp_OrderInfo
-  ].join('|');
+  const vnp_CreateBy = user;
+  const vnp_CreateDate = now.format('YYYYMMDDHHmmss');
+  const vnp_IpAddr = '127.0.0.1';
+  const vnp_OrderInfo = `Refund order ${orderCode}`;
 
-  const vnp_SecureHash = crypto
-    .createHmac('sha512', VNP_HASHSECRET)
-    .update(rawData)
-    .digest('hex');
+  const rawData = [
+    vnp_RequestId,
+    vnp_Version,
+    vnp_Command,
+    VNP_TMN_CODE,
+    vnp_TransactionType,
+    vnp_TxnRef,
+    vnp_Amount,
+    vnp_TransactionNo,
+    vnp_TransactionDate,
+    vnp_CreateBy,
+    vnp_CreateDate,
+    vnp_IpAddr,
+    vnp_OrderInfo
+  ].join('|');
 
-  const body = {
-    vnp_RequestId,
-    vnp_Version,
-    vnp_Command,
-    vnp_TmnCode: VNP_TMN_CODE,
-    vnp_TransactionType,
-    vnp_TxnRef,
-    vnp_Amount,
-    vnp_TransactionNo,
-    vnp_TransactionDate,
-    vnp_CreateBy,
-    vnp_CreateDate,
-    vnp_IpAddr,
-    vnp_OrderInfo,
-    vnp_SecureHash
-  };
+  const vnp_SecureHash = crypto
+    .createHmac('sha512', VNP_HASHSECRET)
+    .update(rawData)
+    .digest('hex');
 
-try {
-  const { data } = await axios.post(REFUND_URL, body, {
-    headers: { "Content-Type": "application/json" },
-    timeout: 15000,
-  });
+  const body = {
+    vnp_RequestId,
+    vnp_Version,
+    vnp_Command,
+    vnp_TmnCode: VNP_TMN_CODE,
+    vnp_TransactionType,
+    vnp_TxnRef,
+    vnp_Amount,
+    vnp_TransactionNo,
+    vnp_TransactionDate,
+    vnp_CreateBy,
+    vnp_CreateDate,
+    vnp_IpAddr,
+    vnp_OrderInfo,
+    vnp_SecureHash
+  };
 
-  console.log("📥 VNPay refund raw response:", data);
-  return data;
-} catch (err) {
-  console.error("❌ VNPay refund error:", err?.response?.data || err.message);
-  return err?.response?.data || { vnp_ResponseCode: "99", vnp_Message: err.message };
-}
+  // Gỡ lỗi: Ghi log toàn bộ body request trước khi gửi
+  console.log("📦 [VNPay Refund Debug] Final request body sent to VNPay:");
+  console.log(body);
 
+  try {
+    const { data } = await axios.post(REFUND_URL, body, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 15000,
+    });
+
+    console.log("📥 VNPay refund raw response:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ VNPay refund error:", err?.response?.data || err.message);
+    return err?.response?.data || { vnp_ResponseCode: "99", vnp_Message: err.message };
+  }
 }
 
 
