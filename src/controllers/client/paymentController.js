@@ -210,109 +210,97 @@ class PaymentController {
   }
 
   static async zaloPay(req, res) {
-  try {
-    const { orderId } = req.body;
-    const order = await Order.findByPk(orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
-    }
-
-    // Tạo link thanh toán
-    const zaloRes = await zaloPayService.createPaymentLink({
-      orderId: order.orderCode,
-      amount: order.finalPrice,
-      orderInfo: `Thanh toán đơn hàng ${order.orderCode}`,
-      embed_data: JSON.stringify({
-        orderCode: order.orderCode,   // 👈 để callback parse được
-        userId: order.userId,         // 👈 nếu muốn, có thể lưu thêm
-      }),
-      callback_url: `${process.env.BASE_URL}/api/payment/zalo-callback`, // 👈 nơi ZaloPay gọi về
-      redirect_url: `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`, // 👈 nơi user quay về
-    });
-
-    if (zaloRes.return_code !== 1) {
-      return res.status(400).json({
-        message: "Lỗi tạo thanh toán ZaloPay",
-        zaloRes,
-      });
-    }
-
-    // Có thể lưu zaloOrderId nếu muốn tracking
-    // order.zaloOrderId = zaloRes.app_trans_id;
-    // await order.save();
-
-    return res.json({ payUrl: zaloRes.order_url });
-  } catch (err) {
-    console.error("ZaloPay error:", err);
-    return res.status(500).json({ message: "Lỗi server khi tạo thanh toán ZaloPay" });
-  }
-}
-
- static async zaloCallback(req, res) {
-  try {
-    console.log("=====================================");
-    console.log("📝 [ZaloPay Callback] Bắt đầu xử lý callback");
-    
-    // Ghi log dữ liệu raw nhận được từ ZaloPay
-    console.log("📥 [ZaloPay Callback] Dữ liệu gốc (req.body):", req.body);
-
-    const rawData = req.body?.data || "{}";
-    const parsedData = JSON.parse(rawData);
-
-    // Ghi log dữ liệu sau khi parse JSON
-    console.log("📦 [ZaloPay Callback] Dữ liệu đã parse (parsedData):", parsedData);
-    
-    const { embed_data, zp_trans_id, app_trans_id } = parsedData;
-
-    // ✅ Lấy orderCode từ embed_data
-    let orderCode = null;
     try {
-      // Ghi log embed_data trước khi parse
-      console.log("📦 [ZaloPay Callback] embed_data:", embed_data);
-      const embed = JSON.parse(embed_data);
-      orderCode = embed.orderCode;
-      // Ghi log orderCode đã trích xuất
-      console.log("✅ [ZaloPay Callback] orderCode đã trích xuất:", orderCode);
+      const { orderId } = req.body;
+      const order = await Order.findByPk(orderId);
+      if (!order)
+        return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+
+      const zaloRes = await zaloPayService.createPaymentLink({
+        orderId: order.orderCode,
+        amount: order.finalPrice,
+        orderInfo: order.orderCode,
+      });
+
+      if (zaloRes.return_code !== 1) {
+        return res
+          .status(400)
+          .json({ message: "Lỗi tạo thanh toán ZaloPay", zaloRes });
+      }
+
+      // Optionally: lưu zaloOrderId nếu cần
+      // order.zaloOrderId = zaloRes.app_trans_id;
+      // await order.save();
+
+      return res.json({ payUrl: zaloRes.order_url });
     } catch (err) {
-      console.error("❌ [ZaloPay Callback] Lỗi khi parse embed_data:", err);
+      console.error("ZaloPay error:", err);
+      return res
+        .status(500)
+        .json({ message: "Lỗi server khi tạo thanh toán ZaloPay" });
     }
-
-    if (!orderCode) {
-      console.log("⚠️ [ZaloPay Callback] Thiếu orderCode");
-      return res.status(400).send("Thiếu orderCode");
-    }
-
-    const order = await Order.findOne({ where: { orderCode } });
-    if (!order) {
-      console.log(`⚠️ [ZaloPay Callback] Không tìm thấy đơn hàng với orderCode: ${orderCode}`);
-      return res.status(404).send("Không tìm thấy đơn hàng");
-    }
-
-    // Ghi log thông tin đơn hàng tìm được
-    console.log("🔎 [ZaloPay Callback] Tìm thấy đơn hàng:", order.toJSON());
-    
-    // ✅ Cập nhật trạng thái thanh toán
-    console.log(`➡️ [ZaloPay Callback] Cập nhật trạng thái thanh toán cho đơn hàng ${orderCode}`);
-    order.paymentStatus = "paid";
-    order.paymentTime = new Date();
-    if (zp_trans_id) order.zaloTransId = zp_trans_id;
-    if (app_trans_id) order.zaloAppTransId = app_trans_id;
-    await order.save();
-    
-    // Ghi log trạng thái sau khi lưu
-    console.log("✅ [ZaloPay Callback] Đã cập nhật trạng thái đơn hàng thành PAID");
-    console.log("=====================================");
-
-    // ====== GỬI THÔNG BÁO ======
-    // ... Phần này giữ nguyên ...
-
-    const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
-    return res.redirect(redirectUrl);
-  } catch (err) {
-    console.error("❌ Lỗi xử lý ZaloPay callback:", err);
-    return res.status(500).send("Server Error");
   }
-}
+  static async zaloCallback(req, res) {
+    try {
+      const rawData = req.body?.data || "{}";
+      const parsedData = JSON.parse(rawData);
+
+      const { embed_data, zp_trans_id, app_trans_id } = parsedData;
+
+      // ✅ Lấy orderCode từ embed_data
+      let orderCode = null;
+      try {
+        const embed = JSON.parse(embed_data);
+        orderCode = embed.orderCode;
+      } catch (err) {}
+
+      if (!orderCode) {
+        return res.status(400).send("Thiếu orderCode");
+      }
+
+      const order = await Order.findOne({ where: { orderCode } });
+      if (!order) {
+        return res.status(404).send("Không tìm thấy đơn hàng");
+      }
+
+      // ✅ Cập nhật trạng thái thanh toán
+      order.paymentStatus = "paid";
+      order.paymentTime = new Date();
+      if (zp_trans_id) order.zaloTransId = zp_trans_id;
+      if (app_trans_id) order.zaloAppTransId = app_trans_id; // ← THÊM DÒNG NÀY
+      await order.save();
+
+      // ====== GỬI THÔNG BÁO ======
+      const slug = `order-${order.orderCode}`;
+      const existingNoti = await Notification.findOne({ where: { slug } });
+
+      if (existingNoti) {
+        existingNoti.title = "Thanh toán thành công";
+        existingNoti.message = `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua ZaloPay.`;
+        existingNoti.startAt = new Date();
+        existingNoti.isActive = true;
+        await existingNoti.save();
+      } else {
+        await Notification.create({
+          userId: order.userId,
+          title: "Thanh toán thành công",
+          message: `Đơn hàng <strong>${order.orderCode}</strong> đã được thanh toán qua ZaloPay.`,
+          slug,
+          type: "order",
+          referenceId: order.id,
+          link: `/user-profile?orderCode=${order.orderCode}`,
+          startAt: new Date(),
+          isActive: true,
+        });
+      }
+
+      const redirectUrl = `${process.env.BASE_URL}/order-confirmation?orderCode=${order.orderCode}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      console.error("❌ Lỗi xử lý ZaloPay callback:", err);
+      return res.status(500).send("Server Error");
+    }
+  }
 
   static async vnpay(req, res) {
     try {
