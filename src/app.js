@@ -19,7 +19,7 @@ app.get('/health', (_req, res) => res.send('ok'));
 const allowOrigins = (process.env.CORS_ORIGIN || 'http://localhost:9999')
   .split(',')
   .map(s => s.trim());
-
+console.log('Allowing CORS for origins:', allowOrigins); // 👈 Thêm dòng này
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowOrigins.includes(origin)) {
