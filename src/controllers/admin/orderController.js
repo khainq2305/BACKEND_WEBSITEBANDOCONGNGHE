@@ -607,47 +607,52 @@ class OrderController {
         let sendNotification = false;
 
         switch (status) {
-          case "shipping":
-            clientNotifTitle = "Đơn hàng đang trên đường đến bạn";
-            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
-            sendNotification = true;
-            break;
-          case "delivered":
-            clientNotifTitle = "Đơn hàng đã được giao thành công";
-            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
-            sendNotification = true;
+  case "shipping":
+    clientNotifTitle = "Đơn hàng đang trên đường đến bạn";
+    clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao cho đơn vị vận chuyển. Bạn sẽ nhận được hàng trong vài ngày tới.`;
+    sendNotification = true;
+    break;
 
-            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
-              order.paymentStatus = "paid";
-              await order.save({ transaction: t });
-            }
+  case "delivered":
+  case "completed":
+    clientNotifTitle =
+      status === "delivered"
+        ? "Đơn hàng đã được giao thành công"
+        : "Đơn hàng đã hoàn tất";
+    clientNotifMessage =
+      status === "delivered"
+        ? `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`
+        : `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
+    sendNotification = true;
 
-            // 👉 CỘNG ĐIỂM NGAY KHI GIAO
-            if (order.rewardPoints && order.rewardPoints > 0) {
-              await UserPoint.create(
-                {
-                  userId: order.userId,
-                  orderId: order.id,
-                  points: order.rewardPoints,
-                  type: "earn",
-                  sourceType: "order",
-                  description: `Nhận ${order.rewardPoints} điểm từ đơn ${order.orderCode}`,
-                },
-                { transaction: t }
-              );
-            }
-            break;
+    if (order.paymentMethod?.code?.toLowerCase() === "cod") {
+      order.paymentStatus = "paid";
+      await order.save({ transaction: t });
+    }
 
-          case "completed":
-            clientNotifTitle = "Đơn hàng đã hoàn tất";
-            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
-            sendNotification = true;
-            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
-              order.paymentStatus = "paid";
-              await order.save({ transaction: t });
-            }
-            break;
-        }
+    // 👉 CỘNG ĐIỂM NGAY KHI delivered hoặc completed
+    if (order.rewardPoints && order.rewardPoints > 0) {
+      const existingPoints = await UserPoint.findOne({
+        where: { orderId: order.id, userId: order.userId, type: "earn" },
+        transaction: t,
+      });
+      if (!existingPoints) {
+        await UserPoint.create(
+          {
+            userId: order.userId,
+            orderId: order.id,
+            points: order.rewardPoints,
+            type: "earn",
+            sourceType: "order",
+            description: `Nhận ${order.rewardPoints} điểm từ đơn ${order.orderCode}`,
+          },
+          { transaction: t }
+        );
+      }
+    }
+    break;
+}
+
 
         if (sendNotification && order.userId) {
           const clientNotification = await Notification.create(

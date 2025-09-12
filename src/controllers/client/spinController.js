@@ -143,7 +143,7 @@ class SpinController {
                 const endTime = new Date();
                 endTime.setDate(startTime.getDate() + 7);
 
-                // 🔹 Tạo coupon mới usable (chỉ 1 lần)
+                // 🔹 Tạo coupon mới usable (chỉ 1 lần) → visibility: private
                 newCoupon = await Coupon.create(
                     {
                         code,
@@ -161,6 +161,7 @@ class SpinController {
                         maxUsagePerUser: 1,
                         isActive: true,
                         type: baseCoupon.type,
+                        visibility: "private", // 🔹 chỉ user trúng mới thấy
                     },
                     { transaction: t }
                 );
@@ -197,7 +198,6 @@ class SpinController {
             return res.status(500).json({ message: "Lỗi quay vòng" });
         }
     }
-
 
     // 📌 Lịch sử quay của user
     static async getHistory(req, res) {
