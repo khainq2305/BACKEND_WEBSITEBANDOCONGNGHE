@@ -78,6 +78,12 @@ const Order = sequelize.define(
       type: DataTypes.FLOAT,
       defaultValue: 0,
     },
+    rewardPoints: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+
     note: DataTypes.TEXT,
     shippingFee: DataTypes.DECIMAL(10, 2),
     totalPrice: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
@@ -91,21 +97,21 @@ const Order = sequelize.define(
     },
     payosOrderId: {
       type: DataTypes.BIGINT,
-      allowNull: true
+      allowNull: true,
     },
     payosTransactionId: {
       type: DataTypes.STRING,
-      allowNull: true
+      allowNull: true,
     },
     payosOrderCode: {
       type: DataTypes.BIGINT,
       allowNull: true,
-      comment: "Mã orderCode numeric dùng khi gọi PayOS API"
+      comment: "Mã orderCode numeric dùng khi gọi PayOS API",
     },
     payosCheckoutUrl: {
       type: DataTypes.TEXT,
       allowNull: true,
-      comment: "Link checkout PayOS để reuse khi thanh toán lại"
+      comment: "Link checkout PayOS để reuse khi thanh toán lại",
     },
 
     momoTransId: {

@@ -42,7 +42,10 @@ const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
 const { Sequelize, Op } = require("sequelize");
 const speakeasy = require("speakeasy");
-const { getTrackingByClientCode, getTrackingByOrderCode } = require("../../services/client/drivers/ghnService");
+const {
+  getTrackingByClientCode,
+  getTrackingByOrderCode,
+} = require("../../services/client/drivers/ghnService");
 
 const {
   generateOrderConfirmationHtml,
@@ -54,7 +57,7 @@ const mjml2html = require("mjml");
 const refundGateway = require("../../utils/refundGateway");
 const { processSkuPrices } = require("../../helpers/priceHelper");
 const ghnService = require("../../services/client/drivers/ghnService");
-const ghtkService = require('../../services/client/drivers/ghtkService');
+const ghtkService = require("../../services/client/drivers/ghtkService");
 
 const moment = require("moment");
 const ShippingService = require("../../services/client/shippingService");
@@ -83,7 +86,7 @@ class OrderController {
         addressId,
         items,
         note,
-         couponCodes = [], // 👈 nhận mảng từ FE
+        couponCodes = [], // 👈 nhận mảng từ FE
         paymentMethodId,
         cartItemIds = [],
         shippingProviderId,
@@ -320,18 +323,19 @@ class OrderController {
         });
       }
 
-
-      
-
-
       // ====== TÍNH PHÍ SHIP ======
       let shippingFee = Number(bodyShippingFee) || 0;
       let finalServiceCode = shippingService;
       let finalProviderId = shippingProviderId;
-      let calculatedLeadTime = shippingLeadTime ? new Date(shippingLeadTime) : null;
+      let calculatedLeadTime = shippingLeadTime
+        ? new Date(shippingLeadTime)
+        : null;
 
       if (shippingFee === 0 || !shippingProviderId) {
-        let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+        let weight = 0,
+          maxL = 0,
+          maxW = 0,
+          maxH = 0;
         for (const item of orderItemsToCreate) {
           const sku = skuMap.get(item.skuId);
           weight += (sku.weight || 500) * item.quantity;
@@ -341,7 +345,9 @@ class OrderController {
         }
         weight = Math.max(1, weight);
 
-        const defaultProvider = await ShippingProvider.findOne({ where: { code: "ghn" } });
+        const defaultProvider = await ShippingProvider.findOne({
+          where: { code: "ghn" },
+        });
         if (!defaultProvider) {
           throw new Error("Hãng vận chuyển mặc định không được tìm thấy.");
         }
@@ -362,145 +368,153 @@ class OrderController {
           serviceCode: finalServiceCode,
         };
 
-        const { fee, leadTime, serviceCode: newServiceCode } = await ShippingService.calcFee(calcFeeParams);
+        const {
+          fee,
+          leadTime,
+          serviceCode: newServiceCode,
+        } = await ShippingService.calcFee(calcFeeParams);
         shippingFee = fee;
         calculatedLeadTime = leadTime;
         finalServiceCode = newServiceCode || finalServiceCode;
         finalProviderId = defaultProvider.id;
       }
 
-// ====== ÁP COUPON ======
-let couponDiscount = 0;
-let shippingDiscount = 0;
-const appliedCoupons = [];
+      // ====== ÁP COUPON ======
+      let couponDiscount = 0;
+      let shippingDiscount = 0;
+      const appliedCoupons = [];
 
-if (Array.isArray(couponCodes) && couponCodes.length > 0) {
-  for (const code of couponCodes) {
-    const coupon = await Coupon.findOne({
-      where: {
-        code: code.trim(),
-        isActive: true,
-        startTime: { [Op.lte]: now },
-        endTime: { [Op.gte]: now },
-      },
-      paranoid: false,
-      transaction: t,
-      lock: t.LOCK.UPDATE, // khóa row để tránh dùng vượt khi nhiều request đồng thời
-    });
+      if (Array.isArray(couponCodes) && couponCodes.length > 0) {
+        for (const code of couponCodes) {
+          const coupon = await Coupon.findOne({
+            where: {
+              code: code.trim(),
+              isActive: true,
+              startTime: { [Op.lte]: now },
+              endTime: { [Op.gte]: now },
+            },
+            paranoid: false,
+            transaction: t,
+            lock: t.LOCK.UPDATE, // khóa row để tránh dùng vượt khi nhiều request đồng thời
+          });
 
-    if (!coupon) continue;
+          if (!coupon) continue;
 
-    // --- check maxUsagePerUser ---
-    if (coupon.maxUsagePerUser) {
-      const usedByUser = await OrderCoupon.count({
-        where: { couponId: coupon.id },
-        include: [{
-          model: Order,
-          as: "order",
-          where: {
-            userId: user.id,
-            status: { [Op.notIn]: ["cancelled", "failed"] }
+          // --- check maxUsagePerUser ---
+          if (coupon.maxUsagePerUser) {
+            const usedByUser = await OrderCoupon.count({
+              where: { couponId: coupon.id },
+              include: [
+                {
+                  model: Order,
+                  as: "order",
+                  where: {
+                    userId: user.id,
+                    status: { [Op.notIn]: ["cancelled", "failed"] },
+                  },
+                },
+              ],
+              transaction: t,
+            });
+            if (usedByUser >= coupon.maxUsagePerUser) continue;
           }
-        }],
-        transaction: t,
-      });
-      if (usedByUser >= coupon.maxUsagePerUser) continue;
-    }
 
-    // --- tính discount ---
-  if (coupon.type === "shipping") {
-    const discountValue = Number(coupon.discountValue);
-    if (discountValue === 0 || isNaN(discountValue)) { // Thêm isNaN để xử lý trường hợp null/undefined/string rỗng
-        console.log("Case: Freeship toàn phần. Set shippingDiscount = shippingFee");
-        shippingDiscount = shippingFee;
-    } else {
-        console.log("Case: Giảm giá cố định. Set shippingDiscount = Math.min(...)");
-        shippingDiscount = Math.min(discountValue, shippingFee);
-    }
+          // --- tính discount ---
+          if (coupon.type === "shipping") {
+            const discountValue = Number(coupon.discountValue);
+            if (discountValue === 0 || isNaN(discountValue)) {
+              // Thêm isNaN để xử lý trường hợp null/undefined/string rỗng
+              console.log(
+                "Case: Freeship toàn phần. Set shippingDiscount = shippingFee"
+              );
+              shippingDiscount = shippingFee;
+            } else {
+              console.log(
+                "Case: Giảm giá cố định. Set shippingDiscount = Math.min(...)"
+              );
+              shippingDiscount = Math.min(discountValue, shippingFee);
+            }
+          } else if (coupon.type === "discount") {
+            let discount =
+              coupon.discountType === "percent"
+                ? Math.floor((totalPrice * coupon.discountValue) / 100)
+                : Number(coupon.discountValue);
 
-    } else if (coupon.type === "discount") {
-      let discount = coupon.discountType === "percent"
-        ? Math.floor((totalPrice * coupon.discountValue) / 100)
-        : Number(coupon.discountValue);
+            if (coupon.maxDiscountValue && discount > coupon.maxDiscountValue) {
+              discount = coupon.maxDiscountValue;
+            }
+            couponDiscount += discount;
+          }
 
-      if (coupon.maxDiscountValue && discount > coupon.maxDiscountValue) {
-        discount = coupon.maxDiscountValue;
+          // --- trừ totalQuantity nếu có giới hạn ---
+          if (
+            coupon.totalQuantity !== null &&
+            coupon.totalQuantity !== undefined
+          ) {
+            await coupon.decrement("totalQuantity", { by: 1, transaction: t });
+          }
+
+          // --- ghi nhận coupon để xử lý sau khi tạo đơn ---
+          appliedCoupons.push(coupon);
+        }
       }
-      couponDiscount += discount;
-    }
 
-    // --- trừ totalQuantity nếu có giới hạn ---
-    if (coupon.totalQuantity !== null && coupon.totalQuantity !== undefined) {
-      await coupon.decrement("totalQuantity", { by: 1, transaction: t });
-    }
+      // bảo vệ: không giảm quá phí ship
+      shippingDiscount = Math.min(shippingDiscount, shippingFee);
 
-    // --- ghi nhận coupon để xử lý sau khi tạo đơn ---
-    appliedCoupons.push(coupon);
-  }
-}
+      const finalShippingFee = Math.max(0, shippingFee - shippingDiscount);
 
-// bảo vệ: không giảm quá phí ship
-shippingDiscount = Math.min(shippingDiscount, shippingFee);
+      // ====== XỬ LÝ ĐIỂM THƯỞNG ======
+      let pointDiscountAmount = 0;
+      if (usePoints && pointsToSpend > 0) {
+        const earned =
+          (await UserPoint.sum("points", {
+            where: {
+              userId: user.id,
+              type: "earn",
+              [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
+            },
+          })) || 0;
 
+        const spent =
+          (await UserPoint.sum("points", {
+            where: { userId: user.id, type: "spend" },
+          })) || 0;
 
-const finalShippingFee = Math.max(0, shippingFee - shippingDiscount);
+        const usablePoints = earned - spent;
+        if (usablePoints < pointsToSpend) {
+          await t.rollback();
+          return res
+            .status(400)
+            .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
+        }
 
-// ====== XỬ LÝ ĐIỂM THƯỞNG ======
-let pointDiscountAmount = 0;
-if (usePoints && pointsToSpend > 0) {
+        const redeemRate = 100; // 1 điểm = 100đ
+        pointDiscountAmount = pointsToSpend * redeemRate;
 
-  const earned = (await UserPoint.sum("points", {
-    where: {
-      userId: user.id,
-      type: "earn",
-      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
-    },
-  })) || 0;
+        const tempFinalPriceForPointCheck =
+          totalPrice - couponDiscount + shippingFee - shippingDiscount;
+        if (pointDiscountAmount > tempFinalPriceForPointCheck) {
+          pointDiscountAmount = tempFinalPriceForPointCheck;
+        }
+      }
 
-  const spent = (await UserPoint.sum("points", {
-    where: { userId: user.id, type: "spend" },
-  })) || 0;
+      // TÍNH FINAL PRICE MỚI VÀ CHÍNH XÁC
+      const finalPrice = Math.max(
+        0,
+        totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
+      );
 
-  const usablePoints = earned - spent;
-  if (usablePoints < pointsToSpend) {
-    await t.rollback();
-    return res
-      .status(400)
-      .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
-  }
-
-  const redeemRate = 100; // 1 điểm = 100đ
-  pointDiscountAmount = pointsToSpend * redeemRate;
-
-  const tempFinalPriceForPointCheck =
-    totalPrice - couponDiscount + shippingFee - shippingDiscount;
-  if (pointDiscountAmount > tempFinalPriceForPointCheck) {
-    pointDiscountAmount = tempFinalPriceForPointCheck;
-  }
-}
-
-
-
-    
-
-
-// TÍNH FINAL PRICE MỚI VÀ CHÍNH XÁC
-const finalPrice = Math.max(
-  0,
-  totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
-);
-
-console.table([
-  {
-    totalPrice,
-    shippingFee,
-    couponDiscount,
-    shippingDiscount,
-    pointDiscountAmount,
-    finalPrice,
-  },
-]);
-
+      console.table([
+        {
+          totalPrice,
+          shippingFee,
+          couponDiscount,
+          shippingDiscount,
+          pointDiscountAmount,
+          finalPrice,
+        },
+      ]);
 
       const paymentStatus = [
         "momo",
@@ -512,62 +526,63 @@ console.table([
       ].includes(validPayment.code.toLowerCase())
         ? "waiting"
         : validPayment.code.toLowerCase() === "internalwallet"
-          ? "paid"
-          : "unpaid";
-console.log({
-  totalPrice,
-  shippingFee,
-  shippingDiscount,
-  couponDiscount,
-  pointDiscountAmount,
-  finalPrice
-});
+        ? "paid"
+        : "unpaid";
+      console.log({
+        totalPrice,
+        shippingFee,
+        shippingDiscount,
+        couponDiscount,
+        pointDiscountAmount,
+        finalPrice,
+      });
 
-// ✅ Mới
-const newOrder = await Order.create(
-  {
-    userId: user.id,
-    userAddressId: selectedAddress.id,
-    totalPrice,
-    finalPrice,
-     shippingFee: finalShippingFee, // <-- LƯU PHÍ SHIP CUỐI CÙNG
-    couponDiscount,
-    shippingDiscount,
-    pointDiscount: pointDiscountAmount,
-    shippingProviderId: finalProviderId,
-    shippingService: finalServiceCode,
-    shippingLeadTime: calculatedLeadTime,
-    paymentMethodId,
-    note,
-    status: "processing",
-    paymentStatus,
-    orderCode: "temp",
-  },
-  { transaction: t }
-);
-
-
-
-
-
+      // ✅ Mới
+      const newOrder = await Order.create(
+        {
+          userId: user.id,
+          userAddressId: selectedAddress.id,
+          totalPrice,
+          finalPrice,
+          shippingFee: finalShippingFee, // <-- LƯU PHÍ SHIP CUỐI CÙNG
+          couponDiscount,
+          shippingDiscount,
+          pointDiscount: pointDiscountAmount,
+          shippingProviderId: finalProviderId,
+          shippingService: finalServiceCode,
+          shippingLeadTime: calculatedLeadTime,
+          paymentMethodId,
+          note,
+          status: "processing",
+          paymentStatus,
+          orderCode: "temp",
+        },
+        { transaction: t }
+      );
 
       newOrder.orderCode = `DH${new Date()
         .toISOString()
         .slice(0, 10)
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
-// 👉 Sau khi tạo newOrder thành công, thêm đoạn này ngay sau Order.create():
-for (const coupon of appliedCoupons) {
-  await OrderCoupon.create({
-    orderId: newOrder.id,
-    couponId: coupon.id,
-  }, { transaction: t });
-}
-      // 
+      // 👉 Sau khi tạo newOrder thành công, thêm đoạn này ngay sau Order.create():
+      for (const coupon of appliedCoupons) {
+        await OrderCoupon.create(
+          {
+            orderId: newOrder.id,
+            couponId: coupon.id,
+          },
+          { transaction: t }
+        );
+      }
+      //
       // ---------------- TẠO VẬN ĐƠN ----------------
       try {
         // tính khối lượng + kích thước đơn hàng
-        let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+        let weight = 0,
+          maxL = 0,
+          maxW = 0,
+          maxH = 0;
         for (const item of orderItemsToCreate) {
           const sku = skuMap.get(item.skuId);
           weight += (sku.weight || 500) * item.quantity;
@@ -582,7 +597,9 @@ for (const coupon of appliedCoupons) {
           selectedAddress.ward?.name,
           selectedAddress.district?.name,
           selectedAddress.province?.name,
-        ].filter(Boolean).join(", ");
+        ]
+          .filter(Boolean)
+          .join(", ");
 
         let deliveryRes = null;
 
@@ -602,7 +619,8 @@ for (const coupon of appliedCoupons) {
             length: maxL,
             width: maxW,
             height: maxH,
-            cod_amount: validPayment.code.toLowerCase() === "cod" ? finalPrice : 0,
+            cod_amount:
+              validPayment.code.toLowerCase() === "cod" ? finalPrice : 0,
             client_order_code: newOrder.orderCode,
             items: orderItemsForEmail,
             content: "Đơn hàng từ Cyberzone",
@@ -616,7 +634,8 @@ for (const coupon of appliedCoupons) {
             from_phone: "0878999894",
             from_address: process.env.SHOP_ADDRESS,
             from_province_name: process.env.SHOP_PROVINCE || "TP. Hồ Chí Minh",
-            from_district_name: process.env.SHOP_DISTRICT || "Thành phố Thủ Đức",
+            from_district_name:
+              process.env.SHOP_DISTRICT || "Thành phố Thủ Đức",
             to_name: selectedAddress.fullName,
             to_phone: selectedAddress.phone,
             to_address: fullUserAddress,
@@ -633,13 +652,16 @@ for (const coupon of appliedCoupons) {
           });
         }
 
-
         if (deliveryRes) {
-          await newOrder.update({
-            trackingCode: deliveryRes.trackingCode,
-            labelUrl: deliveryRes.labelUrl,
-            shippingLeadTime: deliveryRes.expectedDelivery || calculatedLeadTime,
-          }, { transaction: t });
+          await newOrder.update(
+            {
+              trackingCode: deliveryRes.trackingCode,
+              labelUrl: deliveryRes.labelUrl,
+              shippingLeadTime:
+                deliveryRes.expectedDelivery || calculatedLeadTime,
+            },
+            { transaction: t }
+          );
         }
       } catch (err) {
         console.error("Lỗi tạo vận đơn:", err.message);
@@ -647,7 +669,7 @@ for (const coupon of appliedCoupons) {
       }
       // ---------------- END VẬN ĐƠN ----------------
 
-      // 
+      //
       if (validPayment.code.toLowerCase() === "internalwallet") {
         const wallet = await Wallet.findOne({
           where: { userId: user.id },
@@ -672,8 +694,9 @@ for (const coupon of appliedCoupons) {
             walletId: wallet.id,
             type: "purchase",
             amount: finalPrice,
-            description: `Thanh toán đơn hàng ${newOrder?.orderCode || "[chưa tạo]"
-              }`,
+            description: `Thanh toán đơn hàng ${
+              newOrder?.orderCode || "[chưa tạo]"
+            }`,
           },
           { transaction: t }
         );
@@ -714,29 +737,13 @@ for (const coupon of appliedCoupons) {
         }
       }
 
-
-
-
-
-      // Tặng điểm mới cho user
       const earnRate = 10000; // 10k = 1 điểm
       const rewardPoints = Math.floor(finalPrice / earnRate);
 
-      if (rewardPoints > 0) {
-        await UserPoint.create(
-          {
-            userId: user.id,
-            orderId: newOrder.id,
-            points: rewardPoints, // 👈 để DƯƠNG
-            type: "earn",
-            description: `Tặng ${rewardPoints} điểm từ đơn ${newOrder.orderCode}`,
-            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // hết hạn sau 90 ngày
-          },
-          { transaction: t }
-        );
-      }
-
-
+      await newOrder.update(
+        { rewardPoints }, // lưu vào bảng orders
+        { transaction: t }
+      );
 
       const payCode = validPayment.code.toLowerCase();
 
@@ -788,8 +795,9 @@ for (const coupon of appliedCoupons) {
       await Notification.create(
         {
           title: "Có đơn hàng mới",
-          message: `Đơn ${newOrder.orderCode} vừa được đặt bởi ${buyer?.fullName || "Khách hàng"
-            }.`,
+          message: `Đơn ${newOrder.orderCode} vừa được đặt bởi ${
+            buyer?.fullName || "Khách hàng"
+          }.`,
           slug: `order-admin-${newOrder.orderCode}`,
           type: "order",
           targetRole: "admin",
@@ -843,25 +851,25 @@ for (const coupon of appliedCoupons) {
       }
 
       await t.commit();
-// ❌ Xoá các item đã chọn trong giỏ hàng
-if (cartItemIds.length > 0) {
-  try {
-    const cart = await Cart.findOne({
-      where: { userId: user.id },
-    });
+      // ❌ Xoá các item đã chọn trong giỏ hàng
+      if (cartItemIds.length > 0) {
+        try {
+          const cart = await Cart.findOne({
+            where: { userId: user.id },
+          });
 
-    if (cart) {
-      await CartItem.destroy({
-        where: {
-          id: cartItemIds,    // danh sách item FE gửi lên khi checkout
-          cartId: cart.id     // đảm bảo xoá đúng giỏ hàng của user
+          if (cart) {
+            await CartItem.destroy({
+              where: {
+                id: cartItemIds, // danh sách item FE gửi lên khi checkout
+                cartId: cart.id, // đảm bảo xoá đúng giỏ hàng của user
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Không thể xoá item giỏ hàng sau khi đặt:", err);
         }
-      });
-    }
-  } catch (err) {
-    console.error("Không thể xoá item giỏ hàng sau khi đặt:", err);
-  }
-}
+      }
 
       return res.status(201).json({
         message: "Đặt hàng thành công",
@@ -891,7 +899,6 @@ if (cartItemIds.length > 0) {
       return res.status(500).json({ message: errorMessage });
     }
   }
-
 
   static async getById(req, res) {
     try {
@@ -974,9 +981,11 @@ if (cartItemIds.length > 0) {
       ]);
 
       const address = order.shippingAddress;
-      const fullAddress = `${address?.streetAddress || ""}, ${address?.ward?.name || ""
-        }, ${address?.district?.name || ""}, ${address?.province?.name || ""
-        }`.trim();
+      const fullAddress = `${address?.streetAddress || ""}, ${
+        address?.ward?.name || ""
+      }, ${address?.district?.name || ""}, ${
+        address?.province?.name || ""
+      }`.trim();
 
       const products = order.items.map((item) => ({
         skuId: item.skuId,
@@ -1045,17 +1054,17 @@ if (cartItemIds.length > 0) {
         usedPoints: spentPoint?.points || 0,
         paymentMethod: order.paymentMethod
           ? {
-            id: order.paymentMethod.id,
-            name: order.paymentMethod.name,
-            code: order.paymentMethod.code,
-          }
+              id: order.paymentMethod.id,
+              name: order.paymentMethod.name,
+              code: order.paymentMethod.code,
+            }
           : null,
         shippingProvider: order.shippingProvider
           ? {
-            id: order.shippingProvider.id,
-            name: order.shippingProvider.name,
-            code: order.shippingProvider.code,
-          }
+              id: order.shippingProvider.id,
+              name: order.shippingProvider.name,
+              code: order.shippingProvider.code,
+            }
           : null,
         userAddress: {
           fullAddress,
@@ -1153,13 +1162,13 @@ if (cartItemIds.length > 0) {
         vnpOrderId: order.vnpOrderId,
         shippingAddress: order.shippingAddress
           ? {
-            fullName: order.shippingAddress.fullName,
-            phone: order.shippingAddress.phone,
-            address: order.shippingAddress.address,
-            province: order.shippingAddress.province?.name,
-            district: order.shippingAddress.district?.name,
-            ward: order.shippingAddress.ward?.name,
-          }
+              fullName: order.shippingAddress.fullName,
+              phone: order.shippingAddress.phone,
+              address: order.shippingAddress.address,
+              province: order.shippingAddress.province?.name,
+              district: order.shippingAddress.district?.name,
+              ward: order.shippingAddress.ward?.name,
+            }
           : null,
         paymentMethod: order.paymentMethod,
         shippingProvider: order.shippingProvider,
@@ -1172,10 +1181,10 @@ if (cartItemIds.length > 0) {
             finalPrice: item.finalPrice,
             product: item.Sku?.product
               ? {
-                id: item.Sku.product.id,
-                name: item.Sku.product.name,
-                thumbnail: item.Sku.product.thumbnail,
-              }
+                  id: item.Sku.product.id,
+                  name: item.Sku.product.name,
+                  thumbnail: item.Sku.product.thumbnail,
+                }
               : null,
           })) || [],
         returnRequest: order.returnRequest || null,
@@ -1312,42 +1321,42 @@ if (cartItemIds.length > 0) {
             : 0,
         returnRequest: order.returnRequest
           ? {
-            id: order.returnRequest.id,
-            status: order.returnRequest.status,
-            returnCode: order.returnRequest.returnCode,
-            deadlineChooseReturnMethod:
-              order.returnRequest.deadlineChooseReturnMethod,
-            returnMethod: order.returnRequest.returnMethod || null,
-            cancelledBy: order.returnRequest.cancelledBy || null,
-            items:
-              order.returnRequest.items?.map((item) => ({
-                skuId: item.skuId,
-                quantity: item.quantity,
-              })) || [],
-          }
+              id: order.returnRequest.id,
+              status: order.returnRequest.status,
+              returnCode: order.returnRequest.returnCode,
+              deadlineChooseReturnMethod:
+                order.returnRequest.deadlineChooseReturnMethod,
+              returnMethod: order.returnRequest.returnMethod || null,
+              cancelledBy: order.returnRequest.cancelledBy || null,
+              items:
+                order.returnRequest.items?.map((item) => ({
+                  skuId: item.skuId,
+                  quantity: item.quantity,
+                })) || [],
+            }
           : null,
         paymentMethod: order.paymentMethod
           ? {
-            id: order.paymentMethod.id,
-            name: order.paymentMethod.name,
-            code: order.paymentMethod.code,
-          }
+              id: order.paymentMethod.id,
+              name: order.paymentMethod.name,
+              code: order.paymentMethod.code,
+            }
           : null,
         shippingAddress: order.shippingAddress
           ? {
-            fullName: order.shippingAddress.fullName,
-            phone: order.shippingAddress.phone,
-            streetAddress: order.shippingAddress.streetAddress,
-            ward: {
-              name: order.shippingAddress.ward?.name,
-              code: order.shippingAddress.ward?.code,
-            },
-            district: {
-              name: order.shippingAddress.district?.name,
-              ghnCode: order.shippingAddress.district?.ghnCode,
-            },
-            province: { name: order.shippingAddress.province?.name },
-          }
+              fullName: order.shippingAddress.fullName,
+              phone: order.shippingAddress.phone,
+              streetAddress: order.shippingAddress.streetAddress,
+              ward: {
+                name: order.shippingAddress.ward?.name,
+                code: order.shippingAddress.ward?.code,
+              },
+              district: {
+                name: order.shippingAddress.district?.name,
+                ghnCode: order.shippingAddress.district?.ghnCode,
+              },
+              province: { name: order.shippingAddress.province?.name },
+            }
           : null,
         products: order.items.map((item) => {
           const productInfo = item.Sku?.product;
@@ -1399,11 +1408,15 @@ if (cartItemIds.length > 0) {
       const reasonText = typeof reason === "string" ? reason : reason?.reason;
 
       if (!reasonText?.trim()) {
-        return res.status(400).json({ message: "Lý do huỷ đơn không được bỏ trống" });
+        return res
+          .status(400)
+          .json({ message: "Lý do huỷ đơn không được bỏ trống" });
       }
 
       const order = await Order.findByPk(id, {
-        include: [{ model: PaymentMethod, as: "paymentMethod", attributes: ["code"] }],
+        include: [
+          { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
+        ],
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
@@ -1418,34 +1431,43 @@ if (cartItemIds.length > 0) {
       }
       if (["shipping", "delivered", "completed"].includes(order.status)) {
         await t.rollback();
-        return res.status(400).json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
+        return res
+          .status(400)
+          .json({ message: "Đơn hàng không thể huỷ ở trạng thái hiện tại" });
       }
 
       const paid = order.paymentStatus === "paid";
       const payCode = order.paymentMethod?.code?.toLowerCase();
 
       if (paid && ["momo", "vnpay", "stripe"].includes(payCode)) {
-        const payload = { orderCode: order.orderCode, amount: order.finalPrice };
+        const payload = {
+          orderCode: order.orderCode,
+          amount: order.finalPrice,
+        };
 
         if (payCode === "momo") {
           if (!order.momoTransId) {
-            return res.status(400).json({ message: "Thiếu thông tin giao dịch MoMo" });
+            return res
+              .status(400)
+              .json({ message: "Thiếu thông tin giao dịch MoMo" });
           }
           payload.momoTransId = order.momoTransId;
-       } else if (payCode === "vnpay") {
-         if (!order.vnpTransactionId || !order.paymentTime) {
-  await t.rollback();
-  return res.status(400).json({ message: "Thiếu thông tin giao dịch VNPay" });
-}
+        } else if (payCode === "vnpay") {
+          if (!order.vnpTransactionId || !order.paymentTime) {
+            await t.rollback();
+            return res
+              .status(400)
+              .json({ message: "Thiếu thông tin giao dịch VNPay" });
+          }
 
-payload.vnpTransactionId = order.vnpTransactionId;
-payload.originalAmount = Math.round(order.finalPrice); // như code cũ
-payload.transDate = order.paymentTime; // giữ nguyên format trả về từ VNPay
-
-        
-        } else if (payCode === "stripe") {
+          payload.vnpTransactionId = order.vnpTransactionId;
+          payload.originalAmount = Math.round(order.finalPrice); // như code cũ
+          payload.transDate = order.paymentTime; // giữ nguyên format trả về từ VNPay
+        } else if (payCode === "stripe") {
           if (!order.stripePaymentIntentId) {
-            return res.status(400).json({ message: "Thiếu stripePaymentIntentId" });
+            return res
+              .status(400)
+              .json({ message: "Thiếu stripePaymentIntentId" });
           }
           payload.stripePaymentIntentId = order.stripePaymentIntentId;
         }
@@ -1468,10 +1490,15 @@ payload.transDate = order.paymentTime; // giữ nguyên format trả về từ V
         (payCode === "internalwallet" && paid) ||
         (payCode === "atm" && paid)
       ) {
-        const wallet = await Wallet.findOne({ where: { userId: order.userId }, transaction: t });
+        const wallet = await Wallet.findOne({
+          where: { userId: order.userId },
+          transaction: t,
+        });
         if (!wallet) {
           await t.rollback();
-          return res.status(400).json({ message: "Không tìm thấy ví người dùng" });
+          return res
+            .status(400)
+            .json({ message: "Không tìm thấy ví người dùng" });
         }
 
         wallet.balance = (
@@ -1486,7 +1513,9 @@ payload.transDate = order.paymentTime; // giữ nguyên format trả về từ V
             orderId: order.id,
             type: "refund",
             amount: order.finalPrice,
-            description: `Hoàn tiền do huỷ đơn hàng ${order.orderCode} (${payCode.toUpperCase()})`,
+            description: `Hoàn tiền do huỷ đơn hàng ${
+              order.orderCode
+            } (${payCode.toUpperCase()})`,
           },
           { transaction: t }
         );
@@ -1503,7 +1532,10 @@ payload.transDate = order.paymentTime; // giữ nguyên format trả về từ V
       order.cancelReason = reasonText.trim();
       await order.save({ transaction: t });
 
-      const orderItems = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
+      const orderItems = await OrderItem.findAll({
+        where: { orderId: order.id },
+        transaction: t,
+      });
       for (const item of orderItems) {
         if (item.flashSaleId) {
           await FlashSaleItem.update(
@@ -1514,25 +1546,30 @@ payload.transDate = order.paymentTime; // giữ nguyên format trả về từ V
             { where: { id: item.flashSaleId }, transaction: t }
           );
         }
-        await Sku.increment({ stock: item.quantity }, { where: { id: item.skuId }, transaction: t });
+        await Sku.increment(
+          { stock: item.quantity },
+          { where: { id: item.skuId }, transaction: t }
+        );
       }
 
-     const earnedPoints = await UserPoint.findOne({
-  where: { orderId: order.id, userId: order.userId, type: "earn" },
-  transaction: t,
-});
+      const earnedPoints = await UserPoint.findOne({
+        where: { orderId: order.id, userId: order.userId, type: "earn" },
+        transaction: t,
+      });
 
-if (earnedPoints) {
-  await UserPoint.create({
-    userId: order.userId,
-    orderId: order.id,
-    points: -earnedPoints.points,
-    type: "refund", // hoặc "revoke" nếu bạn thêm enum mới
-    sourceType: "order",
-    description: `Thu hồi ${earnedPoints.points} điểm do huỷ đơn ${order.orderCode}`,
-  }, { transaction: t });
-}
-
+      if (earnedPoints) {
+        await UserPoint.create(
+          {
+            userId: order.userId,
+            orderId: order.id,
+            points: -earnedPoints.points,
+            type: "refund", // hoặc "revoke" nếu bạn thêm enum mới
+            sourceType: "order",
+            description: `Thu hồi ${earnedPoints.points} điểm do huỷ đơn ${order.orderCode}`,
+          },
+          { transaction: t }
+        );
+      }
 
       if (order.couponId != null) {
         await CouponUser.decrement("used", {
@@ -1554,7 +1591,9 @@ if (earnedPoints) {
         clientNotif = await Notification.create(
           {
             title: "Đơn hàng bị huỷ",
-            message: `Đơn ${order.orderCode} đã bị huỷ. Lý do: ${reasonText.trim()}`,
+            message: `Đơn ${
+              order.orderCode
+            } đã bị huỷ. Lý do: ${reasonText.trim()}`,
             slug,
             type: "order",
             targetRole: "client",
@@ -1573,7 +1612,9 @@ if (earnedPoints) {
       const adminNotif = await Notification.create(
         {
           title: "Có đơn hàng bị huỷ",
-          message: `Đơn ${order.orderCode} vừa bị huỷ bởi người dùng. Lý do: ${reasonText.trim()}`,
+          message: `Đơn ${
+            order.orderCode
+          } vừa bị huỷ bởi người dùng. Lý do: ${reasonText.trim()}`,
           slug: `admin-cancel-order-${order.orderCode}`,
           type: "order",
           targetRole: "admin",
@@ -1584,8 +1625,12 @@ if (earnedPoints) {
         { transaction: t }
       );
 
-      req.app.locals.io.to(`user-${order.userId}`).emit("new-client-notification", clientNotif);
-      req.app.locals.io.to("admin-room").emit("new-admin-notification", adminNotif);
+      req.app.locals.io
+        .to(`user-${order.userId}`)
+        .emit("new-client-notification", clientNotif);
+      req.app.locals.io
+        .to("admin-room")
+        .emit("new-admin-notification", adminNotif);
 
       const user = await User.findByPk(order.userId, { transaction: t });
       if (user?.email) {
@@ -1595,7 +1640,8 @@ if (earnedPoints) {
           userName: user.fullName || user.email || "Khách hàng",
           orderDetailUrl: `https://your-frontend-domain.com/user-profile/orders/${order.orderCode}`,
           companyName: "Cyberzone",
-          companyLogoUrl: "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
+          companyLogoUrl:
+            "https://res.cloudinary.com/dzrp2hsvh/image/upload/v1753761547/uploads/ohs6h11zyavrv2haky9f.png",
           companyAddress: "Trương Vĩnh Nguyên, phường Cái Răng, Cần Thơ",
           companyPhone: "0878999894",
           companySupportEmail: "contact@cyberzone.com",
@@ -1603,14 +1649,23 @@ if (earnedPoints) {
 
         const { html: emailHtml } = mjml2html(emailMjmlContent);
         try {
-          await sendEmail(user.email, `Đơn hàng ${order.orderCode} đã bị hủy`, emailHtml);
+          await sendEmail(
+            user.email,
+            `Đơn hàng ${order.orderCode} đã bị hủy`,
+            emailHtml
+          );
         } catch (emailErr) {
-          console.error(`[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`, emailErr);
+          console.error(
+            `[cancel] Lỗi gửi email huỷ đơn ${order.orderCode}:`,
+            emailErr
+          );
         }
       }
 
       await t.commit();
-      return res.status(200).json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
+      return res
+        .status(200)
+        .json({ message: "Huỷ đơn hàng thành công", orderId: order.id });
     } catch (err) {
       await t.rollback();
       console.error("[cancel][ERROR]", err);
@@ -1657,12 +1712,11 @@ if (earnedPoints) {
           "orderCode",
           "status",
           "totalPrice",
-          "finalPrice",          // ✅ thêm
-          "paymentStatus",       // ✅ thêm
+          "finalPrice", // ✅ thêm
+          "paymentStatus", // ✅ thêm
           "shippingProviderId",
           "shippingServiceId",
           "shippingFee",
-
 
           "createdAt",
           "updatedAt",
@@ -1676,10 +1730,12 @@ if (earnedPoints) {
 
       // fallback nếu finalPrice null → lấy totalPrice
       if (!plain.finalPrice || plain.finalPrice === 0) {
-        plain.finalPrice = plain.totalPrice || plain.items.reduce(
-          (acc, item) => acc + item.price * item.quantity,
-          0
-        );
+        plain.finalPrice =
+          plain.totalPrice ||
+          plain.items.reduce(
+            (acc, item) => acc + item.price * item.quantity,
+            0
+          );
       }
 
       // build địa chỉ
@@ -1698,7 +1754,9 @@ if (earnedPoints) {
         ward?.name,
         district?.name,
         province?.name,
-      ].filter(Boolean).join(", ");
+      ]
+        .filter(Boolean)
+        .join(", ");
 
       const responseData = {
         id: plain.id,
@@ -1718,7 +1776,6 @@ if (earnedPoints) {
         phone: plain.shippingAddress?.phone || "N/A",
         address: fullAddress || "Không xác định",
 
-
         products: plain.items.map((item) => ({
           name: item.Sku?.product?.name || "Sản phẩm",
           quantity: item.quantity,
@@ -1732,7 +1789,6 @@ if (earnedPoints) {
       res.status(500).json({ message: "Lỗi server", error: err.message });
     }
   }
-
 
   static async reorder(req, res) {
     try {
@@ -1903,7 +1959,6 @@ if (earnedPoints) {
           }
         })
       );
-
 
       const available = options.filter(Boolean);
       if (!available.length)

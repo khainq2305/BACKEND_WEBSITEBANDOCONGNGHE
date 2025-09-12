@@ -594,11 +594,9 @@ class OrderController {
 
         if (newIndex !== -1 && currentIndex !== -1 && newIndex < currentIndex) {
           await t.rollback();
-          return res
-            .status(400)
-            .json({
-              message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"`,
-            });
+          return res.status(400).json({
+            message: `Không thể chuyển trạng thái lùi từ "${order.status}" về "${status}"`,
+          });
         }
 
         order.status = status;
@@ -627,9 +625,25 @@ class OrderController {
             clientNotifTitle = "Đơn hàng đã hoàn tất";
             clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
             sendNotification = true;
+
             if (order.paymentMethod?.code?.toLowerCase() === "cod") {
               order.paymentStatus = "paid";
               await order.save({ transaction: t });
+            }
+
+            // 👉 CỘNG ĐIỂM Ở ĐÂY
+            if (order.rewardPoints && order.rewardPoints > 0) {
+              await UserPoint.create(
+                {
+                  userId: order.userId,
+                  orderId: order.id,
+                  points: order.rewardPoints,
+                  type: "earn",
+                  sourceType: "order",
+                  description: `Nhận ${order.rewardPoints} điểm từ đơn ${order.orderCode}`,
+                },
+                { transaction: t }
+              );
             }
             break;
         }
