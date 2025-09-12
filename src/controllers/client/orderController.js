@@ -498,15 +498,7 @@ class OrderController {
           pointDiscountAmount = tempFinalPriceForPointCheck;
         }
         // ✅ Add this to record the spent points
-        await UserPoint.create(
-          {
-            userId: user.id,
-            points: -pointsToSpend, // Use a negative value to represent a deduction
-            type: "spend",
-            description: `Đã sử dụng ${pointsToSpend} điểm cho đơn hàng [${newOrder.orderCode}]`,
-          },
-          { transaction: t }
-        );
+       
       }
 
       // TÍNH FINAL PRICE MỚI VÀ CHÍNH XÁC
@@ -597,6 +589,17 @@ class OrderController {
         .slice(0, 10)
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
+      if (usePoints && pointsToSpend > 0) {
+    await UserPoint.create(
+      {
+        userId: user.id,
+        points: -pointsToSpend,
+        type: "spend",
+        description: `Đã sử dụng ${pointsToSpend} điểm cho đơn hàng [${newOrder.orderCode}]`,
+      },
+      { transaction: t }
+    );
+}
       // 👉 Sau khi tạo newOrder thành công, thêm đoạn này ngay sau Order.create():
       for (const coupon of appliedCoupons) {
         await OrderCoupon.create(
