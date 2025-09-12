@@ -491,7 +491,17 @@ class OrderController {
 
         const redeemRate = 100; // 1 điểm = 100đ
         pointDiscountAmount = pointsToSpend * redeemRate;
-
+        // ✅ THÊM DÒNG NÀY ĐỂ TRỪ ĐIỂM
+        await UserPoint.create(
+          {
+            userId: user.id,
+            orderId: newOrder.id, // Liên kết giao dịch với đơn hàng
+            points: -pointsToSpend, // Giá trị âm để thể hiện điểm đã bị trừ
+            type: "spend",
+            description: `Sử dụng điểm cho đơn hàng #${newOrder.orderCode}`,
+          },
+          { transaction: t }
+        );
         const tempFinalPriceForPointCheck =
           totalPrice - couponDiscount + shippingFee - shippingDiscount;
         if (pointDiscountAmount > tempFinalPriceForPointCheck) {
