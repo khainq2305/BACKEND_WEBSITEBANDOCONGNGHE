@@ -11,21 +11,21 @@ const connection = new Sequelize(
     dialect: "mysql",
     logging: false,
     dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false,
-      },
       connectTimeout: 60000,
     },
-  pool: {
-  max: 20,
-  min: 0,
-  acquire: 60000,
-  idle: 10000,   // giữ ít hơn để tránh connection stale
-}
-
+    pool: {
+      max: 20,
+      min: 2,          // luôn giữ vài connection ấm
+      acquire: 60000,
+      idle: 30000,     // 30s thay vì 10s
+      evict: 1000,     // clear connection rác mỗi giây
+    },
+    retry: {
+      max: 3,          // auto retry query nếu connection drop
+    },
   }
 );
+
 
 connection
   .authenticate()

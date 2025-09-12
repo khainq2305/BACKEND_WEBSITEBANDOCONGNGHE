@@ -138,6 +138,11 @@ class SpinController {
                     code = generateCouponCode();
                 } while (await Coupon.findOne({ where: { code }, transaction: t }));
 
+                // 🔹 Thời gian hiệu lực: từ lúc quay → +7 ngày
+                const startTime = new Date();
+                const endTime = new Date();
+                endTime.setDate(startTime.getDate() + 7);
+
                 // 🔹 Tạo coupon mới usable (chỉ 1 lần)
                 newCoupon = await Coupon.create(
                     {
@@ -149,14 +154,13 @@ class SpinController {
                         discountValue: baseCoupon.discountValue,
                         minOrderValue: baseCoupon.minOrderValue,
                         maxDiscountValue: baseCoupon.maxDiscountValue,
-                        startTime: new Date(),
-                        endTime: baseCoupon.endTime,
+                        startTime,
+                        endTime,
                         totalQuantity: 1,
                         usedCount: 0,
                         maxUsagePerUser: 1,
                         isActive: true,
-                     type: baseCoupon.type,
-
+                        type: baseCoupon.type,
                     },
                     { transaction: t }
                 );
@@ -193,6 +197,7 @@ class SpinController {
             return res.status(500).json({ message: "Lỗi quay vòng" });
         }
     }
+
 
     // 📌 Lịch sử quay của user
     static async getHistory(req, res) {
