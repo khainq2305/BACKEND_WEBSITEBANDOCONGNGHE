@@ -516,8 +516,7 @@ class OrderController {
         },
       ]);
 
-      // ĐỔI const -> let
-      let paymentStatus = [
+      const paymentStatus = [
         "momo",
         "vnpay",
         "zalopay",
@@ -529,36 +528,14 @@ class OrderController {
         : validPayment.code.toLowerCase() === "internalwallet"
         ? "paid"
         : "unpaid";
-
-      // --- Fix bug 0đ & giới hạn gateway ---
-      if (finalPrice === 0) {
-        // Đơn miễn phí => không gọi gateway
-        paymentStatus = "paid";
-      } else if (
-        finalPrice < 1000 &&
-        ["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(
-          validPayment.code.toLowerCase()
-        )
-      ) {
-        await t.rollback();
-        return res.status(400).json({
-          message:
-            "Số tiền thanh toán tối thiểu là 1.000₫. Vui lòng bỏ bớt mã giảm giá/điểm.",
-          code: "AMOUNT_TOO_SMALL",
-        });
-      } else if (
-        finalPrice > 50000000 &&
-        ["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(
-          validPayment.code.toLowerCase()
-        )
-      ) {
-        await t.rollback();
-        return res.status(400).json({
-          message:
-            "Số tiền thanh toán vượt mức tối đa 50.000.000₫. Vui lòng liên hệ hỗ trợ.",
-          code: "AMOUNT_TOO_LARGE",
-        });
-      }
+      console.log({
+        totalPrice,
+        shippingFee,
+        shippingDiscount,
+        couponDiscount,
+        pointDiscountAmount,
+        finalPrice,
+      });
 
       // ✅ Mới
       const newOrder = await Order.create(
