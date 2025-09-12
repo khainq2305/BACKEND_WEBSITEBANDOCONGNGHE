@@ -504,23 +504,29 @@ class OrderController {
         0,
         totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
       );
-// ⚡ Chặn thanh toán online khi số tiền không hợp lệ
-if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment.code.toLowerCase())) {
-  if (finalPrice < 1000) {
-    await t.rollback();
-    return res.status(400).json({
-      message: "Số tiền thanh toán tối thiểu cho cổng thanh toán là 1,000 VND.",
-      code: "AMOUNT_TOO_SMALL",
-    });
-  }
-  if (finalPrice > 50_000_000) {
-    await t.rollback();
-    return res.status(400).json({
-      message: "Số tiền thanh toán tối đa cho cổng thanh toán là 50,000,000 VND.",
-      code: "AMOUNT_TOO_LARGE",
-    });
-  }
-}
+      // ⚡ Chặn thanh toán online khi số tiền không hợp lệ
+      if (
+        ["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(
+          validPayment.code.toLowerCase()
+        )
+      ) {
+        if (finalPrice < 1000) {
+          await t.rollback();
+          return res.status(400).json({
+            message:
+              "Số tiền thanh toán tối thiểu cho cổng thanh toán là 1,000 VND.",
+            code: "AMOUNT_TOO_SMALL",
+          });
+        }
+        if (finalPrice > 50_000_000) {
+          await t.rollback();
+          return res.status(400).json({
+            message:
+              "Số tiền thanh toán tối đa cho cổng thanh toán là 50,000,000 VND.",
+            code: "AMOUNT_TOO_LARGE",
+          });
+        }
+      }
 
       console.table([
         {
@@ -979,23 +985,6 @@ if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment
       if (!order)
         return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
 
-      const [earnedPoint, spentPoint] = await Promise.all([
-        UserPoint.findOne({
-          where: {
-            userId: user?.id ?? order.userId,
-            orderId: order.id,
-            type: "earn",
-          },
-        }),
-        UserPoint.findOne({
-          where: {
-            userId: user?.id ?? order.userId,
-            orderId: order.id,
-            type: "spend",
-          },
-        }),
-      ]);
-
       const address = order.shippingAddress;
       const fullAddress = `${address?.streetAddress || ""}, ${
         address?.ward?.name || ""
@@ -1054,6 +1043,7 @@ if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment
         finalPrice: order.finalPrice,
         shippingFee: order.shippingFee,
         shippingDiscount: order.shippingDiscount,
+
         couponDiscount: order.couponDiscount,
         productDiscount,
         paymentStatus: order.paymentStatus,
@@ -1066,8 +1056,9 @@ if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment
         completedAt: order.completedAt,
         cancelledAt: order.cancelledAt,
         returnedAt: order.returnedAt,
-        rewardPoints: earnedPoint?.points || 0,
-        usedPoints: spentPoint?.points || 0,
+        rewardPoints: order.rewardPoints || 0, // thay vì earnedPoint?.points
+        usedPoints: order.usedPoints || 0, // thay vì spentPoint?.points
+
         paymentMethod: order.paymentMethod
           ? {
               id: order.paymentMethod.id,
@@ -1331,10 +1322,9 @@ if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment
         expectedDelivery: order.shippingLeadTime
           ? new Date(order.shippingLeadTime).toISOString()
           : null,
-        rewardPoints:
-          order.pointLogs && order.pointLogs.length > 0
-            ? order.pointLogs.reduce((sum, p) => sum + p.points, 0)
-            : 0,
+        rewardPoints: order.rewardPoints || 0,
+        usedPoints: order.usedPoints || 0, // nếu muốn hiển thị
+
         returnRequest: order.returnRequest
           ? {
               id: order.returnRequest.id,
