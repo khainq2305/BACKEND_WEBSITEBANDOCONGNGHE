@@ -21,9 +21,12 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage,
   limits: {
-    fieldSize: 25 * 1024 * 1024, 
-    fileSize: 20 * 1024 * 1024, 
-    files: 30                    
+    // Tăng fileSize lên 100MB để cho phép tải video có dung lượng lớn
+    fileSize: 100 * 1024 * 1024, // 100 MB
+    // fieldSize là giới hạn tổng kích thước các trường text, có thể tăng lên để đảm bảo
+    fieldSize: 50 * 1024 * 1024, // 50 MB (hoặc tuỳ chỉnh)
+    // frontend cho phép tối đa 6 ảnh và 1 video, tổng là 7 file
+    files: 7,
   }
 });
 
