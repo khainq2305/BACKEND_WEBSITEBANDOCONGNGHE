@@ -616,22 +616,13 @@ class OrderController {
             clientNotifTitle = "Đơn hàng đã được giao thành công";
             clientNotifMessage = `Đơn hàng ${order.orderCode} đã được giao đến bạn. Cảm ơn bạn đã mua sắm tại Cyberzone! Vui lòng đánh giá sản phẩm để nhận thêm ưu đãi.`;
             sendNotification = true;
-            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
-              order.paymentStatus = "paid";
-              await order.save({ transaction: t });
-            }
-            break;
-          case "completed":
-            clientNotifTitle = "Đơn hàng đã hoàn tất";
-            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
-            sendNotification = true;
 
             if (order.paymentMethod?.code?.toLowerCase() === "cod") {
               order.paymentStatus = "paid";
               await order.save({ transaction: t });
             }
 
-            // 👉 CỘNG ĐIỂM Ở ĐÂY
+            // 👉 CỘNG ĐIỂM NGAY KHI GIAO
             if (order.rewardPoints && order.rewardPoints > 0) {
               await UserPoint.create(
                 {
@@ -644,6 +635,16 @@ class OrderController {
                 },
                 { transaction: t }
               );
+            }
+            break;
+
+          case "completed":
+            clientNotifTitle = "Đơn hàng đã hoàn tất";
+            clientNotifMessage = `Đơn hàng ${order.orderCode} đã được hoàn tất thành công. Cảm ơn bạn đã mua sắm tại Cyberzone!`;
+            sendNotification = true;
+            if (order.paymentMethod?.code?.toLowerCase() === "cod") {
+              order.paymentStatus = "paid";
+              await order.save({ transaction: t });
             }
             break;
         }

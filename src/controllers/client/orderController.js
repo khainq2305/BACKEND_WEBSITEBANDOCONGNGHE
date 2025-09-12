@@ -504,6 +504,23 @@ class OrderController {
         0,
         totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
       );
+// ⚡ Chặn thanh toán online khi số tiền không hợp lệ
+if (["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(validPayment.code.toLowerCase())) {
+  if (finalPrice < 1000) {
+    await t.rollback();
+    return res.status(400).json({
+      message: "Số tiền thanh toán tối thiểu cho cổng thanh toán là 1,000 VND.",
+      code: "AMOUNT_TOO_SMALL",
+    });
+  }
+  if (finalPrice > 50_000_000) {
+    await t.rollback();
+    return res.status(400).json({
+      message: "Số tiền thanh toán tối đa cho cổng thanh toán là 50,000,000 VND.",
+      code: "AMOUNT_TOO_LARGE",
+    });
+  }
+}
 
       console.table([
         {
@@ -536,7 +553,6 @@ class OrderController {
         pointDiscountAmount,
         finalPrice,
       });
-
       // ✅ Mới
       const newOrder = await Order.create(
         {
