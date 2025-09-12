@@ -295,7 +295,7 @@ class CouponController {
       });
     }
 
-    const data = coupons
+ const data = coupons
   .filter((coupon) => {
     const usedCount = usedCountMap[coupon.id] || 0;
     const userUsedCount = userUsedCountMap[coupon.id] || 0;
@@ -308,7 +308,12 @@ class CouponController {
     const hasStarted = coupon.startTime <= now;
     const stillValid = coupon.endTime >= now;
 
-    // ⚠️ Nếu đã hết hạn, hết lượt, hoặc user hết số lần dùng → ẩn luôn
+    const allowedUserIds = coupon.users.map((u) => u.userId);
+    const userHasAccess = coupon.visibility === "public" || allowedUserIds.includes(userId);
+
+    // ⚠️ Nếu private nhưng user không có quyền → loại bỏ khỏi kết quả luôn
+    if (!userHasAccess) return false;
+
     return stillValid && hasRemainingUsage && perUserValid;
   })
   .map((coupon) => {
@@ -334,7 +339,6 @@ class CouponController {
 
     let notApplicableReason = null;
     if (!hasStarted) notApplicableReason = "Chưa tới thời gian áp dụng";
-    else if (!userHasAccess) notApplicableReason = "Bạn không có quyền sử dụng mã này";
     else if (!skuMatched) notApplicableReason = "Sản phẩm không thỏa điều kiện voucher";
     else if (!orderValid) notApplicableReason = `Đơn hàng chưa đạt giá trị tối thiểu ${minOrderValue.toLocaleString()}đ`;
 
@@ -360,6 +364,7 @@ class CouponController {
       expiryDate: coupon.endTime
     };
   });
+
 
 
     return res.json({ data });
