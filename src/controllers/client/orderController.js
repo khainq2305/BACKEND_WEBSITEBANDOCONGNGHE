@@ -58,7 +58,7 @@ const refundGateway = require("../../utils/refundGateway");
 const { processSkuPrices } = require("../../helpers/priceHelper");
 const ghnService = require("../../services/client/drivers/ghnService");
 const ghtkService = require("../../services/client/drivers/ghtkService");
-
+const { QueryTypes } = require("sequelize"); // 👈 thêm dòng này
 const moment = require("moment");
 const ShippingService = require("../../services/client/shippingService");
 async function finalizeCancellation(order, transaction, res, reason = null) {
@@ -467,21 +467,25 @@ class OrderController {
       // ====== XỬ LÝ ĐIỂM THƯỞNG ======
       let pointDiscountAmount = 0;
       if (usePoints && pointsToSpend > 0) {
-        const earned =
-          (await UserPoint.sum("points", {
-            where: {
-              userId: user.id,
-              type: "earn",
-              [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
-            },
-          })) || 0;
+        // Tính điểm khả dụng giống hệt getUserPoints
+        const [row] = await sequelize.query(
+          `SELECT COALESCE(SUM(
+       CASE
+         WHEN type IN ('spend','expired') THEN -points
+         ELSE points
+       END
+     ), 0) AS totalPoints
+     FROM userpoints
+     WHERE userId = :userId`,
+          {
+            type: QueryTypes.SELECT,
+            replacements: { userId: user.id },
+            transaction: t,
+          }
+        );
 
-        const spent =
-          (await UserPoint.sum("points", {
-            where: { userId: user.id, type: "spend" },
-          })) || 0;
+        const usablePoints = Number(row.totalPoints) || 0;
 
-        const usablePoints = earned - spent;
         if (usablePoints < pointsToSpend) {
           await t.rollback();
           return res
@@ -493,12 +497,10 @@ class OrderController {
         pointDiscountAmount = pointsToSpend * redeemRate;
 
         const tempFinalPriceForPointCheck =
-          totalPrice - couponDiscount + shippingFee - shippingDiscount;
+          totalPrice - couponDiscount + finalShippingFee;
         if (pointDiscountAmount > tempFinalPriceForPointCheck) {
           pointDiscountAmount = tempFinalPriceForPointCheck;
         }
-        // ✅ Add this to record the spent points
-       
       }
 
       // TÍNH FINAL PRICE MỚI VÀ CHÍNH XÁC
@@ -506,6 +508,7 @@ class OrderController {
         0,
         totalPrice - couponDiscount + finalShippingFee - pointDiscountAmount
       );
+
       // ⚡ Chặn thanh toán online khi số tiền không hợp lệ
       if (
         ["momo", "vnpay", "zalopay", "atm", "stripe", "payos"].includes(
@@ -590,16 +593,17 @@ class OrderController {
         .replace(/-/g, "")}-${String(newOrder.id).padStart(5, "0")}`;
       await newOrder.save({ transaction: t });
       if (usePoints && pointsToSpend > 0) {
-    await UserPoint.create(
-      {
-        userId: user.id,
-        points: -pointsToSpend,
-        type: "spend",
-        description: `Đã sử dụng ${pointsToSpend} điểm cho đơn hàng [${newOrder.orderCode}]`,
-      },
-      { transaction: t }
-    );
-}
+        await UserPoint.create(
+          {
+            userId: user.id,
+            points: pointsToSpend, // ✅ lưu dương
+            type: "spend",
+            description: `Đã sử dụng ${pointsToSpend} điểm cho đơn hàng [${newOrder.orderCode}]`,
+          },
+          { transaction: t }
+        );
+      }
+
       // 👉 Sau khi tạo newOrder thành công, thêm đoạn này ngay sau Order.create():
       for (const coupon of appliedCoupons) {
         await OrderCoupon.create(
@@ -1589,6 +1593,25 @@ class OrderController {
           { transaction: t }
         );
       }
+// Hoàn lại điểm đã dùng khi đặt đơn
+const spentPoints = await UserPoint.findOne({
+  where: { orderId: order.id, userId: order.userId, type: "spend" },
+  transaction: t,
+});
+
+if (spentPoints) {
+  await UserPoint.create(
+    {
+      userId: order.userId,
+      orderId: order.id,
+      points: spentPoints.points, // trả lại đúng số điểm đã trừ
+      type: "refund", // hoặc "restore"
+      sourceType: "order",
+      description: `Hoàn lại ${spentPoints.points} điểm do huỷ đơn ${order.orderCode}`,
+    },
+    { transaction: t }
+  );
+}
 
       if (order.couponId != null) {
         await CouponUser.decrement("used", {

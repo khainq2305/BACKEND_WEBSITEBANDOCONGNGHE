@@ -4,22 +4,19 @@ const { QueryTypes } = require('sequelize');
 
 class UserController {
 
- static async getUserPoints(req, res) {
+static async getUserPoints(req, res) {
   try {
     const userId = req.user.id;
 
+    // 👉 Tổng điểm khả dụng
     const [result] = await sequelize.query(
       `SELECT
-       SUM(
-  CASE
-    WHEN type = 'earn' THEN points
-    WHEN type = 'spend' THEN -points
-    WHEN type = 'expired' THEN points
-    WHEN type = 'refund' THEN points
-    ELSE 0
-  END
-) AS totalPoints
-
+         COALESCE(SUM(
+           CASE
+             WHEN type IN ('spend','expired') THEN -points
+             ELSE points
+           END
+         ), 0) AS totalPoints
        FROM userpoints
        WHERE userId = :userId`,
       {
@@ -27,9 +24,10 @@ class UserController {
         replacements: { userId },
       }
     );
+
     const totalPoints = result.totalPoints || 0;
 
-    
+    // 👉 Điểm sắp hết hạn trong 7 ngày
     const [expiringRow] = await sequelize.query(
       `SELECT
          COALESCE(SUM(points), 0) AS expiringSoon,
@@ -46,13 +44,13 @@ class UserController {
     );
 
     return res.json({
-      totalPoints,
-      expiringSoon: Number(expiringRow.expiringSoon || 0),
-      expireDate: expiringRow.expireDate || null
+      totalPoints,                               // điểm hiện tại còn dùng được
+      expiringSoon: Number(expiringRow.expiringSoon || 0), // sắp hết hạn trong 7 ngày
+      expireDate: expiringRow.expireDate || null           // ngày gần nhất bị hết hạn
     });
   } catch (err) {
-    console.error('❌ Lỗi getUserPoints:', err);
-    return res.status(500).json({ message: 'Lỗi server' });
+    console.error("❌ Lỗi getUserPoints:", err);
+    return res.status(500).json({ message: "Lỗi server" });
   }
 }
 

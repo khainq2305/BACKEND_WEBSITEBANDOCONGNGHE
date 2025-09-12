@@ -177,11 +177,9 @@ class ReturnController {
       const next = flow[request.status] || [];
       if (!next.includes(status)) {
         await t.rollback();
-        return res
-          .status(400)
-          .json({
-            message: `Không thể chuyển trạng thái từ "${request.status}" → "${status}"`,
-          });
+        return res.status(400).json({
+          message: `Không thể chuyển trạng thái từ "${request.status}" → "${status}"`,
+        });
       }
 
       if (request.status === "pending" && status === "approved") {
@@ -255,22 +253,51 @@ class ReturnController {
           );
           request.order.paymentStatus = "refunded";
           // === Thu hồi điểm thưởng nếu có ===
-const earnedPoints = await UserPoint.findOne({
-  where: { orderId: request.order.id, userId: request.order.userId, type: "earn" },
-  transaction: t,
-});
+          const earnedPoints = await UserPoint.findOne({
+            where: {
+              orderId: request.order.id,
+              userId: request.order.userId,
+              type: "earn",
+            },
+            transaction: t,
+          });
 
-if (earnedPoints) {
-  await UserPoint.create({
-    userId: request.order.userId,
-    orderId: request.order.id,
-    points: -earnedPoints.points,
-    type: "refund",
-    sourceType: "order",
-    description: `Thu hồi ${earnedPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
-  }, { transaction: t });
-}
+          if (earnedPoints) {
+            await UserPoint.create(
+              {
+                userId: request.order.userId,
+                orderId: request.order.id,
+                points: -earnedPoints.points,
+                type: "refund",
+                sourceType: "order",
+                description: `Thu hồi ${earnedPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
+              },
+              { transaction: t }
+            );
+          }
+          // === Hoàn lại điểm đã sử dụng nếu có ===
+          const spentPoints = await UserPoint.findOne({
+            where: {
+              orderId: request.order.id,
+              userId: request.order.userId,
+              type: "spend",
+            },
+            transaction: t,
+          });
 
+          if (spentPoints) {
+            await UserPoint.create(
+              {
+                userId: request.order.userId,
+                orderId: request.order.id,
+                points: spentPoints.points, // trả lại đúng số điểm đã trừ
+                type: "refund",
+                sourceType: "order",
+                description: `Hoàn lại ${spentPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
+              },
+              { transaction: t }
+            );
+          }
         } else {
           if (payCode === "momo") {
             if (!request.order.momoTransId) {
@@ -306,22 +333,51 @@ if (earnedPoints) {
           request.order.paymentStatus = "refunded";
           request.order.gatewayTransId = transId || null;
           // === Thu hồi điểm thưởng nếu có ===
-const earnedPoints = await UserPoint.findOne({
-  where: { orderId: request.order.id, userId: request.order.userId, type: "earn" },
-  transaction: t,
-});
+          const earnedPoints = await UserPoint.findOne({
+            where: {
+              orderId: request.order.id,
+              userId: request.order.userId,
+              type: "earn",
+            },
+            transaction: t,
+          });
 
-if (earnedPoints) {
-  await UserPoint.create({
-    userId: request.order.userId,
-    orderId: request.order.id,
-    points: -earnedPoints.points,
-    type: "refund",
-    sourceType: "order",
-    description: `Thu hồi ${earnedPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
-  }, { transaction: t });
-}
+          if (earnedPoints) {
+            await UserPoint.create(
+              {
+                userId: request.order.userId,
+                orderId: request.order.id,
+                points: -earnedPoints.points,
+                type: "refund",
+                sourceType: "order",
+                description: `Thu hồi ${earnedPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
+              },
+              { transaction: t }
+            );
+          }
+          // === Hoàn lại điểm đã sử dụng nếu có ===
+          const spentPoints = await UserPoint.findOne({
+            where: {
+              orderId: request.order.id,
+              userId: request.order.userId,
+              type: "spend",
+            },
+            transaction: t,
+          });
 
+          if (spentPoints) {
+            await UserPoint.create(
+              {
+                userId: request.order.userId,
+                orderId: request.order.id,
+                points: spentPoints.points, // trả lại đúng số điểm đã trừ
+                type: "refund",
+                sourceType: "order",
+                description: `Hoàn lại ${spentPoints.points} điểm do trả hàng đơn ${request.order.orderCode}`,
+              },
+              { transaction: t }
+            );
+          }
         }
 
         // 3. Cập nhật trạng thái
