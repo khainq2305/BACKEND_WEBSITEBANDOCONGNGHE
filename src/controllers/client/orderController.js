@@ -493,7 +493,7 @@ class OrderController {
             .json({ message: `Bạn chỉ có ${usablePoints} điểm khả dụng.` });
         }
 
-        const redeemRate = 100; // 1 điểm = 100đ
+        const redeemRate = 10; // 1 điểm = 100đ
         pointDiscountAmount = pointsToSpend * redeemRate;
 
         const tempFinalPriceForPointCheck =
@@ -596,8 +596,10 @@ class OrderController {
         await UserPoint.create(
           {
             userId: user.id,
-            points: pointsToSpend, // ✅ lưu dương
+            orderId: newOrder.id, // <--- BẮT BUỘC: gán orderId
+            points: pointsToSpend, // số điểm đã trừ (giữ nguyên format của bạn)
             type: "spend",
+            sourceType: "order", // tuỳ schema nếu có cột này
             description: `Đã sử dụng ${pointsToSpend} điểm cho đơn hàng [${newOrder.orderCode}]`,
           },
           { transaction: t }
@@ -1575,43 +1577,31 @@ class OrderController {
         );
       }
 
-      const earnedPoints = await UserPoint.findOne({
-        where: { orderId: order.id, userId: order.userId, type: "earn" },
+      const spentPoints = await UserPoint.findAll({
+        where: { orderId: order.id, userId: order.userId, type: "spend" },
         transaction: t,
       });
 
-      if (earnedPoints) {
+      console.log(
+        "[cancel] spentPoints:",
+        spentPoints.map((sp) => sp.toJSON?.() || sp)
+      );
+
+      for (const sp of spentPoints) {
+        console.log(`[cancel] Hoàn lại điểm: ${sp.points}`);
         await UserPoint.create(
           {
             userId: order.userId,
             orderId: order.id,
-            points: -earnedPoints.points,
-            type: "refund", // hoặc "revoke" nếu bạn thêm enum mới
+            points: Math.abs(sp.points),
+            type: "refund",
             sourceType: "order",
-            description: `Thu hồi ${earnedPoints.points} điểm do huỷ đơn ${order.orderCode}`,
+            description: `Hoàn lại ${sp.points} điểm do huỷ đơn ${order.orderCode}`,
           },
           { transaction: t }
         );
+        console.log("[cancel] => Created refund record (spend restore)");
       }
-// Hoàn lại điểm đã dùng khi đặt đơn
-const spentPoints = await UserPoint.findOne({
-  where: { orderId: order.id, userId: order.userId, type: "spend" },
-  transaction: t,
-});
-
-if (spentPoints) {
-  await UserPoint.create(
-    {
-      userId: order.userId,
-      orderId: order.id,
-      points: spentPoints.points, // trả lại đúng số điểm đã trừ
-      type: "refund", // hoặc "restore"
-      sourceType: "order",
-      description: `Hoàn lại ${spentPoints.points} điểm do huỷ đơn ${order.orderCode}`,
-    },
-    { transaction: t }
-  );
-}
 
       if (order.couponId != null) {
         await CouponUser.decrement("used", {

@@ -136,11 +136,7 @@ class ReturnRefundController {
       const imageUrls = imageFiles.map((f) => f.path).join(",") || null;
       const videoUrls = videoFiles.map((f) => f.path).join(",") || null;
 
-      let feeToSave = 0;
-      if (situation === "customer_pays") {
-        feeToSave = 30000;
-      }
-
+   
       let refundAmount = 0;
       for (const item of parsedItems) {
         const orderItem = order.items.find((oi) => oi.skuId === item.skuId);
@@ -153,12 +149,10 @@ class ReturnRefundController {
         const selected = parsedItems.find(pi => pi.skuId === oi.skuId);
         return selected && Number(selected.quantity) === Number(oi.quantity);
       });
-
-      if (!isReturningAll) {
-        refundAmount = Math.max(0, refundAmount - feeToSave);
-      } else {
-        refundAmount += Number(order.shippingFee || 0);
-      }
+if (isReturningAll) {
+  refundAmount += Number(order.shippingFee || 0);
+}
+   
 
       const returnReq = await ReturnRequest.create({
         orderId: parsedOrderId,
@@ -169,7 +163,7 @@ class ReturnRefundController {
         status: "pending",
         returnCode: "RR" + Date.now(),
         situation,
-        returnFee: feeToSave,
+        returnFee: 0,
         refundAmount
       }, { transaction: t });
 
@@ -208,7 +202,7 @@ const adminHtml = generateReturnRequestHtml({
   detailedReason,
   situation,
   refundAmount,
-  returnFee: feeToSave,
+  returnFee: 0,
   returnCode: returnReq.returnCode,
 orderItems: parsedItems.map(i => {
   const oi = order.items.find(o => o.skuId === i.skuId);

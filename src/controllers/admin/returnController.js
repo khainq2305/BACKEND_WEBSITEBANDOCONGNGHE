@@ -7,6 +7,7 @@ const {
   Notification,
   User,
   NotificationUser,
+  UserPoint,
   Wallet,
   WalletTransaction,
   FlashSaleItem,
