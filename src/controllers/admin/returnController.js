@@ -220,11 +220,9 @@ class ReturnController {
           }
         }
 
-        // 2. Hoàn tiền ngay
-        const payCode = request.order.paymentMethod?.code?.toLowerCase();
-        const amount = request.order.finalPrice;
-        const payload = { orderCode: request.order.orderCode, amount };
-
+      const payCode = request.order.paymentMethod?.code?.toLowerCase();
+    const amount = request.refundAmount; // SỬA LỖI: Sử dụng refundAmount thay vì finalPrice
+    const payload = { orderCode: request.order.orderCode, amount };
         if (
           ["cod", "atm", "payos", "internalwallet", "zalopay"].includes(payCode)
         ) {
@@ -413,7 +411,7 @@ class ReturnController {
         clientNotifMessage = `Yêu cầu trả hàng #${
           request.returnCode
         } đã được xử lý. Số tiền ${formatCurrencyVND(
-          request.order.finalPrice
+          request.refundAmount
         )} đã được hoàn trả.`;
       } else {
         sendNotif = false;
@@ -459,7 +457,7 @@ class ReturnController {
             orderCode: request.order.orderCode,
             userName: request.order.User.fullName || request.order.User.email,
             message: clientNotifMessage,
-            refundAmount: request.order.finalPrice,
+          refundAmount: request.refundAmount, // SỬA LỖI: Sử dụng refundAmount
             requestDetailUrl: `${process.env.BASE_URL}/user-profile/return-order/${request.id}`,
           });
 

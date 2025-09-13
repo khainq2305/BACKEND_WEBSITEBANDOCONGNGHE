@@ -37,7 +37,7 @@ class ReturnRefundController {
   static async requestReturn(req, res) {
     const t = await sequelize.transaction();
     try {
-      const { orderId, reason, itemsToReturn, detailedReason, situation } = req.body;
+      const { orderId, reason, itemsToReturn, detailedReason} = req.body;
       const userId = req.user.id;
 
       const parsedOrderId = Number(orderId);
@@ -51,10 +51,20 @@ class ReturnRefundController {
         return res.status(400).json({ message: "Vui lòng chọn lý do hoàn hàng" });
       }
 
-      if (!["seller_pays", "customer_pays"].includes(situation)) {
-        await t.rollback();
-        return res.status(400).json({ message: "Tình huống không hợp lệ" });
-      }
+    const reasonToSituation = {
+  WRONG_SIZE_COLOR: "seller_pays",
+  NOT_AS_DESCRIBED: "seller_pays",
+  DEFECTIVE: "seller_pays",
+  CHANGE_MIND: "customer_pays",
+  ORDER_BY_MISTAKE: "customer_pays",
+  FOUND_BETTER_PRICE: "customer_pays"
+};
+
+const situation = reasonToSituation[reason];
+if (!situation) {
+  await t.rollback();
+  return res.status(400).json({ message: "Lý do trả hàng không hợp lệ" });
+}
 
       let parsedItems;
       try {
@@ -585,7 +595,8 @@ await sendEmail(
         client_order_code: `RTN-${id}-${Date.now()}`,
           items: order.items,  // 👈 thêm dòng này
         content: buildContentFromItems(order.items, "Trả hàng từ khách"),
-        situation: returnReq.whoPays || "customer_pays",
+        situation: returnReq.situation || "customer_pays",
+
       };
 
       console.log("📦 [bookReturnPickup] GHN Payload gửi đi:", ghnPayload);
@@ -604,6 +615,14 @@ await sendEmail(
       returnReq.returnLabelUrl = labelUrl;   // 👈 dùng field returnLabelUrl
       returnReq.returnFee = shippingFee;     // 👈 dùng field returnFee (total_fee GHN)
       returnReq.returnFeePayer = paidBy;     // 👈 ai trả phí
+// Nếu shop chịu phí thì returnFee = 0
+if (returnReq.situation === "seller_pays") {
+  returnReq.returnFee = 0;
+  returnReq.returnFeePayer = "seller";
+} else {
+  returnReq.returnFee = shippingFee;
+  returnReq.returnFeePayer = "customer";
+}
 
       console.log("💾 [bookReturnPickup] returnFee trước khi save:", returnReq.returnFee);
 
