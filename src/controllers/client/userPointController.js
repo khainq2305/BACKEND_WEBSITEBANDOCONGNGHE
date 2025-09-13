@@ -96,7 +96,8 @@ static async getPointHistory(req, res) {
       pageSize: limit,
       history: rows.map(item => ({
         id: item.id,
-        points: Math.abs(item.points),
+        points: item.points,
+
         type: item.type,
         orderId: item.orderId,
         orderCode: item.order?.orderCode || null,
