@@ -13,16 +13,17 @@ const connection = new Sequelize(
     dialectOptions: {
       connectTimeout: 60000,
     },
-    pool: {
-      max: 20,
-      min: 2,          // luôn giữ vài connection ấm
-      acquire: 60000,
-      idle: 30000,     // 30s thay vì 10s
-      evict: 1000,     // clear connection rác mỗi giây
-    },
-    retry: {
-      max: 3,          // auto retry query nếu connection drop
-    },
+  pool: {
+  max: 20,
+  min: 5,           // giữ sẵn vài kết nối ấm hơn (>=5)
+  acquire: 60000,   // 60s
+  idle: 60000,      // tăng idle timeout lên 60s để tránh bị dọn quá sớm
+  evict: 10000,     // dọn connection mỗi 10s thay vì 1s
+},
+retry: {
+  max: 5,           // tăng số lần retry
+},
+
   }
 );
 
