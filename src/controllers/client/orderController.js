@@ -1906,107 +1906,129 @@ class OrderController {
   }
 
   static async getShippingOptions(req, res) {
-    try {
-      const { districtId, wardId, items = [] } = req.body;
+  try {
+    const { districtId, wardId, items = [] } = req.body;
 
-      const district = await District.findByPk(districtId, {
-        include: [Province],
+    const district = await District.findByPk(districtId, {
+      include: [Province],
+    });
+    const ward = await Ward.findByPk(wardId);
+
+    if (!district || !district.Province)
+      return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
+    if (!ward)
+      return res.status(400).json({ message: "Không tìm thấy phường/xã." });
+
+    const toProvinceId = district.Province.id;
+    const toDistrictId = district.id;
+    const toWardId = ward.id;
+    const toProvinceName = district.Province.name;
+    const toDistrictName = district.name;
+    const toWardName = ward.name;
+
+    // Tính toán SKU
+    const skuList = await Sku.findAll({
+      where: { id: items.map((i) => i.skuId) },
+    });
+    const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
+
+    let weight = 0, maxL = 0, maxW = 0, maxH = 0;
+    const orderValue = items.reduce((sum, it) => {
+      const sku = skuMap[it.skuId];
+      if (!sku) return sum;
+      weight += (sku.weight || 500) * it.quantity;
+      maxL = Math.max(maxL, sku.length || 10);
+      maxW = Math.max(maxW, sku.width || 10);
+      maxH = Math.max(maxH, sku.height || 10);
+      return sum + (it.price || 0) * (it.quantity || 1);
+    }, 0);
+    weight ||= 1;
+    maxL ||= 1;
+    maxW ||= 1;
+    maxH ||= 1;
+
+    // Lấy danh sách provider
+    const providers = await ShippingProvider.findAll({
+      where: { isActive: true },
+    });
+    if (!providers.length)
+      return res.status(404).json({
+        message: "Không có hãng vận chuyển nào đang hoạt động.",
       });
-      const ward = await Ward.findByPk(wardId);
 
-      if (!district || !district.Province)
-        return res.status(400).json({ message: "Không tìm thấy tỉnh/huyện." });
-      if (!ward)
-        return res.status(400).json({ message: "Không tìm thấy phường/xã." });
+    // Chạy tuần tự thay vì Promise.all
+    const results = [];
+    for (const p of providers) {
+      try {
+        console.log("[getShippingOptions] Tổng weight:", weight, "gram");
 
-      const toProvinceId = district.Province.id;
-      const toDistrictId = district.id;
-      const toWardId = ward.id;
-      const toProvinceName = district.Province.name;
-      const toDistrictName = district.name;
-      const toWardName = ward.name;
+        let feeData;
+        try {
+          feeData = await ShippingService.calcFee({
+            provider: p,
+            toProvince: toProvinceId,
+            toDistrict: toDistrictId,
+            toWard: toWardId,
+            provinceName: toProvinceName,
+            districtName: toDistrictName,
+            wardName: toWardName,
+            weight,
+            length: maxL,
+            width: maxW,
+            height: maxH,
+            orderValue,
+          });
+        } catch (err) {
+          // Retry 1 lần nếu connection bị drop
+          console.warn(`[getShippingOptions] Retry cho ${p.code} vì lỗi: ${err.message}`);
+          feeData = await ShippingService.calcFee({
+            provider: p,
+            toProvince: toProvinceId,
+            toDistrict: toDistrictId,
+            toWard: toWardId,
+            provinceName: toProvinceName,
+            districtName: toDistrictName,
+            wardName: toWardName,
+            weight,
+            length: maxL,
+            width: maxW,
+            height: maxH,
+            orderValue,
+          });
+        }
 
-      const skuList = await Sku.findAll({
-        where: { id: items.map((i) => i.skuId) },
-      });
-      const skuMap = Object.fromEntries(skuList.map((s) => [s.id, s]));
-      let weight = 0,
-        maxL = 0,
-        maxW = 0,
-        maxH = 0;
-      const orderValue = items.reduce((sum, it) => {
-        const sku = skuMap[it.skuId];
-        if (!sku) return sum;
-        weight += (sku.weight || 500) * it.quantity;
-        maxL = Math.max(maxL, sku.length || 10);
-        maxW = Math.max(maxW, sku.width || 10);
-        maxH = Math.max(maxH, sku.height || 10);
-        return sum + (it.price || 0) * (it.quantity || 1);
-      }, 0);
-      weight ||= 1;
-      maxL ||= 1;
-      maxW ||= 1;
-      maxH ||= 1;
+        if (feeData) {
+          results.push({
+            providerId: p.id,
+            code: p.code,
+            name: p.name,
+            fee: feeData.fee,
+            leadTime: feeData.leadTime,
+          });
+        }
+      } catch (err) {
+        console.warn(
+          `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`
+        );
+      }
+    }
 
-      const providers = await ShippingProvider.findAll({
-        where: { isActive: true },
-      });
-      if (!providers.length)
-        return res
-          .status(404)
-          .json({ message: "Không có hãng vận chuyển nào đang hoạt động." });
-
-      const options = await Promise.all(
-        providers.map(async (p) => {
-          try {
-            console.log("[getShippingOptions] Tổng weight:", weight, "gram");
-
-            const { fee, leadTime } = await ShippingService.calcFee({
-              provider: p, // truyền nguyên provider object
-              toProvince: toProvinceId,
-              toDistrict: toDistrictId,
-              toWard: toWardId,
-              provinceName: toProvinceName,
-              districtName: toDistrictName,
-              wardName: toWardName,
-              weight,
-              length: maxL,
-              width: maxW,
-              height: maxH,
-              orderValue,
-            });
-
-            return {
-              providerId: p.id,
-              code: p.code,
-              name: p.name,
-              fee,
-              leadTime,
-            };
-          } catch (err) {
-            console.warn(
-              `[getShippingOptions] Bỏ qua ${p.name} (${p.code}) – Lỗi: ${err.message}`
-            );
-            return null;
-          }
-        })
-      );
-
-      const available = options.filter(Boolean);
-      if (!available.length)
-        return res
-          .status(404)
-          .json({ message: "Không tìm thấy phương thức vận chuyển khả dụng." });
-
-      return res.json({ data: available });
-    } catch (err) {
-      console.error("[getShippingOptions] Lỗi server:", err);
-      return res.status(500).json({
-        message: "Lỗi server khi lấy phương thức vận chuyển",
-        error: err.message,
+    if (!results.length) {
+      return res.status(404).json({
+        message: "Không tìm thấy phương thức vận chuyển khả dụng.",
       });
     }
+
+    return res.json({ data: results });
+  } catch (err) {
+    console.error("[getShippingOptions] Lỗi server:", err);
+    return res.status(500).json({
+      message: "Lỗi server khi lấy phương thức vận chuyển",
+      error: err.message,
+    });
   }
+}
+
 }
 
 module.exports = OrderController;
