@@ -9,7 +9,15 @@ const {
   User,
   Sku,
   WishlistItem,
+  Review,
 } = require("../../models");
+
+// Hàm format số: bỏ .0 nếu là số nguyên, giữ 1 số lẻ nếu có
+function formatNumber(value) {
+  if (value === null || value === undefined) return 0;
+  const num = parseFloat(value);
+  return Number.isInteger(num) ? num : parseFloat(num.toFixed(1));
+}
 
 class DashboardController {
   static getDateFilter(from, to) {
@@ -50,6 +58,8 @@ class DashboardController {
         prevTotalOrdersCount,
         prevCancelledOrdersCount,
         prevNewUsersCount,
+        averageRatingResult,
+        prevAverageRatingResult,
       ] = await Promise.all([
         Order.sum("totalPrice", {
           where: { createdAt: dateFilter, status: "completed" },
@@ -61,7 +71,7 @@ class DashboardController {
           where: { createdAt: dateFilter, status: "cancelled" },
         }),
         User.count({
-          where: { createdAt: dateFilter }, // Dùng createdAt cho User model
+          where: { createdAt: dateFilter },
         }),
 
         Order.sum("totalPrice", {
@@ -77,7 +87,19 @@ class DashboardController {
           where: { createdAt: prevDateFilter, status: "cancelled" },
         }),
         User.count({
-          where: { createdAt: prevDateFilter }, // Dùng createdAt cho User model
+          where: { createdAt: prevDateFilter },
+        }),
+
+        Review.findOne({
+          attributes: [[fn("AVG", col("rating")), "avgRating"]],
+          where: { createdAt: dateFilter },
+          raw: true,
+        }),
+
+        Review.findOne({
+          attributes: [[fn("AVG", col("rating")), "avgRating"]],
+          where: { createdAt: prevDateFilter },
+          raw: true,
         }),
       ]);
 
@@ -85,35 +107,40 @@ class DashboardController {
       const totalOrders = totalOrdersCount || 0;
       const cancelledOrders = cancelledOrdersCount || 0;
       const newUsers = newUsersCount || 0;
-      const averageRating = "4.6/5"; // Giữ tạm thời
 
       const prevTotalRevenue = prevTotalRevenueResult || 0;
       const prevTotalOrders = prevTotalOrdersCount || 0;
       const prevCancelledOrders = prevCancelledOrdersCount || 0;
       const prevNewUsers = prevNewUsersCount || 0;
-      const prevAverageRating = 4.4; // Giữ tạm thời
+
+      const averageRating = averageRatingResult?.avgRating
+        ? formatNumber(averageRatingResult.avgRating)
+        : 0;
+
+      const prevAverageRating = prevAverageRatingResult?.avgRating
+        ? formatNumber(prevAverageRatingResult.avgRating)
+        : 0;
 
       const calculateChange = (current, previous) => {
         if (previous === 0) return current > 0 ? 100 : 0;
         return ((current - previous) / previous) * 100;
       };
 
-      const revenueChange = calculateChange(
-        totalRevenue,
-        prevTotalRevenue
-      ).toFixed(1);
-      const ordersChange = calculateChange(
-        totalOrders,
-        prevTotalOrders
-      ).toFixed(1);
-      const cancelledChange = calculateChange(
-        cancelledOrders,
-        prevCancelledOrders
-      ).toFixed(1);
-      const usersChange = calculateChange(newUsers, prevNewUsers).toFixed(1);
-      const ratingChange = (
-        parseFloat(averageRating) - prevAverageRating
-      ).toFixed(1);
+      const revenueChange = formatNumber(
+        calculateChange(totalRevenue, prevTotalRevenue)
+      );
+      const ordersChange = formatNumber(
+        calculateChange(totalOrders, prevTotalOrders)
+      );
+      const cancelledChange = formatNumber(
+        calculateChange(cancelledOrders, prevCancelledOrders)
+      );
+      const usersChange = formatNumber(
+        calculateChange(newUsers, prevNewUsers)
+      );
+      const ratingChange = formatNumber(
+        calculateChange(averageRating, prevAverageRating)
+      );
 
       res.json({
         totalRevenue,
@@ -121,20 +148,26 @@ class DashboardController {
         cancelledOrders,
         newUsers,
         averageRating,
-        revenueChange: parseFloat(revenueChange),
-        ordersChange: parseFloat(ordersChange),
-        cancelledChange: parseFloat(cancelledChange),
-        usersChange: parseFloat(usersChange),
-        ratingChange: parseFloat(ratingChange),
+        revenueChange,
+        ordersChange,
+        cancelledChange,
+        usersChange,
+        ratingChange,
+        currentPeriod: {
+          from: fromDateObj,
+          to: toDateObj,
+        },
+        previousPeriod: {
+          from: prevFromDateObj,
+          to: prevToDateObj,
+        },
       });
     } catch (error) {
       console.error("GET DASHBOARD STATS ERROR:", error);
-      res
-        .status(500)
-        .json({
-          message: "Lỗi server khi lấy thống kê dashboard",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Lỗi server khi lấy thống kê dashboard",
+        error: error.message,
+      });
     }
   }
 
@@ -163,12 +196,10 @@ class DashboardController {
       );
     } catch (error) {
       console.error("GET REVENUE CHART DATA ERROR:", error);
-      res
-        .status(500)
-        .json({
-          message: "Lỗi server khi lấy dữ liệu biểu đồ doanh thu",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Lỗi server khi lấy dữ liệu biểu đồ doanh thu",
+        error: error.message,
+      });
     }
   }
 
@@ -197,24 +228,22 @@ class DashboardController {
       );
     } catch (error) {
       console.error("GET ORDERS CHART DATA ERROR:", error);
-      res
-        .status(500)
-        .json({
-          message: "Lỗi server khi lấy dữ liệu biểu đồ đơn hàng",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Lỗi server khi lấy dữ liệu biểu đồ đơn hàng",
+        error: error.message,
+      });
     }
   }
-
+  // 4. Lấy dữ liệu Top 5 sản phẩm bán chạy (có lọc theo thời gian)
   static async getTopSellingProducts(req, res) {
     try {
+      const { from, to } = req.query;
+      const dateFilter = DashboardController.getDateFilter(from, to);
+
       const topProducts = await OrderItem.findAll({
         attributes: [
           [fn("SUM", col("OrderItem.quantity")), "sold"],
-          [
-            fn("SUM", literal("OrderItem.quantity * OrderItem.price")),
-            "revenue",
-          ],
+          [fn("SUM", literal("OrderItem.quantity * OrderItem.price")), "revenue"],
           [col("Sku->product.id"), "id"],
           [col("Sku->product.name"), "name"],
           [col("Sku->product.thumbnail"), "image"],
@@ -226,12 +255,15 @@ class DashboardController {
             model: Order,
             as: "order",
             attributes: [],
-            where: { status: "completed" },
+            where: {
+              status: "completed",
+              createdAt: dateFilter,   // 👈 lọc theo thời gian
+            },
           },
           {
             model: Sku,
             attributes: [],
-            where: { deletedAt: null }, // lọc SKU chưa xoá mềm
+            where: { deletedAt: null },
             required: true,
             paranoid: false,
             include: [
@@ -239,7 +271,7 @@ class DashboardController {
                 model: Product,
                 as: "product",
                 attributes: [],
-                where: { deletedAt: null, isActive: 1 }, // lọc product chưa xoá
+                where: { deletedAt: null, isActive: 1 },
                 required: true,
                 paranoid: false,
               },
@@ -278,9 +310,13 @@ class DashboardController {
     }
   }
 
-  // 5. Lấy dữ liệu Top 5 sản phẩm được yêu thích (FavoriteProductsChart & FavoriteProductsTable)
+
+  // 5. Lấy dữ liệu Top 5 sản phẩm được yêu thích (có lọc theo thời gian)
   static async getFavoriteProducts(req, res) {
     try {
+      const { from, to } = req.query;
+      const dateFilter = DashboardController.getDateFilter(from, to);
+
       const favoriteProducts = await WishlistItem.findAll({
         attributes: [
           "productId",
@@ -303,14 +339,13 @@ class DashboardController {
             model: Product,
             as: "product",
             attributes: [],
-            // CHỈ lấy Product chưa xoá mềm và đang active
-            where: {
-              deletedAt: null,
-              isActive: 1,
-            },
+            where: { deletedAt: null, isActive: 1 },
             paranoid: false,
           },
         ],
+        where: {
+          createdAt: dateFilter,   // 👈 lọc theo thời gian
+        },
         raw: true,
       });
 
@@ -325,14 +360,13 @@ class DashboardController {
       res.json(formattedProducts);
     } catch (error) {
       console.error("GET FAVORITE PRODUCTS ERROR:", error);
-      res
-        .status(500)
-        .json({
-          message: "Lỗi server khi lấy dữ liệu sản phẩm yêu thích",
-          error: error.message,
-        });
+      res.status(500).json({
+        message: "Lỗi server khi lấy dữ liệu sản phẩm yêu thích",
+        error: error.message,
+      });
     }
   }
+
 
   static async getAllTopSellingProducts(req, res) {
     try {
@@ -359,13 +393,13 @@ class DashboardController {
           {
             model: Sku,
             attributes: [],
-            required: true, // ép phải có Sku
-            where: { deletedAt: null }, // 👈 lọc luôn SKU đã xóa mềm
+            required: true,
+            where: { deletedAt: null },
             paranoid: false,
             include: [
               {
                 model: Product,
-                as: "product", // alias bắt buộc
+                as: "product",
                 attributes: [],
                 where: { deletedAt: null, isActive: 1 },
                 required: true,
@@ -428,7 +462,6 @@ class DashboardController {
             model: Product,
             as: "product",
             attributes: [],
-            // CHỈ lấy Product chưa xoá mềm và đang active
             where: {
               deletedAt: null,
               isActive: 1,
