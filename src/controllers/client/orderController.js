@@ -41,6 +41,8 @@ const zaloPayService = require("../../services/client/zalopayService");
 const vnpayService = require("../../services/client/vnpayService");
 const viettelMoneyService = require("../../services/client/viettelMoneyService");
 const { Sequelize, Op } = require("sequelize");
+const connection = require("../../config/database");
+
 const speakeasy = require("speakeasy");
 const {
   getTrackingByClientCode,
