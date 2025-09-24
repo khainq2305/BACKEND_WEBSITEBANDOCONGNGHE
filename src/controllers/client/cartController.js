@@ -580,6 +580,13 @@ class CartController {
       const userPoints = Number(result?.totalPoints) || 0;
 console.log("👉 [getCart] userPoints:", userPoints);
 console.log("👉 [getCart] result raw:", result);
+const [rows] = await sequelize.query(`
+  SELECT id, type, points, expiresAt
+  FROM userpoints
+  WHERE userId = :userId
+`, { replacements: { userId } });
+
+console.log("👉 [getCart] all userpoints:", rows);
 
       // 🎯 Tỷ lệ tích điểm và đổi điểm
       const earnRate = 10000; // 10k VNĐ mua hàng = 1 điểm
