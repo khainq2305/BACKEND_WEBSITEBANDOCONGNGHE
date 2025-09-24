@@ -15,9 +15,11 @@ const RefundRequest = sequelize.define('RefundRequest', {
     allowNull: true,
   },
   amount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
+  type: DataTypes.BIGINT,
+  allowNull: false,
+  comment: "Số tiền hoàn lại cho khách",
+},
+
   refundedAt: {
   type: DataTypes.DATE,
   allowNull: true,

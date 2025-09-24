@@ -76,12 +76,13 @@ const ReturnRequest = sequelize.define(
       defaultValue: "other",
       comment: "Tình huống khách chọn",
     },
-    refundAmount: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-      comment: "Số tiền hoàn lại cho khách (chốt khi tạo yêu cầu)",
-    },
+   refundAmount: {
+  type: DataTypes.BIGINT,
+  allowNull: false,
+  defaultValue: 0,
+  comment: "Số tiền hoàn lại cho khách (chốt khi tạo yêu cầu)",
+},
+
     trackingCode: {
       type: DataTypes.STRING,
       allowNull: true,

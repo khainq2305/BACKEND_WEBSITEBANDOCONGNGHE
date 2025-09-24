@@ -167,6 +167,23 @@ class PaymentController {
       order.momoTransId = momoTransId || null;
       order.paymentTime = new Date();
       await order.save();
+      await order.reload(); // 👈 bắt buộc reload sau khi save
+      // Gọi query MoMo để chắc chắn trạng thái
+      try {
+        const verifyRes = await momoService.queryTransaction({
+          orderId,
+          requestId: `${orderId}-${Date.now()}`,
+        });
+
+        if (verifyRes.resultCode === 0 && verifyRes.transId) {
+          order.paymentStatus = "paid";
+          order.momoTransId = verifyRes.transId;
+          await order.save();
+          await order.reload();
+        }
+      } catch (e) {
+        console.error("Verify MoMo error:", e);
+      }
 
       // ====== GỬI THÔNG BÁO ======
       const slug = `order-${order.orderCode}`;
@@ -191,11 +208,10 @@ class PaymentController {
         });
       }
 
-      // ✅ Thành công
       return res.status(200).json({
         success: true,
         message: "Thanh toán MoMo thành công",
-        order,
+        order: order.toJSON(), // 👈 đảm bảo FE có dữ liệu mới
       });
     } catch (err) {
       console.error("[MoMo CALLBACK] ERROR:", err);
