@@ -552,71 +552,65 @@ class CartController {
       // ----------------------------
       // 3. Lấy tổng điểm hiện tại của user
       // ----------------------------
- const result = await UserPoint.findOne({
-  attributes: [
-    [
-      sequelize.fn(
-        "COALESCE",
-        sequelize.fn(
-          "SUM",
-          sequelize.literal(`
+      const result = await UserPoint.findOne({
+        attributes: [
+          [
+            sequelize.fn(
+              "COALESCE",
+              sequelize.fn(
+                "SUM",
+                sequelize.literal(`
             CASE
               WHEN type = 'earn' THEN points
-              WHEN type = 'spend' THEN -points
-              WHEN type = 'expired' THEN points   -- ✅ giữ nguyên
+              WHEN type IN ('spend','expired') THEN -points   -- ❌ sửa lại ở đây
               ELSE 0
             END
           `)
-        ),
-        0
-      ),
-      "totalPoints",
-    ],
-  ],
-  where: { userId },
-  raw: true,
-});
+              ),
+              0
+            ),
+            "totalPoints",
+          ],
+        ],
+        where: { userId },
+        raw: true,
+      });
 
+      // ✅ Ép kiểu về số, tránh lỗi chuỗi
+      const userPoints = Number(result?.totalPoints) || 0;
 
-// ✅ Ép kiểu về số, tránh lỗi chuỗi
-const userPoints = Number(result?.totalPoints) || 0;
+      // 🎯 Tỷ lệ tích điểm và đổi điểm
+      const earnRate = 10000; // 10k VNĐ mua hàng = 1 điểm
+      const redeemRate = 10; // 1 điểm = 100 VNĐ khi đổi
 
+      const minPointRequired = 1;
+      // Giới hạn số điểm có thể dùng = số điểm user đang có
+      // và không vượt quá giá trị đơn hàng
+      const maxPointsByBalance = userPoints;
+      const maxPointsByOrder = Math.floor(totalAmount / redeemRate);
+      const maxUsablePoints = Math.min(maxPointsByBalance, maxPointsByOrder);
 
-      
+      const pointDiscountAmount = maxUsablePoints * redeemRate;
 
-// 🎯 Tỷ lệ tích điểm và đổi điểm
-const earnRate = 10000;   // 10k VNĐ mua hàng = 1 điểm
-const redeemRate = 10;   // 1 điểm = 100 VNĐ khi đổi
+      // 🎁 Điểm user sẽ được cộng thêm từ đơn này
+      const rewardPoints = Math.floor(totalAmount / earnRate);
 
-const minPointRequired = 1;
-// Giới hạn số điểm có thể dùng = số điểm user đang có
-// và không vượt quá giá trị đơn hàng
-const maxPointsByBalance = userPoints;
-const maxPointsByOrder = Math.floor(totalAmount / redeemRate);
-const maxUsablePoints = Math.min(maxPointsByBalance, maxPointsByOrder);
-
-const pointDiscountAmount = maxUsablePoints * redeemRate;
-
-// 🎁 Điểm user sẽ được cộng thêm từ đơn này
-const rewardPoints = Math.floor(totalAmount / earnRate);
-
-return res.status(200).json({
-  cartItems: formattedItems,
-  totalAmount,
-  rewardPoints,
-  payablePrice: totalAmount - pointDiscountAmount,
-  couponDiscount: 0,
-  pointInfo: {
-    userPointBalance: userPoints,
-    earnRate,
-    redeemRate,
-    minPointRequired,
-    canUsePoints: userPoints >= minPointRequired,
-    maxUsablePoints,
-    pointDiscountAmount,
-  },
-});
-
+      return res.status(200).json({
+        cartItems: formattedItems,
+        totalAmount,
+        rewardPoints,
+        payablePrice: totalAmount - pointDiscountAmount,
+        couponDiscount: 0,
+        pointInfo: {
+          userPointBalance: userPoints,
+          earnRate,
+          redeemRate,
+          minPointRequired,
+          canUsePoints: userPoints >= minPointRequired,
+          maxUsablePoints,
+          pointDiscountAmount,
+        },
+      });
     } catch (err) {
       console.error("Lỗi lấy giỏ hàng:", err);
       return res.status(500).json({ message: "Lỗi server" });
