@@ -8,37 +8,79 @@ class PostSEOController {
   // Helper function để đảm bảo update/create PostSEO an toàn
   async safeUpsertPostSEO(postId, dataToSave, transaction = null) {
     try {
-      // Tìm PostSEO hiện tại
-      let postSEO = await PostSEO.findOne({ 
+      console.log(`🔍 SafeUpsert for postId: ${postId}`);
+      
+      // Tìm tất cả PostSEO records cho postId này để kiểm tra duplicate
+      const existingRecords = await PostSEO.findAll({ 
         where: { postId },
-        ...(transaction && { transaction, lock: true })
+        ...(transaction && { transaction })
       });
 
-      if (postSEO) {
-        // Nếu đã có record, cập nhật
+      console.log(`📊 Found ${existingRecords.length} existing records for postId: ${postId}`);
+
+      if (existingRecords.length > 1) {
+        // Nếu có nhiều hơn 1 record, xóa những record thừa và giữ lại record đầu tiên
+        console.log(`⚠️ Found ${existingRecords.length} duplicate records for postId: ${postId}, cleaning up...`);
+        
+        const keepRecord = existingRecords[0];
+        const duplicateIds = existingRecords.slice(1).map(record => record.id);
+        
+        if (duplicateIds.length > 0) {
+          await PostSEO.destroy({
+            where: { id: duplicateIds },
+            ...(transaction && { transaction })
+          });
+          console.log(`🧹 Cleaned up ${duplicateIds.length} duplicate records: ${duplicateIds.join(', ')}`);
+        }
+
+        // Cập nhật record còn lại
+        await keepRecord.update(dataToSave, { transaction });
+        console.log(`✅ SEO updated for cleaned record ID: ${keepRecord.id}, Post ID: ${postId}`);
+        return { postSEO: keepRecord, created: false };
+        
+      } else if (existingRecords.length === 1) {
+        // Nếu có đúng 1 record, cập nhật nó
+        const postSEO = existingRecords[0];
         await postSEO.update(dataToSave, { transaction });
         console.log(`✅ SEO updated for existing record ID: ${postSEO.id}, Post ID: ${postId}`);
         return { postSEO, created: false };
+        
       } else {
-        // Nếu chưa có record, tạo mới
+        // Nếu chưa có record nào, tạo mới
         dataToSave.postId = postId;
-        postSEO = await PostSEO.create(dataToSave, { transaction });
+        const postSEO = await PostSEO.create(dataToSave, { transaction });
         console.log(`✅ SEO created new record ID: ${postSEO.id}, Post ID: ${postId}`);
         return { postSEO, created: true };
       }
     } catch (error) {
       // Nếu có lỗi duplicate key, thử lại bằng cách update
       if (error.name === 'SequelizeUniqueConstraintError' || error.code === 'ER_DUP_ENTRY') {
-        console.log(`⚠️ Duplicate key detected for postId ${postId}, attempting update...`);
-        const existingPostSEO = await PostSEO.findOne({ 
+        console.log(`⚠️ Duplicate key error for postId ${postId}, attempting recovery...`);
+        
+        // Tìm và cleanup duplicates
+        const allRecords = await PostSEO.findAll({ 
           where: { postId },
           ...(transaction && { transaction })
         });
-        if (existingPostSEO) {
-          await existingPostSEO.update(dataToSave, { transaction });
-          return { postSEO: existingPostSEO, created: false };
+        
+        if (allRecords.length > 0) {
+          const keepRecord = allRecords[0];
+          const duplicateIds = allRecords.slice(1).map(record => record.id);
+          
+          if (duplicateIds.length > 0) {
+            await PostSEO.destroy({
+              where: { id: duplicateIds },
+              ...(transaction && { transaction })
+            });
+            console.log(`🧹 Emergency cleanup: removed ${duplicateIds.length} duplicates`);
+          }
+          
+          await keepRecord.update(dataToSave, { transaction });
+          return { postSEO: keepRecord, created: false };
         }
       }
+      
+      console.error(`❌ SafeUpsert error for postId ${postId}:`, error);
       throw error;
     }
   }
@@ -197,12 +239,30 @@ class PostSEOController {
         });
       }
 
-      // Lấy PostSEO hiện tại để giữ nguyên các giá trị đã có
-      let postSEO = await PostSEO.findOne({ 
+      // Kiểm tra và cleanup duplicate records trước khi bắt đầu
+      const existingRecords = await PostSEO.findAll({ 
         where: { postId },
-        transaction,
-        lock: true // Lock để tránh race condition
+        transaction
       });
+
+      let postSEO = null;
+      if (existingRecords.length > 1) {
+        console.log(`⚠️ Found ${existingRecords.length} duplicate records for postId: ${postId} during analysis, cleaning up...`);
+        
+        // Giữ lại record đầu tiên, xóa các record khác
+        postSEO = existingRecords[0];
+        const duplicateIds = existingRecords.slice(1).map(record => record.id);
+        
+        if (duplicateIds.length > 0) {
+          await PostSEO.destroy({
+            where: { id: duplicateIds },
+            transaction
+          });
+          console.log(`🧹 Cleaned up ${duplicateIds.length} duplicate records during analysis`);
+        }
+      } else if (existingRecords.length === 1) {
+        postSEO = existingRecords[0];
+      }
       
       // Sử dụng focusKeyword từ request body hoặc giữ nguyên focusKeyword hiện tại
       let analysisKeyword = focusKeyword;
@@ -218,6 +278,30 @@ class PostSEOController {
         title: post.title,
         metaDescription: postSEO?.metaDescription || '',
         focusKeyword: (focusKeyword && focusKeyword.trim() !== '') ? focusKeyword.trim() : (postSEO?.focusKeyword || ''),
+        // Giữ nguyên các giá trị SEO meta nếu đã có
+        robotsMeta: postSEO?.robotsMeta || {
+          index: true,
+          follow: true,
+          noarchive: false,
+          nosnippet: false,
+          noimageindex: false
+        },
+        socialMeta: postSEO?.socialMeta || {
+          twitter: {
+            card: 'summary_large_image',
+            title: post.title,
+            description: '',
+            image: post.thumbnail || ''
+          },
+          facebook: {
+            type: 'article',
+            title: post.title,
+            description: '',
+            image: post.thumbnail || ''
+          }
+        },
+        canonicalUrl: postSEO?.canonicalUrl || `/tin-tuc/${post.slug}`,
+        schema: postSEO?.schema || null,
         analysis: analysis.details,
         seoScore: analysis.seoScore,
         readabilityScore: analysis.readabilityScore,

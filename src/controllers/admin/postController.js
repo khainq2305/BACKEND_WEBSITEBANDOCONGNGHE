@@ -67,56 +67,63 @@ if (publishAt && publishAt !== 'null') {
   
       await newPost.addTags(tagInstances);
 
-      // Tạo hoặc cập nhật PostSEO với focus keyword và schema
+      // Tạo PostSEO và tự động phân tích SEO nếu có focus keyword hoặc schema
       if ((focusKeyword && focusKeyword.trim()) || (schema && typeof schema === 'object')) {
-        const postSEOData = {
-          postId: newPost.id,
-          title: title, // SEO title mặc định là title của post
-          updatedAt: new Date()
-        };
-
-        // Thêm focus keyword nếu có
-        if (focusKeyword && focusKeyword.trim()) {
-          postSEOData.focusKeyword = focusKeyword.trim();
-        }
-
-        // Thêm schema nếu có
-        if (schema && typeof schema === 'object') {
-          postSEOData.schema = schema;
-        }
-
-        await PostSEO.upsert(postSEOData);
-
-        // Tự động phân tích SEO cho bài viết mới (chỉ khi có focus keyword)
-        if (focusKeyword && focusKeyword.trim()) {
-          try {
-            console.log('🔍 Auto-analyzing SEO for new post...');
-            
-            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim());
-            
-            // Cập nhật kết quả phân tích (giữ nguyên schema nếu có)
-            const updateData = {
-              postId: newPost.id,
-              title: title,
-              focusKeyword: focusKeyword.trim(),
-              analysis: analysis.details,
-              seoScore: analysis.seoScore,
-              readabilityScore: analysis.readabilityScore,
-              lastAnalyzed: new Date()
-            };
-
-            // Giữ nguyên schema nếu có
-            if (schema && typeof schema === 'object') {
-              updateData.schema = schema;
+        try {
+          console.log('🔍 Creating PostSEO for new post...');
+          
+          // Chuẩn bị dữ liệu PostSEO
+          const postSEOData = {
+            title: title, // SEO title mặc định là title của post
+            metaDescription: '', // Để trống, sẽ được cập nhật sau
+            robotsMeta: {
+              index: true,
+              follow: true,
+              noarchive: false,
+              nosnippet: false,
+              noimageindex: false
+            },
+            socialMeta: {
+              twitter: {
+                card: 'summary_large_image',
+                title: title,
+                description: '',
+                image: newPost.thumbnail || ''
+              },
+              facebook: {
+                type: 'article',
+                title: title,
+                description: '',
+                image: newPost.thumbnail || ''
+              }
             }
+          };
 
-            await PostSEO.upsert(updateData);
+          // Thêm focus keyword nếu có
+          if (focusKeyword && focusKeyword.trim()) {
+            postSEOData.focusKeyword = focusKeyword.trim();
             
-            console.log(`✅ Auto SEO analysis completed for new post ${newPost.id} (Score: ${analysis.seoScore})`);
-          } catch (seoError) {
-            console.error('⚠️ Auto SEO analysis failed:', seoError);
-            // Không làm gián đoạn quá trình tạo bài viết
+            // Tự động phân tích SEO
+            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim());
+            postSEOData.analysis = analysis.details;
+            postSEOData.seoScore = analysis.seoScore;
+            postSEOData.readabilityScore = analysis.readabilityScore;
+            postSEOData.lastAnalyzed = new Date();
           }
+
+          // Thêm schema nếu có
+          if (schema && typeof schema === 'object') {
+            postSEOData.schema = schema;
+          }
+
+          // Sử dụng safeUpsertPostSEO để tránh duplicate
+          const { postSEO: createdPostSEO, created } = await postSEOController.safeUpsertPostSEO(newPost.id, postSEOData);
+          
+          console.log(`✅ PostSEO ${created ? 'created' : 'updated'} for new post ${newPost.id} (ID: ${createdPostSEO.id})`);
+          
+        } catch (seoError) {
+          console.error('⚠️ PostSEO creation failed:', seoError);
+          // Không làm gián đoạn quá trình tạo bài viết
         }
       }
   
@@ -326,75 +333,103 @@ if (publishAt && publishAt !== 'null') {
       await post.setTags(tagInstances);
 
       // Cập nhật hoặc tạo PostSEO với focus keyword và schema
-      let shouldAutoAnalyze = false;
+      let shouldUpdateSEO = false;
       let updatedFocusKeyword = null;
       
       if (focusKeyword !== undefined || schema !== undefined) {
-        const postSEOData = {
-          postId: post.id,
-          title: title, // SEO title mặc định là title của post
-          updatedAt: new Date()
-        };
-
+        shouldUpdateSEO = true;
+        
         // Xử lý focus keyword
         if (focusKeyword !== undefined) {
           if (focusKeyword && focusKeyword.trim()) {
-            postSEOData.focusKeyword = focusKeyword.trim();
             updatedFocusKeyword = focusKeyword.trim();
-            shouldAutoAnalyze = true;
           } else {
-            postSEOData.focusKeyword = null;
+            updatedFocusKeyword = null;
           }
         }
-
-        // Xử lý schema
-        if (schema !== undefined) {
-          if (schema && typeof schema === 'object') {
-            postSEOData.schema = schema;
-          } else if (schema === null || schema === '') {
-            postSEOData.schema = null;
-          }
-        }
-
-        await PostSEO.upsert(postSEOData);
       }
 
-      // Tự động phân tích SEO sau khi cập nhật nếu có thay đổi nội dung quan trọng
+      // Kiểm tra thay đổi nội dung quan trọng
       const contentChanged = post.title !== title || post.content !== content;
-      if (shouldAutoAnalyze || contentChanged) {
+      
+      // Cập nhật PostSEO nếu cần thiết
+      if (shouldUpdateSEO || contentChanged) {
         try {
-          console.log('🔍 Auto-analyzing SEO after post update...');
+          console.log('🔍 Updating PostSEO after post update...');
           
-          // Lấy PostSEO hiện tại để lấy focus keyword
+          // Lấy PostSEO hiện tại để giữ nguyên các giá trị
           const currentSEO = await PostSEO.findOne({ where: { postId: post.id } });
-          const focusKeywordForAnalysis = updatedFocusKeyword || currentSEO?.focusKeyword || '';
           
-          // Thực hiện phân tích SEO
-          const analysis = await postSEOController.performSEOAnalysis(post, focusKeywordForAnalysis);
-          
-          // Cập nhật kết quả phân tích (giữ nguyên schema nếu có)
-          const updateData = {
-            postId: post.id,
+          // Chuẩn bị dữ liệu cập nhật
+          const postSEOData = {
             title: title,
-            focusKeyword: focusKeywordForAnalysis,
-            analysis: analysis.details,
-            seoScore: analysis.seoScore,
-            readabilityScore: analysis.readabilityScore,
-            lastAnalyzed: new Date()
+            metaDescription: currentSEO?.metaDescription || '',
+            robotsMeta: currentSEO?.robotsMeta || {
+              index: true,
+              follow: true,
+              noarchive: false,
+              nosnippet: false,
+              noimageindex: false
+            },
+            socialMeta: currentSEO?.socialMeta || {
+              twitter: {
+                card: 'summary_large_image',
+                title: title,
+                description: '',
+                image: post.thumbnail || ''
+              },
+              facebook: {
+                type: 'article',
+                title: title,
+                description: '',
+                image: post.thumbnail || ''
+              }
+            },
+            canonicalUrl: currentSEO?.canonicalUrl || `/tin-tuc/${post.slug}`
           };
 
-          // Giữ nguyên schema hiện tại nếu không có schema mới
-          if (schema === undefined && currentSEO?.schema) {
-            updateData.schema = currentSEO.schema;
-          } else if (schema !== undefined) {
-            updateData.schema = schema;
+          // Xử lý focus keyword
+          if (focusKeyword !== undefined) {
+            postSEOData.focusKeyword = updatedFocusKeyword;
+          } else {
+            postSEOData.focusKeyword = currentSEO?.focusKeyword || '';
           }
 
-          await PostSEO.upsert(updateData);
+          // Xử lý schema
+          if (schema !== undefined) {
+            if (schema && typeof schema === 'object') {
+              postSEOData.schema = schema;
+            } else {
+              postSEOData.schema = null;
+            }
+          } else {
+            postSEOData.schema = currentSEO?.schema || null;
+          }
+
+          // Thực hiện phân tích SEO nếu có thay đổi quan trọng
+          const finalFocusKeyword = postSEOData.focusKeyword || '';
+          if (updatedFocusKeyword !== null || contentChanged) {
+            console.log('🔍 Performing SEO analysis...');
+            const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword);
+            
+            postSEOData.analysis = analysis.details;
+            postSEOData.seoScore = analysis.seoScore;
+            postSEOData.readabilityScore = analysis.readabilityScore;
+            postSEOData.lastAnalyzed = new Date();
+          } else {
+            // Giữ nguyên kết quả phân tích cũ
+            postSEOData.analysis = currentSEO?.analysis || null;
+            postSEOData.seoScore = currentSEO?.seoScore || 0;
+            postSEOData.readabilityScore = currentSEO?.readabilityScore || 0;
+            postSEOData.lastAnalyzed = currentSEO?.lastAnalyzed || null;
+          }
+
+          // Sử dụng safeUpsertPostSEO để tránh duplicate
+          const { postSEO: updatedPostSEO, created } = await postSEOController.safeUpsertPostSEO(post.id, postSEOData);
           
-          console.log(`✅ Auto SEO analysis completed for post ${post.id} (Score: ${analysis.seoScore})`);
+          console.log(`✅ PostSEO ${created ? 'created' : 'updated'} for post ${post.id} (ID: ${updatedPostSEO.id})`);
         } catch (seoError) {
-          console.error('⚠️ Auto SEO analysis failed:', seoError);
+          console.error('⚠️ PostSEO update failed:', seoError);
           // Không làm gián đoạn quá trình cập nhật bài viết
         }
       }
