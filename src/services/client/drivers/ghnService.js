@@ -473,9 +473,10 @@ async function bookPickup(payload) {
       to_ward_code: payload.to_ward_code,
       to_district_id: Number(payload.to_district_id),
       weight: Math.max(1, payload.weight),
-      length: Math.max(1, payload.length),
-      width: Math.max(1, payload.width),
-      height: Math.max(1, payload.height),
+        length: Math.min(200, Math.max(1, payload.length)),
+      width:  Math.min(200, Math.max(1, payload.width)),
+      height: Math.min(200, Math.max(1, payload.height)),
+
       cod_amount: 0,
       client_order_code: payload.client_order_code,
       content: buildContentFromItems(payload.items, payload.content),
@@ -710,10 +711,11 @@ async function createDropoffOrder(payload) {
     to_ward_code: payload.to_ward_code,
     to_district_id: Number(payload.to_district_id),
 
-    weight: Math.max(1, payload.weight),
-    length: Math.max(1, payload.length),
-    width: Math.max(1, payload.width),
-    height: Math.max(1, payload.height),
+       weight: Math.max(1, payload.weight),
+    length: Math.min(200, Math.max(1, payload.length)),
+    width:  Math.min(200, Math.max(1, payload.width)),
+    height: Math.min(200, Math.max(1, payload.height)),
+
 
     cod_amount: 0,
     client_order_code: payload.client_order_code,
