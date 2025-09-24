@@ -141,22 +141,46 @@ class ReturnController {
       const { status, responseNote } = req.body;
 
       const request = await ReturnRequest.findByPk(id, {
-        include: {
-          model: Order,
-          as: "order",
-          include: [
-            {
-              model: OrderItem,
-              as: "items",
-              include: [
-                { model: Sku, as: "Sku" },
-                { model: FlashSaleItem, as: "flashSaleItem", required: false },
-              ],
-            },
-            { model: PaymentMethod, as: "paymentMethod", attributes: ["code"] },
-            { model: User, attributes: ["id", "email", "fullName"] },
-          ],
-        },
+        include: [
+          {
+            model: Order,
+            as: "order",
+            include: [
+              {
+                model: OrderItem,
+                as: "items",
+                include: [
+                  { model: Sku, as: "Sku" },
+                  {
+                    model: FlashSaleItem,
+                    as: "flashSaleItem",
+                    required: false,
+                  },
+                ],
+              },
+              {
+                model: PaymentMethod,
+                as: "paymentMethod",
+                attributes: ["code"],
+              },
+              { model: User, attributes: ["id", "email", "fullName"] },
+            ],
+          },
+          {
+            model: ReturnRequestItem,
+            as: "items",
+            include: [
+              {
+                model: Sku,
+                as: "sku",
+                attributes: ["id", "skuCode"],
+                include: [
+                  { model: Product, as: "product", attributes: ["name"] },
+                ],
+              },
+            ],
+          },
+        ],
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
@@ -220,12 +244,12 @@ class ReturnController {
           }
         }
 
-      const payCode = request.order.paymentMethod?.code?.toLowerCase();
-   const amount = calculateRefundAmount(request);
-request.refundAmount = amount; // cập nhật lại DB cho chắc
-await request.save({ transaction: t });
+        const payCode = request.order.paymentMethod?.code?.toLowerCase();
+        const amount = calculateRefundAmount(request);
+        request.refundAmount = amount; // cập nhật lại DB cho chắc
+        await request.save({ transaction: t });
 
-    const payload = { orderCode: request.order.orderCode, amount };
+        const payload = { orderCode: request.order.orderCode, amount };
         if (
           ["cod", "atm", "payos", "internalwallet", "zalopay"].includes(payCode)
         ) {
@@ -460,7 +484,7 @@ await request.save({ transaction: t });
             orderCode: request.order.orderCode,
             userName: request.order.User.fullName || request.order.User.email,
             message: clientNotifMessage,
-          refundAmount: request.refundAmount, // SỬA LỖI: Sử dụng refundAmount
+            refundAmount: request.refundAmount, // SỬA LỖI: Sử dụng refundAmount
             requestDetailUrl: `${process.env.BASE_URL}/user-profile/return-order/${request.id}`,
           });
 
