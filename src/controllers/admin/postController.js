@@ -17,8 +17,17 @@ class PostController {
         slug,
         isFeature,
         focusKeyword,
+        metaDescription,
         schema,
       } = req.body;
+
+      // Debug logging
+      console.log('📝 CREATE POST - SEO Data received:', {
+        focusKeyword: focusKeyword || 'empty',
+        metaDescription: metaDescription || 'empty',
+        metaDescriptionLength: metaDescription ? metaDescription.length : 0,
+        schema: schema ? 'present' : 'null'
+      });
   
       const file = req.file;
       const tags = JSON.parse(req.body.tags || "[]");
@@ -67,15 +76,15 @@ if (publishAt && publishAt !== 'null') {
   
       await newPost.addTags(tagInstances);
 
-      // Tạo PostSEO và tự động phân tích SEO nếu có focus keyword hoặc schema
-      if ((focusKeyword && focusKeyword.trim()) || (schema && typeof schema === 'object')) {
+      // Tạo PostSEO và tự động phân tích SEO nếu có focus keyword, meta description hoặc schema
+      if ((focusKeyword && focusKeyword.trim()) || (metaDescription && metaDescription.trim()) || (schema && typeof schema === 'object')) {
         try {
           console.log('🔍 Creating PostSEO for new post...');
           
           // Chuẩn bị dữ liệu PostSEO
           const postSEOData = {
             title: title, // SEO title mặc định là title của post
-            metaDescription: '', // Để trống, sẽ được cập nhật sau
+            metaDescription: metaDescription && metaDescription.trim() ? metaDescription.trim() : '', // Meta description từ form
             robotsMeta: {
               index: true,
               follow: true,
@@ -87,13 +96,13 @@ if (publishAt && publishAt !== 'null') {
               twitter: {
                 card: 'summary_large_image',
                 title: title,
-                description: '',
+                description: metaDescription && metaDescription.trim() ? metaDescription.trim() : '',
                 image: newPost.thumbnail || ''
               },
               facebook: {
                 type: 'article',
                 title: title,
-                description: '',
+                description: metaDescription && metaDescription.trim() ? metaDescription.trim() : '',
                 image: newPost.thumbnail || ''
               }
             }
@@ -284,8 +293,17 @@ if (publishAt && publishAt !== 'null') {
         isFeature,
         thumbnail, // có thể truyền lại thumbnail cũ từ body
         focusKeyword,
+        metaDescription,
         schema,
       } = req.body;
+
+      // Debug logging
+      console.log('📝 UPDATE POST - SEO Data received:', {
+        focusKeyword: focusKeyword || 'empty',
+        metaDescription: metaDescription || 'empty',
+        metaDescriptionLength: metaDescription ? metaDescription.length : 0,
+        schema: schema ? 'present' : 'null'
+      });
   
       // Xử lý publishAt và status
       let finalPublishAt = null;
@@ -332,11 +350,12 @@ if (publishAt && publishAt !== 'null') {
   
       await post.setTags(tagInstances);
 
-      // Cập nhật hoặc tạo PostSEO với focus keyword và schema
+      // Cập nhật hoặc tạo PostSEO với focus keyword, meta description và schema
       let shouldUpdateSEO = false;
       let updatedFocusKeyword = null;
+      let updatedMetaDescription = null;
       
-      if (focusKeyword !== undefined || schema !== undefined) {
+      if (focusKeyword !== undefined || metaDescription !== undefined || schema !== undefined) {
         shouldUpdateSEO = true;
         
         // Xử lý focus keyword
@@ -345,6 +364,15 @@ if (publishAt && publishAt !== 'null') {
             updatedFocusKeyword = focusKeyword.trim();
           } else {
             updatedFocusKeyword = null;
+          }
+        }
+
+        // Xử lý meta description
+        if (metaDescription !== undefined) {
+          if (metaDescription && metaDescription.trim()) {
+            updatedMetaDescription = metaDescription.trim();
+          } else {
+            updatedMetaDescription = '';
           }
         }
       }
@@ -363,7 +391,7 @@ if (publishAt && publishAt !== 'null') {
           // Chuẩn bị dữ liệu cập nhật
           const postSEOData = {
             title: title,
-            metaDescription: currentSEO?.metaDescription || '',
+            metaDescription: updatedMetaDescription !== null ? updatedMetaDescription : (currentSEO?.metaDescription || ''),
             robotsMeta: currentSEO?.robotsMeta || {
               index: true,
               follow: true,
@@ -371,17 +399,17 @@ if (publishAt && publishAt !== 'null') {
               nosnippet: false,
               noimageindex: false
             },
-            socialMeta: currentSEO?.socialMeta || {
+            socialMeta: {
               twitter: {
                 card: 'summary_large_image',
                 title: title,
-                description: '',
+                description: updatedMetaDescription !== null ? updatedMetaDescription : (currentSEO?.socialMeta?.twitter?.description || ''),
                 image: post.thumbnail || ''
               },
               facebook: {
                 type: 'article',
                 title: title,
-                description: '',
+                description: updatedMetaDescription !== null ? updatedMetaDescription : (currentSEO?.socialMeta?.facebook?.description || ''),
                 image: post.thumbnail || ''
               }
             },
@@ -408,7 +436,7 @@ if (publishAt && publishAt !== 'null') {
 
           // Thực hiện phân tích SEO nếu có thay đổi quan trọng
           const finalFocusKeyword = postSEOData.focusKeyword || '';
-          if (updatedFocusKeyword !== null || contentChanged) {
+          if (updatedFocusKeyword !== null || updatedMetaDescription !== null || contentChanged) {
             console.log('🔍 Performing SEO analysis...');
             const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword);
             
