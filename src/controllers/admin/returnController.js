@@ -221,7 +221,10 @@ class ReturnController {
         }
 
       const payCode = request.order.paymentMethod?.code?.toLowerCase();
-    const amount = request.refundAmount; // SỬA LỖI: Sử dụng refundAmount thay vì finalPrice
+   const amount = calculateRefundAmount(request);
+request.refundAmount = amount; // cập nhật lại DB cho chắc
+await request.save({ transaction: t });
+
     const payload = { orderCode: request.order.orderCode, amount };
         if (
           ["cod", "atm", "payos", "internalwallet", "zalopay"].includes(payCode)
