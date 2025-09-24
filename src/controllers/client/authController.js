@@ -1511,8 +1511,6 @@ class AuthController {
     }
   }
 
-
-
   static async logout(req, res) {
     try {
       res.status(200).json({ message: "Đăng xuất thành công!" });
