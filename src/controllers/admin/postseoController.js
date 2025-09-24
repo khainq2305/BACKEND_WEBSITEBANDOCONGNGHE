@@ -2,6 +2,7 @@ const PostSEO = require('../../models/postSEO');
 const Post = require('../../models/post');
 const { Op, fn, col } = require('sequelize');
 const { sequelize } = require('../../models');
+const rankMathSEOEngine = require('../../services/rankMathSEOEngine');
 
 class PostSEOController {
   // Helper function để đảm bảo update/create PostSEO an toàn
@@ -249,418 +250,54 @@ class PostSEOController {
     }
   }
 
-  // Thực hiện phân tích SEO
+  // Thực hiện phân tích SEO đồng bộ với frontend
   async performSEOAnalysis(post, focusKeyword = '') {
     const content = post.content || '';
     const title = post.title || '';
     const slug = post.slug || '';
+    const metaDescription = post.metaDescription || '';
     
-    let seoScore = 0;
-    let readabilityScore = 0;
+    // Sử dụng RankMathSEOEngine đã đồng bộ với frontend
+    const seoAnalysis = rankMathSEOEngine.analyzeSEO({
+      title,
+      content,
+      metaDescription,
+      url: slug,
+      focusKeyword,
+      images: [], // Trong tương lai có thể parse ảnh từ content
+      siteBaseUrl: process.env.FRONTEND_URL || 'https://yourdomain.com'
+    });
+
+    // Lấy ra các thông số quan trọng
+    const seoScore = seoAnalysis.score;
+    const readabilityScore = seoAnalysis.categories.contentReadability?.score || 0;
+    
+    // Tổng hợp issues và recommendations
     const issues = [];
     const recommendations = [];
-
-    // Phân tích title
-    const titleAnalysis = postSEOController.analyzeTitleSEO(title, focusKeyword);
-    seoScore += titleAnalysis.score;
-    issues.push(...titleAnalysis.issues);
-    recommendations.push(...titleAnalysis.recommendations);
-
-    // Phân tích content
-    const contentAnalysis = postSEOController.analyzeContentSEO(content, focusKeyword);
-    seoScore += contentAnalysis.score;
-    readabilityScore = contentAnalysis.readabilityScore;
-    issues.push(...contentAnalysis.issues);
-    recommendations.push(...contentAnalysis.recommendations);
+    
+    Object.keys(seoAnalysis.errors).forEach(category => {
+      seoAnalysis.errors[category].forEach(error => {
+        issues.push(error.message.split('(')[0].trim());
+        recommendations.push(error.message.split('(')[1]?.replace(')', '').trim() || error.message);
+      });
+    });
 
     // Phân tích keywords density
-    const keywordsDensity = postSEOController.analyzeKeywordsDensity(content, focusKeyword);
-
-    // Phân tích URL/slug
-    const urlAnalysis = postSEOController.analyzeUrlSEO(slug, focusKeyword);
-    seoScore += urlAnalysis.score;
-    issues.push(...urlAnalysis.issues);
-    recommendations.push(...urlAnalysis.recommendations);
-
-    // Tính điểm trung bình
-    seoScore = Math.round(seoScore / 3);
+    const keywordsDensity = {
+      density: parseFloat(seoAnalysis.stats.keywordDensity) || 0,
+      count: seoAnalysis.stats.keywordCount || 0
+    };
 
     return {
       seoScore,
       readabilityScore,
-      keywordsDensity, // Thêm keywords density vào kết quả
+      keywordsDensity,
       details: {
-        title: titleAnalysis,
-        content: contentAnalysis,
-        url: urlAnalysis,
-        keywordsDensity,
+        seoAnalysis, // Trả về toàn bộ phân tích SEO để frontend có thể sử dụng
         issues,
         recommendations
       }
-    };
-  }
-
-  // Phân tích SEO title
-  analyzeTitleSEO(title, focusKeyword) {
-    let score = 0;
-    const issues = [];
-    const recommendations = [];
-
-    if (!title) {
-      issues.push('Thiếu tiêu đề');
-      recommendations.push('Thêm tiêu đề cho bài viết');
-      return { score: 0, issues, recommendations };
-    }
-
-    // Kiểm tra độ dài title
-    if (title.length < 30) {
-      issues.push('Tiêu đề quá ngắn');
-      recommendations.push('Title nên có 30-60 ký tự');
-    } else if (title.length > 60) {
-      issues.push('Tiêu đề quá dài');
-      recommendations.push('Title nên có 30-60 ký tự');
-    } else {
-      score += 30;
-    }
-
-    // Kiểm tra focus keyword trong title
-    if (focusKeyword && title.toLowerCase().includes(focusKeyword.toLowerCase())) {
-      score += 40;
-    } else if (focusKeyword) {
-      issues.push('Thiếu focus keyword trong title');
-      recommendations.push(`Thêm từ khóa "${focusKeyword}" vào title`);
-    }
-
-    // Kiểm tra title có số hay không (thường tốt cho SEO)
-    if (/\d/.test(title)) {
-      score += 10;
-    }
-
-    // Kiểm tra title có từ khóa cảm xúc 
-    const emotionalWords = ['best', 'tốt nhất', 'amazing', 'tuyệt vời', 'ultimate', 'hoàn hảo', 'top', 'hàng đầu'];
-    if (emotionalWords.some(word => title.toLowerCase().includes(word.toLowerCase()))) {
-      score += 20;
-    }
-
-    return { score: Math.min(score, 100), issues, recommendations };
-  }
-
-  // Phân tích SEO content
-  analyzeContentSEO(content, focusKeyword) {
-    let score = 0;
-    let readabilityScore = 0;
-    const issues = [];
-    const recommendations = [];
-
-    if (!content) {
-      issues.push('Thiếu nội dung');
-      recommendations.push('Thêm nội dung cho bài viết');
-      return { score: 0, readabilityScore: 0, issues, recommendations };
-    }
-
-    // Đếm từ
-    const words = content.split(/\s+/).filter(word => word.length > 0);
-    const wordCount = words.length;
-
-    // Kiểm tra độ dài content
-    if (wordCount < 300) {
-      issues.push('Nội dung quá ngắn');
-      recommendations.push('Nội dung nên có ít nhất 300 từ');
-    } else if (wordCount >= 300 && wordCount <= 2000) {
-      score += 30;
-    } else {
-      score += 20;
-    }
-
-    // Kiểm tra keyword density
-    if (focusKeyword) {
-      const keywordCount = (content.toLowerCase().match(new RegExp(focusKeyword.toLowerCase(), 'g')) || []).length;
-      const density = (keywordCount / wordCount) * 100;
-
-      if (density < 0.5) {
-        issues.push('Mật độ từ khóa thấp');
-        recommendations.push(`Tăng mật độ từ khóa "${focusKeyword}" (0.5-2.5%)`);
-      } else if (density > 2.5) {
-        issues.push('Mật độ từ khóa cao');
-        recommendations.push(`Giảm mật độ từ khóa "${focusKeyword}" (0.5-2.5%)`);
-      } else {
-        score += 25;
-      }
-    }
-
-    // Kiểm tra headings
-    const h1Count = (content.match(/<h1[^>]*>/gi) || []).length;
-    const h2Count = (content.match(/<h2[^>]*>/gi) || []).length;
-
-    if (h1Count === 0) {
-      issues.push('Thiếu thẻ H1');
-      recommendations.push('Thêm ít nhất một thẻ H1');
-    } else if (h1Count > 1) {
-      issues.push('Quá nhiều thẻ H1');
-      recommendations.push('Chỉ nên có một thẻ H1');
-    } else {
-      score += 20;
-    }
-
-    if (h2Count >= 1) {
-      score += 15;
-    }
-
-    // Kiểm tra hình ảnh với alt text
-    const images = content.match(/<img[^>]*>/gi) || [];
-    const imagesWithAlt = images.filter(img => img.includes('alt=')).length;
-    
-    if (images.length > 0) {
-      if (imagesWithAlt === images.length) {
-        score += 10;
-      } else {
-        issues.push('Một số hình ảnh thiếu alt text');
-        recommendations.push('Thêm alt text cho tất cả hình ảnh');
-      }
-    }
-
-    // Tính readability score đơn giản
-    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    const avgWordsPerSentence = wordCount / sentences.length;
-    
-    if (avgWordsPerSentence <= 20) {
-      readabilityScore = 90;
-    } else if (avgWordsPerSentence <= 25) {
-      readabilityScore = 70;
-    } else if (avgWordsPerSentence <= 30) {
-      readabilityScore = 50;
-    } else {
-      readabilityScore = 30;
-      issues.push('Câu quá dài, khó đọc');
-      recommendations.push('Viết câu ngắn hơn (dưới 20 từ)');
-    }
-
-    return { 
-      score: Math.min(score, 100), 
-      readabilityScore, 
-      issues, 
-      recommendations,
-      wordCount,
-      sentenceCount: sentences.length
-    };
-  }
-
-  // Phân tích SEO URL
-  analyzeUrlSEO(slug, focusKeyword) {
-  let score = 0;
-  const issues = [];
-  const recommendations = [];
-
-  if (!slug) {
-    issues.push('Thiếu URL slug');
-    recommendations.push('Tạo URL slug cho bài viết');
-    return { score: 0, issues, recommendations };
-  }
-
-  // Kiểm tra độ dài slug
-  if (slug.length <= 75) {
-    score += 40;
-  } else {
-    issues.push('URL quá dài');
-    recommendations.push('URL nên ngắn hơn 75 ký tự');
-  }
-
-  // Kiểm tra focus keyword trong slug - Cải thiện cho tiếng Việt
-  if (focusKeyword) {
-    const keywordProcessed = this.processVietnameseKeyword(focusKeyword);
-    const slugLower = slug.toLowerCase();
-    
-    // Kiểm tra từ khóa gốc (có thể đã được convert)
-    if (slugLower.includes(focusKeyword.toLowerCase().replace(/\s+/g, '-'))) {
-      score += 30;
-    }
-    // Kiểm tra từ khóa đã xử lý (không dấu)
-    else if (slugLower.includes(keywordProcessed)) {
-      score += 25;
-    }
-    // Kiểm tra các từ riêng lẻ trong keyword
-    else {
-      const keywordWords = keywordProcessed.split('-');
-      const matchingWords = keywordWords.filter(word => 
-        word.length > 2 && slugLower.includes(word)
-      );
-      
-      if (matchingWords.length > 0) {
-        const matchPercentage = matchingWords.length / keywordWords.length;
-        if (matchPercentage >= 0.7) {
-          score += 20;
-          recommendations.push(`URL chứa ${matchingWords.length}/${keywordWords.length} từ của keyword "${focusKeyword}"`);
-        } else if (matchPercentage >= 0.5) {
-          score += 15;
-          recommendations.push(`URL chứa một phần từ khóa "${focusKeyword}". Có thể cải thiện thêm.`);
-        } else {
-          score += 5;
-          issues.push(`URL chỉ chứa ít từ của keyword "${focusKeyword}"`);
-          recommendations.push(`Cố gắng thêm nhiều từ của keyword "${focusKeyword}" vào URL`);
-        }
-      } else {
-        issues.push(`URL không chứa từ khóa "${focusKeyword}"`);
-        recommendations.push(`Thêm từ khóa "${focusKeyword}" hoặc các từ liên quan vào URL`);
-      }
-    }
-  }
-
-  // Kiểm tra cấu trúc URL thân thiện
-  if (!/[^a-z0-9\-]/.test(slug)) {
-    score += 20;
-  } else {
-    issues.push('URL chứa ký tự không phù hợp');
-    recommendations.push('URL chỉ nên chứa chữ thường, số và dấu gạch ngang');
-  }
-
-  // Kiểm tra cấu trúc có ý nghĩa
-  const slugWords = slug.split('-').filter(word => word.length > 2);
-  if (slugWords.length >= 3) {
-    score += 10;
-  } else if (slugWords.length >= 2) {
-    score += 5;
-  } else {
-    recommendations.push('URL nên có ít nhất 2-3 từ có ý nghĩa');
-  }
-
-  return { score: Math.min(score, 100), issues, recommendations };
-}
-
-// Thêm phương thức xử lý từ khóa tiếng Việt
-processVietnameseKeyword(keyword) {
-  if (!keyword) return '';
-  
-  // Bảng chuyển đổi ký tự có dấu sang không dấu
-  const vietnameseMap = {
-    'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a', 'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
-    'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
-    'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
-    'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o', 'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o', 'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
-    'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u', 'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
-    'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
-    'đ': 'd'
-  };
-
-  return keyword
-    .toLowerCase()
-    .split('')
-    .map(char => vietnameseMap[char] || char)
-    .join('')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-]/g, '');
-}
-
-  // Phân tích mật độ từ khóa (Keywords Density)
-  analyzeKeywordsDensity(content, focusKeyword) {
-    if (!content || !focusKeyword) {
-      return {
-        focusKeyword: focusKeyword || '',
-        density: 0,
-        count: 0,
-        totalWords: 0,
-        recommendation: 'Không có nội dung hoặc từ khóa để phân tích',
-        status: 'warning',
-        relatedKeywords: []
-      };
-    }
-
-    // Loại bỏ HTML tags và chuyển về chữ thường
-    const cleanContent = content.replace(/<[^>]*>/g, ' ').toLowerCase();
-    const cleanKeyword = focusKeyword.toLowerCase().trim();
-    
-    // Đếm tổng số từ
-    const words = cleanContent.split(/\s+/).filter(word => word.length > 0);
-    const totalWords = words.length;
-    
-    // Đếm số lần xuất hiện của từ khóa
-    let keywordCount = 0;
-    
-    // Kiểm tra từ khóa đơn lẻ
-    if (cleanKeyword.indexOf(' ') === -1) {
-      // Từ khóa đơn
-      keywordCount = (cleanContent.match(new RegExp(`\\b${cleanKeyword}\\b`, 'gi')) || []).length;
-    } else {
-      // Cụm từ khóa
-      keywordCount = (cleanContent.match(new RegExp(cleanKeyword.replace(/\s+/g, '\\s+'), 'gi')) || []).length;
-    }
-    
-    // Phân tích từ khóa liên quan (các từ trong cụm từ khóa)
-    const relatedKeywords = [];
-    if (cleanKeyword.indexOf(' ') > -1) {
-      const keywordParts = cleanKeyword.split(/\s+/);
-      keywordParts.forEach(part => {
-        if (part.length > 2) { // Chỉ phân tích từ có ít nhất 3 ký tự
-          const partCount = (cleanContent.match(new RegExp(`\\b${part}\\b`, 'gi')) || []).length;
-          const partDensity = totalWords > 0 ? ((partCount / totalWords) * 100) : 0;
-          relatedKeywords.push({
-            keyword: part,
-            count: partCount,
-            density: parseFloat(partDensity.toFixed(2))
-          });
-        }
-      });
-    }
-    
-    // Tính mật độ (%)
-    const density = totalWords > 0 ? ((keywordCount / totalWords) * 100) : 0;
-    
-    // Phân tích vị trí xuất hiện của từ khóa
-    const keywordPositions = [];
-    if (keywordCount > 0) {
-      const sentences = cleanContent.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      sentences.forEach((sentence, index) => {
-        if (cleanKeyword.indexOf(' ') === -1) {
-          // Từ khóa đơn
-          if (sentence.includes(cleanKeyword)) {
-            keywordPositions.push({
-              position: index + 1,
-              type: 'sentence',
-              content: sentence.trim().substring(0, 100) + '...'
-            });
-          }
-        } else {
-          // Cụm từ khóa
-          if (sentence.includes(cleanKeyword)) {
-            keywordPositions.push({
-              position: index + 1,
-              type: 'sentence', 
-              content: sentence.trim().substring(0, 100) + '...'
-            });
-          }
-        }
-      });
-    }
-
-    // Đánh giá mật độ từ khóa
-    let status = 'good';
-    let recommendation = '';
-    
-    if (density === 0) {
-      status = 'error';
-      recommendation = `Từ khóa "${focusKeyword}" không xuất hiện trong nội dung. Nên thêm từ khóa vào nội dung.`;
-    } else if (density < 0.5) {
-      status = 'warning';
-      recommendation = `Mật độ từ khóa quá thấp (${density.toFixed(2)}%). Mật độ lý tưởng là 0.5-2.5%.`;
-    } else if (density > 3) {
-      status = 'error';
-      recommendation = `Mật độ từ khóa quá cao (${density.toFixed(2)}%). Có thể bị coi là spam. Nên giảm xuống 0.5-2.5%.`;
-    } else if (density > 2.5) {
-      status = 'warning';
-      recommendation = `Mật độ từ khóa hơi cao (${density.toFixed(2)}%). Nên giảm xuống dưới 2.5%.`;
-    } else {
-      status = 'good';
-      recommendation = `Mật độ từ khóa tốt (${density.toFixed(2)}%). Trong khoảng lý tưởng 0.5-2.5%.`;
-    }
-
-    return {
-      focusKeyword,
-      density: parseFloat(density.toFixed(2)),
-      count: keywordCount,
-      totalWords,
-      recommendation,
-      status,
-      relatedKeywords,
-      positions: keywordPositions.slice(0, 5) // Chỉ lấy 5 vị trí đầu tiên
     };
   }
 
