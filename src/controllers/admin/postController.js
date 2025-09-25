@@ -111,14 +111,16 @@ if (publishAt && publishAt !== 'null') {
           // Thêm focus keyword nếu có
           if (focusKeyword && focusKeyword.trim()) {
             postSEOData.focusKeyword = focusKeyword.trim();
-            
-            // Tự động phân tích SEO
-            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim(), null);
-            postSEOData.analysis = analysis.details;
-            postSEOData.seoScore = analysis.seoScore;
-            postSEOData.readabilityScore = analysis.readabilityScore;
-            postSEOData.lastAnalyzed = new Date();
           }
+          
+          // Luôn thực hiện phân tích SEO cho bài viết mới
+          const analysisKeyword = postSEOData.focusKeyword || '';
+          console.log('🔍 Performing SEO analysis for new post...');
+          const analysis = await postSEOController.performSEOAnalysis(newPost, analysisKeyword, null);
+          postSEOData.analysis = analysis.details;
+          postSEOData.seoScore = analysis.seoScore;
+          postSEOData.readabilityScore = analysis.readabilityScore;
+          postSEOData.lastAnalyzed = new Date();
 
           // Thêm schema nếu có
           if (schema && typeof schema === 'object') {
@@ -434,23 +436,15 @@ if (publishAt && publishAt !== 'null') {
             postSEOData.schema = currentSEO?.schema || null;
           }
 
-          // Thực hiện phân tích SEO nếu có thay đổi quan trọng
+          // Luôn thực hiện phân tích SEO khi cập nhật bài viết để đảm bảo điểm số chính xác
           const finalFocusKeyword = postSEOData.focusKeyword || '';
-          if (updatedFocusKeyword !== null || updatedMetaDescription !== null || contentChanged) {
-            console.log('🔍 Performing SEO analysis...');
-            const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword, currentSEO);
-            
-            postSEOData.analysis = analysis.details;
-            postSEOData.seoScore = analysis.seoScore;
-            postSEOData.readabilityScore = analysis.readabilityScore;
-            postSEOData.lastAnalyzed = new Date();
-          } else {
-            // Giữ nguyên kết quả phân tích cũ
-            postSEOData.analysis = currentSEO?.analysis || null;
-            postSEOData.seoScore = currentSEO?.seoScore || 0;
-            postSEOData.readabilityScore = currentSEO?.readabilityScore || 0;
-            postSEOData.lastAnalyzed = currentSEO?.lastAnalyzed || null;
-          }
+          console.log('🔍 Performing SEO analysis for updated post...');
+          const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword, currentSEO);
+          
+          postSEOData.analysis = analysis.details;
+          postSEOData.seoScore = analysis.seoScore;
+          postSEOData.readabilityScore = analysis.readabilityScore;
+          postSEOData.lastAnalyzed = new Date();
 
           // Sử dụng safeUpsertPostSEO để tránh duplicate
           const { postSEO: updatedPostSEO, created } = await postSEOController.safeUpsertPostSEO(post.id, postSEOData);
