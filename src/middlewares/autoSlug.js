@@ -16,6 +16,12 @@ const toSlug = (str) => {
 const autoSlug = (Model) => {
   return async (req, res, next) => {
     try {
+      // Nếu đã có slug trong body (người dùng tự chỉnh sửa), bỏ qua auto-generate
+      if (req.body.slug && req.body.slug.trim()) {
+        console.log('💡 User provided custom slug, skipping auto-generation:', req.body.slug);
+        return next();
+      }
+
       const name = req.body.name || req.body.title;
       if (!name) return res.status(400).json({ message: 'Thiếu tên hoặc tiêu đề để tạo slug' });
 
@@ -40,6 +46,7 @@ const autoSlug = (Model) => {
       }
 
       req.body.slug = slug;
+      console.log('🔄 Auto-generated slug:', slug);
       next();
     } catch (err) {
       console.error('generateUniqueSlug ERROR:', err);

@@ -309,10 +309,14 @@ if (publishAt && publishAt !== 'null') {
         focusKeyword,
         metaDescription,
         schema,
+        slug: newSlug, // Thêm slug từ form
       } = req.body;
 
       // Debug logging
-      console.log('📝 UPDATE POST - SEO Data received:', {
+      console.log('📝 UPDATE POST - Data received:', {
+        title: title || '(no change)',
+        oldSlug: post.slug,
+        newSlug: newSlug || '(no change)',
         focusKeyword: focusKeyword || 'empty',
         metaDescription: metaDescription || 'empty',
         metaDescriptionLength: metaDescription ? metaDescription.length : 0,
@@ -332,7 +336,34 @@ if (publishAt && publishAt !== 'null') {
   }
 }
 
-  
+      // Xử lý slug mới nếu có
+      let finalSlug = post.slug; // mặc định giữ nguyên slug cũ
+      if (newSlug && newSlug.trim() && newSlug !== post.slug) {
+        // Validate slug format
+        const slugRegex = /^[a-z0-9-]+$/;
+        if (!slugRegex.test(newSlug)) {
+          return res.status(400).json({
+            message: "Slug chỉ được chứa chữ thường, số và dấu gạch ngang"
+          });
+        }
+
+        // Kiểm tra slug duplicate (loại trừ bài viết hiện tại)
+        const existingPost = await Post.findOne({
+          where: {
+            slug: newSlug.trim(),
+            id: { [Op.ne]: post.id }
+          }
+        });
+
+        if (existingPost) {
+          return res.status(400).json({
+            message: "Slug này đã được sử dụng bởi bài viết khác"
+          });
+        }
+
+        finalSlug = newSlug.trim();
+      }
+
       await post.update({
         title,
         content,
@@ -343,6 +374,7 @@ if (publishAt && publishAt !== 'null') {
         publishAt: finalPublishAt,
         isFeature,
         thumbnail: file ? file.path : thumbnail || post.thumbnail,
+        slug: finalSlug, // Cập nhật slug mới
       });
   
       // Xử lý tags
@@ -427,7 +459,7 @@ if (publishAt && publishAt !== 'null') {
                 image: post.thumbnail || ''
               }
             },
-            canonicalUrl: currentSEO?.canonicalUrl || `/tin-tuc/${post.slug}`
+            canonicalUrl: currentSEO?.canonicalUrl || `/tin-tuc/${finalSlug}`
           };
 
           // Xử lý focus keyword
@@ -483,6 +515,13 @@ if (publishAt && publishAt !== 'null') {
       }
 
   
+      console.log('✅ POST UPDATE SUCCESS:', {
+        id: post.id,
+        oldSlug: slug, // slug từ params (cũ)
+        newSlug: finalSlug, // slug sau khi update
+        title: post.title
+      });
+
       return res.json({ message: "Cập nhật thành công", data: post });
     } catch (error) {
       console.error("UPDATE POST ERROR:", error);
