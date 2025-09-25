@@ -474,7 +474,7 @@ class OrderController {
           `SELECT COALESCE(SUM(
        CASE
          WHEN type IN ('spend','expired') THEN -points
-         ELSE points
+         ELSE pooints
        END
      ), 0) AS totalPoints
      FROM userpoints

@@ -11,17 +11,17 @@ const connection = new Sequelize(
     dialect: "mysql",
     logging: false,
     dialectOptions: {
-      connectTimeout: 60000,
+      connectTimeout: 120000, // tăng lên 120s
     },
     pool: {
-      max: 20, // tối đa 20 connection đồng thời
-      min: 2, // giữ 2 connection "ấm", không cần tới 5
-      acquire: 60000, // tối đa 60s chờ lấy connection
-      idle: 30000, // connection idle >30s thì dọn
-      evict: 30000, // quét pool mỗi 30s, đồng bộ với idle
+      max: 50,      // tối đa 50 connection đồng thời
+      min: 5,       // giữ 5 connection "ấm"
+      acquire: 120000, // tối đa 120s chờ lấy connection
+      idle: 60000,  // connection idle >60s mới dọn
+      evict: 60000, // quét pool mỗi 60s
     },
     retry: {
-      max: 3, // retry vừa phải, tránh spam
+      max: 5, // cho retry nhiều hơn
     },
   }
 );

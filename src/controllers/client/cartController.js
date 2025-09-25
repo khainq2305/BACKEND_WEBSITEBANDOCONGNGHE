@@ -607,22 +607,23 @@ END
       // 🎁 Điểm user sẽ được cộng thêm từ đơn này
       const rewardPoints = Math.floor(totalAmount / earnRate);
 
-      return res.status(200).json({
-        cartItems: formattedItems,
-        totalAmount,
-        rewardPoints,
-        payablePrice: totalAmount - pointDiscountAmount,
-        couponDiscount: 0,
-        pointInfo: {
-          userPointBalance: userPoints,
-          earnRate,
-          redeemRate,
-          minPointRequired,
-          canUsePoints: userPoints >= minPointRequired,
-          maxUsablePoints,
-          pointDiscountAmount,
-        },
-      });
+     return res.status(200).json({
+  cartItems: formattedItems,
+  totalAmount,
+  rewardPoints,
+  payablePrice: totalAmount,  // ✅ không tự trừ điểm
+  couponDiscount: 0,
+  pointInfo: {
+    userPointBalance: userPoints,
+    earnRate,
+    redeemRate,
+    minPointRequired,
+    canUsePoints: userPoints >= minPointRequired,
+    maxUsablePoints,
+    pointDiscountAmount,
+  },
+});
+
     } catch (err) {
       console.error("Lỗi lấy giỏ hàng:", err);
       return res.status(500).json({ message: "Lỗi server" });
