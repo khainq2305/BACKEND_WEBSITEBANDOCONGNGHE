@@ -113,7 +113,7 @@ if (publishAt && publishAt !== 'null') {
             postSEOData.focusKeyword = focusKeyword.trim();
             
             // Tự động phân tích SEO
-            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim());
+            const analysis = await postSEOController.performSEOAnalysis(newPost, focusKeyword.trim(), null);
             postSEOData.analysis = analysis.details;
             postSEOData.seoScore = analysis.seoScore;
             postSEOData.readabilityScore = analysis.readabilityScore;
@@ -438,7 +438,7 @@ if (publishAt && publishAt !== 'null') {
           const finalFocusKeyword = postSEOData.focusKeyword || '';
           if (updatedFocusKeyword !== null || updatedMetaDescription !== null || contentChanged) {
             console.log('🔍 Performing SEO analysis...');
-            const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword);
+            const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword, currentSEO);
             
             postSEOData.analysis = analysis.details;
             postSEOData.seoScore = analysis.seoScore;
@@ -661,7 +661,7 @@ if (publishAt && publishAt !== 'null') {
       const analysisKeyword = focusKeyword || currentSEO?.focusKeyword || '';
 
       // Thực hiện phân tích SEO
-      const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
+      const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword, currentSEO);
 
       // Chuẩn bị dữ liệu để upsert
       const dataToSave = {

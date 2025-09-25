@@ -271,7 +271,7 @@ class PostSEOController {
       }
 
       // Thực hiện phân tích SEO với từ khóa phù hợp
-      const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
+      const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword, postSEO);
 
       // Chuẩn bị dữ liệu cập nhật/tạo mới
       const dataToSave = {
@@ -335,11 +335,35 @@ class PostSEOController {
   }
 
   // Thực hiện phân tích SEO đồng bộ với frontend
-  async performSEOAnalysis(post, focusKeyword = '') {
+  async performSEOAnalysis(post, focusKeyword = '', existingPostSEO = null) {
     const content = post.content || '';
     const title = post.title || '';
     const slug = post.slug || '';
-    const metaDescription = post.metaDescription || '';
+    
+    // Lấy metaDescription từ PostSEO record nếu có, hoặc từ post
+    let metaDescription = '';
+    if (existingPostSEO && existingPostSEO.metaDescription) {
+      metaDescription = existingPostSEO.metaDescription;
+    } else if (post.metaDescription) {
+      metaDescription = post.metaDescription;
+    } else {
+      // Nếu không có, thử lấy từ database
+      try {
+        const postSEO = await PostSEO.findOne({ where: { postId: post.id } });
+        metaDescription = postSEO?.metaDescription || '';
+      } catch (error) {
+        console.log('Could not fetch PostSEO for metaDescription:', error.message);
+        metaDescription = '';
+      }
+    }
+    
+    console.log('🔍 SEO Analysis Data:', {
+      postId: post.id,
+      title: title.substring(0, 50),
+      focusKeyword,
+      metaDescription: metaDescription.substring(0, 100),
+      metaDescriptionLength: metaDescription.length
+    });
     
     // Sử dụng RankMathSEOEngine đã đồng bộ với frontend
     const seoAnalysis = rankMathSEOEngine.analyzeSEO({
@@ -721,7 +745,7 @@ class PostSEOController {
           }
 
           // Thực hiện phân tích SEO với từ khóa phù hợp
-          const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword);
+          const analysis = await postSEOController.performSEOAnalysis(post, analysisKeyword, postSEO);
 
           // Chuẩn bị dữ liệu cập nhật/tạo mới
           const dataToSave = {
