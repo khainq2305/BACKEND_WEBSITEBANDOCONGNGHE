@@ -116,7 +116,19 @@ if (publishAt && publishAt !== 'null') {
           // Luôn thực hiện phân tích SEO cho bài viết mới
           const analysisKeyword = postSEOData.focusKeyword || '';
           console.log('🔍 Performing SEO analysis for new post...');
-          const analysis = await postSEOController.performSEOAnalysis(newPost, analysisKeyword, null);
+          
+          // Tạo mock PostSEO object với dữ liệu mới để phân tích chính xác
+          const mockPostSEO = {
+            metaDescription: postSEOData.metaDescription,
+            focusKeyword: postSEOData.focusKeyword
+          };
+          
+          console.log('📝 CREATE POST - Mock SEO Data for analysis:', {
+            metaDescription: mockPostSEO.metaDescription || 'none',
+            focusKeyword: mockPostSEO.focusKeyword || 'none'
+          });
+          
+          const analysis = await postSEOController.performSEOAnalysis(newPost, analysisKeyword, mockPostSEO);
           postSEOData.analysis = analysis.details;
           postSEOData.seoScore = analysis.seoScore;
           postSEOData.readabilityScore = analysis.readabilityScore;
@@ -439,7 +451,21 @@ if (publishAt && publishAt !== 'null') {
           // Luôn thực hiện phân tích SEO khi cập nhật bài viết để đảm bảo điểm số chính xác
           const finalFocusKeyword = postSEOData.focusKeyword || '';
           console.log('🔍 Performing SEO analysis for updated post...');
-          const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword, currentSEO);
+          
+          // Tạo mock PostSEO object với dữ liệu mới để phân tích chính xác
+          const mockPostSEO = {
+            ...currentSEO?.dataValues || currentSEO || {},
+            metaDescription: postSEOData.metaDescription,
+            focusKeyword: postSEOData.focusKeyword
+          };
+          
+          console.log('📝 UPDATE POST - Mock SEO Data for analysis:', {
+            oldMetaDescription: currentSEO?.metaDescription || 'none',
+            newMetaDescription: mockPostSEO.metaDescription || 'none',
+            focusKeyword: mockPostSEO.focusKeyword || 'none'
+          });
+          
+          const analysis = await postSEOController.performSEOAnalysis(post, finalFocusKeyword, mockPostSEO);
           
           postSEOData.analysis = analysis.details;
           postSEOData.seoScore = analysis.seoScore;
