@@ -365,15 +365,26 @@ class PostSEOController {
       metaDescriptionLength: metaDescription.length
     });
     
+    // Tạo URL đầy đủ giống như frontend để đếm độ dài chính xác
+    const baseUrl = process.env.FRONTEND_URL || 'https://yourdomain.com';
+    const fullUrl = slug ? `${baseUrl}/tin-tuc/${slug}` : `${baseUrl}/tin-tuc/`;
+    
+    console.log('🔗 URL Analysis:', {
+      slug,
+      baseUrl,
+      fullUrl,
+      fullUrlLength: fullUrl.length
+    });
+
     // Sử dụng RankMathSEOEngine đã đồng bộ với frontend
     const seoAnalysis = rankMathSEOEngine.analyzeSEO({
       title,
       content,
       metaDescription,
-      url: slug,
+      url: fullUrl,
       focusKeyword,
       images: [], // Trong tương lai có thể parse ảnh từ content
-      siteBaseUrl: process.env.FRONTEND_URL || 'https://yourdomain.com'
+      siteBaseUrl: baseUrl
     });
 
     // Lấy ra các thông số quan trọng
