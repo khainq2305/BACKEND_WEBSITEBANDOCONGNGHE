@@ -366,7 +366,7 @@ class PostSEOController {
     });
     
     // Tạo URL đầy đủ giống như frontend để đếm độ dài chính xác
-    const baseUrl = process.env.FRONTEND_URL || 'https://yourdomain.com';
+    const baseUrl = process.env.FRONTEND_URL || process.env.BASE_URL || 'https://frontend-websitebandocongnghe-xi.vercel.app';
     const fullUrl = slug ? `${baseUrl}/tin-tuc/${slug}` : `${baseUrl}/tin-tuc/`;
     
     console.log('🔗 URL Analysis:', {
